@@ -32,7 +32,7 @@ namespace Tinned
     bool OneElecOperator::__eq__(const SymEngine::Basic& o) const
     {
         if (SymEngine::MatrixSymbol::__eq__(o)) {
-            if (SymEngine::is_a<OneElecOperator>(o)) {
+            if (SymEngine::is_a_sub<const OneElecOperator>(o)) {
                 const OneElecOperator& op = SymEngine::down_cast<const OneElecOperator &>(o);
                 // First check the derivatives
                 if (not SymEngine::unified_eq(derivative_, op.derivative_)) return false;
@@ -45,7 +45,7 @@ namespace Tinned
 
     int OneElecOperator::compare(const SymEngine::Basic &o) const
     {
-        SYMENGINE_ASSERT(SymEngine::is_a<OneElecOperator>(o))
+        SYMENGINE_ASSERT(SymEngine::is_a_sub<const OneElecOperator>(o))
         int result = SymEngine::MatrixSymbol::compare(o);
         if (result == 0) {
             const OneElecOperator& op = SymEngine::down_cast<const OneElecOperator &>(o);
@@ -88,8 +88,6 @@ namespace Tinned
                 return zero_operator();
             }
         }
-        // We only consider derivatives with respect to perturbations, and
-        // return a zero operator for other symbols
         else {
             return zero_operator();
         }

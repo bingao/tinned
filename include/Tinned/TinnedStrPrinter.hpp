@@ -22,7 +22,9 @@
 #include <symengine/printers/strprinter.h>
 
 #include "Tinned/Perturbation.hpp"
+#include "Tinned/OneElecDensity.hpp"
 #include "Tinned/OneElecOperator.hpp"
+#include "Tinned/TwoElecOperator.hpp"
 
 namespace Tinned
 {
@@ -31,6 +33,7 @@ namespace Tinned
         public:
             using SymEngine::StrPrinter::bvisit;
             void bvisit(const SymEngine::Symbol& x);
+            void bvisit(const FunctionSymbol& x);
             void bvisit(const SymEngine::MatrixSymbol& x);
             //std::string apply(const SymEngine::Basic& x);
     };

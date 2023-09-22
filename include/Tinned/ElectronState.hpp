@@ -5,9 +5,9 @@
    License, v. 2.0. If a copy of the MPL was not distributed with this
    file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-   This file is the header file of one-electron like operator.
+   This file is the header file of abstract class for electron state.
 
-   2023-09-08, Bin Gao:
+   2023-09-21, Bin Gao:
    * first version
 */
 
@@ -22,25 +22,19 @@
 #include <symengine/matrices/matrix_expr.h>
 #include <symengine/matrices/matrix_symbol.h>
 
-#include "Tinned/Perturbation.hpp"
-#include "Tinned/Derivative.hpp"
-
 namespace Tinned
 {
-    class OneElecOperator: public SymEngine::MatrixSymbol
+    // ElectronState can be differentiated to any perturbation and any order
+    class ElectronState: public SymEngine::MatrixSymbol
     {
-        private:
-            // dependencies_ stores perturbations that the operator depends on
-            // and their maximum orders that can be differentiated
-            PertDependency dependencies_;
+        protected:
             // derivative_ holds derivatives with respect to perturbations
             SymEngine::multiset_basic derivative_;
 
         public:
             //! Constructor
-            explicit OneElecOperator(
+            explicit ElectronState(
                 const std::string& name,
-                const PertDependency& dependencies,
                 const SymEngine::multiset_basic& derivative = {}
             );
 
@@ -49,16 +43,10 @@ namespace Tinned
             int compare(const SymEngine::Basic& o) const override;
             SymEngine::vec_basic get_args() const override;
 
-            // Override the defaut behaviour for diff
-            SymEngine::RCP<const SymEngine::MatrixExpr> diff_impl(
-                const SymEngine::RCP<const SymEngine::Symbol>& s
-            ) const override;
-
-            // Get dependencies
-            inline PertDependency get_dependencies() const
-            {
-                return dependencies_;
-            }
+            //// Override the defaut behaviour for diff
+            //SymEngine::RCP<const SymEngine::MatrixExpr> diff_impl(
+            //    const SymEngine::RCP<const SymEngine::Symbol>& s
+            //) const override;
 
             // Get derivative
             inline SymEngine::multiset_basic get_derivative() const

@@ -1,27 +1,82 @@
-#ifndef SYMENGINE_FUNCTIONS_H
-#define SYMENGINE_FUNCTIONS_H
+/* Tinned: a set of nonnumerical routines for computational chemistry
+   Copyright 2023 Bin Gao
 
+   This Source Code Form is subject to the terms of the Mozilla Public
+   License, v. 2.0. If a copy of the MPL was not distributed with this
+   file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+   This file is the header file of two-electron like operator.
+
+   2023-09-22, Bin Gao:
+   * first version
+*/
+
+#pragma once
+
+#include <string>
+
+#include <symengine/dict.h>
 #include <symengine/basic.h>
-#include <symengine/symengine_casts.h>
-#include <symengine/constants.h>
-#include <symengine/functions.h>
+#include <symengine/symbol.h>
+#include <symengine/symengine_rcp.h>
+#include <symengine/matrices/matrix_expr.h>
+#include <symengine/matrices/matrix_symbol.h>
 
-// is a tensor contraction of ERI and density matrix
-class TwoElectronOperator : public SymEngine::MultiArgFunction
+#include "Tinned/ElectronState.hpp"
+#include "Tinned/Perturbation.hpp"
+#include "Tinned/Derivative.hpp"
+
+namespace Tinned
 {
-private:
-    SymEngine::RCP<const ElectronState> state_;
-public:
-    SymEngine::IMPLEMENT_TYPEID(SymEngine::SYMENGINE_MAX)
-    //! TwoElectronOperator Constructor
-    TwoElectronOperator(const SymEngine::vec_basic &&arg);
-    //! \return `true` if canonical
-    bool is_canonical(const SymEngine::vec_basic &arg) const;
-    //! \return canonicalized TwoElectronOperator
-    SymEngine::RCP<const SymEngine::Basic> create(const SymEngine::vec_basic &arg) const override;
-};
+    // TwoElectronOperator can be viewed as a tensor contraction of electron
+    // repulsion integrals (ERI) and density matrix
+    class TwoElectronOperator: public SymEngine::MatrixSymbol
+    {
+        private:
+            // Electron state (may contain derivatives) that the operator
+            // depends on
+            SymEngine::RCP<const ElectronState> state_;
+            // dependencies_ stores perturbations that the operator depends on
+            // and their maximum orders that can be differentiated
+            PertDependency dependencies_;
+            // derivative_ holds derivatives with respect to perturbations
+            SymEngine::multiset_basic derivative_;
 
-//! Canonicalize TwoElectronOperator:
-SymEngine::RCP<const SymEngine::Basic> two_electron_operator(const SymEngine::vec_basic &arg);
+        public:
+            //! Constructor
+            explicit TwoElecOperator(
+                const std::string& name,
+                const SymEngine::RCP<const ElectronState>& state,
+                const PertDependency& dependencies,
+                const SymEngine::multiset_basic& derivative = {}
+            );
 
-#endif
+            SymEngine::hash_t __hash__() const override;
+            bool __eq__(const SymEngine::Basic& o) const override;
+            int compare(const SymEngine::Basic& o) const override;
+            SymEngine::vec_basic get_args() const override;
+
+            // Override the defaut behaviour for diff
+            SymEngine::RCP<const SymEngine::MatrixExpr> diff_impl(
+                const SymEngine::RCP<const SymEngine::Symbol>& s
+            ) const override;
+
+            // Get electron state
+            inline SymEngine::RCP<const ElectronState> get_state() const
+            {
+                return state_;
+            }
+
+            // Get dependencies
+            inline PertDependency get_dependencies() const
+            {
+                return dependencies_;
+            }
+
+            // Get derivative
+            inline SymEngine::multiset_basic get_derivative() const
+            {
+                return derivative_;
+            }
+    };
+}

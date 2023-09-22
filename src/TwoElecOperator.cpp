@@ -1,109 +1,121 @@
-#include <symengine/symengine_exception.h>
+#include <symengine/symengine_assert.h>
+#include <symengine/symengine_casts.h>
+#include <symengine/matrices/matrix_add.h>
 
-#include "TwoElectronOperator.h"
+#include "Tinned/TwoElectronOperator.hpp"
 
-using namespace SymEngine;
-
-TwoElectronOperator::TwoElectronOperator(const vec_basic &&arg) : MultiArgFunction(std::move(arg))
+namespace Tinned
 {
-    SYMENGINE_ASSIGN_TYPEID()
-    SYMENGINE_ASSERT(is_canonical(get_vec()))
-}
-
-bool TwoElectronOperator::is_canonical(const vec_basic &arg) const
-{
-    if (arg.size() < 2)
-        return false;
-
-    bool non_number_exists = false;
-
-    for (const auto &p : arg) {
-        if (is_a<Complex>(*p) or is_a<TwoElectronOperator>(*p))
-            return false;
-        if (not is_a_Number(*p))
-            non_number_exists = true;
+    TwoElectronOperator::TwoElectronOperator(
+        const std::string& name,
+        const SymEngine::RCP<const ElectronState>& state,
+        const PertDependency& dependencies,
+        const SymEngine::multiset_basic& derivative
+    ) : SymEngine::MatrixSymbol(name),
+        state_(state),
+        dependencies_(dependencies),
+        derivative_(derivative)
+    {
+        SYMENGINE_ASSIGN_TYPEID()
     }
-    if (not std::is_sorted(arg.begin(), arg.end(), RCPBasicKeyLess()))
-        return false;
 
-    return non_number_exists; // all arguments cant be numbers
-}
-
-RCP<const Basic> TwoElectronOperator::create(const vec_basic &a) const
-{
-    return two_electron_operator(a);
-}
-
-RCP<const Basic> two_electron_operator(const vec_basic &arg)
-{
-    bool number_set = false;
-    RCP<const Number> max_number, difference;
-    set_basic new_args;
-
-    for (const auto &p : arg) {
-        if (is_a<Complex>(*p))
-            throw SymEngineException("Complex can't be passed to max!");
-
-        if (is_a_Number(*p)) {
-            if (not number_set) {
-                max_number = rcp_static_cast<const Number>(p);
-
-            } else {
-                if (eq(*p, *Inf)) {
-                    return Inf;
-                } else if (eq(*p, *NegInf)) {
-                    continue;
-                }
-                difference = down_cast<const Number &>(*p).sub(*max_number);
-
-                if (difference->is_zero() and not difference->is_exact()) {
-                    if (max_number->is_exact())
-                        max_number = rcp_static_cast<const Number>(p);
-                } else if (difference->is_positive()) {
-                    max_number = rcp_static_cast<const Number>(p);
-                }
-            }
-            number_set = true;
-
-        } else if (is_a<TwoElectronOperator>(*p)) {
-            for (const auto &l : down_cast<const TwoElectronOperator &>(*p).get_args()) {
-                if (is_a_Number(*l)) {
-                    if (not number_set) {
-                        max_number = rcp_static_cast<const Number>(l);
-
-                    } else {
-                        difference = rcp_static_cast<const Number>(l)->sub(
-                            *max_number);
-
-                        if (difference->is_zero()
-                            and not difference->is_exact()) {
-                            if (max_number->is_exact())
-                                max_number = rcp_static_cast<const Number>(l);
-                        } else if (difference->is_positive()) {
-                            max_number = rcp_static_cast<const Number>(l);
-                        }
-                    }
-                    number_set = true;
-                } else {
-                    new_args.insert(l);
-                }
-            }
-        } else {
-            new_args.insert(p);
+    SymEngine::hash_t TwoElectronOperator::__hash__() const
+    {
+        SymEngine::hash_t seed = SymEngine::MatrixSymbol::__hash__();
+        SymEngine::hash_combine<const ElectronState>(seed, *state_);
+        for (auto& dep: dependencies_) {
+            SymEngine::hash_combine<const Perturbation>(seed, *dep.first);
+            SymEngine::hash_combine<unsigned int>(seed, dep.second);
         }
+        for (auto& p: derivative_) {
+            SymEngine::hash_combine<SymEngine::Basic>(seed, *p);
+        }
+        return seed;
     }
 
-    if (number_set)
-        new_args.insert(max_number);
+    bool TwoElectronOperator::__eq__(const SymEngine::Basic& o) const
+    {
+        if (SymEngine::MatrixSymbol::__eq__(o)) {
+            if (SymEngine::is_a_sub<const TwoElectronOperator>(o)) {
+                const TwoElectronOperator& op = SymEngine::down_cast<const TwoElectronOperator &>(o);
+                // First check the electron state
+                if (not state_->__eq__(*op.state_)) return false;
+                // Secondly check the derivatives
+                if (not SymEngine::unified_eq(derivative_, op.derivative_)) return false;
+                // Thirdly we check the perturbation dependencies
+                return eq_dependency(dependencies_, op.dependencies_);
+            }
+        }
+        return false;
+    }
 
-    vec_basic final_args(new_args.size());
-    std::copy(new_args.begin(), new_args.end(), final_args.begin());
+    int TwoElectronOperator::compare(const SymEngine::Basic &o) const
+    {
+        SYMENGINE_ASSERT(SymEngine::is_a_sub<const TwoElectronOperator>(o))
+        int result = SymEngine::MatrixSymbol::compare(o);
+        if (result == 0) {
+            const TwoElectronOperator& op = SymEngine::down_cast<const TwoElectronOperator &>(o);
+            result = state_->compare(*op.state_);
+            if (result == 0) {
+                result = SymEngine::unified_compare(derivative_, op.derivative_);
+                if (result == 0) {
+                    return SymEngine::ordered_compare(dependencies_, op.dependencies_);
+                }
+                else {
+                    return result;
+                }
+            }
+            else {
+                return result;
+            }
+        }
+        return result;
+    }
 
-    if (final_args.size() > 1) {
-        return make_rcp<const TwoElectronOperator>(std::move(final_args));
-    } else if (final_args.size() == 1) {
-        return final_args[0];
-    } else {
-        throw SymEngineException("Empty vec_basic passed to max!");
+    SymEngine::vec_basic TwoElectronOperator::get_args() const
+    {
+        auto args = SymEngine::vec_basic({state_});
+        auto deps = to_vec_basic(dependencies_);
+        args.insert(args.end(), deps.begin(), deps.end());
+        args.insert(args.end(), derivative_.begin(), derivative_.end());
+        return args;
+    }
+
+    SymEngine::RCP<const SymEngine::MatrixExpr> TwoElectronOperator::diff_impl(
+        const SymEngine::RCP<const SymEngine::Symbol>& s
+    ) const
+    {
+        // contr(g, D->diff(s))
+        auto op_ds = SymEngine::make_rcp<const TwoElectronOperator>(
+            SymEngine::MatrixSymbol::get_name(),
+            state_->diff(s),
+            dependencies_,
+            derivative_
+        );
+        auto max_order = find_dependency(dependencies_, s);
+        if (max_order > 0) {
+            auto order = derivative_.count(s) + 1;
+            if (order <= max_order) {
+                // Return contr(g->diff(s), D) + contr(g, D->diff(s))
+                auto derivative = derivative_;
+                derivative.insert(s);
+                auto op = SymEngine::matrix_add({
+                    SymEngine::make_rcp<const TwoElectronOperator>(
+                        SymEngine::MatrixSymbol::get_name(),
+                        state_,
+                        dependencies_,
+                        derivative
+                    ),
+                    op_ds
+                });
+                return op;
+            }
+            else {
+                return op_ds;
+            }
+        }
+        else {
+            return op_ds;
+        }
     }
 }

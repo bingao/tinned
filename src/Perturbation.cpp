@@ -25,7 +25,7 @@ namespace Tinned
     bool Perturbation::__eq__(const SymEngine::Basic& o) const
     {
         if (SymEngine::Symbol::__eq__(o)) {
-            if (SymEngine::is_a<Perturbation>(o))
+            if (SymEngine::is_a_sub<const Perturbation>(o))
                 return dimension_ == SymEngine::down_cast<const Perturbation &>(o).dimension_;
         }
         return false;
@@ -33,7 +33,7 @@ namespace Tinned
 
     int Perturbation::compare(const SymEngine::Basic& o) const
     {
-        SYMENGINE_ASSERT(SymEngine::is_a<Perturbation>(o))
+        SYMENGINE_ASSERT(SymEngine::is_a_sub<const Perturbation>(o))
         int result = SymEngine::Symbol::compare(o);
         if (result == 0) {
             //const Perturbation &s = SymEngine::down_cast<const Perturbation &>(o);

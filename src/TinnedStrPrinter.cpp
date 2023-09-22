@@ -4,7 +4,7 @@ namespace Tinned
 {
     void TinnedStrPrinter::bvisit(const SymEngine::Symbol& x)
     {
-        if (SymEngine::is_a<const Perturbation>(x)) {
+        if (SymEngine::is_a_sub<const Perturbation>(x)) {
             auto name = SymEngine::down_cast<const Perturbation&>(x).get_name();
             auto dimension = SymEngine::down_cast<const Perturbation&>(x).get_dimension();
             std::ostringstream o;
@@ -18,7 +18,23 @@ namespace Tinned
 
     void TinnedStrPrinter::bvisit(const SymEngine::MatrixSymbol& x)
     {
-        if (SymEngine::is_a<const OneElecOperator>(x)) {
+        if (SymEngine::is_a_sub<const OneElecDensity>(x)) {
+            auto name = SymEngine::down_cast<const OneElecDensity&>(x).get_name();
+            auto derivative = SymEngine::down_cast<const OneElecDensity&>(x).get_derivative();
+            std::ostringstream o;
+            if (derivative.empty()) {
+                o << name;
+            }
+            else {
+                o << "Derivative(" << name;
+                for (const auto& var: derivative) {
+                    o << ", " << apply(*var);
+                }
+                o << ")";
+            }
+            str_ = o.str();
+        }
+        else if (SymEngine::is_a_sub<const OneElecOperator>(x)) {
             auto name = SymEngine::down_cast<const OneElecOperator&>(x).get_name();
             auto derivative = SymEngine::down_cast<const OneElecOperator&>(x).get_derivative();
             std::ostringstream o;
@@ -43,6 +59,10 @@ namespace Tinned
                 o << ")";
             }
             str_ = o.str();
+        }
+        else if (SymEngine::is_a_sub<const TwoElecOperator>(x)) {
+        }
+        else if (SymEngine::is_a_sub<const ExchCorrPotential>(x)) {
         }
         else {
             SymEngine::StrPrinter::bvisit(x);
