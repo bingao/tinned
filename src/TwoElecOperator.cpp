@@ -2,11 +2,11 @@
 #include <symengine/symengine_casts.h>
 #include <symengine/matrices/matrix_add.h>
 
-#include "Tinned/TwoElectronOperator.hpp"
+#include "Tinned/TwoElecOperator.hpp"
 
 namespace Tinned
 {
-    TwoElectronOperator::TwoElectronOperator(
+    TwoElecOperator::TwoElecOperator(
         const std::string& name,
         const SymEngine::RCP<const ElectronState>& state,
         const PertDependency& dependencies,
@@ -19,7 +19,7 @@ namespace Tinned
         SYMENGINE_ASSIGN_TYPEID()
     }
 
-    SymEngine::hash_t TwoElectronOperator::__hash__() const
+    SymEngine::hash_t TwoElecOperator::__hash__() const
     {
         SymEngine::hash_t seed = SymEngine::MatrixSymbol::__hash__();
         SymEngine::hash_combine<const ElectronState>(seed, *state_);
@@ -33,11 +33,11 @@ namespace Tinned
         return seed;
     }
 
-    bool TwoElectronOperator::__eq__(const SymEngine::Basic& o) const
+    bool TwoElecOperator::__eq__(const SymEngine::Basic& o) const
     {
         if (SymEngine::MatrixSymbol::__eq__(o)) {
-            if (SymEngine::is_a_sub<const TwoElectronOperator>(o)) {
-                const TwoElectronOperator& op = SymEngine::down_cast<const TwoElectronOperator &>(o);
+            if (SymEngine::is_a_sub<const TwoElecOperator>(o)) {
+                const TwoElecOperator& op = SymEngine::down_cast<const TwoElecOperator &>(o);
                 // First check the electron state
                 if (not state_->__eq__(*op.state_)) return false;
                 // Secondly check the derivatives
@@ -49,12 +49,12 @@ namespace Tinned
         return false;
     }
 
-    int TwoElectronOperator::compare(const SymEngine::Basic &o) const
+    int TwoElecOperator::compare(const SymEngine::Basic &o) const
     {
-        SYMENGINE_ASSERT(SymEngine::is_a_sub<const TwoElectronOperator>(o))
+        SYMENGINE_ASSERT(SymEngine::is_a_sub<const TwoElecOperator>(o))
         int result = SymEngine::MatrixSymbol::compare(o);
         if (result == 0) {
-            const TwoElectronOperator& op = SymEngine::down_cast<const TwoElectronOperator &>(o);
+            const TwoElecOperator& op = SymEngine::down_cast<const TwoElecOperator &>(o);
             result = state_->compare(*op.state_);
             if (result == 0) {
                 result = SymEngine::unified_compare(derivative_, op.derivative_);
@@ -72,7 +72,7 @@ namespace Tinned
         return result;
     }
 
-    SymEngine::vec_basic TwoElectronOperator::get_args() const
+    SymEngine::vec_basic TwoElecOperator::get_args() const
     {
         auto args = SymEngine::vec_basic({state_});
         auto deps = to_vec_basic(dependencies_);
@@ -81,14 +81,17 @@ namespace Tinned
         return args;
     }
 
-    SymEngine::RCP<const SymEngine::MatrixExpr> TwoElectronOperator::diff_impl(
+    SymEngine::RCP<const SymEngine::MatrixExpr> TwoElecOperator::diff_impl(
         const SymEngine::RCP<const SymEngine::Symbol>& s
     ) const
     {
         // contr(g, D->diff(s))
-        auto op_ds = SymEngine::make_rcp<const TwoElectronOperator>(
+        auto diff_state = SymEngine::rcp_dynamic_cast<const ElectronState>(
+            state_->diff(s)
+        );
+        auto op_diff_state = SymEngine::make_rcp<const TwoElecOperator>(
             SymEngine::MatrixSymbol::get_name(),
-            state_->diff(s),
+            diff_state,
             dependencies_,
             derivative_
         );
@@ -100,22 +103,22 @@ namespace Tinned
                 auto derivative = derivative_;
                 derivative.insert(s);
                 auto op = SymEngine::matrix_add({
-                    SymEngine::make_rcp<const TwoElectronOperator>(
+                    SymEngine::make_rcp<const TwoElecOperator>(
                         SymEngine::MatrixSymbol::get_name(),
                         state_,
                         dependencies_,
                         derivative
                     ),
-                    op_ds
+                    op_diff_state
                 });
                 return op;
             }
             else {
-                return op_ds;
+                return op_diff_state;
             }
         }
         else {
-            return op_ds;
+            return op_diff_state;
         }
     }
 }

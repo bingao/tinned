@@ -5,9 +5,10 @@
    License, v. 2.0. If a copy of the MPL was not distributed with this
    file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-   This file is the header file of two-electron like operator.
+   This file is the header file of exchange-correlation potential like
+   operators.
 
-   2023-09-22, Bin Gao:
+   2023-09-24, Bin Gao:
    * first version
 */
 
@@ -24,30 +25,22 @@
 
 #include "Tinned/ElectronState.hpp"
 #include "Tinned/Perturbation.hpp"
-#include "Tinned/Derivative.hpp"
 
 namespace Tinned
 {
-    // TwoElecOperator can be viewed as a tensor contraction of electron
-    // repulsion integrals (ERI) and density matrix
-    class TwoElecOperator: public SymEngine::MatrixSymbol
+    class ExchCorrPotential: public SymEngine::MatrixSymbol
     {
         private:
-            // Electron state (may contain derivatives) that the operator
-            // depends on
+            // Electron state that the operator depends on
             SymEngine::RCP<const ElectronState> state_;
-            // dependencies_ stores perturbations that the operator depends on
-            // and their maximum orders that can be differentiated
-            PertDependency dependencies_;
             // derivative_ holds derivatives with respect to perturbations
             SymEngine::multiset_basic derivative_;
 
         public:
             //! Constructor
-            explicit TwoElecOperator(
+            explicit ExchCorrPotential(
                 const std::string& name,
                 const SymEngine::RCP<const ElectronState>& state,
-                const PertDependency& dependencies,
                 const SymEngine::multiset_basic& derivative = {}
             );
 
@@ -65,12 +58,6 @@ namespace Tinned
             inline SymEngine::RCP<const ElectronState> get_state() const
             {
                 return state_;
-            }
-
-            // Get dependencies
-            inline PertDependency get_dependencies() const
-            {
-                return dependencies_;
             }
 
             // Get derivative

@@ -1,4 +1,4 @@
-/* tinned: a set of nonnumerical routines for computational chemistry
+/* Tinned: a set of nonnumerical routines for computational chemistry
    Copyright 2023 Bin Gao
 
    This Source Code Form is subject to the terms of the Mozilla Public
@@ -13,46 +13,62 @@
 
 #pragma once
 
-#include <symengine/basic.h>
+#include <string>
+
 #include <symengine/dict.h>
+#include <symengine/basic.h>
 #include <symengine/functions.h>
 #include <symengine/number.h>
 #include <symengine/symbol.h>
 #include <symengine/symengine_rcp.h>
 
-#include <symengine/eval.h>
-#include <symengine/real_double.h>
+#include "Tinned/Perturbation.hpp"
+#include "Tinned/Derivative.hpp"
 
-// For example, the internuclear repulsion and nucleus interaction with
-// external fields
-class NonElecFunction: public SymEngine::FunctionWrapper
+namespace Tinned
 {
-    public:
-        OneElecOperator(const SymEngine::vec_basic &arg)
-            : SymEngine::FunctionWrapper("OneElecOperator", arg) {}
-        SymEngine::RCP<const SymEngine::Basic> create(const SymEngine::vec_basic &v) const
-        {
-            return SymEngine::make_rcp<OneElecOperator>(v);
-        }
-        SymEngine::RCP<const SymEngine::Number> eval(long bits) const
-        {
-            //FIXME: eval() will be performed for getting integrals or
-            //expectation values with the knowledge of basis functions
-            std::cout << "OneElecOperator::eval called\n";
-    //RCP<const Symbol> x = symbol("x");
-    //RCP<const Basic> e = add(one, make_rcp<MySin>(x));
-    //RCP<const Basic> f;
-    //f = e->subs({{x, integer(1)}});
-    //double d = eval_double(*f);
-            return SymEngine::real_double(3.14);
-            //return real_double(::sin(eval_double(*get_vec()[0])));
-        }
-        SymEngine::RCP<const SymEngine::Basic> diff_impl(
-            const SymEngine::RCP<const SymEngine::Symbol> &s
-        ) const
-        {
-            std::cout << "OneElecOperator::diff_impl called\n";
-            //FIXME: check if the operator depends on s by calling get_vec()
-            return SymEngine::Derivative::create(rcp_from_this(), {s});
-        }
-};
+    // For example, the internuclear repulsion and nucleus interaction with
+    // external fields
+    class NonElecFunction: public SymEngine::FunctionWrapper
+    {
+        private:
+            // dependencies_ stores perturbations that the operator depends on
+            // and their maximum orders that can be differentiated
+            PertDependency dependencies_;
+            // derivative_ holds derivatives with respect to perturbations
+            SymEngine::multiset_basic derivative_;
+
+        public:
+            //! Constructor
+            explicit NonElecFunction(
+                const std::string& name,
+                const PertDependency& dependencies,
+                const SymEngine::multiset_basic& derivative = {}
+            );
+
+            SymEngine::hash_t __hash__() const override;
+            bool __eq__(const SymEngine::Basic& o) const override;
+            int compare(const SymEngine::Basic& o) const override;
+            SymEngine::vec_basic get_args() const override;
+
+            SymEngine::RCP<const SymEngine::Basic> create(
+                const SymEngine::vec_basic &v
+            ) const override;
+            SymEngine::RCP<const SymEngine::Number> eval(long bits) const override;
+            SymEngine::RCP<const SymEngine::Basic> diff_impl(
+                const SymEngine::RCP<const SymEngine::Symbol> &s
+            ) const override;
+
+            // Get dependencies
+            inline PertDependency get_dependencies() const
+            {
+                return dependencies_;
+            }
+
+            // Get derivative
+            inline SymEngine::multiset_basic get_derivative() const
+            {
+                return derivative_;
+            }
+    };
+}
