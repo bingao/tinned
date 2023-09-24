@@ -81,6 +81,19 @@ namespace Tinned
                 return str_;
             }
 
+            // Stringify the derivative of an operator with an electron state
+            // as the argument
+            inline std::string to_string(
+                const std::string& name,
+                const SymEngine::RCP<const ElectronState>& state,
+                const SymEngine::multiset_basic& derivative
+            )
+            {
+                auto str_state = to_string(state);
+                auto str_op = name + "(" + str_state + ")";
+                return derivative.empty() ? str_op : to_string(str_op, derivative);
+            }
+
         public:
             using SymEngine::StrPrinter::bvisit;
             void bvisit(const SymEngine::Symbol& x);

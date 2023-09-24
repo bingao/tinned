@@ -1,3 +1,5 @@
+#include <iostream>
+
 #include "Tinned/TinnedStrPrinter.hpp"
 
 namespace Tinned
@@ -32,12 +34,11 @@ namespace Tinned
             }
         }
         else if (SymEngine::is_a_sub<const ExchCorrEnergy>(x)) {
-            SymEngine::StrPrinter::bvisit(x);
-            auto derivative = SymEngine::down_cast<const ExchCorrEnergy&>(x).get_derivative();
-            if (not derivative.empty()) {
-                auto str_xc = str_;
-                str_ = to_string(str_xc, derivative);
-            }
+            str_ = to_string(
+                SymEngine::down_cast<const ExchCorrEnergy&>(x).get_name(),
+                SymEngine::down_cast<const ExchCorrEnergy&>(x).get_state(),
+                SymEngine::down_cast<const ExchCorrEnergy&>(x).get_derivative()
+            );
         }
         else {
             SymEngine::StrPrinter::bvisit(x);
@@ -86,15 +87,11 @@ namespace Tinned
             str_ = name + "(" + str_eri + ", " + str_state + ")";
         }
         else if (SymEngine::is_a_sub<const ExchCorrPotential>(x)) {
-            auto str_state = to_string(
-                SymEngine::down_cast<const ExchCorrPotential&>(x).get_state()
+            str_ = to_string(
+                SymEngine::down_cast<const ExchCorrPotential&>(x).get_name(),
+                SymEngine::down_cast<const ExchCorrPotential&>(x).get_state(),
+                SymEngine::down_cast<const ExchCorrPotential&>(x).get_derivative()
             );
-            auto name = SymEngine::down_cast<const ExchCorrPotential&>(x).get_name();
-            auto str_xc = name + "(" + str_state + ")";
-            auto derivative = SymEngine::down_cast<const ExchCorrPotential&>(x).get_derivative();
-            if (not derivative.empty()) {
-                str_ = to_string(str_xc, derivative);
-            }
         }
         else {
             SymEngine::StrPrinter::bvisit(x);
