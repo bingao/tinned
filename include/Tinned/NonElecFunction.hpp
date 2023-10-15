@@ -15,15 +15,15 @@
 
 #include <string>
 
-#include <symengine/dict.h>
 #include <symengine/basic.h>
+#include <symengine/dict.h>
 #include <symengine/functions.h>
 #include <symengine/number.h>
 #include <symengine/symbol.h>
 #include <symengine/symengine_rcp.h>
 
 #include "Tinned/Perturbation.hpp"
-#include "Tinned/Derivative.hpp"
+#include "Tinned/PertDependency.hpp"
 
 namespace Tinned
 {

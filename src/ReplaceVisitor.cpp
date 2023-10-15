@@ -1,10 +1,8 @@
-#include <iostream>
-
-#include "Tinned/TinnedStrPrinter.hpp"
+#include "Tinned/ReplaceVisitor.hpp"
 
 namespace Tinned
 {
-    void TinnedStrPrinter::bvisit(const SymEngine::Symbol& x)
+    void ReplaceVisitor::bvisit(const SymEngine::Symbol& x)
     {
         if (SymEngine::is_a_sub<const Perturbation>(x)) {
             auto name = SymEngine::down_cast<const Perturbation&>(x).get_name();
@@ -14,13 +12,17 @@ namespace Tinned
             str_ = o.str();
         }
         else {
-            SymEngine::StrPrinter::bvisit(x);
+            SymEngine::XReplaceVisitor::bvisit(x);
         }
     }
 
-    void TinnedStrPrinter::bvisit(const SymEngine::FunctionSymbol& x)
+    void ReplaceVisitor::bvisit(const SymEngine::FunctionSymbol& x)
     {
         if (SymEngine::is_a_sub<const NonElecFunction>(x)) {
+            // We first
+            for (const auto &p : subs_dict_) {
+            }
+
             auto name = SymEngine::down_cast<const NonElecFunction&>(x).get_name();
             auto derivative = SymEngine::down_cast<const NonElecFunction&>(x).get_derivative();
             if (derivative.empty()) {
@@ -41,11 +43,11 @@ namespace Tinned
             );
         }
         else {
-            SymEngine::StrPrinter::bvisit(x);
+            SymEngine::XReplaceVisitor::bvisit(x);
         }
     }
 
-    void TinnedStrPrinter::bvisit(const SymEngine::MatrixSymbol& x)
+    void ReplaceVisitor::bvisit(const SymEngine::MatrixSymbol& x)
     {
         if (SymEngine::is_a_sub<const OneElecDensity>(x)) {
             auto derivative = SymEngine::down_cast<const OneElecDensity&>(x).get_derivative();
@@ -94,19 +96,7 @@ namespace Tinned
             );
         }
         else {
-            SymEngine::StrPrinter::bvisit(x);
+            SymEngine::XReplaceVisitor::bvisit(x);
         }
-    }
-
-    //std::string TinnedStrPrinter::apply(const SymEngine::Basic& x)
-    //{
-    //    x.accept(*this);
-    //    return str_;
-    //}
-
-    std::string tinned_str(const SymEngine::Basic& x)
-    {
-        TinnedStrPrinter strPrinter;
-        return strPrinter.apply(x);
     }
 }

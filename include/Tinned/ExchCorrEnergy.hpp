@@ -16,14 +16,14 @@
 
 #include <string>
 
-#include <symengine/dict.h>
 #include <symengine/basic.h>
+#include <symengine/dict.h>
 #include <symengine/functions.h>
 #include <symengine/number.h>
 #include <symengine/symbol.h>
 #include <symengine/symengine_rcp.h>
 
-#include "Tinned/ElectronState.hpp"
+#include "Tinned/ElectronicState.hpp"
 #include "Tinned/Perturbation.hpp"
 
 namespace Tinned
@@ -38,7 +38,7 @@ namespace Tinned
             //! Constructor
             explicit ExchCorrEnergy(
                 const std::string& name,
-                const SymEngine::RCP<const ElectronState>& state,
+                const SymEngine::RCP<const ElectronicState>& state,
                 const SymEngine::multiset_basic& derivative = {}
             );
 
@@ -55,11 +55,11 @@ namespace Tinned
                 const SymEngine::RCP<const SymEngine::Symbol> &s
             ) const override;
 
-            // Get electron state
-            inline SymEngine::RCP<const ElectronState> get_state() const
+            // Get electronic state
+            inline SymEngine::RCP<const ElectronicState> get_state() const
             {
                 auto args = SymEngine::FunctionWrapper::get_args();
-                return SymEngine::rcp_dynamic_cast<const ElectronState>(args[0]);
+                return SymEngine::rcp_dynamic_cast<const ElectronicState>(args[0]);
             }
 
             // Get derivative

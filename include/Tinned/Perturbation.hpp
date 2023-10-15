@@ -7,6 +7,11 @@
 
    This file is the header file of perturbation.
 
+   2023-10-09, Bin Gao:
+   * change Perturbation's frequency to class
+     SymEngine::RCP<const SymEngine::Number>. Users can use any derived class
+     from SymEngine::Number as frequencies
+
    2023-09-16, Bin Gao:
    * first version
 */
@@ -14,9 +19,12 @@
 #pragma once
 
 #include <cstddef>
+#include <set>
+#include <string>
 
-#include <symengine/dict.h>
 #include <symengine/basic.h>
+#include <symengine/dict.h>
+#include <symengine/number.h>
 #include <symengine/symbol.h>
 #include <symengine/symengine_rcp.h>
 
@@ -25,25 +33,33 @@ namespace Tinned
     class Perturbation: public SymEngine::Symbol
     {
         private:
-            std::size_t dimension_;
+            // Frequency
+            SymEngine::RCP<const SymEngine::Number> frequency_;
+            // Set of components
+            std::set<std::size_t> components_;
 
         public:
             //! Constructor
-            explicit Perturbation(const char name, const std::size_t dimension);
+            explicit Perturbation(
+                const std::string& name,
+                const SymEngine::RCP<const SymEngine::Number>& frequency,
+                const std::set<std::size_t> components = std::set<std::size_t>()
+            );
 
             SymEngine::hash_t __hash__() const override;
             bool __eq__(const SymEngine::Basic& o) const override;
             int compare(const SymEngine::Basic& o) const override;
 
-            //SymEngine::vec_basic get_args() const override
-            //{
-            //    return SymEngine::vec_basic({dimension_});
-            //}
-
-            //! Get dimension of the perturbation
-            inline std::size_t get_dimension() const
+            //! Get the frequency of the perturbation
+            inline SymEngine::RCP<const SymEngine::Number> get_frequency() const
             {
-                return dimension_;
+                return frequency_;
+            }
+
+            //! Get the set of components of the perturbation
+            inline std::set<std::size_t> get_components() const
+            {
+                return components_;
             }
     };
 }

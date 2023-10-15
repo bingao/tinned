@@ -5,7 +5,7 @@
    License, v. 2.0. If a copy of the MPL was not distributed with this
    file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-   This file is the header file of abstract class for electron state.
+   This file is the header file of abstract class for electronic state.
 
    2023-09-21, Bin Gao:
    * first version
@@ -15,17 +15,16 @@
 
 #include <string>
 
-#include <symengine/dict.h>
 #include <symengine/basic.h>
+#include <symengine/dict.h>
 #include <symengine/symbol.h>
 #include <symengine/symengine_rcp.h>
-#include <symengine/matrices/matrix_expr.h>
 #include <symengine/matrices/matrix_symbol.h>
 
 namespace Tinned
 {
-    // ElectronState can be differentiated to any perturbation and any order
-    class ElectronState: public SymEngine::MatrixSymbol
+    // ElectronicState can be differentiated to any perturbation and any order
+    class ElectronicState: public SymEngine::MatrixSymbol
     {
         protected:
             // derivative_ holds derivatives with respect to perturbations
@@ -33,7 +32,7 @@ namespace Tinned
 
         public:
             //! Constructor
-            explicit ElectronState(
+            explicit ElectronicState(
                 const std::string& name,
                 const SymEngine::multiset_basic& derivative = {}
             );
@@ -44,7 +43,7 @@ namespace Tinned
             SymEngine::vec_basic get_args() const override;
 
             //// Override the defaut behaviour for diff
-            //SymEngine::RCP<const SymEngine::MatrixExpr> diff_impl(
+            //SymEngine::RCP<const SymEngine::Basic> diff_impl(
             //    const SymEngine::RCP<const SymEngine::Symbol>& s
             //) const override;
 

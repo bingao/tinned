@@ -33,14 +33,12 @@ namespace Tinned
 
     bool NonElecFunction::__eq__(const SymEngine::Basic& o) const
     {
-        if (SymEngine::FunctionWrapper::__eq__(o)) {
-            if (SymEngine::is_a_sub<const NonElecFunction>(o)) {
-                const NonElecFunction& op = SymEngine::down_cast<const NonElecFunction &>(o);
-                // First check the derivatives
-                if (not SymEngine::unified_eq(derivative_, op.derivative_)) return false;
-                // Secondly we check the perturbation dependencies
-                return eq_dependency(dependencies_, op.dependencies_);
-            }
+        if (SymEngine::is_a_sub<const NonElecFunction>(o)) {
+            auto& op = SymEngine::down_cast<const NonElecFunction&>(o);
+            // We check the name, derivatives and perturbation dependencies
+            return get_name() == op.get_name()
+                && SymEngine::unified_eq(derivative_, op.derivative_)
+                && eq_dependency(dependencies_, op.dependencies_);
         }
         return false;
     }
@@ -48,10 +46,9 @@ namespace Tinned
     int NonElecFunction::compare(const SymEngine::Basic &o) const
     {
         SYMENGINE_ASSERT(SymEngine::is_a_sub<const NonElecFunction>(o))
-        int result = SymEngine::FunctionWrapper::compare(o);
-        if (result == 0) {
-            const NonElecFunction& op = SymEngine::down_cast<const NonElecFunction &>(o);
-            result = SymEngine::unified_compare(derivative_, op.derivative_);
+        auto& op = SymEngine::down_cast<const NonElecFunction&>(o);
+        if (get_name() == op.get_name()) {
+            int result = SymEngine::unified_compare(derivative_, op.derivative_);
             if (result == 0) {
                 return SymEngine::ordered_compare(dependencies_, op.dependencies_);
             }
@@ -59,7 +56,9 @@ namespace Tinned
                 return result;
             }
         }
-        return result;
+        else {
+            return get_name() < op.get_name() ? -1 : 1;
+        }
     }
 
     SymEngine::vec_basic NonElecFunction::get_args() const
@@ -92,7 +91,7 @@ namespace Tinned
                 auto derivative = derivative_;
                 derivative.insert(s);
                 auto op = SymEngine::make_rcp<const NonElecFunction>(
-                    SymEngine::FunctionWrapper::get_name(),
+                    get_name(),
                     dependencies_,
                     derivative
                 );

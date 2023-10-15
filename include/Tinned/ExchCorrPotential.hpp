@@ -16,14 +16,13 @@
 
 #include <string>
 
-#include <symengine/dict.h>
 #include <symengine/basic.h>
+#include <symengine/dict.h>
 #include <symengine/symbol.h>
 #include <symengine/symengine_rcp.h>
-#include <symengine/matrices/matrix_expr.h>
 #include <symengine/matrices/matrix_symbol.h>
 
-#include "Tinned/ElectronState.hpp"
+#include "Tinned/ElectronicState.hpp"
 #include "Tinned/Perturbation.hpp"
 
 namespace Tinned
@@ -32,7 +31,7 @@ namespace Tinned
     {
         private:
             // Electron state that the operator depends on
-            SymEngine::RCP<const ElectronState> state_;
+            SymEngine::RCP<const ElectronicState> state_;
             // derivative_ holds derivatives with respect to perturbations
             SymEngine::multiset_basic derivative_;
 
@@ -40,7 +39,7 @@ namespace Tinned
             //! Constructor
             explicit ExchCorrPotential(
                 const std::string& name,
-                const SymEngine::RCP<const ElectronState>& state,
+                const SymEngine::RCP<const ElectronicState>& state,
                 const SymEngine::multiset_basic& derivative = {}
             );
 
@@ -50,12 +49,12 @@ namespace Tinned
             SymEngine::vec_basic get_args() const override;
 
             // Override the defaut behaviour for diff
-            SymEngine::RCP<const SymEngine::MatrixExpr> diff_impl(
+            SymEngine::RCP<const SymEngine::Basic> diff_impl(
                 const SymEngine::RCP<const SymEngine::Symbol>& s
             ) const override;
 
-            // Get electron state
-            inline SymEngine::RCP<const ElectronState> get_state() const
+            // Get electronic state
+            inline SymEngine::RCP<const ElectronicState> get_state() const
             {
                 return state_;
             }

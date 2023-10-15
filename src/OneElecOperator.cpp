@@ -33,7 +33,7 @@ namespace Tinned
     {
         if (SymEngine::MatrixSymbol::__eq__(o)) {
             if (SymEngine::is_a_sub<const OneElecOperator>(o)) {
-                const OneElecOperator& op = SymEngine::down_cast<const OneElecOperator &>(o);
+                auto& op = SymEngine::down_cast<const OneElecOperator&>(o);
                 // First check the derivatives
                 if (not SymEngine::unified_eq(derivative_, op.derivative_)) return false;
                 // Secondly we check the perturbation dependencies
@@ -48,7 +48,7 @@ namespace Tinned
         SYMENGINE_ASSERT(SymEngine::is_a_sub<const OneElecOperator>(o))
         int result = SymEngine::MatrixSymbol::compare(o);
         if (result == 0) {
-            const OneElecOperator& op = SymEngine::down_cast<const OneElecOperator &>(o);
+            auto& op = SymEngine::down_cast<const OneElecOperator&>(o);
             result = SymEngine::unified_compare(derivative_, op.derivative_);
             if (result == 0) {
                 return SymEngine::ordered_compare(dependencies_, op.dependencies_);
@@ -67,7 +67,7 @@ namespace Tinned
         return args;
     }
 
-    SymEngine::RCP<const SymEngine::MatrixExpr> OneElecOperator::diff_impl(
+    SymEngine::RCP<const SymEngine::Basic> OneElecOperator::diff_impl(
         const SymEngine::RCP<const SymEngine::Symbol>& s
     ) const
     {

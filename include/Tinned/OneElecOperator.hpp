@@ -15,15 +15,14 @@
 
 #include <string>
 
-#include <symengine/dict.h>
 #include <symengine/basic.h>
+#include <symengine/dict.h>
 #include <symengine/symbol.h>
 #include <symengine/symengine_rcp.h>
-#include <symengine/matrices/matrix_expr.h>
 #include <symengine/matrices/matrix_symbol.h>
 
 #include "Tinned/Perturbation.hpp"
-#include "Tinned/Derivative.hpp"
+#include "Tinned/PertDependency.hpp"
 
 namespace Tinned
 {
@@ -50,7 +49,7 @@ namespace Tinned
             SymEngine::vec_basic get_args() const override;
 
             // Override the defaut behaviour for diff
-            SymEngine::RCP<const SymEngine::MatrixExpr> diff_impl(
+            SymEngine::RCP<const SymEngine::Basic> diff_impl(
                 const SymEngine::RCP<const SymEngine::Symbol>& s
             ) const override;
 

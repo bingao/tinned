@@ -1,5 +1,3 @@
-#include <string>
-
 #include <symengine/symengine_assert.h>
 #include <symengine/symengine_casts.h>
 
@@ -8,25 +6,32 @@
 namespace Tinned
 {
     Perturbation::Perturbation(
-        const char name,
-        const std::size_t dimension
-    ) : SymEngine::Symbol(std::string(1, name)), dimension_(dimension)
+        const std::string& name,
+        const SymEngine::RCP<const SymEngine::Number>& frequency,
+        const std::set<std::size_t> components
+    ) : SymEngine::Symbol(name),
+        frequency_(frequency),
+        components_(components)
     {
         SYMENGINE_ASSIGN_TYPEID()
     }
 
-    // We use ASCII code as the hash of a perturbation by noticing that the
-    // name of the perturbation is a single character
     SymEngine::hash_t Perturbation::__hash__() const
     {
-        return SymEngine::hash_t(get_name()[0]);
+        SymEngine::hash_t seed = SymEngine::Symbol::__hash__();
+        SymEngine::hash_combine(seed, *frequency_);
+        for (auto& c: components_) SymEngine::hash_combine<std::size_t>(seed, c);
+        return seed;
     }
 
     bool Perturbation::__eq__(const SymEngine::Basic& o) const
     {
         if (SymEngine::Symbol::__eq__(o)) {
-            if (SymEngine::is_a_sub<const Perturbation>(o))
-                return dimension_ == SymEngine::down_cast<const Perturbation &>(o).dimension_;
+            if (SymEngine::is_a_sub<const Perturbation>(o)) {
+                auto& s = SymEngine::down_cast<const Perturbation&>(o);
+                return frequency_->__eq__(*s.frequency_)
+                    && SymEngine::ordered_eq(components_, s.components_);
+            }
         }
         return false;
     }
@@ -36,9 +41,11 @@ namespace Tinned
         SYMENGINE_ASSERT(SymEngine::is_a_sub<const Perturbation>(o))
         int result = SymEngine::Symbol::compare(o);
         if (result == 0) {
-            //const Perturbation &s = SymEngine::down_cast<const Perturbation &>(o);
-            const Perturbation& op = SymEngine::down_cast<const Perturbation &>(o);
-            return dimension_ < op.dimension_ ? -1 : 1;
+            auto& s = SymEngine::down_cast<const Perturbation&>(o);
+            result = frequency_->compare(*s.frequency_);
+            return result == 0
+                ? SymEngine::ordered_compare(components_, s.components_)
+                : result;
         }
         return result;
     }

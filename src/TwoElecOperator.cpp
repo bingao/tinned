@@ -8,7 +8,7 @@ namespace Tinned
 {
     TwoElecOperator::TwoElecOperator(
         const std::string& name,
-        const SymEngine::RCP<const ElectronState>& state,
+        const SymEngine::RCP<const ElectronicState>& state,
         const PertDependency& dependencies,
         const SymEngine::multiset_basic& derivative
     ) : SymEngine::MatrixSymbol(name),
@@ -22,7 +22,7 @@ namespace Tinned
     SymEngine::hash_t TwoElecOperator::__hash__() const
     {
         SymEngine::hash_t seed = SymEngine::MatrixSymbol::__hash__();
-        SymEngine::hash_combine<const ElectronState>(seed, *state_);
+        SymEngine::hash_combine<const ElectronicState>(seed, *state_);
         for (auto& dep: dependencies_) {
             SymEngine::hash_combine<const Perturbation>(seed, *dep.first);
             SymEngine::hash_combine<unsigned int>(seed, dep.second);
@@ -37,8 +37,8 @@ namespace Tinned
     {
         if (SymEngine::MatrixSymbol::__eq__(o)) {
             if (SymEngine::is_a_sub<const TwoElecOperator>(o)) {
-                const TwoElecOperator& op = SymEngine::down_cast<const TwoElecOperator &>(o);
-                // First check the electron state
+                auto& op = SymEngine::down_cast<const TwoElecOperator&>(o);
+                // First check the electronic state
                 if (not state_->__eq__(*op.state_)) return false;
                 // Secondly check the derivatives
                 if (not SymEngine::unified_eq(derivative_, op.derivative_)) return false;
@@ -54,7 +54,7 @@ namespace Tinned
         SYMENGINE_ASSERT(SymEngine::is_a_sub<const TwoElecOperator>(o))
         int result = SymEngine::MatrixSymbol::compare(o);
         if (result == 0) {
-            const TwoElecOperator& op = SymEngine::down_cast<const TwoElecOperator &>(o);
+            auto& op = SymEngine::down_cast<const TwoElecOperator&>(o);
             result = state_->compare(*op.state_);
             if (result == 0) {
                 result = SymEngine::unified_compare(derivative_, op.derivative_);
@@ -81,12 +81,12 @@ namespace Tinned
         return args;
     }
 
-    SymEngine::RCP<const SymEngine::MatrixExpr> TwoElecOperator::diff_impl(
+    SymEngine::RCP<const SymEngine::Basic> TwoElecOperator::diff_impl(
         const SymEngine::RCP<const SymEngine::Symbol>& s
     ) const
     {
         // contr(g, D->diff(s))
-        auto diff_state = SymEngine::rcp_dynamic_cast<const ElectronState>(
+        auto diff_state = SymEngine::rcp_dynamic_cast<const ElectronicState>(
             state_->diff(s)
         );
         auto op_diff_state = SymEngine::make_rcp<const TwoElecOperator>(

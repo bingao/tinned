@@ -13,11 +13,11 @@
 
 #pragma once
 
-#include "Tinned/ElectronState.hpp"
+#include "Tinned/ElectronicState.hpp"
 
 namespace Tinned
 {
-    class OneElecDensity: public ElectronState
+    class OneElecDensity: public ElectronicState
     {
         public:
             //! Constructor
@@ -27,7 +27,7 @@ namespace Tinned
             );
 
             // Override the defaut behaviour for diff
-            SymEngine::RCP<const SymEngine::MatrixExpr> diff_impl(
+            SymEngine::RCP<const SymEngine::Basic> diff_impl(
                 const SymEngine::RCP<const SymEngine::Symbol>& s
             ) const override;
     };

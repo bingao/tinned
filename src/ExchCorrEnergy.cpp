@@ -8,7 +8,7 @@ namespace Tinned
 {
     ExchCorrEnergy::ExchCorrEnergy(
         const std::string& name,
-        const SymEngine::RCP<const ElectronState>& state,
+        const SymEngine::RCP<const ElectronicState>& state,
         const SymEngine::multiset_basic& derivative
     ) : SymEngine::FunctionWrapper(name, state),
         derivative_(derivative)
@@ -29,7 +29,7 @@ namespace Tinned
     {
         if (SymEngine::FunctionWrapper::__eq__(o)) {
             if (SymEngine::is_a_sub<const ExchCorrEnergy>(o)) {
-                const ExchCorrEnergy& op = SymEngine::down_cast<const ExchCorrEnergy &>(o);
+                auto& op = SymEngine::down_cast<const ExchCorrEnergy&>(o);
                 return SymEngine::unified_eq(derivative_, op.derivative_);
             }
         }
@@ -41,7 +41,7 @@ namespace Tinned
         SYMENGINE_ASSERT(SymEngine::is_a_sub<const ExchCorrEnergy>(o))
         int result = SymEngine::FunctionWrapper::compare(o);
         if (result == 0) {
-            const ExchCorrEnergy& op = SymEngine::down_cast<const ExchCorrEnergy &>(o);
+            auto& op = SymEngine::down_cast<const ExchCorrEnergy&>(o);
             return SymEngine::unified_compare(derivative_, op.derivative_);
         }
         return result;

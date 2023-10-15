@@ -1,5 +1,4 @@
 #include <symengine/symengine_assert.h>
-#include <symengine/symengine_casts.h>
 
 #include "Tinned/OneElecDensity.hpp"
 
@@ -8,12 +7,12 @@ namespace Tinned
     OneElecDensity::OneElecDensity(
         const std::string& name,
         const SymEngine::multiset_basic& derivative
-    ) : ElectronState(name, derivative)
+    ) : ElectronicState(name, derivative)
     {
         SYMENGINE_ASSIGN_TYPEID()
     }
 
-    SymEngine::RCP<const SymEngine::MatrixExpr> OneElecDensity::diff_impl(
+    SymEngine::RCP<const SymEngine::Basic> OneElecDensity::diff_impl(
         const SymEngine::RCP<const SymEngine::Symbol>& s
     ) const
     {

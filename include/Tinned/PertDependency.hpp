@@ -81,12 +81,6 @@ namespace Tinned
         }
     }
 
-    // Return a 1x1 zero matrix, can be used for zero derivative
-    inline SymEngine::RCP<const SymEngine::MatrixExpr> zero_operator()
-    {
-        return SymEngine::zero_matrix(SymEngine::integer(1), SymEngine::integer(1));
-    }
-
     // Convert the dependencies into vec_basic
     inline SymEngine::vec_basic to_vec_basic(const PertDependency& dependencies)
     {
@@ -96,5 +90,11 @@ namespace Tinned
             args.push_back(SymEngine::integer(dep.second));
         }
         return args;
+    }
+
+    // Return a 1x1 zero matrix, can be used for zero derivative
+    inline SymEngine::RCP<const SymEngine::MatrixExpr> zero_operator()
+    {
+        return SymEngine::zero_matrix(SymEngine::integer(1), SymEngine::integer(1));
     }
 }

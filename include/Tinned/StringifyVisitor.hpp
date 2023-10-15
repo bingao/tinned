@@ -16,25 +16,27 @@
 #include <ostream>
 #include <string>
 
-#include <symengine/dict.h>
 #include <symengine/basic.h>
+#include <symengine/dict.h>
 //#include <symengine/symengine_rcp.h>
 #include <symengine/visitor.h>
 #include <symengine/printers/strprinter.h>
 
 #include "Tinned/Perturbation.hpp"
-#include "Tinned/Derivative.hpp"
-#include "Tinned/ElectronState.hpp"
+#include "Tinned/PertDependency.hpp"
+#include "Tinned/ElectronicState.hpp"
 #include "Tinned/OneElecDensity.hpp"
 #include "Tinned/OneElecOperator.hpp"
 #include "Tinned/TwoElecOperator.hpp"
 #include "Tinned/ExchCorrEnergy.hpp"
 #include "Tinned/ExchCorrPotential.hpp"
 #include "Tinned/NonElecFunction.hpp"
+#include "Tinned/TemporumOperator.hpp"
+#include "Tinned/TemporumOverlap.hpp"
 
 namespace Tinned
 {
-    class TinnedStrPrinter: public SymEngine::BaseVisitor<TinnedStrPrinter, SymEngine::StrPrinter>
+    class StringifyVisitor: public SymEngine::BaseVisitor<StringifyVisitor, SymEngine::StrPrinter>
     {
         protected:
             // Stringify perturbation dependencies
@@ -72,20 +74,20 @@ namespace Tinned
                 return o.str();
             }
 
-            // Stringify the electron state
+            // Stringify the electronic state
             inline std::string to_string(
-                const SymEngine::RCP<const ElectronState>& state
+                const SymEngine::RCP<const ElectronicState>& state
             )
             {
                 bvisit(*state);
                 return str_;
             }
 
-            // Stringify the derivative of an operator with an electron state
+            // Stringify the derivative of an operator with an electronic state
             // as the argument
             inline std::string to_string(
                 const std::string& name,
-                const SymEngine::RCP<const ElectronState>& state,
+                const SymEngine::RCP<const ElectronicState>& state,
                 const SymEngine::multiset_basic& derivative
             )
             {
@@ -104,6 +106,6 @@ namespace Tinned
 
     // Stringify symbols from SymEngine and additional ones defined in this
     // library
-    std::string tinned_str(const SymEngine::Basic& x);
-    //std::string tinned_str(SymEngine::RCP<const SymEngine::Basic>& x);
+    std::string stringify(const SymEngine::Basic& x);
+    //std::string stringify(SymEngine::RCP<const SymEngine::Basic>& x);
 }
