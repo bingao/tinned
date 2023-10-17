@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include <iostream>
+
 #include <functional>
 
 #include <symengine/basic.h>
@@ -64,7 +66,7 @@ namespace Tinned
             // Check equality for `x` and symbols to be removed
             inline bool eq_check(const SymEngine::Basic& x) {
                 for (const auto& s: symbols_) {
-                    if SymEngine::eq(x, *s) return true;
+                    if (SymEngine::eq(x, *s)) return true;
                 }
                 return false;
             }
@@ -72,7 +74,7 @@ namespace Tinned
             // Check inequality for `x` and symbols to be kept
             inline bool neq_check(const SymEngine::Basic& x) {
                 for (const auto& s: symbols_) {
-                    if SymEngine::eq(x, *s) return false;
+                    if (SymEngine::eq(x, *s)) return false;
                 }
                 return true;
             }
@@ -87,11 +89,15 @@ namespace Tinned
                 const SymEngine::RCP<const SymEngine::Basic>& x
             )
             {
-                if (to_remove(*x)) {
-                    result_ = SymEngine::RCP();
+std::cout << "apply()\n";
+                if (to_remove_(*x)) {
+std::cout << "remove x\n";
+                    result_ = SymEngine::RCP<const SymEngine::Basic>();
                 } else {
+std::cout << "accept()\n";
                     x->accept(*this);
                 }
+std::cout << "before return " << result_.is_null() << "\n";
                 return result_;
             }
 
@@ -130,6 +136,7 @@ namespace Tinned
         const SymEngine::vec_basic& symbols
     )
     {
+std::cout << "neq_remove()\n";
         RemoveVisitor visitor(symbols, false);
         return visitor.apply(x);
     }
