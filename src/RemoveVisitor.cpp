@@ -1,3 +1,6 @@
+#include <utility>
+
+#include <symengine/pow.h>
 #include <symengine/symengine_exception.h>
 
 #include "Tinned/RemoveVisitor.hpp"
@@ -7,12 +10,7 @@ namespace Tinned
     RemoveVisitor::RemoveVisitor(const SymEngine::vec_basic& symbols, bool equivalence)
         : symbols_(symbols)
     {
-        if (equivalence) {
-            to_remove_ = &eq_check;
-        }
-        else {
-            to_remove_ = &neq_check;
-        }
+        to_remove_ = equivalence ? &eq_check : &neq_check;
     }
 
     void RemoveVisitor::bvisit(const SymEngine::Basic& x)
@@ -26,96 +24,309 @@ namespace Tinned
 
     void RemoveVisitor::bvisit(const SymEngine::Symbol& x)
     {
-        if (SymEngine::is_a_sub<const Perturbation>(x)) {
-            if (to_remove_(x)) {
+        result_ = to_remove_(x) ? SymEngine::RCP() : x.rcp_from_this();
+    }
+
+    void RemoveVisitor::bvisit(const SymEngine::Integer& x)
+    {
+        result_ = to_remove_(x) ? SymEngine::RCP() : x.rcp_from_this();
+    }
+
+    void RemoveVisitor::bvisit(const SymEngine::Rational& x)
+    {
+        result_ = to_remove_(x) ? SymEngine::RCP() : x.rcp_from_this();
+    }
+
+    void RemoveVisitor::bvisit(const SymEngine::Complex& x)
+    {
+        result_ = to_remove_(x) ? SymEngine::RCP() : x.rcp_from_this();
+    }
+
+    void RemoveVisitor::bvisit(const SymEngine::Add& x)
+    {
+        // We first check if `Add` will be removed as a whole
+        if (to_remove_(x)) {
+            result_ = SymEngine::RCP();
+        }
+        else {
+            SymEngine::umap_basic_num d;
+            // First we check if the coefficient will be removed
+            SymEngine::RCP<const SymEngine::Number> coef = x.get_coef();
+            if (to_remove(*coef)) coef = SymEngine::zero;
+            // Next we check each pair (`Basic` and `Number`) in the dictionary
+            // of `Add`
+            for (const auto& p: x.get_dict()) {
+                // Skip if this pair will be removed as a whole
+                if (to_remove(*SymEngine::Add::from_dict(
+                    SymEngine::zero, {{p.first, p.second}}
+                )) continue;
+                // Skip if `Basic` was removed
+                auto new_key = apply(p.first);
+                if (new_key.is_null()) continue;
+                // Skip if `Number` will be removed
+                if (to_remove(*p.second)) continue;
+                SymEngine::Add::coef_dict_add_term(
+                    SymEngine::outArg(coef), d, p.second, new_key
+                );
+            }
+            result_ = SymEngine::Add::from_dict(coef, std::move(d));
+        }
+    }
+
+    void RemoveVisitor::bvisit(const SymEngine::Mul& x)
+    {
+        // We first check if `Mul` will be removed as a whole
+        if (to_remove_(x)) {
+            result_ = SymEngine::RCP();
+        }
+        else {
+            // We remove the whole `Mul` if its coefficient will be removed
+            SymEngine::RCP<const SymEngine::Number> coef = x.get_coef();
+            if (to_remove(*coef)) {
                 result_ = SymEngine::RCP();
             }
             else {
-                result_ = x.rcp_from_this();
+                SymEngine::map_basic_basic d;
+                // We check each pair (`Basic` and `Basic`) in the dictionary
+                // of `Mul`
+                for (const auto& p : x.get_dict()) {
+                    // We remove the whole `Mul` if the pair will be removed
+                    auto factor = SymEngine::make_rcp<SymEngine::Pow>(p.first, p.second);
+                    if (to_remove(*factor)) {
+                        result_ = SymEngine::RCP();
+                        return;
+                    }
+                    // Remove the whole `Mul` if the key will be removed
+                    auto new_key = apply(p.first);
+                    if (new_key.is_null()) {
+                        result_ = SymEngine::RCP();
+                        return;
+                    }
+                    // The value in the pair (the exponent) is not allowed to
+                    // be removed completely
+                    auto new_value = apply(p.second);
+                    if (new_key.is_null()) {
+                        throw SymEngine::SymEngineException(
+                            "Removing the exponent in a key-value pair of Mul is not allowed."
+                        );
+                    }
+                    else {
+                        SymEngine::Mul::dict_add_term_new(
+                            SymEngine::outArg(coef), d, new_value, new_key
+                        );
+                    }
+                }
+                result_ = SymEngine::Mul::from_dict(coef, std::move(d));
             }
         }
-        else {
-            throw SymEngine::NotImplementedError(
-                "RemoveVisitor::bvisit() not implemented for " + x.__str__()
-            );
-        }
+    }
+
+    void RemoveVisitor::bvisit(const SymEngine::Constant& x)
+    {
+        result_ = to_remove_(x) ? SymEngine::RCP() : x.rcp_from_this();
     }
 
     void RemoveVisitor::bvisit(const SymEngine::FunctionSymbol& x)
     {
         // We don't allow for the removal of derivative symbols, but only check
-        // if the `NonElecFunction` can be removed as a whole
+        // if the `NonElecFunction` (or its derivative) can be removed as a whole
         if (SymEngine::is_a_sub<const NonElecFunction>(x)) {
-            if (to_remove_(x)) {
-                result_ = SymEngine::RCP();
-            }
-            else {
-                result_ = x.rcp_from_this();
-            }
+            result_ = to_remove_(x) ? SymEngine::RCP() : x.rcp_from_this();
         }
         else if (SymEngine::is_a_sub<const ExchCorrEnergy>(x)) {
-            auto& op = SymEngine::down_cast<const ExchCorrEnergy&>(x);
-            str_ = to_string(op.get_name(), op.get_state(), op.get_derivative());
+
         }
         else {
             throw SymEngine::NotImplementedError(
-                "RemoveVisitor::bvisit() not implemented for " + x.__str__()
+                "RemoveVisitor::bvisit() not implemented for FunctionSymbol " + x.__str__()
             );
         }
+    }
+
+    void RemoveVisitor::bvisit(const SymEngine::ZeroMatrix& x)
+    {
+        result_ = to_remove_(x) ? SymEngine::RCP() : x.rcp_from_this();
     }
 
     void RemoveVisitor::bvisit(const SymEngine::MatrixSymbol& x)
     {
         if (SymEngine::is_a_sub<const OneElecDensity>(x)) {
-            auto derivative = SymEngine::down_cast<const OneElecDensity&>(x).get_derivative();
-            if (derivative.empty()) {
-                str_ = SymEngine::down_cast<const OneElecDensity&>(x).get_name();
-            }
-            else {
-                str_ = to_string(
-                    SymEngine::down_cast<const OneElecDensity&>(x).get_name(),
-                    derivative
-                );
-            }
+            result_ = to_remove_(x) ? SymEngine::RCP() : x.rcp_from_this();
         }
         else if (SymEngine::is_a_sub<const OneElecOperator>(x)) {
-            auto name = SymEngine::down_cast<const OneElecOperator&>(x).get_name();
-            auto derivative = SymEngine::down_cast<const OneElecOperator&>(x).get_derivative();
-            if (derivative.empty()) {
-                str_ = to_string(
-                    name,
-                    SymEngine::down_cast<const OneElecOperator&>(x).get_dependencies()
-                );
-            }
-            else {
-                str_ = to_string(name, derivative);
-            }
+            result_ = to_remove_(x) ? SymEngine::RCP() : x.rcp_from_this();
         }
         else if (SymEngine::is_a_sub<const TwoElecOperator>(x)) {
-            auto str_state = to_string(
-                SymEngine::down_cast<const TwoElecOperator&>(x).get_state()
-            );
-            auto derivative = SymEngine::down_cast<const TwoElecOperator&>(x).get_derivative();
-            auto str_eri = derivative.empty()
-                ? to_string(
-                      std::string("ERI"),
-                      SymEngine::down_cast<const TwoElecOperator&>(x).get_dependencies()
-                  )
-                : to_string(std::string("ERI"), derivative);
-            auto name = SymEngine::down_cast<const TwoElecOperator&>(x).get_name();
-            str_ = name + "(" + str_eri + ", " + str_state + ")";
+            // We first check if `TwoElecOperator` will be removed
+            if (to_remove_(x)) {
+                result_ = SymEngine::RCP();
+            }
+            // Next we check if its state will be removed
+            else {
+                auto& op = SymEngine::down_cast<const TwoElecOperator&>(x);
+                auto new_state =  apply(op.get_state());
+                if (new_state.is_null()) {
+                    result_ = SymEngine::RCP();
+                }
+                else {
+                    result_ = SymEngine::make_rcp<const TwoElecOperator>(
+                        op.get_name(),
+                        new_state,
+                        op.get_dependencies(),
+                        op.get_derivative()
+                    );
+                }
+            }
         }
         else if (SymEngine::is_a_sub<const ExchCorrPotential>(x)) {
-            str_ = to_string(
-                SymEngine::down_cast<const ExchCorrPotential&>(x).get_name(),
-                SymEngine::down_cast<const ExchCorrPotential&>(x).get_state(),
-                SymEngine::down_cast<const ExchCorrPotential&>(x).get_derivative()
-            );
+
+        }
+        else if (SymEngine::is_a_sub<const TemporumOperator>(x)) {
+            // We first check if `TemporumOperator` will be removed
+            if (to_remove_(x)) {
+                result_ = SymEngine::RCP();
+            }
+            // Next we check if its target will be removed
+            else {
+                auto& op = SymEngine::down_cast<const TemporumOperator&>(x);
+                auto new_target = apply(op.get_target());
+                if (new_target.is_null()) {
+                    result_ = SymEngine::RCP();
+                }
+                else {
+                    result_ = SymEngine::make_rcp<const TemporumOperator>(
+                        new_target, op.get_type()
+                    );
+                }
+            }
+        }
+        else if (SymEngine::is_a_sub<const TemporumOverlap>(x)) {
+            result_ = to_remove_(x) ? SymEngine::RCP() : x.rcp_from_this();
         }
         else {
             throw SymEngine::NotImplementedError(
-                "RemoveVisitor::bvisit() not implemented for " + x.__str__()
+                "RemoveVisitor::bvisit() not implemented for MatrixSymbol " + x.__str__()
             );
         }
+    }
+
+    void RemoveVisitor::bvisit(const SymEngine::Trace& x)
+    {
+        // We first check if `Trace` will be removed
+        if (to_remove_(x)) {
+            result_ = SymEngine::RCP();
+        }
+        // Next we check if its argument will be removed
+        else {
+            auto new_arg = apply(
+                SymEngine::down_cast<const SymEngine::Trace&>(x).get_args()[0]
+            );
+            if (new_arg.is_null()) {
+                result_ = SymEngine::RCP();
+            }
+            else {
+                result_ = SymEngine::make_rcp<const SymEngine::Trace>(new_arg);
+            }
+        }
+    }
+
+    void RemoveVisitor::bvisit(const SymEngine::ConjugateMatrix& x)
+    {
+        // We first check if `ConjugateMatrix` will be removed
+        if (to_remove_(x)) {
+            result_ = SymEngine::RCP();
+        }
+        // Next we check if its argument will be removed
+        else {
+            auto new_arg = apply(
+                SymEngine::down_cast<const SymEngine::ConjugateMatrix&>(x).get_arg()
+            );
+            if (new_arg.is_null()) {
+                result_ = SymEngine::RCP();
+            }
+            else {
+                result_ = SymEngine::make_rcp<const SymEngine::ConjugateMatrix>(new_arg);
+            }
+        }
+    }
+
+    void RemoveVisitor::bvisit(const SymEngine::Transpose& x)
+    {
+        // We first check if `Transpose` will be removed
+        if (to_remove_(x)) {
+            result_ = SymEngine::RCP();
+        }
+        // Next we check if its argument will be removed
+        else {
+            auto new_arg = apply(
+                SymEngine::down_cast<const SymEngine::Transpose&>(x).get_arg()
+            );
+            if (new_arg.is_null()) {
+                result_ = SymEngine::RCP();
+            }
+            else {
+                result_ = SymEngine::make_rcp<const SymEngine::Transpose>(new_arg);
+            }
+        }
+    }
+
+    void RemoveVisitor::bvisit(const SymEngine::MatrixAdd& x)
+    {
+        // We first check if `MatrixAdd` will be removed as a whole
+        if (to_remove_(x)) {
+            result_ = SymEngine::RCP();
+        }
+        else {
+            // Next we check each argument of `MatrixAdd`
+            SymEngine::vec_basic terms;
+            for (auto arg: SymEngine::down_cast<const SymEngine::MatrixAdd&>(x).get_args()) {
+                auto new_arg = apply(arg);
+                if (!new_arg.is_null()) terms.push_back(new_arg);
+            }
+            if (terms.empty()) {
+                result_ = SymEngine::RCP();
+            }
+            else {
+                result_ = SymEngine::matrix_add(terms);
+            }
+        }
+    }
+
+    void RemoveVisitor::bvisit(const SymEngine::MatrixMul& x)
+    {
+        // We first check if `MatrixMul` will be removed as a whole
+        if (to_remove_(x)) {
+            result_ = SymEngine::RCP();
+        }
+        else {
+            // Next we check each argument of `MatrixMul`
+            SymEngine::vec_basic factors;
+            for (auto arg: SymEngine::down_cast<const SymEngine::MatrixMul&>(x).get_args()) {
+                auto new_arg = apply(arg);
+                if (new_arg.is_null()) {
+                    result_ = SymEngine::RCP();
+                    return;
+                }
+                else {
+                    factors.push_back(new_arg);
+                }
+            }
+            // Probably we do not need to check if factors is empty because the
+            // above loop over arguments should be at least executed once
+            if (factors.empty()) {
+                result_ = SymEngine::RCP();
+            }
+            else {
+                result_ = SymEngine::matrix_mul(factors);
+            }
+        }
+    }
+
+    void RemoveVisitor::bvisit(const SymEngine::MatrixDerivative& x)
+    {
+        // Because only `MatrixSymbol` can be used as the argument of
+        // `MatrixDerivative`, we only need to check if `MatrixDerivative` will
+        // be removed as a whole
+        result_ = to_remove_(x) ? SymEngine::RCP() : x.rcp_from_this();
     }
 }
