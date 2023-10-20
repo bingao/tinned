@@ -159,7 +159,7 @@ namespace Tinned
         // if the `NonElecFunction` (or its derivative) will be removed as a
         // whole
         if (SymEngine::is_a_sub<const NonElecFunction>(x)) {
-            remove_if_symbol_like<const SymEngine::NonElecFunction>(
+            remove_if_symbol_like<const NonElecFunction>(
                 SymEngine::down_cast<const NonElecFunction&>(x)
             );
         }
@@ -192,14 +192,19 @@ namespace Tinned
         }
         else if (SymEngine::is_a_sub<const TwoElecOperator>(x)) {
             auto& op = SymEngine::down_cast<const TwoElecOperator&>(x);
-            remove_if_one_arg_f<const TwoElecOperator>(
-                x,
-                [=]() -> SymEngine::RCP<const SymEngine::MatrixExpr>
+            remove_if_one_arg_f<const TwoElecOperator, const ElectronicState>(
+                op,
+                op.get_state(),
+                [&](const SymEngine::RCP<const ElectronicState>& state)
+                    -> SymEngine::RCP<const TwoElecOperator>
                 {
-                    return op.get_state();
-                },
-                op.get_dependencies(),
-                op.get_derivative()
+                    return SymEngine::make_rcp<const TwoElecOperator>(
+                        op.get_name(),
+                        state,
+                        op.get_dependencies(),
+                        op.get_derivative()
+                    );
+                }
             );
         }
         else if (SymEngine::is_a_sub<const ExchCorrPotential>(x)) {
@@ -207,13 +212,16 @@ namespace Tinned
         }
         else if (SymEngine::is_a_sub<const TemporumOperator>(x)) {
             auto& op = SymEngine::down_cast<const TemporumOperator&>(x);
-            remove_if_one_arg_f<const TemporumOperator>(
-                x,
-                [=]() -> SymEngine::RCP<const SymEngine::MatrixExpr>
+            remove_if_one_arg_f<const TemporumOperator, const SymEngine::Basic>(
+                op,
+                op.get_target(),
+                [&](const SymEngine::RCP<const SymEngine::Basic>& target)
+                    -> SymEngine::RCP<const TemporumOperator>
                 {
-                    return op.get_target();
-                },
-                op.get_type()
+                    return SymEngine::make_rcp<const TemporumOperator>(
+                        target, op.get_type()
+                    );
+                }
             );
         }
         else if (SymEngine::is_a_sub<const TemporumOverlap>(x)) {
@@ -230,33 +238,39 @@ namespace Tinned
 
     void RemoveVisitor::bvisit(const SymEngine::Trace& x)
     {
-        remove_if_one_arg_f<const SymEngine::Trace>(
+        remove_if_one_arg_f<const SymEngine::Trace, const SymEngine::MatrixExpr>(
             x,
-            [=]() -> SymEngine::RCP<const SymEngine::MatrixExpr>
+            SymEngine::rcp_dynamic_cast<const SymEngine::MatrixExpr>(x.get_args()[0]),
+            [&](const SymEngine::RCP<const SymEngine::MatrixExpr>& arg)
+                -> SymEngine::RCP<const SymEngine::Trace>
             {
-                return SymEngine::down_cast<const SymEngine::Trace&>(x).get_args()[0];
+                return SymEngine::make_rcp<const SymEngine::Trace>(arg);
             }
         );
     }
 
     void RemoveVisitor::bvisit(const SymEngine::ConjugateMatrix& x)
     {
-        remove_ifnot_one_arg_f<const SymEngine::ConjugateMatrix>(
+        remove_if_one_arg_f<const SymEngine::ConjugateMatrix, const SymEngine::MatrixExpr>(
             x,
-            [=]() -> SymEngine::RCP<const SymEngine::MatrixExpr>
+            x.get_arg(),
+            [&](const SymEngine::RCP<const SymEngine::MatrixExpr>& arg)
+                -> SymEngine::RCP<const SymEngine::ConjugateMatrix>
             {
-                return SymEngine::down_cast<const SymEngine::ConjugateMatrix&>(x).get_arg();
+                return SymEngine::make_rcp<const SymEngine::ConjugateMatrix>(arg);
             }
         );
     }
 
     void RemoveVisitor::bvisit(const SymEngine::Transpose& x)
     {
-        remove_ifnot_one_arg_f<const SymEngine::Transpose>(
+        remove_if_one_arg_f<const SymEngine::Transpose, const SymEngine::MatrixExpr>(
             x,
-            [=]() -> SymEngine::RCP<const SymEngine::MatrixExpr>
+            x.get_arg(),
+            [&](const SymEngine::RCP<const SymEngine::MatrixExpr>& arg)
+                -> SymEngine::RCP<const SymEngine::Transpose>
             {
-                return SymEngine::down_cast<const SymEngine::Transpose&>(x).get_arg();
+                return SymEngine::make_rcp<const SymEngine::Transpose>(arg);
             }
         );
     }
@@ -286,7 +300,12 @@ namespace Tinned
                 result_ = SymEngine::RCP<const SymEngine::Basic>();
             }
             else {
-                result_ = kept ? x.rcp_from_this() : SymEngine::matrix_add(terms);
+                if (kept) {
+                    result_ = x.rcp_from_this();
+                }
+                else {
+                    result_ = SymEngine::matrix_add(terms);
+                }
             }
         }
     }
@@ -319,7 +338,12 @@ namespace Tinned
                 result_ = SymEngine::RCP<const SymEngine::Basic>();
             }
             else {
-                result_ = kept ? x.rcp_from_this() : SymEngine::matrix_mul(factors);
+                if (kept) {
+                    result_ = x.rcp_from_this();
+                }
+                else {
+                    result_ = SymEngine::matrix_mul(factors);
+                }
             }
         }
     }

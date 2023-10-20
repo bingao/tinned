@@ -92,11 +92,11 @@ namespace Tinned
             }
 
             // Template method for one argument function like classes
-            template<typename Fun, typename Arg = const SymEngine::MatrixExpr, typename... Params>
+            template<typename Fun, typename Arg>
             inline void remove_if_one_arg_f(
                 Fun& x,
-                std::function<SymEngine::RCP<Arg>()> get_arg,
-                Params... params
+                const SymEngine::RCP<Arg>& arg,
+                std::function<SymEngine::RCP<Fun>(const SymEngine::RCP<Arg>&)> constructor
             )
             {
                 // We first check if the function will be removed
@@ -105,7 +105,6 @@ namespace Tinned
                 }
                 // Next we check if its argument will be removed
                 else {
-                    auto arg = get_arg();
                     auto new_arg = apply(arg);
                     if (new_arg.is_null()) {
                         result_ = SymEngine::RCP<const SymEngine::Basic>();
@@ -115,8 +114,8 @@ namespace Tinned
                             result_ = x.rcp_from_this();
                         }
                         else {
-                            result_ = SymEngine::make_rcp<Fun>(
-                                SymEngine::rcp_dynamic_cast<Arg>(new_arg), params...
+                            result_ = constructor(
+                                SymEngine::rcp_dynamic_cast<Arg>(new_arg)
                             );
                         }
                     }
@@ -126,7 +125,7 @@ namespace Tinned
         public:
             explicit RemoveVisitor(
                 const SymEngine::vec_basic& symbols,
-                std::function<bool(const SymEngine::Basic&)> condition
+                std::function<bool(const SymEngine::Basic&)> condition = {}
             ) : symbols_(symbols)
             {
                 if (condition) {

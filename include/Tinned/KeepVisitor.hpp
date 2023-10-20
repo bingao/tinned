@@ -54,17 +54,16 @@ namespace Tinned
             }
 
             // Template method for one argument function like classes
-            template<typename Fun, typename Arg = const SymEngine::MatrixExpr, typename... Params>
+            template<typename Fun, typename Arg>
             inline void keep_if_one_arg_f(
                 Fun& x,
-                std::function<SymEngine::RCP<Arg>()> get_arg,
-                Params... params
+                const SymEngine::RCP<Arg>& arg,
+                std::function<SymEngine::RCP<Fun>(const SymEngine::RCP<Arg>&)> constructor
             )
             {
                 // If the function will not be kept as whole, we then check if
                 // its argument will be kept
                 if (condition_(x)) {
-                    auto arg = get_arg();
                     auto new_arg = apply(arg);
                     if (new_arg.is_null()) {
                         result_ = SymEngine::RCP<const SymEngine::Basic>();
@@ -74,8 +73,8 @@ namespace Tinned
                             result_ = x.rcp_from_this();
                         }
                         else {
-                            result_ = SymEngine::make_rcp<Fun>(
-                                SymEngine::rcp_dynamic_cast<Arg>(new_arg), params...
+                            result_ = constructor(
+                                SymEngine::rcp_dynamic_cast<Arg>(new_arg)
                             );
                         }
                     }

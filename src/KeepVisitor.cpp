@@ -71,18 +71,10 @@ namespace Tinned
     {
         if (condition_(x)) {
             SymEngine::RCP<const SymEngine::Number> coef = x.get_coef();
-            auto new_coef = apply(*coef);
-            if (!new_coef.is_null()) {
-                // `Mul` will be kept as a whole if the coefficient is kept
-                if (SymEngine::eq(*coef, *new_coef)) {
-                    result_ = x.rcp_from_this();
-                    return;
-                }
-                // The coefficient is partially kept: c = ck + cr where ck is
-                // kept and cr is remove. We save cr = c - ck
-                else {
-                    coef = SymEngine::subnum(coef, new_coef);
-                }
+            // `Mul` will be kept as a whole if the coefficient is kept
+            if (!condition_(*coef)) {
+                result_ = x.rcp_from_this();
+                return;
             }
             // Indicates if there is factor(s) kept
             bool factors_kept = false;
@@ -134,8 +126,8 @@ namespace Tinned
             }
             // When there are factors partially kept, the result can be
             // computed as
-            // c*(A^a)*(B^b)*...*(R^r)*(S^s)*... - cr*(Ar^a)*(Br^b)*...*(R^r)*(S^s)*...,
-            // where cr, Ar, Br, Cr, ... are parts that are removed, R, S, T, ...
+            // c*(A^a)*(B^b)*...*(R^r)*(S^s)*... - c*(Ar^a)*(Br^b)*...*(R^r)*(S^s)*...,
+            // where Ar, Br, Cr, ... are parts that are removed, R, S, T, ...
             // are those without kept parts.
             if (factors_kept) {
                 result_ = SymEngine::sub(
@@ -161,7 +153,7 @@ namespace Tinned
         // if the `NonElecFunction` (or its derivative) will be removed as a
         // whole
         if (SymEngine::is_a_sub<const NonElecFunction>(x)) {
-            remove_if_symbol_like<const SymEngine::NonElecFunction>(
+            remove_if_symbol_like<const NonElecFunction>(
                 SymEngine::down_cast<const NonElecFunction&>(x)
             );
         }
@@ -189,14 +181,19 @@ namespace Tinned
         }
         else if (SymEngine::is_a_sub<const TwoElecOperator>(x)) {
             auto& op = SymEngine::down_cast<const TwoElecOperator&>(x);
-            keep_if_one_arg_f<const TwoElecOperator>(
-                x,
-                [=]() -> SymEngine::RCP<const SymEngine::MatrixExpr>
+            keep_if_one_arg_f<const TwoElecOperator, const ElectronicState>(
+                op,
+                op.get_state(),
+                [&](const SymEngine::RCP<const ElectronicState>& state)
+                    -> SymEngine::RCP<const TwoElecOperator>
                 {
-                    return op.get_state();
-                },
-                op.get_dependencies(),
-                op.get_derivative()
+                    return SymEngine::make_rcp<const TwoElecOperator>(
+                        op.get_name(),
+                        state,
+                        op.get_dependencies(),
+                        op.get_derivative()
+                    );
+                }
             );
         }
         else if (SymEngine::is_a_sub<const ExchCorrPotential>(x)) {
@@ -204,13 +201,16 @@ namespace Tinned
         }
         else if (SymEngine::is_a_sub<const TemporumOperator>(x)) {
             auto& op = SymEngine::down_cast<const TemporumOperator&>(x);
-            keep_if_one_arg_f<const TemporumOperator>(
-                x,
-                [=]() -> SymEngine::RCP<const SymEngine::MatrixExpr>
+            keep_if_one_arg_f<const TemporumOperator, const SymEngine::Basic>(
+                op,
+                op.get_target(),
+                [&](const SymEngine::RCP<const SymEngine::Basic>& target)
+                    -> SymEngine::RCP<const TemporumOperator>
                 {
-                    return op.get_target();
-                },
-                op.get_type()
+                    return SymEngine::make_rcp<const TemporumOperator>(
+                        target, op.get_type()
+                    );
+                }
             );
         }
         else if (SymEngine::is_a_sub<const TemporumOverlap>(x)) {
@@ -227,33 +227,39 @@ namespace Tinned
 
     void KeepVisitor::bvisit(const SymEngine::Trace& x)
     {
-        keep_if_one_arg_f<const SymEngine::Trace>(
+        keep_if_one_arg_f<const SymEngine::Trace, const SymEngine::MatrixExpr>(
             x,
-            [=]() -> SymEngine::RCP<const SymEngine::MatrixExpr>
+            SymEngine::rcp_dynamic_cast<const SymEngine::MatrixExpr>(x.get_args()[0]),
+            [&](const SymEngine::RCP<const SymEngine::MatrixExpr>& arg)
+                -> SymEngine::RCP<const SymEngine::Trace>
             {
-                return SymEngine::down_cast<const SymEngine::Trace&>(x).get_args()[0];
+                return SymEngine::make_rcp<const SymEngine::Trace>(arg);
             }
         );
     }
 
     void KeepVisitor::bvisit(const SymEngine::ConjugateMatrix& x)
     {
-        keep_if_one_arg_f<const SymEngine::ConjugateMatrix>(
+        keep_if_one_arg_f<const SymEngine::ConjugateMatrix, const SymEngine::MatrixExpr>(
             x,
-            [=]() -> SymEngine::RCP<const SymEngine::MatrixExpr>
+            x.get_arg(),
+            [&](const SymEngine::RCP<const SymEngine::MatrixExpr>& arg)
+                -> SymEngine::RCP<const SymEngine::ConjugateMatrix>
             {
-                return SymEngine::down_cast<const SymEngine::ConjugateMatrix&>(x).get_arg();
+                return SymEngine::make_rcp<const SymEngine::ConjugateMatrix>(arg);
             }
         );
     }
 
     void KeepVisitor::bvisit(const SymEngine::Transpose& x)
     {
-        keep_if_one_arg_f<const SymEngine::Transpose>(
+        keep_if_one_arg_f<const SymEngine::Transpose, const SymEngine::MatrixExpr>(
             x,
-            [=]() -> SymEngine::RCP<const SymEngine::MatrixExpr>
+            x.get_arg(),
+            [&](const SymEngine::RCP<const SymEngine::MatrixExpr>& arg)
+                -> SymEngine::RCP<const SymEngine::Transpose>
             {
-                return SymEngine::down_cast<const SymEngine::Transpose&>(x).get_arg();
+                return SymEngine::make_rcp<const SymEngine::Transpose>(arg);
             }
         );
     }
