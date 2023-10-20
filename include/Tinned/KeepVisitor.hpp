@@ -98,6 +98,18 @@ namespace Tinned
             {
             }
 
+            inline SymEngine::RCP<const SymEngine::Basic> apply(
+                const SymEngine::RCP<const SymEngine::Basic>& x
+            )
+            {
+                if (condition_(*x)) {
+                    x->accept(*this);
+                } else {
+                    result_ = x;
+                }
+                return result_;
+            }
+
             using RemoveVisitor::bvisit;
             //
             // Different from `RemoveVisitor`, the whole `Mul`, `MatrixMul`
@@ -112,6 +124,7 @@ namespace Tinned
             void bvisit(const SymEngine::Trace& x);
             void bvisit(const SymEngine::ConjugateMatrix& x);
             void bvisit(const SymEngine::Transpose& x);
+            void bvisit(const SymEngine::MatrixAdd& x);
             void bvisit(const SymEngine::MatrixMul& x);
     };
 

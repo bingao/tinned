@@ -264,6 +264,29 @@ namespace Tinned
         );
     }
 
+    void KeepVisitor::bvisit(const SymEngine::MatrixAdd& x)
+    {
+        // If `MatrixAdd` will not be kept as whole, we then check if its
+        // arguments will be kept
+        if (condition_(x)) {
+            SymEngine::vec_basic terms;
+            for (auto arg: SymEngine::down_cast<const SymEngine::MatrixAdd&>(x).get_args()) {
+                auto new_arg = apply(arg);
+                if (!new_arg.is_null()) terms.push_back(new_arg);
+            }
+            if (terms.empty()) {
+                result_ = SymEngine::RCP<const SymEngine::Basic>();
+            }
+            else {
+                result_ = SymEngine::matrix_add(terms);
+            }
+        }
+        // `MatrixAdd` will be kept as a whole
+        else {
+            result_ = x.rcp_from_this();
+        }
+    }
+
     void KeepVisitor::bvisit(const SymEngine::MatrixMul& x)
     {
         // If `MatrixMul` will not be kept as whole, we then check if its
