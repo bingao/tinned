@@ -55,7 +55,7 @@ namespace Tinned
 
             // Template method for one argument function like classes
             template<typename Fun, typename Arg = const SymEngine::MatrixExpr, typename... Params>
-            inline void remove_ifnot_one_arg_f(
+            inline void keep_if_one_arg_f(
                 Fun& x,
                 std::function<SymEngine::RCP<Arg>()> get_arg,
                 Params... params
@@ -64,14 +64,20 @@ namespace Tinned
                 // If the function will not be kept as whole, we then check if
                 // its argument will be kept
                 if (condition_(x)) {
-                    auto new_arg = apply(get_arg());
+                    auto arg = get_arg();
+                    auto new_arg = apply(arg);
                     if (new_arg.is_null()) {
                         result_ = SymEngine::RCP<const SymEngine::Basic>();
                     }
                     else {
-                        result_ = SymEngine::make_rcp<Fun>(
-                            SymEngine::rcp_dynamic_cast<Arg>(new_arg), params...
-                        );
+                        if (SymEngine::eq(*arg, *new_arg)) {
+                            result_ = x.rcp_from_this();
+                        }
+                        else {
+                            result_ = SymEngine::make_rcp<Fun>(
+                                SymEngine::rcp_dynamic_cast<Arg>(new_arg), params...
+                            );
+                        }
                     }
                 }
                 // The function will be kept as a whole
@@ -100,6 +106,7 @@ namespace Tinned
             // matches given symbols. Moreover, a function or an operator will
             // be kept if one of its argument matches given symbols.
             //
+            void bvisit(const SymEngine::Add& x);
             void bvisit(const SymEngine::Mul& x);
             void bvisit(const SymEngine::FunctionSymbol& x);
             void bvisit(const SymEngine::MatrixSymbol& x);

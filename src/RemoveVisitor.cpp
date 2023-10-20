@@ -53,27 +53,44 @@ namespace Tinned
             result_ = SymEngine::RCP<const SymEngine::Basic>();
         }
         else {
-            SymEngine::umap_basic_num d;
+            // Indicate if `Add` will be kept as a whole
+            bool kept = true;
             // First we check if the coefficient will be removed
             SymEngine::RCP<const SymEngine::Number> coef = x.get_coef();
-            if (condition_(*coef)) coef = SymEngine::zero;
+            if (condition_(*coef)) {
+                kept = false;
+                coef = SymEngine::zero;
+            }
             // Next we check each pair (`Basic` and `Number`) in the dictionary
             // of `Add`
+            SymEngine::umap_basic_num d;
             for (const auto& p: x.get_dict()) {
                 // Skip if this pair will be removed as a whole
-                if (condition_(*SymEngine::Add::from_dict(
-                    SymEngine::zero, {{p.first, p.second}}
-                ))) continue;
+                if (condition_(
+                    *SymEngine::Add::from_dict(SymEngine::zero, {{p.first, p.second}})
+                )) {
+                    kept = false;
+                    continue;
+                }
                 // Skip if `Basic` was removed
                 auto new_key = apply(p.first);
-                if (new_key.is_null()) continue;
+                if (new_key.is_null()) {
+                    kept = false;
+                    continue;
+                }
                 // Skip if `Number` will be removed
-                if (condition_(*p.second)) continue;
+                if (condition_(*p.second)) {
+                    kept = false;
+                    continue;
+                }
+                if (SymEngine::neq(*p.first, *new_key)) kept = false;
                 SymEngine::Add::coef_dict_add_term(
                     SymEngine::outArg(coef), d, p.second, new_key
                 );
             }
-            result_ = SymEngine::Add::from_dict(coef, std::move(d));
+            result_ = kept
+                ? x.rcp_from_this()
+                : SymEngine::Add::from_dict(coef, std::move(d));
         }
     }
 
@@ -90,9 +107,11 @@ namespace Tinned
                 result_ = SymEngine::RCP<const SymEngine::Basic>();
             }
             else {
-                SymEngine::map_basic_basic d;
+                // Indicate if `Mul` will be kept as a whole
+                bool kept = true;
                 // We check each pair (`Basic` and `Basic`) in the dictionary
                 // of `Mul`
+                SymEngine::map_basic_basic d;
                 for (const auto& p : x.get_dict()) {
                     // We remove the whole `Mul` if the pair will be removed
                     auto factor = SymEngine::make_rcp<SymEngine::Pow>(p.first, p.second);
@@ -111,16 +130,20 @@ namespace Tinned
                     auto new_value = apply(p.second);
                     if (new_value.is_null()) {
                         throw SymEngine::SymEngineException(
-                            "Removing the exponent in a key-value pair of Mul is not allowed."
+                            "RemoveVisitor::bvisit() does not allow to remove the exponent in a key-value pair of Mul."
                         );
                     }
                     else {
+                        if (SymEngine::neq(*p.first, *new_key) ||
+                            SymEngine::neq(*p.second, *new_value)) kept = false;
                         SymEngine::Mul::dict_add_term_new(
                             SymEngine::outArg(coef), d, new_value, new_key
                         );
                     }
                 }
-                result_ = SymEngine::Mul::from_dict(coef, std::move(d));
+                result_ = kept
+                    ? x.rcp_from_this()
+                    : SymEngine::Mul::from_dict(coef, std::move(d));
             }
         }
     }
@@ -133,7 +156,8 @@ namespace Tinned
     void RemoveVisitor::bvisit(const SymEngine::FunctionSymbol& x)
     {
         // We don't allow for the removal of derivative symbols, but only check
-        // if the `NonElecFunction` (or its derivative) can be removed as a whole
+        // if the `NonElecFunction` (or its derivative) will be removed as a
+        // whole
         if (SymEngine::is_a_sub<const NonElecFunction>(x)) {
             remove_if_symbol_like<const SymEngine::NonElecFunction>(
                 SymEngine::down_cast<const NonElecFunction&>(x)
@@ -244,17 +268,25 @@ namespace Tinned
             result_ = SymEngine::RCP<const SymEngine::Basic>();
         }
         else {
+            // Indicate if `MatrixAdd` will be kept as a whole
+            bool kept = true;
             // Next we check each argument of `MatrixAdd`
             SymEngine::vec_basic terms;
             for (auto arg: SymEngine::down_cast<const SymEngine::MatrixAdd&>(x).get_args()) {
                 auto new_arg = apply(arg);
-                if (!new_arg.is_null()) terms.push_back(new_arg);
+                if (new_arg.is_null()) {
+                    kept = false;
+                }
+                else {
+                    if (SymEngine::neq(*arg, *new_arg)) kept = false;
+                    terms.push_back(new_arg);
+                }
             }
             if (terms.empty()) {
                 result_ = SymEngine::RCP<const SymEngine::Basic>();
             }
             else {
-                result_ = SymEngine::matrix_add(terms);
+                result_ = kept ? x.rcp_from_this() : SymEngine::matrix_add(terms);
             }
         }
     }
@@ -266,6 +298,8 @@ namespace Tinned
             result_ = SymEngine::RCP<const SymEngine::Basic>();
         }
         else {
+            // Indicate if `MatrixMul` will be kept as a whole
+            bool kept = true;
             // Next we check each argument of `MatrixMul`
             SymEngine::vec_basic factors;
             for (auto arg: SymEngine::down_cast<const SymEngine::MatrixMul&>(x).get_args()) {
@@ -275,6 +309,7 @@ namespace Tinned
                     return;
                 }
                 else {
+                    if (SymEngine::neq(*arg, *new_arg)) kept = false;
                     factors.push_back(new_arg);
                 }
             }
@@ -284,7 +319,7 @@ namespace Tinned
                 result_ = SymEngine::RCP<const SymEngine::Basic>();
             }
             else {
-                result_ = SymEngine::matrix_mul(factors);
+                result_ = kept ? x.rcp_from_this() : SymEngine::matrix_mul(factors);
             }
         }
     }

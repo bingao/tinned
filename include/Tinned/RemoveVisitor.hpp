@@ -105,14 +105,20 @@ namespace Tinned
                 }
                 // Next we check if its argument will be removed
                 else {
-                    auto new_arg = apply(get_arg());
+                    auto arg = get_arg();
+                    auto new_arg = apply(arg);
                     if (new_arg.is_null()) {
                         result_ = SymEngine::RCP<const SymEngine::Basic>();
                     }
                     else {
-                        result_ = SymEngine::make_rcp<Fun>(
-                            SymEngine::rcp_dynamic_cast<Arg>(new_arg), params...
-                        );
+                        if (SymEngine::eq(*arg, *new_arg)) {
+                            result_ = x.rcp_from_this();
+                        }
+                        else {
+                            result_ = SymEngine::make_rcp<Fun>(
+                                SymEngine::rcp_dynamic_cast<Arg>(new_arg), params...
+                            );
+                        }
                     }
                 }
             }

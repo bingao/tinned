@@ -19,6 +19,52 @@
 
 namespace Tinned
 {
+    void KeepVisitor::bvisit(const SymEngine::Add& x)
+    {
+        // If `Add` will not be kept as whole, we then check its coefficient
+        // and pairs
+        if (condition_(x)) {
+            // First we check if the coefficient will be kept
+            SymEngine::RCP<const SymEngine::Number> coef = x.get_coef();
+            if (condition_(*coef)) coef = SymEngine::zero;
+            // Next we check each pair (`Basic` and `Number`) in the dictionary
+            // of `Add`
+            SymEngine::umap_basic_num d;
+            for (const auto& p: x.get_dict()) {
+                if (condition_(
+                    *SymEngine::Add::from_dict(SymEngine::zero, {{p.first, p.second}})
+                )) {
+                    if (condition_(*p.second)) {
+                        auto new_key = apply(p.first);
+                        if (new_key.is_null()) continue;
+                        SymEngine::Add::coef_dict_add_term(
+                            SymEngine::outArg(coef), d, p.second, new_key
+                        );
+                    }
+                    // `Number` will be kept so the the pair will be kept as a
+                    // whole
+                    else {
+                        SymEngine::Add::coef_dict_add_term(
+                            SymEngine::outArg(coef), d, p.second, p.first
+                        );
+                    }
+                }
+                // This pair will be kept as a whole
+                else {
+                    SymEngine::Add::coef_dict_add_term(
+                        SymEngine::outArg(coef), d, p.second, p.first
+                    );
+                }
+            }
+            // Note we will return zero if `d` is empty
+            result_ = SymEngine::Add::from_dict(coef, std::move(d));
+        }
+        // `Add` will be kept as a whole
+        else {
+            result_ = x.rcp_from_this();
+        }
+    }
+
     // This function is similar to that for MatrixMul, so see the detailed
     // explanation for that function
     void KeepVisitor::bvisit(const SymEngine::Mul& x)
@@ -38,9 +84,11 @@ namespace Tinned
                     coef = SymEngine::subnum(coef, new_coef);
                 }
             }
-            SymEngine::map_basic_basic d;
+            // Indicates if there is factor(s) kept
+            bool factors_kept = false;
             // We check each pair (`Basic` and `Basic`) in the dictionary
             // of `Mul`
+            SymEngine::map_basic_basic d;
             for (const auto& p : x.get_dict()) {
                 // First check the whole factor, i.e. key^value
                 auto factor = SymEngine::make_rcp<SymEngine::Pow>(p.first, p.second);
@@ -73,22 +121,8 @@ namespace Tinned
                                 p.second,
                                 SymEngine::sub(p.first, new_key)
                             );
+                            factors_kept = true;
                         }
-
-                        // The value in the pair (the exponent) is not allowed to
-                        // be removed completely
-                        auto new_value = apply(p.second);
-                        if (new_value.is_null()) {
-                            throw SymEngine::SymEngineException(
-                                "Removing the exponent in a key-value pair of Mul is not allowed."
-                            );
-                        }
-                        else {
-                            SymEngine::Mul::dict_add_term_new(
-                                SymEngine::outArg(coef), d, new_value, new_key
-                            );
-                        }
-
                     }
                 }
                 // `Mul` will be kept as a whole if this factor matches any
@@ -98,7 +132,22 @@ namespace Tinned
                     return;
                 }
             }
-            result_ = SymEngine::Mul::from_dict(coef, std::move(d));
+            // When there are factors partially kept, the result can be
+            // computed as
+            // c*(A^a)*(B^b)*...*(R^r)*(S^s)*... - cr*(Ar^a)*(Br^b)*...*(R^r)*(S^s)*...,
+            // where cr, Ar, Br, Cr, ... are parts that are removed, R, S, T, ...
+            // are those without kept parts.
+            if (factors_kept) {
+                result_ = SymEngine::sub(
+                    x.rcp_from_this(),
+                    SymEngine::Mul::from_dict(coef, std::move(d))
+                );
+            }
+            // `Mul` will be removed since all its factors are null after
+            // removal
+            else {
+                result_ = SymEngine::RCP<const SymEngine::Basic>();
+            }
         }
         // `Mul` will be kept as a whole
         else {
@@ -109,7 +158,8 @@ namespace Tinned
     void KeepVisitor::bvisit(const SymEngine::FunctionSymbol& x)
     {
         // We don't allow for the removal of derivative symbols, but only check
-        // if the `NonElecFunction` (or its derivative) can be removed as a whole
+        // if the `NonElecFunction` (or its derivative) will be removed as a
+        // whole
         if (SymEngine::is_a_sub<const NonElecFunction>(x)) {
             remove_if_symbol_like<const SymEngine::NonElecFunction>(
                 SymEngine::down_cast<const NonElecFunction&>(x)
@@ -139,7 +189,7 @@ namespace Tinned
         }
         else if (SymEngine::is_a_sub<const TwoElecOperator>(x)) {
             auto& op = SymEngine::down_cast<const TwoElecOperator&>(x);
-            remove_ifnot_one_arg_f<const TwoElecOperator>(
+            keep_if_one_arg_f<const TwoElecOperator>(
                 x,
                 [=]() -> SymEngine::RCP<const SymEngine::MatrixExpr>
                 {
@@ -154,7 +204,7 @@ namespace Tinned
         }
         else if (SymEngine::is_a_sub<const TemporumOperator>(x)) {
             auto& op = SymEngine::down_cast<const TemporumOperator&>(x);
-            remove_ifnot_one_arg_f<const TemporumOperator>(
+            keep_if_one_arg_f<const TemporumOperator>(
                 x,
                 [=]() -> SymEngine::RCP<const SymEngine::MatrixExpr>
                 {
@@ -177,7 +227,7 @@ namespace Tinned
 
     void KeepVisitor::bvisit(const SymEngine::Trace& x)
     {
-        remove_ifnot_one_arg_f<const SymEngine::Trace>(
+        keep_if_one_arg_f<const SymEngine::Trace>(
             x,
             [=]() -> SymEngine::RCP<const SymEngine::MatrixExpr>
             {
@@ -188,7 +238,7 @@ namespace Tinned
 
     void KeepVisitor::bvisit(const SymEngine::ConjugateMatrix& x)
     {
-        remove_ifnot_one_arg_f<const SymEngine::ConjugateMatrix>(
+        keep_if_one_arg_f<const SymEngine::ConjugateMatrix>(
             x,
             [=]() -> SymEngine::RCP<const SymEngine::MatrixExpr>
             {
@@ -199,7 +249,7 @@ namespace Tinned
 
     void KeepVisitor::bvisit(const SymEngine::Transpose& x)
     {
-        remove_ifnot_one_arg_f<const SymEngine::Transpose>(
+        keep_if_one_arg_f<const SymEngine::Transpose>(
             x,
             [=]() -> SymEngine::RCP<const SymEngine::MatrixExpr>
             {
@@ -223,12 +273,12 @@ namespace Tinned
                 auto new_arg = apply(arg);
                 if (new_arg.is_null()) {
                     // This factor does not match any given symbols, but we
-                    // save it in case that there will be factor(s) kept
+                    // save it in case that there will be other factor(s) kept
                     factors.push_back(arg);
                 }
                 else {
                     // `MatrixMul` will be kept as a whole if this factor
-                    // matches any given symbols and is kept
+                    // matches a given symbol and is kept
                     if (SymEngine::eq(*arg, *new_arg)) {
                         result_ = x.rcp_from_this();
                         return;
@@ -236,9 +286,9 @@ namespace Tinned
                     else {
                         // Suppose `MatrixMul` is A*B*C*... = (Ak+Ar)*B*C*...,
                         // where Ak will be kept and Ar will be removed. The
-                        // result after removal will be Ak*B*C*..., and we save
-                        // Ar = A-Ak. The result can also be computed as
-                        // A*B*C*... - Ar*B*C*...
+                        // result after removal will be Ak*B*C*... . By saving
+                        // Ar = A-Ak, the result can also be computed as
+                        // A*B*C*... - Ar*B*C*... .
                         factors.push_back(SymEngine::matrix_add(
                             SymEngine::vec_basic({
                                 arg,
@@ -253,7 +303,8 @@ namespace Tinned
             }
             // As aforementioned, when there are factors partially kept, the
             // result can be computed as A*B*C*...*R*S*T*... - Ar*Br*Cr*...*R*S*T*...,
-            // where Ar, Br, Cr, ... are parts that are removed
+            // where Ar, Br, Cr, ... are parts that are removed, R, S, T, ...
+            // are those without kept parts.
             if (factors_kept) {
                 result_ = SymEngine::matrix_add(
                     SymEngine::vec_basic({
