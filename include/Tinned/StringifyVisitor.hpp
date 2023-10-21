@@ -106,6 +106,11 @@ namespace Tinned
 
     // Stringify symbols from SymEngine and additional ones defined in this
     // library
-    std::string stringify(const SymEngine::Basic& x);
+    inline std::string stringify(const SymEngine::Basic& x)
+    {
+        StringifyVisitor visitor;
+        return visitor.apply(x);
+    }
+
     //std::string stringify(SymEngine::RCP<const SymEngine::Basic>& x);
 }

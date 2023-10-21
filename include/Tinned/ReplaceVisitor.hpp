@@ -15,42 +15,47 @@
 
 #include <symengine/basic.h>
 #include <symengine/dict.h>
+#include <symengine/matrices/conjugate_matrix.h>
+#include <symengine/matrices/matrix_add.h>
+#include <symengine/matrices/matrix_derivative.h>
+#include <symengine/matrices/matrix_mul.h>
+#include <symengine/matrices/matrix_symbol.h>
+#include <symengine/matrices/trace.h>
+#include <symengine/matrices/transpose.h>
+#include <symengine/matrices/zero_matrix.h>
 #include <symengine/symengine_rcp.h>
 #include <symengine/visitor.h>
 #include <symengine/subs.h>
 
-#include "Tinned/Perturbation.hpp"
-#include "Tinned/PertDependency.hpp"
-#include "Tinned/ElectronicState.hpp"
-#include "Tinned/OneElecDensity.hpp"
-#include "Tinned/OneElecOperator.hpp"
-#include "Tinned/TwoElecOperator.hpp"
-#include "Tinned/ExchCorrEnergy.hpp"
-#include "Tinned/ExchCorrPotential.hpp"
-#include "Tinned/NonElecFunction.hpp"
-
 namespace Tinned
 {
-    class ReplaceVisitor: public SymEngine::BaseVisitor<ReplaceVisitor, SymEngine::XReplaceVisitor>
+    class ReplaceVisitor: public SymEngine::BaseVisitor<ReplaceVisitor, SymEngine::MSubsVisitor>
     {
         public:
-            using SymEngine::XReplaceVisitor::bvisit;
             explicit ReplaceVisitor(
                 const SymEngine::map_basic_basic& subs_dict_,
                 bool cache = true
-            ) : SymEngine::BaseVisitor<ReplaceVisitor, SymEngine::XReplaceVisitor>(
+            ) : SymEngine::BaseVisitor<ReplaceVisitor, SymEngine::MSubsVisitor>(
                     subs_dict_, cache
                 )
             {
             }
 
+            using SymEngine::MSubsVisitor::bvisit;
             void bvisit(const SymEngine::Symbol& x);
             void bvisit(const SymEngine::FunctionSymbol& x);
+            void bvisit(const SymEngine::ZeroMatrix& x);
             void bvisit(const SymEngine::MatrixSymbol& x);
+            void bvisit(const SymEngine::Trace& x);
+            void bvisit(const SymEngine::ConjugateMatrix& x);
+            void bvisit(const SymEngine::Transpose& x);
+            void bvisit(const SymEngine::MatrixAdd& x);
+            void bvisit(const SymEngine::MatrixMul& x);
+            void bvisit(const SymEngine::MatrixDerivative& x);
     };
 
     // Replace classes defined in this library in addition to those in
-    // SymEngine::xreplace()
+    // SymEngine::msubs()
     inline SymEngine::RCP<const SymEngine::Basic> replace(
         const SymEngine::RCP<const SymEngine::Basic>& x,
         const SymEngine::map_basic_basic& subs_dict,

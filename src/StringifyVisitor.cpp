@@ -105,10 +105,4 @@ namespace Tinned
     //    x.accept(*this);
     //    return str_;
     //}
-
-    std::string stringify(const SymEngine::Basic& x)
-    {
-        StringifyVisitor visitor;
-        return visitor.apply(x);
-    }
 }

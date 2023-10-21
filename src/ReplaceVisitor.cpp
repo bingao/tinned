@@ -1,3 +1,15 @@
+#include "Tinned/Perturbation.hpp"
+#include "Tinned/PertDependency.hpp"
+#include "Tinned/ElectronicState.hpp"
+#include "Tinned/OneElecDensity.hpp"
+#include "Tinned/OneElecOperator.hpp"
+#include "Tinned/TwoElecOperator.hpp"
+#include "Tinned/ExchCorrEnergy.hpp"
+#include "Tinned/ExchCorrPotential.hpp"
+#include "Tinned/NonElecFunction.hpp"
+#include "Tinned/TemporumOperator.hpp"
+#include "Tinned/TemporumOverlap.hpp"
+
 #include "Tinned/ReplaceVisitor.hpp"
 
 namespace Tinned
@@ -46,6 +58,8 @@ namespace Tinned
             SymEngine::XReplaceVisitor::bvisit(x);
         }
     }
+
+    void bvisit(const SymEngine::ZeroMatrix& x);
 
     void ReplaceVisitor::bvisit(const SymEngine::MatrixSymbol& x)
     {
@@ -99,4 +113,11 @@ namespace Tinned
             SymEngine::XReplaceVisitor::bvisit(x);
         }
     }
+
+    void bvisit(const SymEngine::Trace& x);
+    void bvisit(const SymEngine::ConjugateMatrix& x);
+    void bvisit(const SymEngine::Transpose& x);
+    void bvisit(const SymEngine::MatrixAdd& x);
+    void bvisit(const SymEngine::MatrixMul& x);
+    void bvisit(const SymEngine::MatrixDerivative& x);
 }
