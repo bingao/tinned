@@ -1,3 +1,5 @@
+#include <symengine/symengine_exception.h>
+
 #include "Tinned/Perturbation.hpp"
 #include "Tinned/PertDependency.hpp"
 #include "Tinned/ElectronicState.hpp"
