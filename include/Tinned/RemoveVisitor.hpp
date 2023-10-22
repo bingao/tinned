@@ -170,7 +170,7 @@ namespace Tinned
             void bvisit(const SymEngine::MatrixDerivative& x);
     };
 
-    // Remove given symbols from `x`
+    // Remove given `symbols` from `x`
     inline SymEngine::RCP<const SymEngine::Basic> remove_if(
         const SymEngine::RCP<const SymEngine::Basic>& x,
         const SymEngine::vec_basic& symbols

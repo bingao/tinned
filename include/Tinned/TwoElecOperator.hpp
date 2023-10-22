@@ -5,7 +5,7 @@
    License, v. 2.0. If a copy of the MPL was not distributed with this
    file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-   This file is the header file of two-electron like operator.
+   This file is the header file of two-electron like operators.
 
    2023-09-22, Bin Gao:
    * first version

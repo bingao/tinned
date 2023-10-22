@@ -13,19 +13,7 @@
 #include <symengine/functions.h>
 #include <symengine/mul.h>
 
-#include "Tinned/Perturbation.hpp"
-#include "Tinned/PertDependency.hpp"
-#include "Tinned/OneElecDensity.hpp"
-#include "Tinned/OneElecOperator.hpp"
-#include "Tinned/TwoElecOperator.hpp"
-#include "Tinned/ExchCorrEnergy.hpp"
-#include "Tinned/ExchCorrPotential.hpp"
-#include "Tinned/NonElecFunction.hpp"
-#include "Tinned/TemporumOperator.hpp"
-#include "Tinned/TemporumOverlap.hpp"
-#include "Tinned/StringifyVisitor.hpp"
-#include "Tinned/KeepVisitor.hpp"
-#include "Tinned/RemoveVisitor.hpp"
+#include "Tinned.hpp"
 
 int main()
 {
