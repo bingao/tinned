@@ -25,7 +25,7 @@ SymEngine installation or build directory.
 Tinned currently provides C++ interface and the following classes and functions
 for computational chemistry:
 
-* [class Perturbation](include/Tinned/Perturbation.hpp), perturbations;
+* [`class Perturbation`](include/Tinned/Perturbation.hpp), perturbations;
 * [`class PertDependency`](include/Tinned/PertDependency.hpp), `std::set` for
   perturbations that an operator depends on and their maximum orders that can
   be differentiated;

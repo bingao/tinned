@@ -11,7 +11,7 @@ add_library(tinned
             ${LIB_TINNED_PATH}/src/TemporumOverlap.cpp
             ${LIB_TINNED_PATH}/src/KeepVisitor.cpp
             ${LIB_TINNED_PATH}/src/RemoveVisitor.cpp
-            #${LIB_TINNED_PATH}/src/ReplaceVisitor.cpp
+            ${LIB_TINNED_PATH}/src/ReplaceVisitor.cpp
             ${LIB_TINNED_PATH}/src/StringifyVisitor.cpp)
 
 target_include_directories(tinned PUBLIC ${TINNED_INCLUDE_DIRS})

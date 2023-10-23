@@ -23,6 +23,7 @@
 #include <symengine/matrices/trace.h>
 #include <symengine/matrices/transpose.h>
 #include <symengine/matrices/zero_matrix.h>
+#include <symengine/symengine_casts.h>
 #include <symengine/symengine_rcp.h>
 #include <symengine/visitor.h>
 #include <symengine/subs.h>
@@ -31,6 +32,41 @@ namespace Tinned
 {
     class ReplaceVisitor: public SymEngine::BaseVisitor<ReplaceVisitor, SymEngine::MSubsVisitor>
     {
+        protected:
+            // Template method that replaces `x` as a whole
+            template<typename T> inline void replace_whole(T& x)
+            {
+                for (const auto& p: subs_dict_) {
+                    if (SymEngine::eq(x, *p.first)) {
+                        result_ = p.second;
+                        return;
+                    }
+                }
+                result_ = x.rcp_from_this();
+            }
+            // Template method for one argument function like classes
+            template<typename Fun, typename Arg>
+            inline void replace_one_arg_f(
+                Fun& x,
+                const SymEngine::RCP<Arg>& arg,
+                std::function<SymEngine::RCP<Fun>(const SymEngine::RCP<Arg>&)> constructor
+            )
+            {
+                // We first check if the argument will be replaced
+                replace_whole<Arg>(*arg);
+                SymEngine::RCP<const SymEngine::Basic> new_fun;
+                if (SymEngine::eq(*arg, *result_)) {
+                    new_fun = x.rcp_from_this();
+                }
+                else {
+                    new_fun = constructor(
+                        SymEngine::rcp_dynamic_cast<Arg>(result_)
+                    );
+                }
+                // Next we check if the "new" function will be replaced
+                replace_whole<Fun>(SymEngine::down_cast<const Fun&>(*new_fun));
+            }
+
         public:
             explicit ReplaceVisitor(
                 const SymEngine::map_basic_basic& subs_dict_,
@@ -42,7 +78,6 @@ namespace Tinned
             }
 
             using SymEngine::MSubsVisitor::bvisit;
-            void bvisit(const SymEngine::Symbol& x);
             void bvisit(const SymEngine::FunctionSymbol& x);
             void bvisit(const SymEngine::ZeroMatrix& x);
             void bvisit(const SymEngine::MatrixSymbol& x);
@@ -59,7 +94,7 @@ namespace Tinned
     inline SymEngine::RCP<const SymEngine::Basic> replace(
         const SymEngine::RCP<const SymEngine::Basic>& x,
         const SymEngine::map_basic_basic& subs_dict,
-        bool cache
+        bool cache = true
     )
     {
         ReplaceVisitor visitor(subs_dict, cache);
