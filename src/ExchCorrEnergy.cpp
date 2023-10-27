@@ -9,9 +9,23 @@ namespace Tinned
     ExchCorrEnergy::ExchCorrEnergy(
         const std::string& name,
         const SymEngine::RCP<const ElectronicState>& state,
-        const SymEngine::multiset_basic& derivative
-    ) : SymEngine::FunctionWrapper(name, state),
-        derivative_(derivative)
+        const SymEngine::RCP<const NonElecFunction>& weight,
+        const unsigned int order
+    ) : SymEngine::FunctionWrapper(name, SymEngine::vec_basic({state, weight})),
+        energy_(SymEngine::mul(
+            weight, get_exc_density(std::string("exc"), state, order)
+        ))
+    {
+        SYMENGINE_ASSIGN_TYPEID()
+    }
+
+    ExchCorrEnergy::ExchCorrEnergy(
+        const ExchCorrEnergy& other,
+        //const SymEngine::RCP<const SymEngine::Basic> energy
+        const SymEngine::RCP<const SymEngine::Symbol>& s
+    ) : SymEngine::FunctionWrapper(other.get_name(), other.get_args()),
+        energy_(other.energy_->diff(s))
+        //energy_(energy)
     {
         SYMENGINE_ASSIGN_TYPEID()
     }
@@ -19,9 +33,7 @@ namespace Tinned
     SymEngine::hash_t ExchCorrEnergy::__hash__() const
     {
         SymEngine::hash_t seed = SymEngine::FunctionWrapper::__hash__();
-        for (auto& p: derivative_) {
-            SymEngine::hash_combine<SymEngine::Basic>(seed, *p);
-        }
+        SymEngine::hash_combine(seed, *energy_);
         return seed;
     }
 
@@ -30,7 +42,7 @@ namespace Tinned
         if (SymEngine::FunctionWrapper::__eq__(o)) {
             if (SymEngine::is_a_sub<const ExchCorrEnergy>(o)) {
                 auto& op = SymEngine::down_cast<const ExchCorrEnergy&>(o);
-                return SymEngine::unified_eq(derivative_, op.derivative_);
+                return energy_->__eq__(*op.energy_);
             }
         }
         return false;
@@ -42,16 +54,9 @@ namespace Tinned
         int result = SymEngine::FunctionWrapper::compare(o);
         if (result == 0) {
             auto& op = SymEngine::down_cast<const ExchCorrEnergy&>(o);
-            return SymEngine::unified_compare(derivative_, op.derivative_);
+            return energy_->compare(*op.energy_);
         }
         return result;
-    }
-
-    SymEngine::vec_basic ExchCorrEnergy::get_args() const
-    {
-        auto args = SymEngine::FunctionWrapper::get_args();
-        args.insert(args.end(), derivative_.begin(), derivative_.end());
-        return args;
     }
 
     SymEngine::RCP<const SymEngine::Basic> ExchCorrEnergy::create(
@@ -70,13 +75,10 @@ namespace Tinned
         const SymEngine::RCP<const SymEngine::Symbol>& s
     ) const
     {
-        auto derivative = derivative_;
-        derivative.insert(s);
-        auto xc = SymEngine::make_rcp<const ExchCorrEnergy>(
-            SymEngine::FunctionWrapper::get_name(),
-            get_state(),
-            derivative
-        );
-        return xc;
+        //return SymEngine::make_rcp<const ExchCorrEnergy>(
+        //    *this,
+        //    energy_->diff(s)
+        //);
+        return SymEngine::make_rcp<const ExchCorrEnergy>(*this, s);
     }
 }

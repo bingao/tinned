@@ -18,10 +18,9 @@ namespace Tinned
     {
         auto derivative = derivative_;
         derivative.insert(s);
-        auto state = SymEngine::make_rcp<const OneElecDensity>(
-            SymEngine::MatrixSymbol::get_name(),
+        return SymEngine::make_rcp<const OneElecDensity>(
+            get_name(),
             derivative
         );
-        return state;
     }
 }

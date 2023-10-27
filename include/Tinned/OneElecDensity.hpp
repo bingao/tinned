@@ -21,6 +21,7 @@ namespace Tinned
     {
         public:
             //! Constructor
+            // `derivative` may only be used for `diff_impl()`
             explicit OneElecDensity(
                 const std::string& name,
                 const SymEngine::multiset_basic& derivative = {}

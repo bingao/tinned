@@ -22,11 +22,11 @@ namespace Tinned
     {
         SymEngine::hash_t seed = SymEngine::FunctionWrapper::__hash__();
         for (auto& dep: dependencies_) {
-            SymEngine::hash_combine<const Perturbation>(seed, *dep.first);
-            SymEngine::hash_combine<unsigned int>(seed, dep.second);
+            SymEngine::hash_combine(seed, *dep.first);
+            SymEngine::hash_combine(seed, dep.second);
         }
         for (auto& p: derivative_) {
-            SymEngine::hash_combine<SymEngine::Basic>(seed, *p);
+            SymEngine::hash_combine(seed, *p);
         }
         return seed;
     }
@@ -49,12 +49,9 @@ namespace Tinned
         auto& op = SymEngine::down_cast<const NonElecFunction&>(o);
         if (get_name() == op.get_name()) {
             int result = SymEngine::unified_compare(derivative_, op.derivative_);
-            if (result == 0) {
-                return SymEngine::ordered_compare(dependencies_, op.dependencies_);
-            }
-            else {
-                return result;
-            }
+            return result == 0
+                ? SymEngine::ordered_compare(dependencies_, op.dependencies_)
+                : result;
         }
         else {
             return get_name() < op.get_name() ? -1 : 1;
@@ -90,12 +87,11 @@ namespace Tinned
             if (order <= max_order) {
                 auto derivative = derivative_;
                 derivative.insert(s);
-                auto op = SymEngine::make_rcp<const NonElecFunction>(
+                return SymEngine::make_rcp<const NonElecFunction>(
                     get_name(),
                     dependencies_,
                     derivative
                 );
-                return op;
             }
             else {
                 return SymEngine::integer(0);

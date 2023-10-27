@@ -20,7 +20,7 @@ namespace Tinned
     {
         SymEngine::hash_t seed = SymEngine::Symbol::__hash__();
         SymEngine::hash_combine(seed, *frequency_);
-        for (auto& c: components_) SymEngine::hash_combine<std::size_t>(seed, c);
+        for (auto& c: components_) SymEngine::hash_combine(seed, c);
         return seed;
     }
 

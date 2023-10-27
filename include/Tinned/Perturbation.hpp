@@ -32,7 +32,7 @@ namespace Tinned
 {
     class Perturbation: public SymEngine::Symbol
     {
-        private:
+        protected:
             // Frequency
             SymEngine::RCP<const SymEngine::Number> frequency_;
             // Set of components

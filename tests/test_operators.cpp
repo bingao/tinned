@@ -74,7 +74,13 @@ int main()
     //std::cout << "M = " << Tinned::stringify(*M) << "\n\n";
 
     auto r = SymEngine::function_symbol("r", SymEngine::vec_basic({f, g}));
-    auto s = SymEngine::function_symbol("s", SymEngine::vec_basic({f, g}));
+    //auto s = SymEngine::function_symbol("s", SymEngine::vec_basic({f, g}));
+    auto s = SymEngine::function_symbol("s", SymEngine::vec_basic({r}));
+    std::cout << "s: " << Tinned::stringify(s) << "\n";
+    std::cout << "ds/df: " << Tinned::stringify(s->diff(f)) << "\n";
+    std::cout << "d2s/df2: " << Tinned::stringify((s->diff(f))->diff(f)) << "\n";
+    return 0;
+
     auto prod = SymEngine::mul({r, s});
     //auto deriv = (prod->diff(f))->diff(g);
     auto deriv = prod->diff(f);

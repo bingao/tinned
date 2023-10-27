@@ -5,8 +5,12 @@
    License, v. 2.0. If a copy of the MPL was not distributed with this
    file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-   This file is the header file of exchange-correlation potential like
+   This file is the header file of exchange-correlation (XC) potential like
    operators.
+
+   2023-10-26, Bin Gao:
+   * rewrite by using `CompositeFunction` and `DensityVector`, and built on top
+     of `ExchCorrEnergy`
 
    2023-09-24, Bin Gao:
    * first version
@@ -23,24 +27,44 @@
 #include <symengine/matrices/matrix_symbol.h>
 
 #include "Tinned/ElectronicState.hpp"
-#include "Tinned/Perturbation.hpp"
+#include "Tinned/DensityVector.hpp"
+#include "Tinned/CompositeFunction.hpp"
+#include "Tinned/NonElecFunction.hpp"
+#include "Tinned/PertDependency.hpp"
+#include "Tinned/ExchCorrEnergy.hpp"
 
 namespace Tinned
 {
     class ExchCorrPotential: public SymEngine::MatrixSymbol
     {
-        private:
-            // Electron state that the operator depends on
+        protected:
             SymEngine::RCP<const ElectronicState> state_;
-            // derivative_ holds derivatives with respect to perturbations
-            SymEngine::multiset_basic derivative_;
+            SymEngine::RCP<const NonElecFunction> weight_;
+            SymEngine::RCP<const OneElecOperator> Omega_;
+
+            // XC potential operator or its derivatives evaluated at grid
+            // points
+            SymEngine::RCP<const SymEngine::Basic> potential_;
 
         public:
             //! Constructor
+            // `state`: electronic state like one-electron spin-orbital density matrix
+            // `dependencies`: perturbation dependencies for the overlap distribution
+            // `weight`: grid weight
             explicit ExchCorrPotential(
                 const std::string& name,
                 const SymEngine::RCP<const ElectronicState>& state,
-                const SymEngine::multiset_basic& derivative = {}
+                const PertDependency& dependencies,
+                const SymEngine::RCP<const NonElecFunction>& weight
+                    = SymEngine::make_rcp<const NonElecFunction>(
+                        std::string("weight"),
+                        PertDependency({})
+                      )
+            );
+            // Constructor only for `diff_impl()`
+            explicit ExchCorrPotential(
+                const ExchCorrPotential& other,
+                const SymEngine::RCP<const SymEngine::Symbol>& s
             );
 
             SymEngine::hash_t __hash__() const override;

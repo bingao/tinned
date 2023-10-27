@@ -38,11 +38,12 @@ namespace Tinned
     //   + <\chi_{\kappa}|i\frac{\partial}{\partial t}\chi_{\lambda}>)
     class TemporumOverlap: public SymEngine::MatrixSymbol
     {
-        private:
+        protected:
             // Sum of half time-differentiated bra and ket products
             SymEngine::RCP<const SymEngine::Basic> braket_;
         public:
             explicit TemporumOverlap(const PertDependency& dependencies);
+            // Only used for `diff_impl()`
             explicit TemporumOverlap(
                 const SymEngine::RCP<const SymEngine::Basic>& braket
             );

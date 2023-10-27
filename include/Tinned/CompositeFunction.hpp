@@ -5,9 +5,9 @@
    License, v. 2.0. If a copy of the MPL was not distributed with this
    file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-   This file is the header file of non-electron like functions.
+   This file is the header file of composite functions.
 
-   2023-09-08, Bin Gao:
+   2023-10-23, Bin Gao:
    * first version
 */
 
@@ -22,29 +22,22 @@
 #include <symengine/symbol.h>
 #include <symengine/symengine_rcp.h>
 
-#include "Tinned/Perturbation.hpp"
-#include "Tinned/PertDependency.hpp"
-
 namespace Tinned
 {
-    // For example, the internuclear repulsion and nucleus interaction with
-    // external fields
-    class NonElecFunction: public SymEngine::FunctionWrapper
+    class CompositeFunction: public SymEngine::FunctionWrapper
     {
         protected:
-            // dependencies_ stores perturbations that the operator depends on
-            // and their maximum orders that can be differentiated
-            PertDependency dependencies_;
-            // derivative_ holds derivatives with respect to perturbations
-            SymEngine::multiset_basic derivative_;
+            // Order of differentiation
+            unsigned int order_;
+            // Inner function
+            SymEngine::RCP<const SymEngine:Basic> inner_;
 
         public:
             //! Constructor
-            // `derivative` may only be used for `diff_impl()`
-            explicit NonElecFunction(
+            explicit CompositeFunction(
                 const std::string& name,
-                const PertDependency& dependencies,
-                const SymEngine::multiset_basic& derivative = {}
+                const SymEngine::RCP<const SymEngine:Basic> inner,
+                const unsigned int order = 0
             );
 
             SymEngine::hash_t __hash__() const override;
@@ -57,19 +50,15 @@ namespace Tinned
             ) const override;
             SymEngine::RCP<const SymEngine::Number> eval(long bits) const override;
             SymEngine::RCP<const SymEngine::Basic> diff_impl(
-                const SymEngine::RCP<const SymEngine::Symbol> &s
+                const SymEngine::RCP<const SymEngine::Symbol>& s
             ) const override;
 
-            // Get dependencies
-            inline PertDependency get_dependencies() const
-            {
-                return dependencies_;
+            inline unsigned int get_order() const {
+                return order_;
             }
 
-            // Get derivative
-            inline SymEngine::multiset_basic get_derivative() const
-            {
-                return derivative_;
+            inline SymEngine::RCP<const SymEngine:Basic> get_inner() const {
+                return inner_;
             }
     };
 }

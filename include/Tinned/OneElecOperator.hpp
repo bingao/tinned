@@ -28,7 +28,7 @@ namespace Tinned
 {
     class OneElecOperator: public SymEngine::MatrixSymbol
     {
-        private:
+        protected:
             // dependencies_ stores perturbations that the operator depends on
             // and their maximum orders that can be differentiated
             PertDependency dependencies_;
@@ -37,6 +37,7 @@ namespace Tinned
 
         public:
             //! Constructor
+            // `derivative` may only be used for `diff_impl()`
             explicit OneElecOperator(
                 const std::string& name,
                 const PertDependency& dependencies,

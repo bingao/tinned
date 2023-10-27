@@ -18,7 +18,7 @@ namespace Tinned
     {
         SymEngine::hash_t seed = SymEngine::MatrixSymbol::__hash__();
         for (auto& p: derivative_) {
-            SymEngine::hash_combine<SymEngine::Basic>(seed, *p);
+            SymEngine::hash_combine(seed, *p);
         }
         return seed;
     }
@@ -62,10 +62,9 @@ namespace Tinned
     //{
     //    auto derivative = derivative_;
     //    derivative.insert(s);
-    //    auto state = SymEngine::make_rcp<const ElectronicState>(
-    //        SymEngine::MatrixSymbol::get_name(),
+    //    return SymEngine::make_rcp<const ElectronicState>(
+    //        get_name(),
     //        derivative
     //    );
-    //    return state;
     //}
 }

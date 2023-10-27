@@ -31,7 +31,7 @@ namespace Tinned
     // repulsion integrals (ERI) and density matrix
     class TwoElecOperator: public SymEngine::MatrixSymbol
     {
-        private:
+        protected:
             // Electron state (may contain derivatives) that the operator
             // depends on
             SymEngine::RCP<const ElectronicState> state_;
@@ -43,6 +43,7 @@ namespace Tinned
 
         public:
             //! Constructor
+            // `derivative` may only be used for `diff_impl()`
             explicit TwoElecOperator(
                 const std::string& name,
                 const SymEngine::RCP<const ElectronicState>& state,
