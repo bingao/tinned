@@ -27,7 +27,7 @@ namespace Tinned
     class CompositeFunction: public SymEngine::FunctionWrapper
     {
         protected:
-            // Order of differentiation
+            // Order of differentiation of the outer function
             unsigned int order_;
             // Inner function
             SymEngine::RCP<const SymEngine:Basic> inner_;

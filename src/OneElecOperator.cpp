@@ -57,12 +57,12 @@ namespace Tinned
         return result;
     }
 
-    SymEngine::vec_basic OneElecOperator::get_args() const
-    {
-        SymEngine::vec_basic args = to_vec_basic(dependencies_);
-        args.insert(args.end(), derivative_.begin(), derivative_.end());
-        return args;
-    }
+    //SymEngine::vec_basic OneElecOperator::get_args() const
+    //{
+    //    SymEngine::vec_basic args = to_vec_basic(dependencies_);
+    //    args.insert(args.end(), derivative_.begin(), derivative_.end());
+    //    return args;
+    //}
 
     SymEngine::RCP<const SymEngine::Basic> OneElecOperator::diff_impl(
         const SymEngine::RCP<const SymEngine::Symbol>& s

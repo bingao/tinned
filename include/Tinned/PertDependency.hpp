@@ -93,7 +93,7 @@ namespace Tinned
     }
 
     // Return a 1x1 zero matrix, can be used for zero derivative
-    inline SymEngine::RCP<const SymEngine::MatrixExpr> zero_operator()
+    inline SymEngine::RCP<const SymEngine::MatrixExpr> make_zero_operator()
     {
         return SymEngine::zero_matrix(SymEngine::integer(1), SymEngine::integer(1));
     }

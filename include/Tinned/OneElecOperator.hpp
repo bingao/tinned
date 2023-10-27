@@ -7,6 +7,10 @@
 
    This file is the header file of one-electron like operators.
 
+   2023-10-27, Bin Gao:
+   * remove member method get_args()
+   * add inline method make_overlap_distribution()
+
    2023-09-08, Bin Gao:
    * first version
 */
@@ -47,7 +51,7 @@ namespace Tinned
             SymEngine::hash_t __hash__() const override;
             bool __eq__(const SymEngine::Basic& o) const override;
             int compare(const SymEngine::Basic& o) const override;
-            SymEngine::vec_basic get_args() const override;
+            //SymEngine::vec_basic get_args() const override;
 
             // Override the defaut behaviour for diff
             SymEngine::RCP<const SymEngine::Basic> diff_impl(
@@ -66,4 +70,13 @@ namespace Tinned
                 return derivative_;
             }
     };
+
+    // Make overlap distribution
+    inline SymEngine::RCP<const OneElecOperator> make_overlap_distribution(
+        const std::string& name = std::string("Omega"),
+        const PertDependency& dependencies = {}
+    )
+    {
+        return SymEngine::make_rcp<const OneElecOperator>(name, dependencies);
+    }
 }

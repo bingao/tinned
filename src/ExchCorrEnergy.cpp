@@ -1,3 +1,4 @@
+#include <symengine/mul.h>
 #include <symengine/symengine_assert.h>
 #include <symengine/symengine_casts.h>
 #include <symengine/symengine_exception.h>
@@ -9,12 +10,11 @@ namespace Tinned
     ExchCorrEnergy::ExchCorrEnergy(
         const std::string& name,
         const SymEngine::RCP<const ElectronicState>& state,
+        const SymEngine::RCP<const OneElecOperator>& Omega,
         const SymEngine::RCP<const NonElecFunction>& weight,
         const unsigned int order
-    ) : SymEngine::FunctionWrapper(name, SymEngine::vec_basic({state, weight})),
-        energy_(SymEngine::mul(
-            weight, get_exc_density(std::string("exc"), state, order)
-        ))
+    ) : SymEngine::FunctionWrapper(name, SymEngine::vec_basic({weight, state, Omega})),
+        energy_(SymEngine::mul(weight, make_exc_density(state, Omega, order)))
     {
         SYMENGINE_ASSIGN_TYPEID()
     }
