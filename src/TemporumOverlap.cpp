@@ -64,18 +64,18 @@ namespace Tinned
         return result;
     }
 
-    SymEngine::vec_basic TemporumOverlap::get_args() const
-    {
-        return SymEngine::vec_basic({braket_});
-    }
+    //SymEngine::vec_basic TemporumOverlap::get_args() const
+    //{
+    //    return SymEngine::vec_basic({braket_});
+    //}
 
     SymEngine::RCP<const SymEngine::Basic> TemporumOverlap::diff_impl(
         const SymEngine::RCP<const SymEngine::Symbol>& s
     ) const
     {
         auto result = braket_->diff(s);
-        if (zero_operator()->__eq__(*result)) {
-            return zero_operator();
+        if (make_zero_operator()->__eq__(*result)) {
+            return make_zero_operator();
         }
         else {
             return SymEngine::make_rcp<const TemporumOverlap>(result);

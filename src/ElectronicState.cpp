@@ -46,15 +46,15 @@ namespace Tinned
         return result;
     }
 
-    SymEngine::vec_basic ElectronicState::get_args() const
-    {
-        if (derivative_.empty()) {
-            return {};
-        }
-        else {
-            return SymEngine::vec_basic(derivative_.begin(), derivative_.end());
-        }
-    }
+    //SymEngine::vec_basic ElectronicState::get_args() const
+    //{
+    //    if (derivative_.empty()) {
+    //        return {};
+    //    }
+    //    else {
+    //        return SymEngine::vec_basic(derivative_.begin(), derivative_.end());
+    //    }
+    //}
 
     //SymEngine::RCP<const SymEngine::Basic> ElectronicState::diff_impl(
     //    const SymEngine::RCP<const SymEngine::Symbol>& s

@@ -7,6 +7,9 @@
 
    This file is the header file of T matrix.
 
+   2023-10-28, Bin Gao:
+   * remove member method get_args()
+
    2023-10-09, Bin Gao:
    * first version
 */
@@ -51,7 +54,7 @@ namespace Tinned
             SymEngine::hash_t __hash__() const override;
             bool __eq__(const SymEngine::Basic& o) const override;
             int compare(const SymEngine::Basic& o) const override;
-            SymEngine::vec_basic get_args() const override;
+            //SymEngine::vec_basic get_args() const override;
 
             // Override the defaut behaviour for diff
             SymEngine::RCP<const SymEngine::Basic> diff_impl(

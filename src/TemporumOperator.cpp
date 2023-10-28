@@ -74,8 +74,8 @@ namespace Tinned
     ) const
     {
         auto result = target_->diff(s);
-        if (zero_operator()->__eq__(*result)) {
-            return zero_operator();
+        if (make_zero_operator()->__eq__(*result)) {
+            return make_zero_operator();
         }
         else {
             return SymEngine::make_rcp<const TemporumOperator>(result, type_);

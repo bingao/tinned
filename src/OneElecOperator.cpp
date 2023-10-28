@@ -81,11 +81,11 @@ namespace Tinned
                 );
             }
             else {
-                return zero_operator();
+                return make_zero_operator();
             }
         }
         else {
-            return zero_operator();
+            return make_zero_operator();
         }
     }
 }

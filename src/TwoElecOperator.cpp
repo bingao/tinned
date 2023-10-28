@@ -68,11 +68,12 @@ namespace Tinned
 
     SymEngine::vec_basic TwoElecOperator::get_args() const
     {
-        auto args = SymEngine::vec_basic({state_});
-        auto deps = to_vec_basic(dependencies_);
-        args.insert(args.end(), deps.begin(), deps.end());
-        args.insert(args.end(), derivative_.begin(), derivative_.end());
-        return args;
+        return SymEngine::vec_basic({state_});
+        //auto args = SymEngine::vec_basic({state_});
+        //auto deps = to_vec_basic(dependencies_);
+        //args.insert(args.end(), deps.begin(), deps.end());
+        //args.insert(args.end(), derivative_.begin(), derivative_.end());
+        //return args;
     }
 
     SymEngine::RCP<const SymEngine::Basic> TwoElecOperator::diff_impl(

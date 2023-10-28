@@ -58,12 +58,12 @@ namespace Tinned
         }
     }
 
-    SymEngine::vec_basic NonElecFunction::get_args() const
-    {
-        SymEngine::vec_basic args = to_vec_basic(dependencies_);
-        args.insert(args.end(), derivative_.begin(), derivative_.end());
-        return args;
-    }
+    //SymEngine::vec_basic NonElecFunction::get_args() const
+    //{
+    //    SymEngine::vec_basic args = to_vec_basic(dependencies_);
+    //    args.insert(args.end(), derivative_.begin(), derivative_.end());
+    //    return args;
+    //}
 
     SymEngine::RCP<const SymEngine::Basic> NonElecFunction::create(
         const SymEngine::vec_basic &v
