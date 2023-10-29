@@ -34,6 +34,18 @@ namespace Tinned
         SYMENGINE_ASSIGN_TYPEID()
     }
 
+    ExchCorrPotential::ExchCorrPotential(
+        const ExchCorrPotential& other,
+        const SymEngine::RCP<const SymEngine::Basic> potential
+    ) : SymEngine::MatrixSymbol(other.get_name()),
+        state_(other.state_),
+        weight_(other.weight_),
+        Omega_(other.Omega_),
+        potential_(potential)
+    {
+        SYMENGINE_ASSIGN_TYPEID()
+    }
+
     SymEngine::hash_t ExchCorrPotential::__hash__() const
     {
         SymEngine::hash_t seed = SymEngine::MatrixSymbol::__hash__();

@@ -1,3 +1,14 @@
+#include "Tinned/Perturbation.hpp"
+#include "Tinned/OneElecDensity.hpp"
+#include "Tinned/OneElecOperator.hpp"
+#include "Tinned/TwoElecOperator.hpp"
+#include "Tinned/CompositeFunction.hpp"
+#include "Tinned/ExchCorrEnergy.hpp"
+#include "Tinned/ExchCorrPotential.hpp"
+#include "Tinned/NonElecFunction.hpp"
+#include "Tinned/TemporumOperator.hpp"
+#include "Tinned/TemporumOverlap.hpp"
+
 #include "Tinned/StringifyVisitor.hpp"
 
 namespace Tinned
@@ -45,9 +56,17 @@ namespace Tinned
                 str_ = to_string(name, derivative);
             }
         }
+        else if (SymEngine::is_a_sub<const CompositeFunction>(x)) {
+            auto& fun = SymEngine::down_cast<const CompositeFunction&>(x);
+            auto order = fun.get_order();
+            str_ = order > 0
+                 ? fun.get_name() + "^(" + std::to_string(order) + ")"
+                 : fun.get_name();
+            str_ += "(" + apply(*fun.get_inner()) + ")";
+        }
         else if (SymEngine::is_a_sub<const ExchCorrEnergy>(x)) {
             auto& op = SymEngine::down_cast<const ExchCorrEnergy&>(x);
-            str_ = to_string(op.get_name(), op.get_state(), op.get_derivative());
+            str_ = op.get_name() + "(" + apply(*op.get_energy()) + ")";
         }
         else {
             SymEngine::StrPrinter::bvisit(x);
@@ -81,7 +100,7 @@ namespace Tinned
         }
         else if (SymEngine::is_a_sub<const ExchCorrPotential>(x)) {
             auto& op = SymEngine::down_cast<const ExchCorrPotential&>(x);
-            str_ = to_string(op.get_name(), op.get_state(), op.get_derivative());
+            str_ = op.get_name() + "(" + apply(*op.get_potential()) + ")";
         }
         else if (SymEngine::is_a_sub<const TemporumOperator>(x)) {
             auto& op = SymEngine::down_cast<const TemporumOperator&>(x);

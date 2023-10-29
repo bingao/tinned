@@ -22,17 +22,8 @@
 #include <symengine/visitor.h>
 #include <symengine/printers/strprinter.h>
 
-#include "Tinned/Perturbation.hpp"
 #include "Tinned/PertDependency.hpp"
 #include "Tinned/ElectronicState.hpp"
-#include "Tinned/OneElecDensity.hpp"
-#include "Tinned/OneElecOperator.hpp"
-#include "Tinned/TwoElecOperator.hpp"
-#include "Tinned/ExchCorrEnergy.hpp"
-#include "Tinned/ExchCorrPotential.hpp"
-#include "Tinned/NonElecFunction.hpp"
-#include "Tinned/TemporumOperator.hpp"
-#include "Tinned/TemporumOverlap.hpp"
 
 namespace Tinned
 {

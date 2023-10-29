@@ -9,44 +9,45 @@
 #include "Tinned/OneElecDensity.hpp"
 #include "Tinned/OneElecOperator.hpp"
 #include "Tinned/TwoElecOperator.hpp"
+#include "Tinned/CompositeFunction.hpp"
 #include "Tinned/ExchCorrEnergy.hpp"
 #include "Tinned/ExchCorrPotential.hpp"
 #include "Tinned/NonElecFunction.hpp"
 #include "Tinned/TemporumOperator.hpp"
 #include "Tinned/TemporumOverlap.hpp"
 
-#include "Tinned/RemoveVisitor.hpp"
+#include "Tinned/FindAllVisitor.hpp"
 
 namespace Tinned
 {
-    void RemoveVisitor::bvisit(const SymEngine::Basic& x)
+    void FindAllVisitor::bvisit(const SymEngine::Basic& x)
     {
         throw SymEngine::NotImplementedError(
-            "RemoveVisitor::bvisit() not implemented for " + x.__str__()
+            "FindAllVisitor::bvisit() not implemented for " + x.__str__()
         );
     }
 
-    void RemoveVisitor::bvisit(const SymEngine::Symbol& x)
+    void FindAllVisitor::bvisit(const SymEngine::Symbol& x)
     {
         remove_if_symbol_like<const SymEngine::Symbol>(x);
     }
 
-    void RemoveVisitor::bvisit(const SymEngine::Integer& x)
+    void FindAllVisitor::bvisit(const SymEngine::Integer& x)
     {
         remove_if_symbol_like<const SymEngine::Integer>(x);
     }
 
-    void RemoveVisitor::bvisit(const SymEngine::Rational& x)
+    void FindAllVisitor::bvisit(const SymEngine::Rational& x)
     {
         remove_if_symbol_like<const SymEngine::Rational>(x);
     }
 
-    void RemoveVisitor::bvisit(const SymEngine::Complex& x)
+    void FindAllVisitor::bvisit(const SymEngine::Complex& x)
     {
         remove_if_symbol_like<const SymEngine::Complex>(x);
     }
 
-    void RemoveVisitor::bvisit(const SymEngine::Add& x)
+    void FindAllVisitor::bvisit(const SymEngine::Add& x)
     {
         // We first check if `Add` will be removed as a whole
         if (condition_(x)) {
@@ -94,7 +95,7 @@ namespace Tinned
         }
     }
 
-    void RemoveVisitor::bvisit(const SymEngine::Mul& x)
+    void FindAllVisitor::bvisit(const SymEngine::Mul& x)
     {
         // We first check if `Mul` will be removed as a whole
         if (condition_(x)) {
@@ -130,7 +131,7 @@ namespace Tinned
                     auto new_value = apply(p.second);
                     if (new_value.is_null()) {
                         throw SymEngine::SymEngineException(
-                            "RemoveVisitor::bvisit() does not allow to remove the exponent in a key-value pair of Mul."
+                            "FindAllVisitor::bvisit() does not allow to remove the exponent in a key-value pair of Mul."
                         );
                     }
                     else {
@@ -148,12 +149,12 @@ namespace Tinned
         }
     }
 
-    void RemoveVisitor::bvisit(const SymEngine::Constant& x)
+    void FindAllVisitor::bvisit(const SymEngine::Constant& x)
     {
         remove_if_symbol_like<const SymEngine::Constant>(x);
     }
 
-    void RemoveVisitor::bvisit(const SymEngine::FunctionSymbol& x)
+    void FindAllVisitor::bvisit(const SymEngine::FunctionSymbol& x)
     {
         // We don't allow for the removal of derivative symbols, but only check
         // if the `NonElecFunction` (or its derivative) will be removed as a
@@ -168,17 +169,17 @@ namespace Tinned
         }
         else {
             throw SymEngine::NotImplementedError(
-                "RemoveVisitor::bvisit() not implemented for FunctionSymbol " + x.__str__()
+                "FindAllVisitor::bvisit() not implemented for FunctionSymbol " + x.__str__()
             );
         }
     }
 
-    void RemoveVisitor::bvisit(const SymEngine::ZeroMatrix& x)
+    void FindAllVisitor::bvisit(const SymEngine::ZeroMatrix& x)
     {
         remove_if_symbol_like<const SymEngine::ZeroMatrix>(x);
     }
 
-    void RemoveVisitor::bvisit(const SymEngine::MatrixSymbol& x)
+    void FindAllVisitor::bvisit(const SymEngine::MatrixSymbol& x)
     {
         if (SymEngine::is_a_sub<const OneElecDensity>(x)) {
             remove_if_symbol_like<const OneElecDensity>(
@@ -231,12 +232,12 @@ namespace Tinned
         }
         else {
             throw SymEngine::NotImplementedError(
-                "RemoveVisitor::bvisit() not implemented for MatrixSymbol " + x.__str__()
+                "FindAllVisitor::bvisit() not implemented for MatrixSymbol " + x.__str__()
             );
         }
     }
 
-    void RemoveVisitor::bvisit(const SymEngine::Trace& x)
+    void FindAllVisitor::bvisit(const SymEngine::Trace& x)
     {
         remove_if_one_arg_f<const SymEngine::Trace, const SymEngine::MatrixExpr>(
             x,
@@ -249,7 +250,7 @@ namespace Tinned
         );
     }
 
-    void RemoveVisitor::bvisit(const SymEngine::ConjugateMatrix& x)
+    void FindAllVisitor::bvisit(const SymEngine::ConjugateMatrix& x)
     {
         remove_if_one_arg_f<const SymEngine::ConjugateMatrix, const SymEngine::MatrixExpr>(
             x,
@@ -262,7 +263,7 @@ namespace Tinned
         );
     }
 
-    void RemoveVisitor::bvisit(const SymEngine::Transpose& x)
+    void FindAllVisitor::bvisit(const SymEngine::Transpose& x)
     {
         remove_if_one_arg_f<const SymEngine::Transpose, const SymEngine::MatrixExpr>(
             x,
@@ -275,7 +276,7 @@ namespace Tinned
         );
     }
 
-    void RemoveVisitor::bvisit(const SymEngine::MatrixAdd& x)
+    void FindAllVisitor::bvisit(const SymEngine::MatrixAdd& x)
     {
         // We first check if `MatrixAdd` will be removed as a whole
         if (condition_(x)) {
@@ -310,7 +311,7 @@ namespace Tinned
         }
     }
 
-    void RemoveVisitor::bvisit(const SymEngine::MatrixMul& x)
+    void FindAllVisitor::bvisit(const SymEngine::MatrixMul& x)
     {
         // We first check if `MatrixMul` will be removed as a whole
         if (condition_(x)) {
@@ -348,7 +349,7 @@ namespace Tinned
         }
     }
 
-    void RemoveVisitor::bvisit(const SymEngine::MatrixDerivative& x)
+    void FindAllVisitor::bvisit(const SymEngine::MatrixDerivative& x)
     {
         // Because only `MatrixSymbol` can be used as the argument of
         // `MatrixDerivative`, we only need to check if `MatrixDerivative` will

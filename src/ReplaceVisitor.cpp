@@ -6,6 +6,7 @@
 #include "Tinned/OneElecDensity.hpp"
 #include "Tinned/OneElecOperator.hpp"
 #include "Tinned/TwoElecOperator.hpp"
+#include "Tinned/CompositeFunction.hpp"
 #include "Tinned/ExchCorrEnergy.hpp"
 #include "Tinned/ExchCorrPotential.hpp"
 #include "Tinned/NonElecFunction.hpp"
@@ -25,9 +26,33 @@ namespace Tinned
                 SymEngine::down_cast<const NonElecFunction&>(x)
             );
         }
+        else if (SymEngine::is_a_sub<const CompositeFunction>(x)) {
+            auto& op = SymEngine::down_cast<const CompositeFunction&>(x);
+            replace_one_arg_f<const CompositeFunction, const SymEngine:Basic>(
+                op,
+                op.get_inner(),
+                [&](const SymEngine::RCP<const SymEngine:Basic>& inner)
+                    -> SymEngine::RCP<const CompositeFunction>
+                {
+                    return SymEngine::make_rcp<const CompositeFunction>(
+                        op.get_name(),
+                        inner,
+                        op.get_order()
+                    );
+                }
+            );
+        }
         else if (SymEngine::is_a_sub<const ExchCorrEnergy>(x)) {
-            //weight, `ExchCorrEnergy`, overlap distribution and density matrix
-
+            auto& op = SymEngine::down_cast<const ExchCorrEnergy&>(x);
+            replace_one_arg_f<const ExchCorrEnergy, const SymEngine:Basic>(
+                op,
+                op.get_energy(),
+                [&](const SymEngine::RCP<const SymEngine:Basic>& energy)
+                    -> SymEngine::RCP<const ExchCorrEnergy>
+                {
+                    return SymEngine::make_rcp<const ExchCorrEnergy>(op, energy);
+                }
+            );
         }
         else {
             SymEngine::MSubsVisitor::bvisit(x);
@@ -69,7 +94,16 @@ namespace Tinned
             );
         }
         else if (SymEngine::is_a_sub<const ExchCorrPotential>(x)) {
-
+            auto& op = SymEngine::down_cast<const ExchCorrPotential&>(x);
+            replace_one_arg_f<const ExchCorrPotential, const SymEngine:Basic>(
+                op,
+                op.get_potential(),
+                [&](const SymEngine::RCP<const SymEngine:Basic>& potential)
+                    -> SymEngine::RCP<const ExchCorrPotential>
+                {
+                    return SymEngine::make_rcp<const ExchCorrPotential>(op, potential);
+                }
+            );
         }
         else if (SymEngine::is_a_sub<const TemporumOperator>(x)) {
             auto& op = SymEngine::down_cast<const TemporumOperator&>(x);

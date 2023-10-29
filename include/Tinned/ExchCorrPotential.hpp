@@ -18,6 +18,7 @@
 #pragma once
 
 #include <string>
+#include <set>
 
 #include <symengine/basic.h>
 #include <symengine/dict.h>
@@ -83,6 +84,11 @@ namespace Tinned
             explicit ExchCorrPotential(
                 const ExchCorrPotential& other,
                 const SymEngine::RCP<const SymEngine::Symbol>& s
+            );
+            // Constructor mainly used by different visitors
+            explicit ExchCorrPotential(
+                const ExchCorrPotential& other,
+                const SymEngine::RCP<const SymEngine::Basic>& potential
             );
 
             SymEngine::hash_t __hash__() const override;

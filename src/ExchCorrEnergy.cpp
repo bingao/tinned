@@ -21,11 +21,18 @@ namespace Tinned
 
     ExchCorrEnergy::ExchCorrEnergy(
         const ExchCorrEnergy& other,
-        //const SymEngine::RCP<const SymEngine::Basic> energy
         const SymEngine::RCP<const SymEngine::Symbol>& s
     ) : SymEngine::FunctionWrapper(other.get_name(), other.get_args()),
         energy_(other.energy_->diff(s))
-        //energy_(energy)
+    {
+        SYMENGINE_ASSIGN_TYPEID()
+    }
+
+    ExchCorrEnergy::ExchCorrEnergy(
+        const ExchCorrEnergy& other,
+        const SymEngine::RCP<const SymEngine::Basic> energy
+    ) : SymEngine::FunctionWrapper(other.get_name(), other.get_args()),
+        energy_(energy)
     {
         SYMENGINE_ASSIGN_TYPEID()
     }

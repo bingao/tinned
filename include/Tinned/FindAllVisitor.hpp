@@ -5,22 +5,17 @@
    License, v. 2.0. If a copy of the MPL was not distributed with this
    file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-   This file is the header file of removing specific symbols.
+   This file is the header file of finding a given symbol and all its
+   differentiated ones.
 
-   2023-10-19, Bin Gao:
-   * class RemoveVisitor will remove matching symbols, while class KeepVisitor
-     (moved into another file) will keep matching symbols while removing others
-
-   2023-10-16, Bin Gao:
-   * formal rules for the removal procedure
-
-   2023-09-25, Bin Gao:
+   2023-10-28, Bin Gao:
    * first version
 */
 
 #pragma once
 
 #include <functional>
+#include <set>
 
 #include <symengine/basic.h>
 #include <symengine/add.h>
@@ -45,34 +40,12 @@
 
 namespace Tinned
 {
-    // Removing symbols if they match any given ones
-    //
-    // Rules for the removal procedure are that,
-    //
-    // (1) Nothing left after removal, which is different from replacing
-    //     symbols by zero -- but we may find out the effect of removal by
-    //     setting symbols to remove as zero.
-    //
-    // (2) If a symbol is involved in an operation, the operation should still
-    //     be valid/meaningful after removal. Otherwise, either the whole
-    //     operation will be removed or such a removal is not allowed.
-    //
-    //     For example, a symbol removed from an addition or a multiplication
-    //     is allowed and is the same as replacing it by zero. That is, the
-    //     multiplication will be removed if one of its factor is removed.
-    //
-    //     Removing an exponent from a power, removing a variable that a
-    //     derivative is with respect to, and removing an element from a
-    //     matrix, all are not allowed, because the left power and
-    //     differentiation operations, and the matrix become invalid.
-    //
-    // (3) Symbols and their derivatives are different for the removal
-    //     procedure.
-    class RemoveVisitor: public SymEngine::BaseVisitor<RemoveVisitor>
+    class FindAllVisitor: public SymEngine::BaseVisitor<FindAllVisitor>
     {
         protected:
-            SymEngine::RCP<const SymEngine::Basic> result_;
-            const SymEngine::vec_basic& symbols_;
+            SymEngine::set_basic result_;
+            SymEngine::RCP<const SymEngine::Basic> symbol_;
+
             std::function<bool(const SymEngine::Basic&)> condition_;
 
             // Check equality for `x` and symbols to be removed
@@ -123,10 +96,10 @@ namespace Tinned
             }
 
         public:
-            explicit RemoveVisitor(
-                const SymEngine::vec_basic& symbols,
+            explicit FindAllVisitor(
+                const SymEngine::RCP<const SymEngine::Basic>& symbol,
                 std::function<bool(const SymEngine::Basic&)> condition = {}
-            ) : symbols_(symbols)
+            ) : symbol_(symbol)
             {
                 if (condition) {
                     condition_ = condition;
@@ -139,15 +112,11 @@ namespace Tinned
                 }
             }
 
-            inline SymEngine::RCP<const SymEngine::Basic> apply(
+            inline SymEngine::set_basic apply(
                 const SymEngine::RCP<const SymEngine::Basic>& x
             )
             {
-                if (condition_(*x)) {
-                    result_ = SymEngine::RCP<const SymEngine::Basic>();
-                } else {
-                    x->accept(*this);
-                }
+                x->accept(*this);
                 return result_;
             }
 
@@ -170,13 +139,25 @@ namespace Tinned
             void bvisit(const SymEngine::MatrixDerivative& x);
     };
 
-    // Remove given `symbols` from `x`
-    inline SymEngine::RCP<const SymEngine::Basic> remove_if(
+    // Find a given `symbol` and all its differentiated ones from `x`
+    template<typename T>
+    inline std::set<SymEngine::RCP<const T>, SymEngine::RCPBasicKeyLess> find_all(
         const SymEngine::RCP<const SymEngine::Basic>& x,
-        const SymEngine::vec_basic& symbols
+        const SymEngine::RCP<const SymEngine::Basic>& symbol
     )
     {
-        RemoveVisitor visitor(symbols);
-        return visitor.apply(x);
+        std::set<SymEngine::RCP<const T>, SymEngine::RCPBasicKeyLess> result;
+        FindAllVisitor visitor(symbol);
+        for (auto& s: visitor.apply(x)) {
+            if (SymEngine::is_a_sub<const T>(*s)) {
+                result.insert(SymEngine::rcp_dynamic_cast<const T>(s));
+            }
+            else {
+                throw SymEngine::SymEngineException(
+                    "find_all() encounters an invalid type of: "+s->__str__()
+                );
+            }
+        }
+        return result;
     }
 }

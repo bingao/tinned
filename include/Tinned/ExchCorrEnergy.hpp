@@ -18,6 +18,7 @@
 #pragma once
 
 #include <string>
+#include <set>
 
 #include <symengine/basic.h>
 #include <symengine/dict.h>
@@ -36,7 +37,7 @@
 
 namespace Tinned
 {
-    // Forward declaration for finding components in `energy_`
+    // Forward declaration for processing `energy_`
     class FindAllVisitor;
 
     // Make generalized density vector
@@ -93,7 +94,11 @@ namespace Tinned
             explicit ExchCorrEnergy(
                 const ExchCorrEnergy& other,
                 const SymEngine::RCP<const SymEngine::Symbol>& s
-                //const SymEngine::RCP<const SymEngine::Basic> energy
+            );
+            // Constructor mainly used by different visitors
+            explicit ExchCorrEnergy(
+                const ExchCorrEnergy& other,
+                const SymEngine::RCP<const SymEngine::Basic>& energy
             );
 
             SymEngine::hash_t __hash__() const override;
