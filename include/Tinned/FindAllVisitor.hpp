@@ -35,8 +35,11 @@
 #include <symengine/matrices/trace.h>
 #include <symengine/matrices/transpose.h>
 #include <symengine/matrices/zero_matrix.h>
+#include <symengine/symengine_exception.h>
 #include <symengine/symengine_rcp.h>
 #include <symengine/visitor.h>
+
+#include "Tinned/PertDependency.hpp"
 
 namespace Tinned
 {
@@ -46,71 +49,35 @@ namespace Tinned
             SymEngine::set_basic result_;
             SymEngine::RCP<const SymEngine::Basic> symbol_;
 
-            std::function<bool(const SymEngine::Basic&)> condition_;
-
-            // Check equality for `x` and symbols to be removed
-            inline bool is_equal(const SymEngine::Basic& x) {
-                for (const auto& s: symbols_) {
-                    if (SymEngine::eq(x, *s)) return true;
+            // Template method for objects that requires equivalence comparison
+            template<typename T> inline bool find_equivalence(T& x)
+            {
+                if (symbol_->__eq__(x)) {
+                    result_.insert(x.rcp_from_this());
+                    return true;
                 }
                 return false;
             }
 
-            // Template method for `Symbol` like classes which do not have any
-            // argument
-            template<typename T> inline void remove_if_symbol_like(T& x)
+            // Template method for objects without arguments, we only compare
+            // their names and dependencies
+            template<typename T> inline bool find_with_dependencies(T& x)
             {
-                result_ = condition_(x)
-                    ? SymEngine::RCP<const SymEngine::Basic>() : x.rcp_from_this();
-            }
-
-            // Template method for one argument function like classes
-            template<typename Fun, typename Arg>
-            inline void remove_if_one_arg_f(
-                Fun& x,
-                const SymEngine::RCP<Arg>& arg,
-                std::function<SymEngine::RCP<Fun>(const SymEngine::RCP<Arg>&)> constructor
-            )
-            {
-                // We first check if the function will be removed
-                if (condition_(x)) {
-                    result_ = SymEngine::RCP<const SymEngine::Basic>();
-                }
-                // Next we check if its argument will be removed
-                else {
-                    auto new_arg = apply(arg);
-                    if (new_arg.is_null()) {
-                        result_ = SymEngine::RCP<const SymEngine::Basic>();
-                    }
-                    else {
-                        if (SymEngine::eq(*arg, *new_arg)) {
-                            result_ = x.rcp_from_this();
-                        }
-                        else {
-                            result_ = constructor(
-                                SymEngine::rcp_dynamic_cast<Arg>(new_arg)
-                            );
-                        }
+                if (SymEngine::is_a_sub<const T>(*symbol_)) {
+                    auto s = SymEngine::rcp_dynamic_cast<const T>(symbol_);
+                    if (x.get_name() == s->get_name() &&
+                        eq_dependency(x.get_dependencies(), s->get_dependencies())) {
+                        result_.insert(x.rcp_from_this());
+                        return true;
                     }
                 }
+                return false;
             }
 
         public:
             explicit FindAllVisitor(
-                const SymEngine::RCP<const SymEngine::Basic>& symbol,
-                std::function<bool(const SymEngine::Basic&)> condition = {}
-            ) : symbol_(symbol)
-            {
-                if (condition) {
-                    condition_ = condition;
-                }
-                else {
-                    condition_ = [=](const SymEngine::Basic& x) -> bool
-                    {
-                        return this->is_equal(x);
-                    };
-                }
-            }
+                const SymEngine::RCP<const SymEngine::Basic>& symbol
+            ) : symbol_(symbol) {}
 
             inline SymEngine::set_basic apply(
                 const SymEngine::RCP<const SymEngine::Basic>& x

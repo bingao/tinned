@@ -166,10 +166,10 @@ namespace Tinned
         }
         else if (SymEngine::is_a_sub<const CompositeFunction>(x)) {
             auto& op = SymEngine::down_cast<const CompositeFunction&>(x);
-            remove_if_one_arg_f<const CompositeFunction, const SymEngine:Basic>(
+            remove_if_one_arg_f<const CompositeFunction, const SymEngine::Basic>(
                 op,
                 op.get_inner(),
-                [&](const SymEngine::RCP<const SymEngine:Basic>& inner)
+                [&](const SymEngine::RCP<const SymEngine::Basic>& inner)
                     -> SymEngine::RCP<const CompositeFunction>
                 {
                     return SymEngine::make_rcp<const CompositeFunction>(
@@ -182,10 +182,10 @@ namespace Tinned
         }
         else if (SymEngine::is_a_sub<const ExchCorrEnergy>(x)) {
             auto& op = SymEngine::down_cast<const ExchCorrEnergy&>(x);
-            remove_if_one_arg_f<const ExchCorrEnergy, const SymEngine:Basic>(
+            remove_if_one_arg_f<const ExchCorrEnergy, const SymEngine::Basic>(
                 op,
                 op.get_energy(),
-                [&](const SymEngine::RCP<const SymEngine:Basic>& energy)
+                [&](const SymEngine::RCP<const SymEngine::Basic>& energy)
                     -> SymEngine::RCP<const ExchCorrEnergy>
                 {
                     return SymEngine::make_rcp<const ExchCorrEnergy>(op, energy);
@@ -235,10 +235,10 @@ namespace Tinned
         }
         else if (SymEngine::is_a_sub<const ExchCorrPotential>(x)) {
             auto& op = SymEngine::down_cast<const ExchCorrPotential&>(x);
-            remove_if_one_arg_f<const ExchCorrPotential, const SymEngine:Basic>(
+            remove_if_one_arg_f<const ExchCorrPotential, const SymEngine::Basic>(
                 op,
                 op.get_potential(),
-                [&](const SymEngine::RCP<const SymEngine:Basic>& potential)
+                [&](const SymEngine::RCP<const SymEngine::Basic>& potential)
                     -> SymEngine::RCP<const ExchCorrPotential>
                 {
                     return SymEngine::make_rcp<const ExchCorrPotential>(op, potential);

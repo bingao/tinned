@@ -34,11 +34,16 @@
 #include "Tinned/ElectronicState.hpp"
 #include "Tinned/CompositeFunction.hpp"
 #include "Tinned/NonElecFunction.hpp"
+#include "Tinned/FindAllVisitor.hpp"
 
 namespace Tinned
 {
-    // Forward declaration for processing `energy_`
-    class FindAllVisitor;
+    //// Forward declaration for processing `energy_`
+    //template<typename T>
+    //inline std::set<SymEngine::RCP<const T>, SymEngine::RCPBasicKeyLess> find_all(
+    //    const SymEngine::RCP<const SymEngine::Basic>& x,
+    //    const SymEngine::RCP<const SymEngine::Basic>& symbol
+    //);
 
     // Make generalized density vector
     //FIXME: change `ElectronicState` to OneElecDensity?
@@ -141,60 +146,78 @@ namespace Tinned
             inline std::set<SymEngine::RCP<const NonElecFunction>,
                             SymEngine::RCPBasicKeyLess> get_weights() const
             {
-                std::set<SymEngine::RCP<const NonElecFunction>,
-                         SymEngine::RCPBasicKeyLess> weights;
-                FindAllVisitor visitor(get_weight());
-                for (auto& w: visitor.apply(energy_)) {
-                    weights.insert(
-                        SymEngine::rcp_dynamic_cast<const NonElecFunction>(w)
-                    );
-                }
-                return weights;
+                return find_all<NonElecFunction>(energy_, get_weight());
+                //std::set<SymEngine::RCP<const NonElecFunction>,
+                //         SymEngine::RCPBasicKeyLess> weights;
+                //FindAllVisitor visitor(get_weight());
+                //for (auto& w: visitor.apply(energy_)) {
+                //    weights.insert(
+                //        SymEngine::rcp_dynamic_cast<const NonElecFunction>(w)
+                //    );
+                //}
+                //return weights;
             }
 
             // Get all unique unperturbed and perturbed electronic states
             inline std::set<SymEngine::RCP<const ElectronicState>,
                             SymEngine::RCPBasicKeyLess> get_states() const
             {
-                std::set<SymEngine::RCP<const ElectronicState>,
-                         SymEngine::RCPBasicKeyLess> states;
-                FindAllVisitor visitor(get_state());
-                for (auto& s: visitor.apply(energy_)) {
-                    states.insert(
-                        SymEngine::rcp_dynamic_cast<const ElectronicState>(s)
-                    );
-                }
-                return states;
+                return find_all<ElectronicState>(energy_, get_state());
+                //std::set<SymEngine::RCP<const ElectronicState>,
+                //         SymEngine::RCPBasicKeyLess> states;
+                //FindAllVisitor visitor(get_state());
+                //for (auto& s: visitor.apply(energy_)) {
+                //    states.insert(
+                //        SymEngine::rcp_dynamic_cast<const ElectronicState>(s)
+                //    );
+                //}
+                //return states;
             }
 
             // Get all unique unperturbed and perturbed overlap distributions
             inline std::set<SymEngine::RCP<const OneElecOperator>,
                             SymEngine::RCPBasicKeyLess> get_overlap_distributions() const
             {
-                std::set<SymEngine::RCP<const OneElecOperator>,
-                         SymEngine::RCPBasicKeyLess> Omegas;
-                FindAllVisitor visitor(get_overlap_distribution());
-                for (auto& w: visitor.apply(energy_)) {
-                    Omegas.insert(
-                        SymEngine::rcp_dynamic_cast<const OneElecOperator>(w)
-                    );
-                }
-                return Omegas;
+                return find_all<OneElecOperator>(energy_, get_overlap_distribution());
+                //std::set<SymEngine::RCP<const OneElecOperator>,
+                //         SymEngine::RCPBasicKeyLess> Omegas;
+                //FindAllVisitor visitor(get_overlap_distribution());
+                //for (auto& w: visitor.apply(energy_)) {
+                //    Omegas.insert(
+                //        SymEngine::rcp_dynamic_cast<const OneElecOperator>(w)
+                //    );
+                //}
+                //return Omegas;
             }
 
             // Get all unique orders of functional derivatives of XC energy density
             inline std::set<unsigned int> get_exc_orders() const
             {
-                std::set<unsigned int> orders;
-                FindAllVisitor visitor(
-                    make_exc_density(get_state(), get_overlap_distribution(), 0)
+                auto exc = find_all<CompositeFunction>(
+                    energy_,
+                    make_exc_density(
+                        SymEngine::rcp_dynamic_cast<const ElectronicState>(
+                            get_state()
+                        ),
+                        SymEngine::rcp_dynamic_cast<const OneElecOperator>(
+                            get_overlap_distribution()
+                        ),
+                        0
+                    )
                 );
-                for (auto& exc: visitor.apply(energy_)) {
-                    orders.insert(
-                        SymEngine::rcp_dynamic_cast<const CompositeFunction>(exc)->get_order()
-                    );
-                }
+                std::set<unsigned int> orders;
+                for (auto& e: exc) orders.insert(e->get_order());
                 return orders;
+                //std::set<unsigned int> orders;
+                //FindAllVisitor visitor(
+                //    make_exc_density(get_state(), get_overlap_distribution(), 0)
+                //);
+                //for (auto& exc: visitor.apply(energy_)) {
+                //    orders.insert(
+                //        SymEngine::rcp_dynamic_cast<const CompositeFunction>(exc)->get_order()
+                //    );
+                //}
+                //return orders;
             }
     };
 }

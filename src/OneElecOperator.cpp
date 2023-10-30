@@ -34,10 +34,8 @@ namespace Tinned
         if (SymEngine::MatrixSymbol::__eq__(o)) {
             if (SymEngine::is_a_sub<const OneElecOperator>(o)) {
                 auto& op = SymEngine::down_cast<const OneElecOperator&>(o);
-                // First check the derivatives
-                if (not SymEngine::unified_eq(derivative_, op.derivative_)) return false;
-                // Secondly we check the perturbation dependencies
-                return eq_dependency(dependencies_, op.dependencies_);
+                return SymEngine::unified_eq(derivative_, op.derivative_)
+                    && eq_dependency(dependencies_, op.dependencies_);
             }
         }
         return false;

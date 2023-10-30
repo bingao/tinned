@@ -5,7 +5,7 @@ add_library(tinned
             ${LIB_TINNED_PATH}/src/OneElecDensity.cpp
             ${LIB_TINNED_PATH}/src/OneElecOperator.cpp
             ${LIB_TINNED_PATH}/src/TwoElecOperator.cpp
-            ${LIB_TINNED_PATH}/src/DensityVector.cpp
+            ${LIB_TINNED_PATH}/src/CompositeFunction.cpp
             ${LIB_TINNED_PATH}/src/ExchCorrEnergy.cpp
             ${LIB_TINNED_PATH}/src/ExchCorrPotential.cpp
             ${LIB_TINNED_PATH}/src/TemporumOperator.cpp

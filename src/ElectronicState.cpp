@@ -28,7 +28,6 @@ namespace Tinned
         if (SymEngine::MatrixSymbol::__eq__(o)) {
             if (SymEngine::is_a_sub<const ElectronicState>(o)) {
                 auto& state = SymEngine::down_cast<const ElectronicState&>(o);
-                // Check the derivatives
                 return SymEngine::unified_eq(derivative_, state.derivative_);
             }
         }

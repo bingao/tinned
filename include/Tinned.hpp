@@ -26,4 +26,5 @@
 #include "Tinned/KeepVisitor.hpp"
 #include "Tinned/RemoveVisitor.hpp"
 #include "Tinned/ReplaceVisitor.hpp"
+#include "Tinned/FindAllVisitor.hpp"
 #include "Tinned/StringifyVisitor.hpp"

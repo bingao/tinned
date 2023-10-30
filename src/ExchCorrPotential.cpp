@@ -17,7 +17,7 @@ namespace Tinned
         weight_(weight),
         potential_(SymEngine::matrix_mul(
             SymEngine::vec_basic({make_vxc(name, state, Omega, weight), Omega})
-        )
+        ))
     {
         SYMENGINE_ASSIGN_TYPEID()
     }
@@ -27,8 +27,8 @@ namespace Tinned
         const SymEngine::RCP<const SymEngine::Symbol>& s
     ) : SymEngine::MatrixSymbol(other.get_name()),
         state_(other.state_),
-        weight_(other.weight_),
         Omega_(other.Omega_),
+        weight_(other.weight_),
         potential_(other.potential_->diff(s))
     {
         SYMENGINE_ASSIGN_TYPEID()
@@ -36,11 +36,11 @@ namespace Tinned
 
     ExchCorrPotential::ExchCorrPotential(
         const ExchCorrPotential& other,
-        const SymEngine::RCP<const SymEngine::Basic> potential
+        const SymEngine::RCP<const SymEngine::Basic>& potential
     ) : SymEngine::MatrixSymbol(other.get_name()),
         state_(other.state_),
-        weight_(other.weight_),
         Omega_(other.Omega_),
+        weight_(other.weight_),
         potential_(potential)
     {
         SYMENGINE_ASSIGN_TYPEID()

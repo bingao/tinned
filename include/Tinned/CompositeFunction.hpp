@@ -30,13 +30,13 @@ namespace Tinned
             // Order of differentiation of the outer function
             unsigned int order_;
             // Inner function
-            SymEngine::RCP<const SymEngine:Basic> inner_;
+            SymEngine::RCP<const SymEngine::Basic> inner_;
 
         public:
             //! Constructor
             explicit CompositeFunction(
                 const std::string& name,
-                const SymEngine::RCP<const SymEngine:Basic> inner,
+                const SymEngine::RCP<const SymEngine::Basic> inner,
                 const unsigned int order = 0
             );
 
@@ -57,7 +57,7 @@ namespace Tinned
                 return order_;
             }
 
-            inline SymEngine::RCP<const SymEngine:Basic> get_inner() const {
+            inline SymEngine::RCP<const SymEngine::Basic> get_inner() const {
                 return inner_;
             }
     };

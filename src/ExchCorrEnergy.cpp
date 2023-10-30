@@ -30,7 +30,7 @@ namespace Tinned
 
     ExchCorrEnergy::ExchCorrEnergy(
         const ExchCorrEnergy& other,
-        const SymEngine::RCP<const SymEngine::Basic> energy
+        const SymEngine::RCP<const SymEngine::Basic>& energy
     ) : SymEngine::FunctionWrapper(other.get_name(), other.get_args()),
         energy_(energy)
     {

@@ -9,11 +9,11 @@ namespace Tinned
 {
     CompositeFunction::CompositeFunction(
         const std::string& name,
-        const SymEngine::RCP<const SymEngine:Basic> inner
+        const SymEngine::RCP<const SymEngine::Basic> inner,
         const unsigned int order
     ) : SymEngine::FunctionWrapper(name, SymEngine::vec_basic({})),
-        inner_(inner),
-        order_(order)
+        order_(order),
+        inner_(inner)
     {
         SYMENGINE_ASSIGN_TYPEID()
     }

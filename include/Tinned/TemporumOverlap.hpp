@@ -44,6 +44,7 @@ namespace Tinned
         protected:
             // Sum of half time-differentiated bra and ket products
             SymEngine::RCP<const SymEngine::Basic> braket_;
+
         public:
             explicit TemporumOverlap(const PertDependency& dependencies);
             // Only used for `diff_impl()`
@@ -60,6 +61,15 @@ namespace Tinned
             SymEngine::RCP<const SymEngine::Basic> diff_impl(
                 const SymEngine::RCP<const SymEngine::Symbol>& s
             ) const override;
+
+            // Get dependencies
+            inline PertDependency get_dependencies() const
+            {
+                auto target = SymEngine::rcp_dynamic_cast<const NonElecFunction>(
+                    std::get<1>(get_braket_product(0))->get_target()
+                );
+                return target->get_dependencies();
+            }
 
             // Get number of half time-differentiated bra and ket products
             inline std::size_t size() const
