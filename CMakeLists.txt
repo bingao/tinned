@@ -1,5 +1,5 @@
 # Required version of CMake
-cmake_minimum_required(VERSION 3.1 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.14 FATAL_ERROR)
 
 # Project name
 project(Tinned
@@ -9,6 +9,12 @@ project(Tinned
 # Options for making the library
 option(BUILD_SHARED_LIBS "Build shared library." OFF)
 option(BUILD_TESTING "Build tests." ON)
+
+# From https://gitlab.com/CLIUtils/modern-cmake.git
+#
+# FetchContent added in CMake 3.11, downloads during the configure step
+# FetchContent_MakeAvailable was added in CMake 3.14; simpler usage
+include(FetchContent)
 
 # Find SymEngine, SymEngine_DIR can be set by users in advance
 set(CMAKE_PREFIX_PATH ${SymEngine_DIR} ${CMAKE_PREFIX_PATH})
@@ -65,5 +71,7 @@ message("CMAKE_CXX_FLAGS_RELEASE: ${CMAKE_CXX_FLAGS_RELEASE}")
 message("CMAKE_INSTALL_PREFIX: ${CMAKE_INSTALL_PREFIX}")
 message("LIB_TINNED_PATH: ${LIB_TINNED_PATH}")
 message("TINNED_INCLUDE_DIRS: ${TINNED_INCLUDE_DIRS}")
+message("SYMENGINE_INCLUDE_DIRS: ${SYMENGINE_INCLUDE_DIRS}")
+message("SYMENGINE_LIBRARIES: ${SYMENGINE_LIBRARIES}")
 message("BUILD_SHARED_LIBS: ${BUILD_SHARED_LIBS}")
 message("BUILD_TESTING: ${BUILD_TESTING}")
