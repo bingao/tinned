@@ -1,3 +1,8 @@
+#include <iostream>
+
+#include <symengine/complex.h>
+//#include <symengine/complex_double.h>
+//#include <symengine/complex_mpc.h>
 #include <symengine/symengine_assert.h>
 #include <symengine/symengine_casts.h>
 
@@ -42,7 +47,42 @@ namespace Tinned
         int result = SymEngine::Symbol::compare(o);
         if (result == 0) {
             auto& s = SymEngine::down_cast<const Perturbation&>(o);
-            result = frequency_->compare(*s.frequency_);
+            // Some subclasses of SymEngine::Number cannot be compared
+            // directly, so we take their difference and compare
+            auto diff = SymEngine::subnum(frequency_, s.frequency_);
+            if (diff->is_complex()) {
+                auto diff_cmplx = SymEngine::rcp_dynamic_cast<const SymEngine::ComplexBase>(diff);
+                auto diff_real = diff_cmplx->real_part();
+                if (diff_real->is_zero()) {
+                    auto diff_imag = diff_cmplx->imaginary_part();
+                    if (diff_imag->is_zero()) {
+                        result = 0;
+                    }
+                    else if (diff_imag->is_negative()) {
+                        result = -1;
+                    }
+                    else {
+                        result = 1;
+                    }
+                }
+                else if (diff_real->is_negative()) {
+                    result = -1;
+                }
+                else {
+                    result = 1;
+                }
+            }
+            else {
+                if (diff->is_zero()) {
+                    result = 0;
+                }
+                else if (diff->is_negative()) {
+                    result = -1;
+                }
+                else {
+                    result = 1;
+                }
+            }
             return result == 0
                 ? SymEngine::ordered_compare(components_, s.components_)
                 : result;

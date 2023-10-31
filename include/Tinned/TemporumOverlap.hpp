@@ -133,7 +133,7 @@ namespace Tinned
             }
 
             // Get derivatives on bra and ket of a product
-            inline std::pair<SymEngine::multiset_basic,SymEngine::multiset_basic>
+            inline std::pair<SymEngine::multiset_basic, SymEngine::multiset_basic>
             get_derivative(const std::size_t index) const
             {
                 auto term = get_braket_product(index);

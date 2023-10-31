@@ -1,8 +1,9 @@
 #include <string>
 
+#include <symengine/constants.h>
+//#include <symengine/integer.h>
 #include <symengine/symengine_assert.h>
 #include <symengine/symengine_casts.h>
-#include <symengine/integer.h>
 
 #include "Tinned/TemporumOperator.hpp"
 
@@ -64,7 +65,7 @@ namespace Tinned
     SymEngine::vec_basic TemporumOperator::get_args() const
     {
         return SymEngine::vec_basic({
-            SymEngine::integer(static_cast<int>(type_)),
+            //SymEngine::integer(static_cast<int>(type_)),
             target_
         });
     }
@@ -74,8 +75,11 @@ namespace Tinned
     ) const
     {
         auto result = target_->diff(s);
-        if (make_zero_operator()->__eq__(*result)) {
+        if (result->__eq__(*make_zero_operator())) {
             return make_zero_operator();
+        }
+        else if (result->__eq__(*SymEngine::zero)) {
+            return SymEngine::zero;
         }
         else {
             return SymEngine::make_rcp<const TemporumOperator>(result, type_);
