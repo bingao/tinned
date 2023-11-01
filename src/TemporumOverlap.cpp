@@ -1,5 +1,7 @@
 #include <string>
 
+#include <symengine/constants.h>
+
 #include "Tinned/NonElecFunction.hpp"
 #include "Tinned/TemporumOverlap.hpp"
 
@@ -74,7 +76,8 @@ namespace Tinned
     ) const
     {
         auto result = braket_->diff(s);
-        if (make_zero_operator()->__eq__(*result)) {
+        // `NonElecFunction` should return `SymEngine::zero`
+        if (result->__eq__(*make_zero_operator()) || result->__eq__(*SymEngine::zero)) {
             return make_zero_operator();
         }
         else {

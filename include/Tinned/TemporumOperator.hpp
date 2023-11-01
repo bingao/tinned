@@ -78,7 +78,7 @@ namespace Tinned
                     result = SymEngine::addnum(result, frequency);
                 }
                 return type_ == TemporumType::Ket
-                    ? result : SymEngine::mulnum(result, SymEngine::minus_one);
+                    ? result : SymEngine::subnum(SymEngine::zero, result);
             }
 
             // Get derivative

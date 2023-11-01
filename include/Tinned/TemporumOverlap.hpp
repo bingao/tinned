@@ -108,11 +108,18 @@ namespace Tinned
                     product->get_scalar()
                 );
                 auto factors = product->get_factors();
-                return std::make_tuple(
-                    coef,
-                    SymEngine::rcp_dynamic_cast<const TemporumOperator>(factors[0]),
-                    SymEngine::rcp_dynamic_cast<const TemporumOperator>(factors[1])
-                );
+                auto chi = SymEngine::rcp_dynamic_cast<const TemporumOperator>(factors[0]);
+                return chi->get_type() == TemporumType::Bra
+                    ? std::make_tuple(
+                          coef,
+                          chi,
+                          SymEngine::rcp_dynamic_cast<const TemporumOperator>(factors[1])
+                      )
+                    : std::make_tuple(
+                          coef,
+                          SymEngine::rcp_dynamic_cast<const TemporumOperator>(factors[1]),
+                          chi
+                      );
             }
 
             // Get frequency factor [sum(w_bra)-sum(w_ket)]/2 of a product

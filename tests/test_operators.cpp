@@ -9,6 +9,7 @@
 #include <catch2/catch.hpp>
 
 #include <symengine/basic.h>
+#include <symengine/number.h>
 #include <symengine/constants.h>
 #include <symengine/integer.h>
 #include <symengine/rational.h>
@@ -189,12 +190,11 @@ TEST_CASE("Test TwoElecOperator", "[TwoElecOperator]")
 
     auto Df = SymEngine::rcp_dynamic_cast<const OneElecDensity>(D->diff(el));
     auto Dfg = SymEngine::rcp_dynamic_cast<const OneElecDensity>(Df->diff(geo));
-    auto Dfm = SymEngine::rcp_dynamic_cast<const OneElecDensity>(Df->diff(mag));
-    auto Dfgm = SymEngine::rcp_dynamic_cast<const OneElecDensity>(Dfg->diff(mag));
-    auto args_found = std::map<SymEngine::RCP<const OneElecDensity>, bool,
-                               SymEngine::RCPBasicKeyLess>
+    auto Dfb = SymEngine::rcp_dynamic_cast<const OneElecDensity>(Df->diff(mag));
+    auto Dfgb = SymEngine::rcp_dynamic_cast<const OneElecDensity>(Dfg->diff(mag));
+    auto found = std::map<SymEngine::RCP<const OneElecDensity>, bool, SymEngine::RCPBasicKeyLess>
     ({
-        {Df, false}, {Dfg, false}, {Dfm, false}, {Dfgm, false}
+        {Df, false}, {Dfg, false}, {Dfb, false}, {Dfgb, false}
     });
     auto args
         = SymEngine::rcp_dynamic_cast<const SymEngine::MatrixAdd>(result)->get_args();
@@ -209,31 +209,28 @@ TEST_CASE("Test TwoElecOperator", "[TwoElecOperator]")
             REQUIRE(SymEngine::unified_eq(
                 derivative, SymEngine::multiset_basic({geo, mag})
             ));
-            args_found[Df] = true;
+            found[Df] = true;
         }
         else if (SymEngine::eq(*Dp, *Dfg)) {
             REQUIRE(SymEngine::unified_eq(
                 derivative, SymEngine::multiset_basic({mag})
             ));
-            args_found[Dfg] = true;
+            found[Dfg] = true;
         }
-        else if (SymEngine::eq(*Dp, *Dfm)) {
+        else if (SymEngine::eq(*Dp, *Dfb)) {
             REQUIRE(SymEngine::unified_eq(
                 derivative, SymEngine::multiset_basic({geo})
             ));
-            args_found[Dfm] = true;
+            found[Dfb] = true;
         }
-        else if (SymEngine::eq(*Dp, *Dfgm)) {
+        else if (SymEngine::eq(*Dp, *Dfgb)) {
             REQUIRE(SymEngine::unified_eq(
                 derivative, SymEngine::multiset_basic({})
             ));
-            args_found[Dfgm] = true;
+            found[Dfgb] = true;
         }
     }
-    REQUIRE(args_found[Df]);
-    REQUIRE(args_found[Dfg]);
-    REQUIRE(args_found[Dfm]);
-    REQUIRE(args_found[Dfgm]);
+    for (auto it = found.begin(); it != found.end(); ++it) REQUIRE(it->second);
 }
 
 TEST_CASE("Test CompositeFunction and ExchCorrEnergy", "[ExchCorrEnergy]")
@@ -284,37 +281,44 @@ TEST_CASE("Test NonElecFunction", "[NonElecFunction]")
 TEST_CASE("Test TemporumOperator", "[TemporumOperator]")
 {
     auto D = SymEngine::make_rcp<const OneElecDensity>(std::string("D"));
-    auto Db = SymEngine::make_rcp<const TemporumOperator>(D, TemporumType::Bra);
-    auto Dk = SymEngine::make_rcp<const TemporumOperator>(D, TemporumType::Ket);
-    REQUIRE(SymEngine::eq(*D, *Db->get_args()[0]));
-    REQUIRE(SymEngine::eq(*D, *Dk->get_args()[0]));
-    REQUIRE(SymEngine::eq(*D, *Db->get_target()));
-    REQUIRE(SymEngine::eq(*D, *Dk->get_target()));
-    REQUIRE(Db->get_type() == TemporumType::Bra);
-    REQUIRE(Dk->get_type() == TemporumType::Ket);
-    REQUIRE(SymEngine::eq(*Db->get_frequency(), *SymEngine::zero));
-    REQUIRE(SymEngine::eq(*Dk->get_frequency(), *SymEngine::zero));
+    auto Dbra = SymEngine::make_rcp<const TemporumOperator>(D, TemporumType::Bra);
+    auto Dket = SymEngine::make_rcp<const TemporumOperator>(D, TemporumType::Ket);
+    REQUIRE(SymEngine::eq(*D, *Dbra->get_args()[0]));
+    REQUIRE(SymEngine::eq(*D, *Dket->get_args()[0]));
+    REQUIRE(SymEngine::eq(*D, *Dbra->get_target()));
+    REQUIRE(SymEngine::eq(*D, *Dket->get_target()));
+    REQUIRE(Dbra->get_type() == TemporumType::Bra);
+    REQUIRE(Dket->get_type() == TemporumType::Ket);
+    REQUIRE(SymEngine::eq(*Dbra->get_frequency(), *SymEngine::zero));
+    REQUIRE(SymEngine::eq(*Dket->get_frequency(), *SymEngine::zero));
 
     auto el = SymEngine::make_rcp<const Perturbation>(
-        std::string("EL"), SymEngine::two
+        std::string("EL"), SymEngine::real_double(0.5)
     );
     auto geo = SymEngine::make_rcp<const Perturbation>(
-        std::string("GEO"), SymEngine::zero
+        std::string("GEO"), SymEngine::real_double(0.0)
     );
     auto mag = SymEngine::make_rcp<const Perturbation>(
-        std::string("MAG"), SymEngine::one
+        std::string("MAG"), SymEngine::real_double(1.5)
     );
     auto Dp = SymEngine::rcp_dynamic_cast<const TemporumOperator>(
-        ((Db->diff(el))->diff(geo))->diff(mag)
+        ((Dbra->diff(el))->diff(geo))->diff(mag)
     );
-    REQUIRE(SymEngine::eq(*Dp->get_frequency(), *SymEngine::integer(-3)));
+    auto sum_freq = SymEngine::addnum(
+        SymEngine::addnum(el->get_frequency(), geo->get_frequency()),
+        mag->get_frequency()
+    );
+    REQUIRE(SymEngine::eq(
+        *Dp->get_frequency(),
+        *SymEngine::subnum(SymEngine::real_double(0), sum_freq)
+    ));
     REQUIRE(SymEngine::unified_eq(
         Dp->get_derivative(), SymEngine::multiset_basic({el, geo, mag})
     ));
     Dp = SymEngine::rcp_dynamic_cast<const TemporumOperator>(
-        ((Dk->diff(el))->diff(geo))->diff(mag)
+        ((Dket->diff(el))->diff(geo))->diff(mag)
     );
-    REQUIRE(SymEngine::eq(*Dp->get_frequency(), *SymEngine::integer(3)));
+    REQUIRE(SymEngine::eq(*Dp->get_frequency(), *sum_freq));
     REQUIRE(SymEngine::unified_eq(
         Dp->get_derivative(), SymEngine::multiset_basic({el, geo, mag})
     ));
@@ -349,39 +353,207 @@ TEST_CASE("Test TemporumOperator", "[TemporumOperator]")
 
 TEST_CASE("Test TemporumOverlap", "[TemporumOverlap]")
 {
-    auto el = SymEngine::make_rcp<const Perturbation>(
-        std::string("EL"), SymEngine::two
-    );
-    auto geo = SymEngine::make_rcp<const Perturbation>(
-        std::string("GEO"), SymEngine::zero
-    );
-    auto mag = SymEngine::make_rcp<const Perturbation>(
-        std::string("MAG"), SymEngine::one
-    );
+    auto el_freq = SymEngine::real_double(0.5);
+    auto el = SymEngine::make_rcp<const Perturbation>(std::string("EL"), el_freq);
+    auto geo_freq = SymEngine::real_double(1.5);
+    auto geo = SymEngine::make_rcp<const Perturbation>(std::string("GEO"), geo_freq);
+    auto mag_freq = SymEngine::real_double(2.5);
+    auto mag = SymEngine::make_rcp<const Perturbation>(std::string("MAG"), mag_freq);
     auto dependencies = PertDependency({
         std::make_pair(geo, 99), std::make_pair(mag, 99)
     });
     auto T = SymEngine::make_rcp<const TemporumOverlap>(dependencies);
     REQUIRE(eq_dependency(dependencies, T->get_dependencies()));
-    auto Tg = T->diff(g);
-//    auto Tgg = SymEngine::rcp_dynamic_cast<const TemporumOverlap>(Tg->diff(g));
-//    std::cout << stringify(*Tgg) << "\n";
-//    std::cout << "size: " << Tgg->size() << "\n";
-//    for (std::size_t i = 0; i<Tgg->size(); ++i) {
-//        std::cout << "frequnecy: " << stringify(*Tgg->get_frequency(i));
-//        auto braket = Tgg->get_braket_product(i);
-//        std::cout << ", coef.: " << stringify(*std::get<0>(braket))
-//                  << ", bra: " << stringify(*std::get<1>(braket))
-//                  << ", ket: " << stringify(*std::get<2>(braket))
-//                  << "\n\n";
-//    }
-//    auto braket1 = Tgg->get_braket_product(1);
-//    auto braket2 = Tgg->get_braket_product(2);
-//    std::cout << "equal: " << std::get<0>(braket1)->__eq__(*std::get<0>(braket2)) << "\n";
-//    std::cout << "equal: " << std::get<1>(braket1)->__eq__(*std::get<1>(braket2)) << "\n";
-//    std::cout << "bra: " << stringify(*std::get<1>(braket1)) << "\n"
-//              << "bra: " << stringify(*std::get<1>(braket2)) << "\n";
-//    std::cout << "equal: " << std::get<2>(braket1)->__eq__(*std::get<2>(braket2)) << "\n";
-//    std::cout << "ket: " << stringify(*std::get<2>(braket1)) << "\n"
-//              << "ket: " << stringify(*std::get<2>(braket2)) << "\n";
+
+    // = wg*S^{gg|0} + 0*2*S^{g|g} - wg*S^{0|gg}
+    auto Tgg = SymEngine::rcp_dynamic_cast<const TemporumOverlap>(
+        (T->diff(geo))->diff(geo)
+    );
+    auto found = std::map<std::string, bool>({
+        {std::string("gg|0"), false},
+        {std::string("g|g"), false},
+        {std::string("0|gg"), false}
+    });
+    REQUIRE(Tgg->size() == 3);
+    for (std::size_t i = 0; i < Tgg->size(); ++i) {
+        auto derivative = Tgg->get_derivative(i);
+        if (
+            SymEngine::unified_eq(
+                derivative.first,
+                SymEngine::multiset_basic({geo, geo})
+            )
+            &&
+            SymEngine::unified_eq(
+                derivative.second,
+                SymEngine::multiset_basic({})
+            )
+        ) {
+            REQUIRE(SymEngine::eq(*Tgg->get_frequency(i), *geo_freq));
+            found[std::string("gg|0")] = true;
+        }
+        else if (
+            SymEngine::unified_eq(
+                derivative.first,
+                SymEngine::multiset_basic({geo})
+            )
+            &&
+            SymEngine::unified_eq(
+                derivative.second,
+                SymEngine::multiset_basic({geo})
+            )
+        ) {
+            REQUIRE(Tgg->get_frequency(i)->is_zero());
+            found[std::string("g|g")] = true;
+        }
+        else if (
+            SymEngine::unified_eq(
+                derivative.first,
+                SymEngine::multiset_basic({})
+            )
+            &&
+            SymEngine::unified_eq(
+                derivative.second,
+                SymEngine::multiset_basic({geo, geo})
+            )
+        ) {
+            REQUIRE(SymEngine::eq(
+                *Tgg->get_frequency(i),
+                *SymEngine::subnum(SymEngine::real_double(0.0), geo_freq)
+            ));
+            found[std::string("0|gg")] = true;
+        }
+    }
+    for (auto it = found.begin(); it != found.end(); ++it) REQUIRE(it->second);
+
+    // = (wg+wb/2)*S^{ggb|0} + (wg-wb/2)*S^{gg|b} + wb*S^{gb|g}
+    // - wb*S^{g|gb} + (wb/2-wg)*S^{b|gg} - (wg+wb/2)*S^{0|ggb}
+    auto Tggb = SymEngine::rcp_dynamic_cast<const TemporumOverlap>(Tgg->diff(mag));
+    found = std::map<std::string, bool>({
+        {std::string("ggb|0"), false},
+        {std::string("gg|b"), false},
+        {std::string("gb|g"), false},
+        {std::string("g|gb"), false},
+        {std::string("b|gg"), false},
+        {std::string("0|ggb"), false}
+    });
+    REQUIRE(Tggb->size() == 6);
+    for (std::size_t i = 0; i < Tggb->size(); ++i) {
+        auto derivative = Tggb->get_derivative(i);
+        if (
+            SymEngine::unified_eq(
+                derivative.first,
+                SymEngine::multiset_basic({geo, geo, mag})
+            )
+            &&
+            SymEngine::unified_eq(
+                derivative.second,
+                SymEngine::multiset_basic({})
+            )
+        ) {
+            REQUIRE(SymEngine::eq(
+                *Tggb->get_frequency(i),
+                *SymEngine::addnum(
+                    geo_freq,
+                    SymEngine::mulnum(mag_freq, SymEngine::real_double(0.5))
+                )
+            ));
+            found[std::string("ggb|0")] = true;
+        }
+        else if (
+            SymEngine::unified_eq(
+                derivative.first,
+                SymEngine::multiset_basic({geo, geo})
+            )
+            &&
+            SymEngine::unified_eq(
+                derivative.second,
+                SymEngine::multiset_basic({mag})
+            )
+        ) {
+            REQUIRE(SymEngine::eq(
+                *Tggb->get_frequency(i),
+                *SymEngine::subnum(
+                    geo_freq,
+                    SymEngine::mulnum(mag_freq, SymEngine::real_double(0.5))
+                )
+            ));
+            found[std::string("gg|b")] = true;
+        }
+        else if (
+            SymEngine::unified_eq(
+                derivative.first,
+                SymEngine::multiset_basic({geo, mag})
+            )
+            &&
+            SymEngine::unified_eq(
+                derivative.second,
+                SymEngine::multiset_basic({geo})
+            )
+        ) {
+            REQUIRE(SymEngine::eq(*Tggb->get_frequency(i), *mag_freq));
+            found[std::string("gb|g")] = true;
+        }
+        else if (
+            SymEngine::unified_eq(
+                derivative.first,
+                SymEngine::multiset_basic({geo})
+            )
+            &&
+            SymEngine::unified_eq(
+                derivative.second,
+                SymEngine::multiset_basic({geo, mag})
+            )
+        ) {
+            REQUIRE(SymEngine::eq(
+                *Tggb->get_frequency(i),
+                *SymEngine::subnum(SymEngine::real_double(0.0), mag_freq)
+            ));
+            found[std::string("g|gb")] = true;
+        }
+        else if (
+            SymEngine::unified_eq(
+                derivative.first,
+                SymEngine::multiset_basic({mag})
+            )
+            &&
+            SymEngine::unified_eq(
+                derivative.second,
+                SymEngine::multiset_basic({geo, geo})
+            )
+        ) {
+            REQUIRE(SymEngine::eq(
+                *Tggb->get_frequency(i),
+                *SymEngine::subnum(
+                    SymEngine::mulnum(mag_freq, SymEngine::real_double(0.5)),
+                    geo_freq
+                )
+            ));
+            found[std::string("b|gg")] = true;
+        }
+        else if (
+            SymEngine::unified_eq(
+                derivative.first,
+                SymEngine::multiset_basic({})
+            )
+            &&
+            SymEngine::unified_eq(
+                derivative.second,
+                SymEngine::multiset_basic({geo, geo, mag})
+            )
+        ) {
+            REQUIRE(SymEngine::eq(
+                *Tggb->get_frequency(i),
+                *SymEngine::subnum(
+                    SymEngine::mulnum(mag_freq, SymEngine::real_double(-0.5)),
+                    geo_freq
+                )
+            ));
+            found[std::string("0|ggb")] = true;
+        }
+    }
+    for (auto it = found.begin(); it != found.end(); ++it) REQUIRE(it->second);
+
+    REQUIRE(SymEngine::eq(*T->diff(el), *make_zero_operator()));
+    REQUIRE(SymEngine::eq(*Tgg->diff(el), *make_zero_operator()));
+    REQUIRE(SymEngine::eq(*Tggb->diff(el), *make_zero_operator()));
 }
