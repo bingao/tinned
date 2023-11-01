@@ -37,13 +37,13 @@ namespace Tinned
     {
         protected:
             // Target that the time differentiation operator acts on
-            SymEngine::RCP<const Basic> target_;
+            SymEngine::RCP<const SymEngine::Basic> target_;
             // Type of the time differentiation operator
             TemporumType type_;
         public:
             explicit TemporumOperator(
-                const SymEngine::RCP<const Basic>& target,
-                const TemporumType type = TemporumType::Ket
+                const SymEngine::RCP<const SymEngine::Basic>& target,
+                const TemporumType type
             );
 
             SymEngine::hash_t __hash__() const override;
@@ -103,4 +103,13 @@ namespace Tinned
                 }
             }
     };
+
+    // Helper function to make time differentiation operators
+    inline SymEngine::RCP<const TemporumOperator> make_dt_operator(
+        const SymEngine::RCP<const SymEngine::Basic>& target,
+        const TemporumType type = TemporumType::Ket
+    )
+    {
+        return SymEngine::make_rcp<const TemporumOperator>(target, type);
+    }
 }

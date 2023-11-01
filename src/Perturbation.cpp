@@ -13,7 +13,7 @@ namespace Tinned
     Perturbation::Perturbation(
         const std::string& name,
         const SymEngine::RCP<const SymEngine::Number>& frequency,
-        const std::set<std::size_t> components
+        const std::set<std::size_t>& components
     ) : SymEngine::Symbol(name),
         frequency_(frequency),
         components_(components)

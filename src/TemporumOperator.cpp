@@ -10,7 +10,7 @@
 namespace Tinned
 {
     TemporumOperator::TemporumOperator(
-        const SymEngine::RCP<const Basic>& target,
+        const SymEngine::RCP<const SymEngine::Basic>& target,
         const TemporumType type
     ) : SymEngine::MatrixSymbol(
             type == TemporumType::Ket ? std::string("i*dt") : std::string("-i*dt")

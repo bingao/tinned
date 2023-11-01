@@ -32,4 +32,12 @@ namespace Tinned
                 const SymEngine::RCP<const SymEngine::Symbol>& s
             ) const override;
     };
+
+    // Helper function to make one-electron spin-orbital density matrix
+    inline SymEngine::RCP<const OneElecDensity> make_1el_density(
+        const std::string& name
+    )
+    {
+        return SymEngine::make_rcp<const OneElecDensity>(name);
+    }
 }

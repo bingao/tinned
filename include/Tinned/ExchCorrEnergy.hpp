@@ -88,11 +88,7 @@ namespace Tinned
                 const std::string& name,
                 const SymEngine::RCP<const ElectronicState>& state,
                 const SymEngine::RCP<const OneElecOperator>& Omega,
-                const SymEngine::RCP<const NonElecFunction>& weight
-                    = SymEngine::make_rcp<const NonElecFunction>(
-                        std::string("weight"),
-                        PertDependency({})
-                      ),
+                const SymEngine::RCP<const NonElecFunction>& weight,
                 const unsigned int order = 0
             );
             // Constructor only for `diff_impl()`
@@ -220,4 +216,19 @@ namespace Tinned
                 //return orders;
             }
     };
+
+    // Helper function to make XC energy like functionals
+    inline SymEngine::RCP<const ExchCorrEnergy> make_xc_energy(
+        const std::string& name,
+        const SymEngine::RCP<const ElectronicState>& state,
+        const SymEngine::RCP<const OneElecOperator>& Omega,
+        const SymEngine::RCP<const NonElecFunction>& weight
+            = SymEngine::make_rcp<const NonElecFunction>(
+                std::string("weight"),
+                PertDependency({})
+              )
+    )
+    {
+        return SymEngine::make_rcp<const ExchCorrEnergy>(name, state, Omega, weight);
+    }
 }

@@ -9,7 +9,6 @@
 
    2023-10-27, Bin Gao:
    * remove member method get_args()
-   * add inline method make_overlap_distribution()
 
    2023-09-08, Bin Gao:
    * first version
@@ -71,9 +70,9 @@ namespace Tinned
             }
     };
 
-    // Make overlap distribution
-    inline SymEngine::RCP<const OneElecOperator> make_overlap_distribution(
-        const std::string& name = std::string("Omega"),
+    // Helper function to make one-electron like operators
+    inline SymEngine::RCP<const OneElecOperator> make_1el_operator(
+        const std::string& name,
         const PertDependency& dependencies = {}
     )
     {

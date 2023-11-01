@@ -25,6 +25,7 @@
 #include <symengine/basic.h>
 #include <symengine/dict.h>
 #include <symengine/number.h>
+#include <symengine/constants.h>
 #include <symengine/symbol.h>
 #include <symengine/symengine_rcp.h>
 
@@ -43,7 +44,7 @@ namespace Tinned
             explicit Perturbation(
                 const std::string& name,
                 const SymEngine::RCP<const SymEngine::Number>& frequency,
-                const std::set<std::size_t> components = std::set<std::size_t>()
+                const std::set<std::size_t>& components
             );
 
             SymEngine::hash_t __hash__() const override;
@@ -62,4 +63,14 @@ namespace Tinned
                 return components_;
             }
     };
+
+    // Helper function to make perturbations
+    inline SymEngine::RCP<const Perturbation> make_perturbation(
+        const std::string& name,
+        const SymEngine::RCP<const SymEngine::Number>& frequency = SymEngine::zero,
+        const std::set<std::size_t>& components = std::set<std::size_t>()
+    )
+    {
+        return SymEngine::make_rcp<const Perturbation>(name, frequency, components);
+    }
 }

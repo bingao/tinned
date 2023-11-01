@@ -76,10 +76,6 @@ namespace Tinned
                 const SymEngine::RCP<const ElectronicState>& state,
                 const SymEngine::RCP<const OneElecOperator>& Omega,
                 const SymEngine::RCP<const NonElecFunction>& weight
-                    = SymEngine::make_rcp<const NonElecFunction>(
-                        std::string("weight"),
-                        PertDependency({})
-                      )
             );
             // Constructor only for `diff_impl()`
             explicit ExchCorrPotential(
@@ -194,4 +190,19 @@ namespace Tinned
                 //return orders;
             }
     };
+
+    // Helper function to make XC potential like operators
+    inline SymEngine::RCP<const ExchCorrPotential> make_xc_potential(
+        const std::string& name,
+        const SymEngine::RCP<const ElectronicState>& state,
+        const SymEngine::RCP<const OneElecOperator>& Omega,
+        const SymEngine::RCP<const NonElecFunction>& weight
+            = SymEngine::make_rcp<const NonElecFunction>(
+                std::string("weight"),
+                PertDependency({})
+              )
+    )
+    {
+        return SymEngine::make_rcp<const ExchCorrPotential>(name, state, Omega, weight);
+    }
 }

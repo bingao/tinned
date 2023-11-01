@@ -128,7 +128,7 @@ namespace Tinned
             void bvisit(const SymEngine::MatrixMul& x);
     };
 
-    // Keep given `symbols` in `x` while removing others
+    // Helper function to keep given `symbols` in `x` while removing others
     inline SymEngine::RCP<const SymEngine::Basic> keep_if(
         const SymEngine::RCP<const SymEngine::Basic>& x,
         const SymEngine::vec_basic& symbols

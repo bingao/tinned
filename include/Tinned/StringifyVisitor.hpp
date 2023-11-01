@@ -95,8 +95,8 @@ namespace Tinned
             //std::string apply(const SymEngine::Basic& x);
     };
 
-    // Stringify symbols from SymEngine and additional ones defined in Tinned
-    // library
+    // Helper functions to stringify symbols from SymEngine and additional ones
+    // defined in Tinned library
     inline std::string stringify(const SymEngine::Basic& x)
     {
         StringifyVisitor visitor;

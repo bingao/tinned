@@ -82,4 +82,14 @@ namespace Tinned
                 return derivative_;
             }
     };
+
+    // Helper function to make two-electron like operators
+    inline SymEngine::RCP<const TwoElecOperator> make_2el_operator(
+        const std::string& name,
+        const SymEngine::RCP<const ElectronicState>& state,
+        const PertDependency& dependencies = {}
+    )
+    {
+        return SymEngine::make_rcp<const TwoElecOperator>(name, state, dependencies);
+    }
 }

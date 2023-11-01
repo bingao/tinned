@@ -89,8 +89,8 @@ namespace Tinned
             void bvisit(const SymEngine::MatrixDerivative& x);
     };
 
-    // Replace classes defined in Tinned library in addition to those in
-    // SymEngine::msubs()
+    // Helper function to replace classes defined in Tinned library in addition
+    // to those in SymEngine::msubs()
     inline SymEngine::RCP<const SymEngine::Basic> replace(
         const SymEngine::RCP<const SymEngine::Basic>& x,
         const SymEngine::map_basic_basic& subs_dict,

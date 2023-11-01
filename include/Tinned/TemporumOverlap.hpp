@@ -150,4 +150,12 @@ namespace Tinned
                 );
             }
     };
+
+    // Helper function to make T matrix
+    inline SymEngine::RCP<const TemporumOverlap> make_t_matrix(
+        const PertDependency& dependencies = {}
+    )
+    {
+        return SymEngine::make_rcp<const TemporumOverlap>(dependencies);
+    }
 }

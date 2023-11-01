@@ -9,6 +9,7 @@
 #include <catch2/catch.hpp>
 
 #include <symengine/basic.h>
+#include <symengine/dict.h>
 #include <symengine/number.h>
 #include <symengine/constants.h>
 #include <symengine/integer.h>
@@ -16,6 +17,8 @@
 #include <symengine/real_double.h>
 #include <symengine/complex.h>
 #include <symengine/symbol.h>
+#include <symengine/add.h>
+#include <symengine/mul.h>
 #include <symengine/symengine_rcp.h>
 #include <symengine/matrices/matrix_add.h>
 
@@ -23,7 +26,7 @@
 
 using namespace Tinned;
 
-TEST_CASE("Test Perturbation and PertDependency", "[Perturbation]")
+TEST_CASE("Test Perturbation, make_perturbation() and PertDependency", "[Perturbation]")
 {
     auto el_name = std::string("EL");
     auto int_freq = SymEngine::zero;
@@ -31,10 +34,10 @@ TEST_CASE("Test Perturbation and PertDependency", "[Perturbation]")
     auto real_freq = SymEngine::real_double(0.5);
     auto cmplx_freq = SymEngine::Complex::from_two_nums(*rat_freq, *rat_freq);
 
-    auto el0 = SymEngine::make_rcp<const Perturbation>(el_name, int_freq);
-    auto el1 = SymEngine::make_rcp<const Perturbation>(el_name, rat_freq);
-    auto el2 = SymEngine::make_rcp<const Perturbation>(el_name, real_freq);
-    auto el3 = SymEngine::make_rcp<const Perturbation>(el_name, cmplx_freq);
+    auto el0 = make_perturbation(el_name, int_freq);
+    auto el1 = make_perturbation(el_name, rat_freq);
+    auto el2 = make_perturbation(el_name, real_freq);
+    auto el3 = make_perturbation(el_name, cmplx_freq);
     REQUIRE(el0->get_name() == el_name);
     REQUIRE(SymEngine::neq(*el0, *el1));
     REQUIRE(SymEngine::neq(*el0, *el2));
@@ -44,19 +47,19 @@ TEST_CASE("Test Perturbation and PertDependency", "[Perturbation]")
     REQUIRE(SymEngine::neq(*el2, *el3));
 
     auto components = std::set<std::size_t>({0, 1});
-    auto el4 = SymEngine::make_rcp<const Perturbation>(el_name, int_freq, components);
+    auto el4 = make_perturbation(el_name, int_freq, components);
     REQUIRE(SymEngine::neq(*el0, *el4));
     REQUIRE(SymEngine::neq(*el1, *el4));
     REQUIRE(SymEngine::neq(*el2, *el4));
 
     auto geo_name = std::string("GEO");
-    auto geo0 = SymEngine::make_rcp<const Perturbation>(geo_name, int_freq);
+    auto geo0 = make_perturbation(geo_name, int_freq);
     REQUIRE(SymEngine::neq(*el0, *geo0));
     REQUIRE(SymEngine::neq(*el1, *geo0));
     REQUIRE(SymEngine::neq(*el2, *geo0));
     REQUIRE(SymEngine::neq(*el4, *geo0));
 
-    auto geo1 = SymEngine::make_rcp<const Perturbation>(geo_name, int_freq);
+    auto geo1 = make_perturbation(geo_name, int_freq);
     REQUIRE(SymEngine::eq(*geo0, *geo1));
 
     auto freq = el0->get_frequency();
@@ -92,7 +95,7 @@ TEST_CASE("Test Perturbation and PertDependency", "[Perturbation]")
     REQUIRE(!eq_dependency(el_pert, geo_pert));
     REQUIRE(!eq_dependency(el_pert, el_geo_pert));
 
-    auto s = SymEngine::make_rcp<const SymEngine::Symbol>("s");
+    auto s = SymEngine::symbol("s");
     REQUIRE(find_dependency(el_geo_pert, s) == 0);
     REQUIRE(find_dependency(el_geo_pert, el0) == 0);
     REQUIRE(find_dependency(el_geo_pert, el1) == 1);
@@ -100,23 +103,44 @@ TEST_CASE("Test Perturbation and PertDependency", "[Perturbation]")
     REQUIRE(find_dependency(el_geo_pert, geo0) == 99);
 }
 
-TEST_CASE("Test OneElecDensity", "[ElectronicState]")
+TEST_CASE("Test NonElecFunction and make_nonel_function()", "[NonElecFunction]")
+{
+    auto el = make_perturbation(std::string("EL"), SymEngine::two);
+    auto geo = make_perturbation(std::string("GEO"));
+    auto mag = make_perturbation(std::string("MAG"), SymEngine::one);
+    auto dependencies = PertDependency({
+        std::make_pair(geo, 99), std::make_pair(mag, 99)
+    });
+    auto h_name = std::string("hnuc");
+    auto h = make_nonel_function(h_name, dependencies);
+    REQUIRE(h->get_name() == h_name);
+    REQUIRE(eq_dependency(dependencies, h->get_dependencies()));
+
+    auto hp = SymEngine::rcp_dynamic_cast<const NonElecFunction>(
+        ((h->diff(geo))->diff(mag))->diff(geo)
+    );
+    REQUIRE(hp->get_name() == h_name);
+    auto derivative = hp->get_derivative();
+    REQUIRE(SymEngine::unified_eq(
+        derivative, SymEngine::multiset_basic({geo, geo, mag})
+    ));
+
+    REQUIRE(SymEngine::eq(*hp->diff(el), *SymEngine::zero));
+}
+
+TEST_CASE("Test OneElecDensity and make_1el_density()", "[ElectronicState]")
 {
     auto D_name = std::string("D");
-    auto D = SymEngine::make_rcp<const OneElecDensity>(D_name);
+    auto D = make_1el_density(D_name);
     REQUIRE(D->get_name() == D_name);
     auto derivative = D->get_derivative();
     REQUIRE(SymEngine::unified_eq(derivative, SymEngine::multiset_basic({})));
 
-    auto el0 = SymEngine::make_rcp<const Perturbation>(
-        std::string("EL"), SymEngine::two
-    );
-    auto el1 = SymEngine::make_rcp<const Perturbation>(
+    auto el0 = make_perturbation(std::string("EL"), SymEngine::two);
+    auto el1 = make_perturbation(
         std::string("EL"), SymEngine::two, std::set<std::size_t>({0, 1})
     );
-    auto geo = SymEngine::make_rcp<const Perturbation>(
-        std::string("GEO"), SymEngine::zero
-    );
+    auto geo = make_perturbation(std::string("GEO"));
     auto Dp = SymEngine::rcp_dynamic_cast<const OneElecDensity>(
         (((D->diff(geo))->diff(el0))->diff(el1))->diff(el0)
     );
@@ -127,22 +151,16 @@ TEST_CASE("Test OneElecDensity", "[ElectronicState]")
     ));
 }
 
-TEST_CASE("Test OneElecOperator and make_overlap_distribution", "[OneElecOperator]")
+TEST_CASE("Test OneElecOperator and make_1el_operator()", "[OneElecOperator]")
 {
-    auto el = SymEngine::make_rcp<const Perturbation>(
-        std::string("EL"), SymEngine::two
-    );
-    auto geo = SymEngine::make_rcp<const Perturbation>(
-        std::string("GEO"), SymEngine::zero
-    );
-    auto mag = SymEngine::make_rcp<const Perturbation>(
-        std::string("MAG"), SymEngine::one
-    );
+    auto el = make_perturbation(std::string("EL"), SymEngine::two);
+    auto geo = make_perturbation(std::string("GEO"));
+    auto mag = make_perturbation(std::string("MAG"), SymEngine::one);
     auto dependencies = PertDependency({
         std::make_pair(geo, 99), std::make_pair(mag, 99)
     });
     auto W_name = std::string("Omega");
-    auto W = make_overlap_distribution(W_name, dependencies);
+    auto W = make_1el_operator(W_name, dependencies);
     REQUIRE(W->get_name() == W_name);
     REQUIRE(eq_dependency(dependencies, W->get_dependencies()));
 
@@ -158,24 +176,18 @@ TEST_CASE("Test OneElecOperator and make_overlap_distribution", "[OneElecOperato
     REQUIRE(SymEngine::eq(*Wp->diff(el), *make_zero_operator()));
 }
 
-TEST_CASE("Test TwoElecOperator", "[TwoElecOperator]")
+TEST_CASE("Test TwoElecOperator and make_2el_operator()", "[TwoElecOperator]")
 {
     auto D_name = std::string("D");
-    auto D = SymEngine::make_rcp<const OneElecDensity>(D_name);
-    auto el = SymEngine::make_rcp<const Perturbation>(
-        std::string("EL"), SymEngine::two
-    );
-    auto geo = SymEngine::make_rcp<const Perturbation>(
-        std::string("GEO"), SymEngine::zero
-    );
-    auto mag = SymEngine::make_rcp<const Perturbation>(
-        std::string("MAG"), SymEngine::one
-    );
+    auto D = make_1el_density(D_name);
+    auto el = make_perturbation(std::string("EL"), SymEngine::two);
+    auto geo = make_perturbation(std::string("GEO"));
+    auto mag = make_perturbation(std::string("MAG"), SymEngine::one);
     auto dependencies = PertDependency({
         std::make_pair(geo, 99), std::make_pair(mag, 99)
     });
     auto G_name = std::string("G");
-    auto G = SymEngine::make_rcp<const TwoElecOperator>(G_name, D, dependencies);
+    auto G = make_2el_operator(G_name, D, dependencies);
 
     REQUIRE(G->get_name() == G_name);
     REQUIRE(SymEngine::eq(*D, *G->get_state()));
@@ -233,56 +245,101 @@ TEST_CASE("Test TwoElecOperator", "[TwoElecOperator]")
     for (auto it = found.begin(); it != found.end(); ++it) REQUIRE(it->second);
 }
 
-TEST_CASE("Test CompositeFunction and ExchCorrEnergy", "[ExchCorrEnergy]")
+TEST_CASE("Test CompositeFunction", "[CompositeFunction]")
+{
+    auto el_freq = SymEngine::real_double(0.5);
+    auto el = make_perturbation(std::string("EL"), el_freq);
+    auto geo_freq = SymEngine::real_double(1.5);
+    auto geo = make_perturbation(std::string("GEO"), geo_freq);
+    auto mag_freq = SymEngine::real_double(2.5);
+    auto mag = make_perturbation(std::string("MAG"), mag_freq);
+    auto dependencies = PertDependency({
+        std::make_pair(geo, 99), std::make_pair(mag, 99)
+    });
+    auto inner_name = std::string("inner");
+    auto inner = make_nonel_function(inner_name, dependencies);
+    auto fun_name = std::string("outer");
+    auto fun = SymEngine::make_rcp<const CompositeFunction>(fun_name, inner);
+    REQUIRE(fun->get_name() == fun_name);
+    REQUIRE(SymEngine::eq(*fun->get_inner(), *inner));
+
+    // = outer^{(3)}*inner^{g}*inner^{g}*inner^{b} + 2*outer^{(2)}*inner^{gb}*inner^{g}
+    // + outer^{(2)}*inner^{gg}*inner^{b} + outer^{(1)}*inner^{ggb}
+    auto fun_ggm = ((fun->diff(geo))->diff(geo))->diff(mag);
+    auto fun_1 = SymEngine::make_rcp<const CompositeFunction>(fun_name, inner, 1);
+    auto fun_2 = SymEngine::make_rcp<const CompositeFunction>(fun_name, inner, 2);
+    auto fun_3 = SymEngine::make_rcp<const CompositeFunction>(fun_name, inner, 3);
+    auto inner_g = inner->diff(geo);
+    auto inner_b = inner->diff(mag);
+    auto inner_gg = inner_g->diff(geo);
+    auto inner_gb = inner_g->diff(mag);
+    auto inner_ggb = inner_gg->diff(mag);
+    REQUIRE(SymEngine::eq(
+        *fun_ggm,
+        *SymEngine::add(SymEngine::vec_basic({
+            SymEngine::mul(SymEngine::vec_basic({
+                fun_3, inner_g, inner_g, inner_b
+            })),
+            SymEngine::mul(SymEngine::vec_basic({
+                SymEngine::integer(2), fun_2, inner_gb, inner_g
+            })),
+            SymEngine::mul(SymEngine::vec_basic({
+                fun_2, inner_gg, inner_b
+            })),
+            SymEngine::mul(SymEngine::vec_basic({
+                fun_1, inner_ggb
+            }))
+        }))
+    ));
+
+    // Test from https://en.wikipedia.org/wiki/Fa%C3%A0_di_Bruno%27s_formula#Example
+    auto fun_gggg = (((fun->diff(geo))->diff(geo))->diff(geo))->diff(geo);
+    auto fun_4 = SymEngine::make_rcp<const CompositeFunction>(fun_name, inner, 4);
+    auto inner_ggg = inner_gg->diff(geo);
+    auto inner_gggg = inner_ggg->diff(geo);
+    REQUIRE(SymEngine::eq(
+        *fun_gggg,
+        *SymEngine::add(SymEngine::vec_basic({
+            SymEngine::mul(SymEngine::vec_basic({
+                fun_4, inner_g, inner_g, inner_g, inner_g
+            })),
+            SymEngine::mul(SymEngine::vec_basic({
+                SymEngine::integer(6), fun_3, inner_gg, inner_g, inner_g
+            })),
+            SymEngine::mul(SymEngine::vec_basic({
+                SymEngine::integer(3), fun_2, inner_gg, inner_gg
+            })),
+            SymEngine::mul(SymEngine::vec_basic({
+                SymEngine::integer(4), fun_2, inner_ggg, inner_g
+            })),
+            SymEngine::mul(SymEngine::vec_basic({fun_1, inner_gggg}))
+        }))
+    ));
+
+    REQUIRE(SymEngine::eq(*fun->diff(el), *SymEngine::zero));
+    REQUIRE(SymEngine::eq(*fun_ggm->diff(el), *SymEngine::zero));
+    REQUIRE(SymEngine::eq(*fun_gggg->diff(el), *SymEngine::zero));
+}
+
+TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
 {
 //    auto Exc = SymEngine::make_rcp<const ExchCorrEnergy>(
 //        std::string("Exc"), D
 //    );
 }
 
-TEST_CASE("Test ExchCorrPotential", "[ExchCorrPotential]")
+TEST_CASE("Test ExchCorrPotential and make_xc_potential()", "[ExchCorrPotential]")
 {
 //    auto Fxc = SymEngine::make_rcp<const ExchCorrPotential>(
 //        std::string("Fxc"), D
 //    );
 }
 
-TEST_CASE("Test NonElecFunction", "[NonElecFunction]")
+TEST_CASE("Test TemporumOperator and make_dt_operator()", "[TemporumOperator]")
 {
-    auto el = SymEngine::make_rcp<const Perturbation>(
-        std::string("EL"), SymEngine::two
-    );
-    auto geo = SymEngine::make_rcp<const Perturbation>(
-        std::string("GEO"), SymEngine::zero
-    );
-    auto mag = SymEngine::make_rcp<const Perturbation>(
-        std::string("MAG"), SymEngine::one
-    );
-    auto dependencies = PertDependency({
-        std::make_pair(geo, 99), std::make_pair(mag, 99)
-    });
-    auto h_name = std::string("hnuc");
-    auto h = SymEngine::make_rcp<const NonElecFunction>(h_name, dependencies);
-    REQUIRE(h->get_name() == h_name);
-    REQUIRE(eq_dependency(dependencies, h->get_dependencies()));
-
-    auto hp = SymEngine::rcp_dynamic_cast<const NonElecFunction>(
-        ((h->diff(geo))->diff(mag))->diff(geo)
-    );
-    REQUIRE(hp->get_name() == h_name);
-    auto derivative = hp->get_derivative();
-    REQUIRE(SymEngine::unified_eq(
-        derivative, SymEngine::multiset_basic({geo, geo, mag})
-    ));
-
-    REQUIRE(SymEngine::eq(*hp->diff(el), *SymEngine::zero));
-}
-
-TEST_CASE("Test TemporumOperator", "[TemporumOperator]")
-{
-    auto D = SymEngine::make_rcp<const OneElecDensity>(std::string("D"));
-    auto Dbra = SymEngine::make_rcp<const TemporumOperator>(D, TemporumType::Bra);
-    auto Dket = SymEngine::make_rcp<const TemporumOperator>(D, TemporumType::Ket);
+    auto D = make_1el_density(std::string("D"));
+    auto Dbra = make_dt_operator(D, TemporumType::Bra);
+    auto Dket = make_dt_operator(D, TemporumType::Ket);
     REQUIRE(SymEngine::eq(*D, *Dbra->get_args()[0]));
     REQUIRE(SymEngine::eq(*D, *Dket->get_args()[0]));
     REQUIRE(SymEngine::eq(*D, *Dbra->get_target()));
@@ -292,15 +349,9 @@ TEST_CASE("Test TemporumOperator", "[TemporumOperator]")
     REQUIRE(SymEngine::eq(*Dbra->get_frequency(), *SymEngine::zero));
     REQUIRE(SymEngine::eq(*Dket->get_frequency(), *SymEngine::zero));
 
-    auto el = SymEngine::make_rcp<const Perturbation>(
-        std::string("EL"), SymEngine::real_double(0.5)
-    );
-    auto geo = SymEngine::make_rcp<const Perturbation>(
-        std::string("GEO"), SymEngine::real_double(0.0)
-    );
-    auto mag = SymEngine::make_rcp<const Perturbation>(
-        std::string("MAG"), SymEngine::real_double(1.5)
-    );
+    auto el = make_perturbation(std::string("EL"), SymEngine::real_double(0.5));
+    auto geo = make_perturbation(std::string("GEO"), SymEngine::real_double(0.0));
+    auto mag = make_perturbation(std::string("MAG"), SymEngine::real_double(1.5));
     auto Dp = SymEngine::rcp_dynamic_cast<const TemporumOperator>(
         ((Dbra->diff(el))->diff(geo))->diff(mag)
     );
@@ -326,10 +377,8 @@ TEST_CASE("Test TemporumOperator", "[TemporumOperator]")
     auto dependencies = PertDependency({
         std::make_pair(geo, 99), std::make_pair(mag, 99)
     });
-    auto S = SymEngine::make_rcp<const OneElecOperator>(
-        std::string("S"), dependencies
-    );
-    auto St = SymEngine::make_rcp<const TemporumOperator>(S);
+    auto S = make_1el_operator(std::string("S"), dependencies);
+    auto St = make_dt_operator(S);
     auto Sp = SymEngine::rcp_dynamic_cast<const TemporumOperator>(
         (St->diff(geo))->diff(mag)
     );
@@ -338,10 +387,8 @@ TEST_CASE("Test TemporumOperator", "[TemporumOperator]")
     ));
     REQUIRE(SymEngine::eq(*Sp->diff(el), *make_zero_operator()));
 
-    auto h = SymEngine::make_rcp<const NonElecFunction>(
-        std::string("hnuc"), dependencies
-    );
-    auto ht = SymEngine::make_rcp<const TemporumOperator>(h);
+    auto h = make_nonel_function(std::string("hnuc"), dependencies);
+    auto ht = make_dt_operator(h);
     auto hp = SymEngine::rcp_dynamic_cast<const TemporumOperator>(
         (ht->diff(geo))->diff(mag)
     );
@@ -351,18 +398,18 @@ TEST_CASE("Test TemporumOperator", "[TemporumOperator]")
     REQUIRE(SymEngine::eq(*hp->diff(el), *SymEngine::zero));
 }
 
-TEST_CASE("Test TemporumOverlap", "[TemporumOverlap]")
+TEST_CASE("Test TemporumOverlap and make_t_matrix()", "[TemporumOverlap]")
 {
     auto el_freq = SymEngine::real_double(0.5);
-    auto el = SymEngine::make_rcp<const Perturbation>(std::string("EL"), el_freq);
+    auto el = make_perturbation(std::string("EL"), el_freq);
     auto geo_freq = SymEngine::real_double(1.5);
-    auto geo = SymEngine::make_rcp<const Perturbation>(std::string("GEO"), geo_freq);
+    auto geo = make_perturbation(std::string("GEO"), geo_freq);
     auto mag_freq = SymEngine::real_double(2.5);
-    auto mag = SymEngine::make_rcp<const Perturbation>(std::string("MAG"), mag_freq);
+    auto mag = make_perturbation(std::string("MAG"), mag_freq);
     auto dependencies = PertDependency({
         std::make_pair(geo, 99), std::make_pair(mag, 99)
     });
-    auto T = SymEngine::make_rcp<const TemporumOverlap>(dependencies);
+    auto T = make_t_matrix(dependencies);
     REQUIRE(eq_dependency(dependencies, T->get_dependencies()));
 
     // = wg*S^{gg|0} + 0*2*S^{g|g} - wg*S^{0|gg}

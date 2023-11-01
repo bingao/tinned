@@ -75,4 +75,13 @@ namespace Tinned
                 return derivative_;
             }
     };
+
+    // Helper function to make non-electron like functions
+    inline SymEngine::RCP<const NonElecFunction> make_nonel_function(
+        const std::string& name,
+        const PertDependency& dependencies = {}
+    )
+    {
+        return SymEngine::make_rcp<const NonElecFunction>(name, dependencies);
+    }
 }
