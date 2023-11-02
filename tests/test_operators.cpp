@@ -321,11 +321,57 @@ TEST_CASE("Test CompositeFunction", "[CompositeFunction]")
     REQUIRE(SymEngine::eq(*fun_gggg->diff(el), *SymEngine::zero));
 }
 
+#include <iostream>
+
 TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
 {
-//    auto Exc = SymEngine::make_rcp<const ExchCorrEnergy>(
-//        std::string("Exc"), D
-//    );
+    auto D = make_1el_density(std::string("D"));
+    auto el = make_perturbation(std::string("EL"), SymEngine::two);
+    auto geo = make_perturbation(std::string("GEO"));
+    auto mag = make_perturbation(std::string("MAG"), SymEngine::one);
+    auto Omega = make_1el_operator(
+        std::string("Omega"),
+        PertDependency({
+            std::make_pair(geo, 99), std::make_pair(mag, 99)
+        })
+    );
+    auto weight = make_nonel_function(
+        std::string("weight"),
+        PertDependency({std::make_pair(geo, 99)})
+    );
+    auto Exc_name = std::string("GGA");
+    auto Exc = make_xc_energy(Exc_name, D, Omega, weight);
+
+    REQUIRE(Exc->get_name() == Exc_name);
+    REQUIRE(SymEngine::eq(*Exc->get_weight(), *weight));
+    REQUIRE(SymEngine::eq(*Exc->get_state(), *D));
+    REQUIRE(SymEngine::eq(*Exc->get_overlap_distribution(), *Omega));
+    auto weights = Exc->get_weights();
+    REQUIRE(weights.size() == 1);
+    REQUIRE(SymEngine::eq(*(*weights.begin()), *weight));
+    auto states = Exc->get_states();
+    REQUIRE(states.size() == 1);
+    REQUIRE(SymEngine::eq(*(*states.begin()), *D));
+    auto Omegas = Exc->get_overlap_distributions();
+    REQUIRE(Omegas.size() == 1);
+    REQUIRE(SymEngine::eq(*(*Omegas.begin()), *Omega));
+    auto orders = Exc->get_exc_orders();
+    REQUIRE(orders.size() == 1);
+    REQUIRE(*orders.begin() == 0);
+
+    // Tests from J. Chem. Phys. 140, 034103 (2014)
+    auto Exc_f = Exc->diff(el);
+    auto Exc_fb = Exc_f->diff(mag);
+    auto Exc_fbb = Exc_fb->diff(mag);
+std::cout << "Exc: " << stringify(Exc) << "\n\n";
+std::cout << "Exc->diff(el): " << stringify(Exc_f) << "\n\n";
+std::cout << "(Exc->diff(el))->diff(mag): " << stringify(Exc_fb) << "\n\n";
+std::cout << "((Exc->diff(el))->diff(mag))->diff(mag): " << stringify(Exc_fbb) << "\n\n";
+    //get_energy()
+    //get_weights()
+    //get_states()
+    //get_overlap_distributions()
+    //get_exc_orders()
 }
 
 TEST_CASE("Test ExchCorrPotential and make_xc_potential()", "[ExchCorrPotential]")

@@ -59,10 +59,10 @@ namespace Tinned
         else if (SymEngine::is_a_sub<const CompositeFunction>(x)) {
             auto& fun = SymEngine::down_cast<const CompositeFunction&>(x);
             auto order = fun.get_order();
-            str_ = order > 0
-                 ? fun.get_name() + "^(" + std::to_string(order) + ")"
-                 : fun.get_name();
-            str_ += "(" + apply(*fun.get_inner()) + ")";
+            auto str_fun = order > 0
+                ? fun.get_name() + "^(" + std::to_string(order) + ")"
+                : fun.get_name();
+            str_ = str_fun + "(" + apply(*fun.get_inner()) + ")";
         }
         else if (SymEngine::is_a_sub<const ExchCorrEnergy>(x)) {
             auto& op = SymEngine::down_cast<const ExchCorrEnergy&>(x);
