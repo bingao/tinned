@@ -69,6 +69,25 @@ namespace Tinned
         );
     }
 
+    // Type for the set of unperturbed and perturbed grid weights
+    typedef std::set<SymEngine::RCP<const NonElecFunction>, SymEngine::RCPBasicKeyLess>
+        ExcGridWeightSet;
+    // Type for the set of unperturbed and perturbed electronic states
+    typedef std::set<SymEngine::RCP<const ElectronicState>, SymEngine::RCPBasicKeyLess>
+        ExcElecStateSet;
+    // Type for the set of unperturbed and perturbed generalized overlap distribution vectors
+    typedef std::set<SymEngine::RCP<const OneElecOperator>, SymEngine::RCPBasicKeyLess>
+        ExcOverlapDistribSet;
+
+    // Type for the output of `get_energy_terms()`, i.e. the collection of
+    // (un)perturbed weights, perturbed generalized density vectors and the XC
+    // functional derivative vectors
+    typedef std::map<unsigned int, SymEngine::RCP<const SymEngine::Basic>>
+        ExcDensityContractionMap;
+    typedef std::map<SymEngine::RCP<const NonElecFunction>, ExcDensityContractionMap,
+                     SymEngine::RCPBasicKeyLess>
+        ExcContractionMap;
+
     // Exchange-correlation (XC) energy like functionals
     class ExchCorrEnergy: public SymEngine::FunctionWrapper
     {
@@ -188,7 +207,7 @@ namespace Tinned
         public:
             //! Constructor
             // `state`: electronic state like one-electron spin-orbital density matrix
-            // `Omega`: overlap distribution
+            // `Omega`: generalized overlap distribution vector
             // `weight`: grid weight
             // `order`: order of functional derivatives of XC energy density
             explicit ExchCorrEnergy(
@@ -246,22 +265,20 @@ namespace Tinned
             }
 
             // Get all unique unperturbed and perturbed grid weights
-            inline std::set<SymEngine::RCP<const NonElecFunction>,
-                            SymEngine::RCPBasicKeyLess> get_weights() const
+            inline ExcGridWeightSet get_weights() const
             {
                 return find_all<NonElecFunction>(energy_, get_weight());
             }
 
             // Get all unique unperturbed and perturbed electronic states
-            inline std::set<SymEngine::RCP<const ElectronicState>,
-                            SymEngine::RCPBasicKeyLess> get_states() const
+            inline ExcElecStateSet get_states() const
             {
                 return find_all<ElectronicState>(energy_, get_state());
             }
 
-            // Get all unique unperturbed and perturbed overlap distributions
-            inline std::set<SymEngine::RCP<const OneElecOperator>,
-                            SymEngine::RCPBasicKeyLess> get_overlap_distributions() const
+            // Get all unique unperturbed and perturbed generalized overlap
+            // distribution vectors
+            inline ExcOverlapDistribSet get_overlap_distributions() const
             {
                 return find_all<OneElecOperator>(energy_, get_overlap_distribution());
             }
@@ -293,22 +310,17 @@ namespace Tinned
             // and the value of the outer map is still a map whose key is the
             // order of functional derivatives of XC energy density, and value
             // is the corresponding perturbed generalized density vectors.
-            inline std::map<SymEngine::RCP<const NonElecFunction>,
-                            std::map<unsigned int, SymEngine::RCP<const SymEngine::Basic>>,
-                            SymEngine::RCPBasicKeyLess>
-            get_energy_terms() const
+            inline ExcContractionMap get_energy_terms() const
             {
                 // Unperturbed or first-order case
                 if (SymEngine::is_a_sub<const SymEngine::Mul>(*energy_)) {
                     auto terms = extract_exc_contraction(
                         SymEngine::rcp_dynamic_cast<const SymEngine::Mul>(energy_)
                     );
-                    return std::map<SymEngine::RCP<const NonElecFunction>,
-                                    std::map<unsigned int, SymEngine::RCP<const SymEngine::Basic>>,
-                                    SymEngine::RCPBasicKeyLess>({
+                    return ExcContractionMap({
                         {
                             std::get<0>(terms),
-                            std::map<unsigned int, SymEngine::RCP<const SymEngine::Basic>>({
+                            ExcDensityContractionMap({
                                 {std::get<1>(terms), std::get<2>(terms)}
                             })
                         }
@@ -318,9 +330,7 @@ namespace Tinned
                 // the type of `energy_` to be either `SymEngine::Mul` or
                 // `SymEngine::Add`
                 else {
-                    std::map<SymEngine::RCP<const NonElecFunction>,
-                             std::map<unsigned int, SymEngine::RCP<const SymEngine::Basic>>,
-                             SymEngine::RCPBasicKeyLess> terms;
+                    ExcContractionMap terms;
                     auto energy = SymEngine::rcp_dynamic_cast<const SymEngine::Add>(energy_);
                     auto contractions = energy->get_args();
                     // No coefficient exists in the XC energy derivatives
@@ -339,7 +349,7 @@ namespace Tinned
                         if (iter == terms.end()) {
                             terms.emplace(
                                 std::get<0>(contr_terms),
-                                std::map<unsigned int, SymEngine::RCP<const SymEngine::Basic>>({
+                                ExcDensityContractionMap({
                                     {std::get<1>(contr_terms), std::get<2>(contr_terms)}
                                 })
                             );
@@ -378,5 +388,50 @@ namespace Tinned
     )
     {
         return SymEngine::make_rcp<const ExchCorrEnergy>(name, state, Omega, weight);
+    }
+
+    // Compare if two `ExcContractionMap` are equivalent
+    inline bool eq_exc_contraction(
+        const ExcContractionMap& map1, const ExcContractionMap& map2
+    )
+    {
+        if (map1.size() == map2.size()) {
+            auto contr1 = map1.begin();
+            auto contr2 = map2.begin();
+            for (; contr1 != map1.end(); ++contr1, ++contr2) {
+                // Compare grid weights
+                if (SymEngine::eq(*contr1->first, *contr2->first)) {
+                    if (contr1->second.size() == contr2->second.size()) {
+                        auto dens1 = contr1->second.begin();
+                        auto dens2 = contr2->second.begin();
+                        for (; dens1 != contr1->second.end(); ++dens1, ++dens2) {
+                            if (dens1->first == dens2->first) {
+                                if (dens1->second.is_null()) {
+                                    if (!dens2->second.is_null()) return false;
+                                }
+                                else {
+                                    if (dens2->second.is_null()) return false;
+                                    if (SymEngine::neq(*dens1->second, *dens2->second))
+                                        return false;
+                                }
+                            }
+                            else {
+                                return false;
+                            }
+                        }
+                    }
+                    else {
+                        return false;
+                    }
+                }
+                else {
+                    return false;
+                }
+            }
+            return true;
+        }
+        else {
+            return false;
+        }
     }
 }

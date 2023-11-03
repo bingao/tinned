@@ -66,7 +66,7 @@ namespace Tinned
         public:
             //! Constructor
             // `state`: electronic state like one-electron spin-orbital density matrix
-            // `Omega`: overlap distribution
+            // `Omega`: generalized overlap distribution vector
             // `weight`: grid weight
             explicit ExchCorrPotential(
                 const std::string& name,
@@ -121,22 +121,20 @@ namespace Tinned
             }
 
             // Get all unique unperturbed and perturbed grid weights
-            inline std::set<SymEngine::RCP<const NonElecFunction>,
-                            SymEngine::RCPBasicKeyLess> get_weights() const
+            inline ExcGridWeightSet get_weights() const
             {
                 return find_all<NonElecFunction>(potential_, get_weight());
             }
 
             // Get all unique unperturbed and perturbed electronic states
-            inline std::set<SymEngine::RCP<const ElectronicState>,
-                            SymEngine::RCPBasicKeyLess> get_states() const
+            inline ExcElecStateSet get_states() const
             {
                 return find_all<ElectronicState>(potential_, get_state());
             }
 
-            // Get all unique unperturbed and perturbed overlap distributions
-            inline std::set<SymEngine::RCP<const OneElecOperator>,
-                            SymEngine::RCPBasicKeyLess> get_overlap_distributions() const
+            // Get all unique unperturbed and perturbed generalized overlap
+            // distribution vectors
+            inline ExcOverlapDistribSet get_overlap_distributions() const
             {
                 return find_all<OneElecOperator>(potential_, get_overlap_distribution());
             }
