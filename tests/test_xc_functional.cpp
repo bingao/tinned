@@ -118,18 +118,23 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
     REQUIRE(SymEngine::eq(*Exc->get_weight(), *weight));
     REQUIRE(SymEngine::eq(*Exc->get_state(), *D));
     REQUIRE(SymEngine::eq(*Exc->get_overlap_distribution(), *Omega));
+
+    auto unpert_weights = std::set<SymEngine::RCP<const NonElecFunction>,
+                                   SymEngine::RCPBasicKeyLess>({weight});
     auto weights = Exc->get_weights();
-    REQUIRE(weights.size() == 1);
-    REQUIRE(SymEngine::eq(*(*weights.begin()), *weight));
+    REQUIRE(SymEngine::unified_eq(weights, unpert_weights));
     auto states = Exc->get_states();
-    REQUIRE(states.size() == 1);
-    REQUIRE(SymEngine::eq(*(*states.begin()), *D));
+    REQUIRE(SymEngine::unified_eq(
+        states,
+        std::set<SymEngine::RCP<const ElectronicState>, SymEngine::RCPBasicKeyLess>({D})
+    ));
     auto Omegas = Exc->get_overlap_distributions();
-    REQUIRE(Omegas.size() == 1);
-    REQUIRE(SymEngine::eq(*(*Omegas.begin()), *Omega));
+    REQUIRE(SymEngine::unified_eq(
+        Omegas,
+        std::set<SymEngine::RCP<const OneElecOperator>, SymEngine::RCPBasicKeyLess>({Omega})
+    ));
     auto orders = Exc->get_exc_orders();
-    REQUIRE(orders.size() == 1);
-    REQUIRE(*orders.begin() == 0);
+    REQUIRE(orders == std::set<unsigned int>({0}));
     // For unperturbed XC energy functional, there is only one unperturbed grid
     // weight, and order of the XC energy functional derivative is 0, and no
     // generalized density vectors to be contracted with
@@ -175,10 +180,8 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
     // The first order XC energy density derivative
     auto Exc_a = SymEngine::rcp_dynamic_cast<const ExchCorrEnergy>(Exc->diff(a));
     weights = Exc_a->get_weights();
-    REQUIRE(weights.size() == 1);
-    REQUIRE(SymEngine::eq(*(*weights.begin()), *weight));
+    REQUIRE(SymEngine::unified_eq(weights, unpert_weights));
     states = Exc_a->get_states();
-    REQUIRE(states.size() == 2);
     REQUIRE(SymEngine::unified_eq(
         states,
         std::set<SymEngine::RCP<const ElectronicState>, SymEngine::RCPBasicKeyLess>({
@@ -186,7 +189,6 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
         })
     ));
     Omegas = Exc_a->get_overlap_distributions();
-    REQUIRE(Omegas.size() == 2);
     REQUIRE(SymEngine::unified_eq(
         Omegas,
         std::set<SymEngine::RCP<const OneElecOperator>, SymEngine::RCPBasicKeyLess>({
@@ -194,8 +196,7 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
         })
     ));
     orders = Exc_a->get_exc_orders();
-    REQUIRE(orders.size() == 1);
-    REQUIRE(*orders.begin() == 1);
+    REQUIRE(orders == std::set<unsigned int>({1}));
     terms = Exc_a->get_energy_terms();
     REQUIRE(terms.size() == 1);
     iter = terms.find(weight);
@@ -205,10 +206,83 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
     REQUIRE(SymEngine::eq(
         *(iter->second.begin()->second),
         *SymEngine::add(
-            SymEngine::mul(Omega_a, D),
-            SymEngine::mul(Omega, D_a)
+            make_density_vector(D, Omega_a), make_density_vector(D_a, Omega)
         )
     ));
+    // The second order XC energy density derivative
+    auto Exc_ab = SymEngine::rcp_dynamic_cast<const ExchCorrEnergy>(Exc_a->diff(b));
+    weights = Exc_ab->get_weights();
+    REQUIRE(SymEngine::unified_eq(weights, unpert_weights));
+    states = Exc_ab->get_states();
+    REQUIRE(SymEngine::unified_eq(
+        states,
+        std::set<SymEngine::RCP<const ElectronicState>, SymEngine::RCPBasicKeyLess>({
+          D, D_a, D_b, D_ab
+        })
+    ));
+    Omegas = Exc_ab->get_overlap_distributions();
+    REQUIRE(SymEngine::unified_eq(
+        Omegas,
+        std::set<SymEngine::RCP<const OneElecOperator>, SymEngine::RCPBasicKeyLess>({
+          Omega, Omega_a, Omega_b, Omega_ab
+        })
+    ));
+    orders = Exc_ab->get_exc_orders();
+    REQUIRE(orders == std::set<unsigned int>({1, 2}));
+    terms = Exc_ab->get_energy_terms();
+
+    // The third order XC energy density derivative
+    auto Exc_abc = SymEngine::rcp_dynamic_cast<const ExchCorrEnergy>(Exc_ab->diff(c));
+    weights = Exc_abc->get_weights();
+    REQUIRE(SymEngine::unified_eq(weights, unpert_weights));
+    states = Exc_abc->get_states();
+    REQUIRE(SymEngine::unified_eq(
+        states,
+        std::set<SymEngine::RCP<const ElectronicState>, SymEngine::RCPBasicKeyLess>({
+          D, D_a, D_b, D_c, D_ab, D_ac, D_bc, D_abc
+        })
+    ));
+    Omegas = Exc_abc->get_overlap_distributions();
+    REQUIRE(SymEngine::unified_eq(
+        Omegas,
+        std::set<SymEngine::RCP<const OneElecOperator>, SymEngine::RCPBasicKeyLess>({
+          Omega, Omega_a, Omega_b, Omega_c, Omega_ab, Omega_ac, Omega_bc, Omega_abc
+        })
+    ));
+    orders = Exc_abc->get_exc_orders();
+    REQUIRE(orders == std::set<unsigned int>({1, 2, 3}));
+    terms = Exc_abc->get_energy_terms();
+
+    // The fouth order XC energy density derivative
+    auto Exc_abcd = SymEngine::rcp_dynamic_cast<const ExchCorrEnergy>(Exc_abc->diff(d));
+    weights = Exc_abcd->get_weights();
+    REQUIRE(SymEngine::unified_eq(weights, unpert_weights));
+    states = Exc_abcd->get_states();
+    REQUIRE(SymEngine::unified_eq(
+        states,
+        std::set<SymEngine::RCP<const ElectronicState>, SymEngine::RCPBasicKeyLess>({
+          D,
+          D_a, D_b, D_c, D_d,
+          D_ab, D_ac, D_ad, D_bc, D_bd, D_cd,
+          D_abc, D_abd, D_acd, D_bcd,
+          D_abcd
+        })
+    ));
+    Omegas = Exc_abcd->get_overlap_distributions();
+    REQUIRE(SymEngine::unified_eq(
+        Omegas,
+        std::set<SymEngine::RCP<const OneElecOperator>, SymEngine::RCPBasicKeyLess>({
+          Omega,
+          Omega_a, Omega_b, Omega_c, Omega_d,
+          Omega_ab, Omega_ac, Omega_ad, Omega_bc, Omega_bd, Omega_cd,
+          Omega_abc, Omega_abd, Omega_acd, Omega_bcd,
+          Omega_abcd
+        })
+    ));
+    orders = Exc_abcd->get_exc_orders();
+    REQUIRE(orders == std::set<unsigned int>({1, 2, 3, 4}));
+    terms = Exc_abcd->get_energy_terms();
+
 }
 
 TEST_CASE("Test ExchCorrPotential and make_xc_potential()", "[ExchCorrPotential]")
