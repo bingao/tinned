@@ -72,7 +72,7 @@ namespace Tinned
     {
         protected:
             SymEngine::RCP<const SymEngine::Basic> result_;
-            const SymEngine::vec_basic& symbols_;
+            const SymEngine::set_basic& symbols_;
             std::function<bool(const SymEngine::Basic&)> condition_;
 
             // Check equality for `x` and symbols to be removed
@@ -124,7 +124,7 @@ namespace Tinned
 
         public:
             explicit RemoveVisitor(
-                const SymEngine::vec_basic& symbols,
+                const SymEngine::set_basic& symbols,
                 std::function<bool(const SymEngine::Basic&)> condition = {}
             ) : symbols_(symbols)
             {
@@ -173,7 +173,7 @@ namespace Tinned
     // Helper function to remove given `symbols` from `x`
     inline SymEngine::RCP<const SymEngine::Basic> remove_if(
         const SymEngine::RCP<const SymEngine::Basic>& x,
-        const SymEngine::vec_basic& symbols
+        const SymEngine::set_basic& symbols
     )
     {
         RemoveVisitor visitor(symbols);

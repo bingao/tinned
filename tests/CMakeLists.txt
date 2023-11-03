@@ -5,10 +5,18 @@ FetchContent_Declare(
     GIT_TAG v2.13.6)
 FetchContent_MakeAvailable(catch)
 
-add_executable(test_operators test_operators.cpp)
-target_link_libraries(test_operators PRIVATE tinned ${SYMENGINE_LIBRARIES} Catch2::Catch2)
+add_executable(test_operators
+               test_perturbation.cpp
+               test_nonel_function.cpp
+               test_1el_operator.cpp
+               test_2el_operator.cpp
+               test_xc_functional.cpp
+               test_temporum_operator.cpp)
+target_link_libraries(test_operators
+                      PRIVATE tinned ${SYMENGINE_LIBRARIES} Catch2::Catch2)
 add_test(NAME test_operators COMMAND test_operators)
 
 #add_executable(test_visitors test_visitors.cpp)
-#target_link_libraries(test_visitors PRIVATE tinned ${SYMENGINE_LIBRARIES} Catch2::Catch2)
+#target_link_libraries(test_visitors
+#                      PRIVATE tinned ${SYMENGINE_LIBRARIES} Catch2::Catch2)
 #add_test(NAME test_visitors COMMAND test_visitors)

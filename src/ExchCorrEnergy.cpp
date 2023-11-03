@@ -1,7 +1,5 @@
 #include <symengine/mul.h>
-#include <symengine/symengine_assert.h>
 #include <symengine/symengine_casts.h>
-#include <symengine/symengine_exception.h>
 
 #include "Tinned/ExchCorrEnergy.hpp"
 
@@ -34,6 +32,12 @@ namespace Tinned
     ) : SymEngine::FunctionWrapper(other.get_name(), other.get_args()),
         energy_(energy)
     {
+        // XC energy or its derivatives must be either `SymEngine::Mul` or
+        // `SymEngine::Add`
+        SYMENGINE_ASSERT(
+            SymEngine::is_a_sub<const SymEngine::Mul>(*energy) ||
+            SymEngine::is_a_sub<const SymEngine::Add>(*energy)
+        )
         SYMENGINE_ASSIGN_TYPEID()
     }
 

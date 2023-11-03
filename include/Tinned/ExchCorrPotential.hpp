@@ -36,9 +36,6 @@
 
 namespace Tinned
 {
-    //// Forward declaration for finding components in `potential_`
-    //class FindAllVisitor;
-
     // Make exchange-correlation potential, or the functional derivative of
     // exchange-correlation energy
     inline SymEngine::RCP<const ExchCorrEnergy> make_vxc(
@@ -128,15 +125,6 @@ namespace Tinned
                             SymEngine::RCPBasicKeyLess> get_weights() const
             {
                 return find_all<NonElecFunction>(potential_, get_weight());
-                //std::set<SymEngine::RCP<const NonElecFunction>,
-                //         SymEngine::RCPBasicKeyLess> weights;
-                //FindAllVisitor visitor(weight_);
-                //for (auto& w: visitor.apply(potential_)) {
-                //    weights.insert(
-                //        SymEngine::rcp_dynamic_cast<const NonElecFunction>(w)
-                //    );
-                //}
-                //return weights;
             }
 
             // Get all unique unperturbed and perturbed electronic states
@@ -144,15 +132,6 @@ namespace Tinned
                             SymEngine::RCPBasicKeyLess> get_states() const
             {
                 return find_all<ElectronicState>(potential_, get_state());
-                //std::set<SymEngine::RCP<const ElectronicState>,
-                //         SymEngine::RCPBasicKeyLess> states;
-                //FindAllVisitor visitor(state_);
-                //for (auto& s: visitor.apply(potential_)) {
-                //    states.insert(
-                //        SymEngine::rcp_dynamic_cast<const ElectronicState>(s)
-                //    );
-                //}
-                //return states;
             }
 
             // Get all unique unperturbed and perturbed overlap distributions
@@ -160,15 +139,6 @@ namespace Tinned
                             SymEngine::RCPBasicKeyLess> get_overlap_distributions() const
             {
                 return find_all<OneElecOperator>(potential_, get_overlap_distribution());
-                //std::set<SymEngine::RCP<const OneElecOperator>,
-                //         SymEngine::RCPBasicKeyLess> Omegas;
-                //FindAllVisitor visitor(Omega_);
-                //for (auto& w: visitor.apply(potential_)) {
-                //    Omegas.insert(
-                //        SymEngine::rcp_dynamic_cast<const OneElecOperator>(w)
-                //    );
-                //}
-                //return Omegas;
             }
 
             // Get all unique orders of functional derivatives of XC energy density
@@ -180,14 +150,6 @@ namespace Tinned
                 std::set<unsigned int> orders;
                 for (auto& e: exc) orders.insert(e->get_order());
                 return orders;
-                //std::set<unsigned int> orders;
-                //FindAllVisitor visitor(make_exc_density(state_, Omega_, 1));
-                //for (auto& exc: visitor.apply(potential_)) {
-                //    orders.insert(
-                //        SymEngine::rcp_dynamic_cast<const CompositeFunction>(exc)->get_order()
-                //    );
-                //}
-                //return orders;
             }
     };
 
