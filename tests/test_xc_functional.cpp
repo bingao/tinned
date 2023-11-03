@@ -197,7 +197,6 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
     REQUIRE(orders.size() == 1);
     REQUIRE(*orders.begin() == 1);
     terms = Exc_a->get_energy_terms();
-
     REQUIRE(terms.size() == 1);
     iter = terms.find(weight);
     REQUIRE(iter != terms.end());

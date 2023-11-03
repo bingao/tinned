@@ -57,8 +57,12 @@ namespace Tinned
                     );
                 }
             }
-            // Note we will return zero if `d` is empty
-            result_ = SymEngine::Add::from_dict(coef, std::move(d));
+            if (SymEngine::eq(*coef, *SymEngine::zero) && d.empty()) {
+                result_ = SymEngine::RCP<const SymEngine::Basic>();
+            }
+            else {
+                result_ = SymEngine::Add::from_dict(coef, std::move(d));
+            }
         }
         // `Add` will be kept as a whole
         else {

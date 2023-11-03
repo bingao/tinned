@@ -79,8 +79,7 @@ namespace Tinned
                               unsigned int,
                               SymEngine::RCP<const SymEngine::Basic>>
             extract_exc_contraction(
-                const SymEngine::RCP<const SymEngine::Mul>& contraction,
-                const bool unperturbed = false
+                const SymEngine::RCP<const SymEngine::Mul>& contraction
             ) const
             {
                 SymEngine::RCP<const NonElecFunction> weight;
@@ -98,7 +97,8 @@ namespace Tinned
                     // Grid weight
                     else if (SymEngine::is_a_sub<const NonElecFunction>(*arg)) {
                         if (found_weight) throw SymEngine::SymEngineException(
-                            "Two grid weights got from the XC energy density contraction."
+                            "Two grid weights got from the XC energy density contraction "
+                            + contraction->__str__()
                         );
                         weight = SymEngine::rcp_dynamic_cast<const NonElecFunction>(arg);
                         found_weight = true;
@@ -106,7 +106,8 @@ namespace Tinned
                     // XC functional derivative
                     else if (SymEngine::is_a_sub<const CompositeFunction>(*arg)) {
                         if (found_order) throw SymEngine::SymEngineException(
-                            "Two XC functional derivatives got from the XC energy density contraction."
+                            "Two XC functional derivatives got from the XC energy density contraction "
+                            + contraction->__str__()
                         );
                         exc = SymEngine::rcp_dynamic_cast<const CompositeFunction>(arg);
                         order = exc->get_order();
@@ -125,22 +126,19 @@ namespace Tinned
                     }
                     else {
                         throw SymEngine::SymEngineException(
-                            "Invalid type from the XC energy density contraction."
+                            "Invalid type from the XC energy density contraction "
+                            + contraction->__str__()
                         );
                     }
                 }
-                if (found_weight && found_order && (found_factors || unperturbed)) {
+                if (found_weight && found_order && (found_factors || order == 0)) {
                     // For unperturbed case, there is no contractions of the
                     // functional derivative vectors with the perturbed
                     // generalized density vectors
-                    if (unperturbed) {
+                    if (order == 0) {
                         if (found_factors) throw SymEngine::SymEngineException(
-                            "Invalid factors for unperturbed XC energy functional."
-                        );
-                        if (order > 0) throw SymEngine::SymEngineException(
-                            "Invalid order (" +
-                            std::to_string(order) +
-                            ") for unperturbed XC energy functional."
+                            "Invalid factors for unperturbed XC energy functional "
+                            + contraction->__str__()
                         );
                         return std::make_tuple(
                             weight,
@@ -164,18 +162,22 @@ namespace Tinned
                         }
                         else {
                             throw SymEngine::SymEngineException(
-                                "Multiple grid weights and/or XC functional derivatives got."
+                                "Invalid grid weights and/or XC functional derivatives "
+                                + factors_left->__str__()
+                                + " in "
+                                + dens_vectors->__str__()
                             );
                         }
                     }
                 }
                 else {
                     throw SymEngine::SymEngineException(
-                        "Terms missing (" +
-                        std::to_string(found_weight) + "/" +
-                        std::to_string(found_order) + "/" +
-                        std::to_string(found_factors) +
-                        ") from the XC energy density contraction."
+                        "Terms missing ("
+                        + std::to_string(found_weight) + "/"
+                        + std::to_string(found_order) + "/"
+                        + std::to_string(found_factors)
+                        + ") from the XC energy density contraction "
+                        + contraction->__str__()
                     );
                 }
             }
@@ -296,10 +298,10 @@ namespace Tinned
                             SymEngine::RCPBasicKeyLess>
             get_energy_terms() const
             {
-                // Unperturbed case
+                // Unperturbed or first-order case
                 if (SymEngine::is_a_sub<const SymEngine::Mul>(*energy_)) {
                     auto terms = extract_exc_contraction(
-                        SymEngine::rcp_dynamic_cast<const SymEngine::Mul>(energy_), true
+                        SymEngine::rcp_dynamic_cast<const SymEngine::Mul>(energy_)
                     );
                     return std::map<SymEngine::RCP<const NonElecFunction>,
                                     std::map<unsigned int, SymEngine::RCP<const SymEngine::Basic>>,
