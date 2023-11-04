@@ -100,6 +100,185 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
     auto b = make_perturbation(std::string("b"));
     auto c = make_perturbation(std::string("c"));
     auto d = make_perturbation(std::string("d"));
+
+    // Lambda expressions to make contractions of (un)perturbed generalized
+    // density vectors and the XC functional derivative vectors
+    //
+    // For unperturbed XC energy functional, there is only one unperturbed grid
+    // weight, and order of the XC energy functional derivative is 0, and no
+    // generalized density vectors to be contracted with
+    auto make_unperturbed_contraction = [&]() {
+        return ExcDensityContractionMap({
+            {0, SymEngine::RCP<const SymEngine::Basic>()}
+        });
+    };
+    // Equation (47), J. Chem. Phys. 140, 034103 (2014)
+    auto make_first_order_density = [&](
+        const SymEngine::RCP<const ElectronicState>& D,
+        const SymEngine::RCP<const ElectronicState>& D_a,
+        const SymEngine::RCP<const OneElecOperator>& Omega,
+        const SymEngine::RCP<const OneElecOperator>& Omega_a
+    ) {
+        return SymEngine::add(
+            make_density_vector(D, Omega_a),
+            make_density_vector(D_a, Omega)
+        );
+    };
+    // Equation (43), J. Chem. Phys. 140, 034103 (2014)
+    auto make_first_order_contraction = [&](
+        const SymEngine::RCP<const ElectronicState>& D,
+        const SymEngine::RCP<const ElectronicState>& D_a,
+        const SymEngine::RCP<const OneElecOperator>& Omega,
+        const SymEngine::RCP<const OneElecOperator>& Omega_a
+    ) {
+        return ExcDensityContractionMap({
+            {
+                1,
+                make_first_order_density(D, D_a, Omega, Omega_a)
+            }
+        });
+    };
+    // Equation (48), J. Chem. Phys. 140, 034103 (2014)
+    auto make_second_order_density = [&](
+        const SymEngine::RCP<const ElectronicState>& D,
+        const SymEngine::RCP<const ElectronicState>& D_a,
+        const SymEngine::RCP<const ElectronicState>& D_b,
+        const SymEngine::RCP<const ElectronicState>& D_ab,
+        const SymEngine::RCP<const OneElecOperator>& Omega,
+        const SymEngine::RCP<const OneElecOperator>& Omega_a,
+        const SymEngine::RCP<const OneElecOperator>& Omega_b,
+        const SymEngine::RCP<const OneElecOperator>& Omega_ab
+    ) {
+        return SymEngine::add({
+            make_density_vector(D, Omega_ab),
+            make_density_vector(D_a, Omega_b),
+            make_density_vector(D_b, Omega_a),
+            make_density_vector(D_ab, Omega)
+        });
+    };
+    // Equation (44), J. Chem. Phys. 140, 034103 (2014)
+    auto make_second_order_contraction = [&](
+        const SymEngine::RCP<const ElectronicState>& D,
+        const SymEngine::RCP<const ElectronicState>& D_a,
+        const SymEngine::RCP<const ElectronicState>& D_b,
+        const SymEngine::RCP<const ElectronicState>& D_ab,
+        const SymEngine::RCP<const OneElecOperator>& Omega,
+        const SymEngine::RCP<const OneElecOperator>& Omega_a,
+        const SymEngine::RCP<const OneElecOperator>& Omega_b,
+        const SymEngine::RCP<const OneElecOperator>& Omega_ab
+    ) {
+        return ExcDensityContractionMap({
+            {
+                1,
+                make_second_order_density(
+                    D, D_a, D_b, D_ab, Omega, Omega_a, Omega_b, Omega_ab
+                )
+            },
+            {
+                2,
+                SymEngine::mul(
+                    make_first_order_density(D, D_a, Omega, Omega_a),
+                    make_first_order_density(D, D_b, Omega, Omega_b)
+                )
+            }
+        });
+    };
+    // Equation (49), J. Chem. Phys. 140, 034103 (2014)
+    auto make_third_order_density = [&](
+        const SymEngine::RCP<const ElectronicState>& D,
+        const SymEngine::RCP<const ElectronicState>& D_a,
+        const SymEngine::RCP<const ElectronicState>& D_b,
+        const SymEngine::RCP<const ElectronicState>& D_c,
+        const SymEngine::RCP<const ElectronicState>& D_ab,
+        const SymEngine::RCP<const ElectronicState>& D_ac,
+        const SymEngine::RCP<const ElectronicState>& D_bc,
+        const SymEngine::RCP<const ElectronicState>& D_abc,
+        const SymEngine::RCP<const OneElecOperator>& Omega,
+        const SymEngine::RCP<const OneElecOperator>& Omega_a,
+        const SymEngine::RCP<const OneElecOperator>& Omega_b,
+        const SymEngine::RCP<const OneElecOperator>& Omega_c,
+        const SymEngine::RCP<const OneElecOperator>& Omega_ab,
+        const SymEngine::RCP<const OneElecOperator>& Omega_ac,
+        const SymEngine::RCP<const OneElecOperator>& Omega_bc,
+        const SymEngine::RCP<const OneElecOperator>& Omega_abc
+    ) {
+        return SymEngine::add({
+            make_density_vector(D, Omega_abc),
+            make_density_vector(D_a, Omega_bc),
+            make_density_vector(D_b, Omega_ac),
+            make_density_vector(D_c, Omega_ab),
+            make_density_vector(D_ab, Omega_c),
+            make_density_vector(D_ac, Omega_b),
+            make_density_vector(D_bc, Omega_a),
+            make_density_vector(D_abc, Omega)
+        });
+    };
+    // Equation (45), J. Chem. Phys. 140, 034103 (2014)
+    auto make_third_order_contraction = [&](
+        const SymEngine::RCP<const ElectronicState>& D,
+        const SymEngine::RCP<const ElectronicState>& D_a,
+        const SymEngine::RCP<const ElectronicState>& D_b,
+        const SymEngine::RCP<const ElectronicState>& D_c,
+        const SymEngine::RCP<const ElectronicState>& D_ab,
+        const SymEngine::RCP<const ElectronicState>& D_ac,
+        const SymEngine::RCP<const ElectronicState>& D_bc,
+        const SymEngine::RCP<const ElectronicState>& D_abc,
+        const SymEngine::RCP<const OneElecOperator>& Omega,
+        const SymEngine::RCP<const OneElecOperator>& Omega_a,
+        const SymEngine::RCP<const OneElecOperator>& Omega_b,
+        const SymEngine::RCP<const OneElecOperator>& Omega_c,
+        const SymEngine::RCP<const OneElecOperator>& Omega_ab,
+        const SymEngine::RCP<const OneElecOperator>& Omega_ac,
+        const SymEngine::RCP<const OneElecOperator>& Omega_bc,
+        const SymEngine::RCP<const OneElecOperator>& Omega_abc
+    ) {
+        return ExcDensityContractionMap({
+            {
+                1,
+                make_third_order_density(
+                    D, D_a, D_b, D_c, D_ab, D_ac, D_bc, D_abc,
+                    Omega,
+                    Omega_a, Omega_b, Omega_c,
+                    Omega_ab, Omega_ac, Omega_bc,
+                    Omega_abc
+                )
+            },
+            {
+                2,
+                SymEngine::add({
+                    SymEngine::mul(
+                        make_first_order_density(D, D_a, Omega, Omega_a),
+                        make_second_order_density(
+                            D, D_b, D_c, D_bc, Omega, Omega_b, Omega_c, Omega_bc
+                        )
+                    ),
+                    SymEngine::mul(
+                        make_first_order_density(D, D_b, Omega, Omega_b),
+                        make_second_order_density(
+                            D, D_a, D_c, D_ac, Omega, Omega_a, Omega_c, Omega_ac
+                        )
+                    ),
+                    SymEngine::mul(
+                        make_first_order_density(D, D_c, Omega, Omega_c),
+                        make_second_order_density(
+                            D, D_a, D_b, D_ab, Omega, Omega_a, Omega_b, Omega_ab
+                        )
+                    )
+                })
+            },
+            {
+                3,
+                SymEngine::mul({
+                    make_first_order_density(D, D_a, Omega, Omega_a),
+                    make_first_order_density(D, D_b, Omega, Omega_b),
+                    make_first_order_density(D, D_c, Omega, Omega_c)
+                })
+            }
+        });
+    };
+
+    // We first do not consider derivatives of grid weights
+    auto weight = make_nonel_function(std::string("weight"));
     auto Omega = make_1el_operator(
         std::string("Omega"),
         PertDependency({
@@ -109,8 +288,6 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
             std::make_pair(d, 99)
         })
     );
-    // We first do not consider derivatives of grid weights
-    auto weight = make_nonel_function(std::string("weight"));
     auto Exc_name = std::string("GGA");
     auto Exc = make_xc_energy(Exc_name, D, Omega, weight);
 
@@ -118,26 +295,16 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
     REQUIRE(SymEngine::eq(*Exc->get_weight(), *weight));
     REQUIRE(SymEngine::eq(*Exc->get_state(), *D));
     REQUIRE(SymEngine::eq(*Exc->get_overlap_distribution(), *Omega));
-
-    auto unpert_weights = ExcGridWeightSet({weight});
-    REQUIRE(SymEngine::unified_eq(Exc->get_weights(), unpert_weights));
+    REQUIRE(SymEngine::unified_eq(Exc->get_weights(), ExcGridWeightSet({weight})));
     REQUIRE(SymEngine::unified_eq(Exc->get_states(), ExcElecStateSet({D})));
     REQUIRE(SymEngine::unified_eq(
         Exc->get_overlap_distributions(), ExcOverlapDistribSet({Omega})
     ));
     REQUIRE(Exc->get_exc_orders() == std::set<unsigned int>({0}));
-    // For unperturbed XC energy functional, there is only one unperturbed grid
-    // weight, and order of the XC energy functional derivative is 0, and no
-    // generalized density vectors to be contracted with
     REQUIRE(eq_exc_contraction(
         Exc->get_energy_terms(),
         ExcContractionMap({
-            {
-                weight,
-                ExcDensityContractionMap({
-                    {0, SymEngine::RCP<const SymEngine::Basic>()}
-                })
-            }
+            {weight, make_unperturbed_contraction()}
         })
     ));
 
@@ -172,9 +339,9 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
     auto Omega_acd = SymEngine::rcp_dynamic_cast<const OneElecOperator>(Omega_ac->diff(d));
     auto Omega_bcd = SymEngine::rcp_dynamic_cast<const OneElecOperator>(Omega_bc->diff(d));
     auto Omega_abcd = SymEngine::rcp_dynamic_cast<const OneElecOperator>(Omega_abc->diff(d));
-    // The first order XC energy density derivative
+    // (1) The first order XC energy density derivative
     auto Exc_a = SymEngine::rcp_dynamic_cast<const ExchCorrEnergy>(Exc->diff(a));
-    REQUIRE(SymEngine::unified_eq(Exc_a->get_weights(), unpert_weights));
+    REQUIRE(SymEngine::unified_eq(Exc_a->get_weights(), ExcGridWeightSet({weight})));
     REQUIRE(SymEngine::unified_eq(Exc_a->get_states(), ExcElecStateSet({D, D_a})));
     REQUIRE(SymEngine::unified_eq(
         Exc_a->get_overlap_distributions(), ExcOverlapDistribSet({Omega, Omega_a})
@@ -185,21 +352,13 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
         ExcContractionMap({
             {
                 weight,
-                ExcDensityContractionMap({
-                    {
-                        1,
-                        SymEngine::add(
-                            make_density_vector(D, Omega_a),
-                            make_density_vector(D_a, Omega)
-                        )
-                    }
-                })
+                make_first_order_contraction(D, D_a, Omega, Omega_a)
             }
         })
     ));
-    // The second order XC energy density derivative
+    // (2) The second order XC energy density derivative
     auto Exc_ab = SymEngine::rcp_dynamic_cast<const ExchCorrEnergy>(Exc_a->diff(b));
-    REQUIRE(SymEngine::unified_eq(Exc_ab->get_weights(), unpert_weights));
+    REQUIRE(SymEngine::unified_eq(Exc_ab->get_weights(), ExcGridWeightSet({weight})));
     REQUIRE(SymEngine::unified_eq(
         Exc_ab->get_states(), ExcElecStateSet({D, D_a, D_b, D_ab})
     ));
@@ -213,36 +372,15 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
         ExcContractionMap({
             {
                 weight,
-                ExcDensityContractionMap({
-                    {
-                        1,
-                        SymEngine::add({
-                            make_density_vector(D, Omega_ab),
-                            make_density_vector(D_a, Omega_b),
-                            make_density_vector(D_b, Omega_a),
-                            make_density_vector(D_ab, Omega)
-                        })
-                    },
-                    {
-                        2,
-                        SymEngine::mul(
-                            SymEngine::add(
-                                make_density_vector(D, Omega_a),
-                                make_density_vector(D_a, Omega)
-                            ),
-                            SymEngine::add(
-                                make_density_vector(D, Omega_b),
-                                make_density_vector(D_b, Omega)
-                            )
-                        )
-                    }
-                })
+                make_second_order_contraction(
+                    D, D_a, D_b, D_ab, Omega, Omega_a, Omega_b, Omega_ab
+                )
             }
         })
     ));
-    // The third order XC energy density derivative
+    // (3) The third order XC energy density derivative
     auto Exc_abc = SymEngine::rcp_dynamic_cast<const ExchCorrEnergy>(Exc_ab->diff(c));
-    REQUIRE(SymEngine::unified_eq(Exc_abc->get_weights(), unpert_weights));
+    REQUIRE(SymEngine::unified_eq(Exc_abc->get_weights(), ExcGridWeightSet({weight})));
     REQUIRE(SymEngine::unified_eq(
         Exc_abc->get_states(),
         ExcElecStateSet({D, D_a, D_b, D_c, D_ab, D_ac, D_bc, D_abc})
@@ -259,85 +397,19 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
         ExcContractionMap({
             {
                 weight,
-                ExcDensityContractionMap({
-                    {
-                        1,
-                        SymEngine::add({
-                            make_density_vector(D, Omega_abc),
-                            make_density_vector(D_a, Omega_bc),
-                            make_density_vector(D_b, Omega_ac),
-                            make_density_vector(D_c, Omega_ab),
-                            make_density_vector(D_ab, Omega_c),
-                            make_density_vector(D_ac, Omega_b),
-                            make_density_vector(D_bc, Omega_a),
-                            make_density_vector(D_abc, Omega)
-                        })
-                    },
-                    {
-                        2,
-                        SymEngine::add({
-                            SymEngine::mul(
-                                SymEngine::add(
-                                    make_density_vector(D, Omega_a),
-                                    make_density_vector(D_a, Omega)
-                                ),
-                                SymEngine::add({
-                                    make_density_vector(D, Omega_bc),
-                                    make_density_vector(D_b, Omega_c),
-                                    make_density_vector(D_c, Omega_b),
-                                    make_density_vector(D_bc, Omega)
-                                })
-                            ),
-                            SymEngine::mul(
-                                SymEngine::add(
-                                    make_density_vector(D, Omega_b),
-                                    make_density_vector(D_b, Omega)
-                                ),
-                                SymEngine::add({
-                                    make_density_vector(D, Omega_ac),
-                                    make_density_vector(D_a, Omega_c),
-                                    make_density_vector(D_c, Omega_a),
-                                    make_density_vector(D_ac, Omega)
-                                })
-                            ),
-                            SymEngine::mul(
-                                SymEngine::add(
-                                    make_density_vector(D, Omega_c),
-                                    make_density_vector(D_c, Omega)
-                                ),
-                                SymEngine::add({
-                                    make_density_vector(D, Omega_ab),
-                                    make_density_vector(D_a, Omega_b),
-                                    make_density_vector(D_b, Omega_a),
-                                    make_density_vector(D_ab, Omega)
-                                })
-                            )
-                        })
-                    },
-                    {
-                        3,
-                        SymEngine::mul({
-                            SymEngine::add(
-                                make_density_vector(D, Omega_a),
-                                make_density_vector(D_a, Omega)
-                            ),
-                            SymEngine::add(
-                                make_density_vector(D, Omega_b),
-                                make_density_vector(D_b, Omega)
-                            ),
-                            SymEngine::add(
-                                make_density_vector(D, Omega_c),
-                                make_density_vector(D_c, Omega)
-                            )
-                        })
-                    }
-                })
+                make_third_order_contraction(
+                    D, D_a, D_b, D_c, D_ab, D_ac, D_bc, D_abc,
+                    Omega,
+                    Omega_a, Omega_b, Omega_c,
+                    Omega_ab, Omega_ac, Omega_bc,
+                    Omega_abc
+                )
             }
         })
     ));
-    // The fouth order XC energy density derivative
+    // (4) The fourth order XC energy density derivative
     auto Exc_abcd = SymEngine::rcp_dynamic_cast<const ExchCorrEnergy>(Exc_abc->diff(d));
-    REQUIRE(SymEngine::unified_eq(Exc_abcd->get_weights(), unpert_weights));
+    REQUIRE(SymEngine::unified_eq(Exc_abcd->get_weights(), ExcGridWeightSet({weight})));
     REQUIRE(SymEngine::unified_eq(
         Exc_abcd->get_states(),
         ExcElecStateSet({
@@ -361,6 +433,7 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
     REQUIRE(Exc_abcd->get_exc_orders() == std::set<unsigned int>({1, 2, 3, 4}));
     REQUIRE(eq_exc_contraction(
         Exc_abcd->get_energy_terms(),
+        // Equation (46)-(50), J. Chem. Phys. 140, 034103 (2014)
         ExcContractionMap({
             {
                 weight,
@@ -390,110 +463,70 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
                         2,
                         SymEngine::add({
                             SymEngine::mul(
-                                SymEngine::add(
-                                    make_density_vector(D, Omega_a),
-                                    make_density_vector(D_a, Omega)
+                                make_first_order_density(D, D_a, Omega, Omega_a),
+                                make_third_order_density(
+                                    D, D_b, D_c, D_d, D_bc, D_bd, D_cd, D_bcd,
+                                    Omega,
+                                    Omega_b, Omega_c, Omega_d,
+                                    Omega_bc, Omega_bd, Omega_cd,
+                                    Omega_bcd
+                                )
+                            ),
+                            SymEngine::mul(
+                                make_first_order_density(D, D_b, Omega, Omega_b),
+                                make_third_order_density(
+                                    D, D_a, D_c, D_d, D_ac, D_ad, D_cd, D_acd,
+                                    Omega,
+                                    Omega_a, Omega_c, Omega_d,
+                                    Omega_ac, Omega_ad, Omega_cd,
+                                    Omega_acd
+                                )
+                            ),
+                            SymEngine::mul(
+                                make_first_order_density(D, D_c, Omega, Omega_c),
+                                make_third_order_density(
+                                    D, D_a, D_b, D_d, D_ab, D_ad, D_bd, D_abd,
+                                    Omega,
+                                    Omega_a, Omega_b, Omega_d,
+                                    Omega_ab, Omega_ad, Omega_bd,
+                                    Omega_abd
+                                )
+                            ),
+                            SymEngine::mul(
+                                make_first_order_density(D, D_d, Omega, Omega_d),
+                                make_third_order_density(
+                                    D, D_a, D_b, D_c, D_ab, D_ac, D_bc, D_abc,
+                                    Omega,
+                                    Omega_a, Omega_b, Omega_c,
+                                    Omega_ab, Omega_ac, Omega_bc,
+                                    Omega_abc
+                                )
+                            ),
+                            // The following terms are missing in equation (46),
+                            // J. Chem. Phys. 140, 034103 (2014)
+                            SymEngine::mul(
+                                make_second_order_density(
+                                    D, D_a, D_d, D_ad, Omega, Omega_a, Omega_d, Omega_ad
                                 ),
-                                SymEngine::add({
-                                    make_density_vector(D, Omega_bcd),
-                                    make_density_vector(D_b, Omega_cd),
-                                    make_density_vector(D_c, Omega_bd),
-                                    make_density_vector(D_d, Omega_bc),
-                                    make_density_vector(D_bc, Omega_d),
-                                    make_density_vector(D_bd, Omega_c),
-                                    make_density_vector(D_cd, Omega_b),
-                                    make_density_vector(D_bcd, Omega)
-                                })
+                                make_second_order_density(
+                                    D, D_b, D_c, D_bc, Omega, Omega_b, Omega_c, Omega_bc
+                                )
                             ),
                             SymEngine::mul(
-                                SymEngine::add(
-                                    make_density_vector(D, Omega_b),
-                                    make_density_vector(D_b, Omega)
+                                make_second_order_density(
+                                    D, D_b, D_d, D_bd, Omega, Omega_b, Omega_d, Omega_bd
                                 ),
-                                SymEngine::add({
-                                    make_density_vector(D, Omega_acd),
-                                    make_density_vector(D_a, Omega_cd),
-                                    make_density_vector(D_c, Omega_ad),
-                                    make_density_vector(D_d, Omega_ac),
-                                    make_density_vector(D_ac, Omega_d),
-                                    make_density_vector(D_ad, Omega_c),
-                                    make_density_vector(D_cd, Omega_a),
-                                    make_density_vector(D_acd, Omega)
-                                })
+                                make_second_order_density(
+                                    D, D_a, D_c, D_ac, Omega, Omega_a, Omega_c, Omega_ac
+                                )
                             ),
                             SymEngine::mul(
-                                SymEngine::add(
-                                    make_density_vector(D, Omega_c),
-                                    make_density_vector(D_c, Omega)
+                                make_second_order_density(
+                                    D, D_c, D_d, D_cd, Omega, Omega_c, Omega_d, Omega_cd
                                 ),
-                                SymEngine::add({
-                                    make_density_vector(D, Omega_abd),
-                                    make_density_vector(D_a, Omega_bd),
-                                    make_density_vector(D_b, Omega_ad),
-                                    make_density_vector(D_d, Omega_ab),
-                                    make_density_vector(D_ab, Omega_d),
-                                    make_density_vector(D_ad, Omega_b),
-                                    make_density_vector(D_bd, Omega_a),
-                                    make_density_vector(D_abd, Omega)
-                                })
-                            ),
-                            SymEngine::mul(
-                                SymEngine::add(
-                                    make_density_vector(D, Omega_d),
-                                    make_density_vector(D_d, Omega)
-                                ),
-                                SymEngine::add({
-                                    make_density_vector(D, Omega_abc),
-                                    make_density_vector(D_a, Omega_bc),
-                                    make_density_vector(D_b, Omega_ac),
-                                    make_density_vector(D_c, Omega_ab),
-                                    make_density_vector(D_ab, Omega_c),
-                                    make_density_vector(D_ac, Omega_b),
-                                    make_density_vector(D_bc, Omega_a),
-                                    make_density_vector(D_abc, Omega)
-                                })
-                            ),
-                            SymEngine::mul(
-                                SymEngine::add({
-                                    make_density_vector(D, Omega_ad),
-                                    make_density_vector(D_a, Omega_d),
-                                    make_density_vector(D_d, Omega_a),
-                                    make_density_vector(D_ad, Omega)
-                                }),
-                                SymEngine::add({
-                                    make_density_vector(D, Omega_bc),
-                                    make_density_vector(D_b, Omega_c),
-                                    make_density_vector(D_c, Omega_b),
-                                    make_density_vector(D_bc, Omega)
-                                })
-                            ),
-                            SymEngine::mul(
-                                SymEngine::add({
-                                    make_density_vector(D, Omega_bd),
-                                    make_density_vector(D_b, Omega_d),
-                                    make_density_vector(D_d, Omega_b),
-                                    make_density_vector(D_bd, Omega)
-                                }),
-                                SymEngine::add({
-                                    make_density_vector(D, Omega_ac),
-                                    make_density_vector(D_a, Omega_c),
-                                    make_density_vector(D_c, Omega_a),
-                                    make_density_vector(D_ac, Omega)
-                                })
-                            ),
-                            SymEngine::mul(
-                                SymEngine::add({
-                                    make_density_vector(D, Omega_cd),
-                                    make_density_vector(D_c, Omega_d),
-                                    make_density_vector(D_d, Omega_c),
-                                    make_density_vector(D_cd, Omega)
-                                }),
-                                SymEngine::add({
-                                    make_density_vector(D, Omega_ab),
-                                    make_density_vector(D_a, Omega_b),
-                                    make_density_vector(D_b, Omega_a),
-                                    make_density_vector(D_ab, Omega)
-                                })
+                                make_second_order_density(
+                                    D, D_a, D_b, D_ab, Omega, Omega_a, Omega_b, Omega_ab
+                                )
                             )
                         })
                     },
@@ -501,122 +534,56 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
                         3,
                         SymEngine::add({
                             SymEngine::mul({
-                                SymEngine::add(
-                                    make_density_vector(D, Omega_a),
-                                    make_density_vector(D_a, Omega)
-                                ),
-                                SymEngine::add(
-                                    make_density_vector(D, Omega_b),
-                                    make_density_vector(D_b, Omega)
-                                ),
-                                SymEngine::add({
-                                    make_density_vector(D, Omega_cd),
-                                    make_density_vector(D_c, Omega_d),
-                                    make_density_vector(D_d, Omega_c),
-                                    make_density_vector(D_cd, Omega)
-                                })
+                                make_first_order_density(D, D_a, Omega, Omega_a),
+                                make_first_order_density(D, D_b, Omega, Omega_b),
+                                make_second_order_density(
+                                    D, D_c, D_d, D_cd, Omega, Omega_c, Omega_d, Omega_cd
+                                )
                             }),
                             SymEngine::mul({
-                                SymEngine::add(
-                                    make_density_vector(D, Omega_a),
-                                    make_density_vector(D_a, Omega)
-                                ),
-                                SymEngine::add(
-                                    make_density_vector(D, Omega_c),
-                                    make_density_vector(D_c, Omega)
-                                ),
-                                SymEngine::add({
-                                    make_density_vector(D, Omega_bd),
-                                    make_density_vector(D_b, Omega_d),
-                                    make_density_vector(D_d, Omega_b),
-                                    make_density_vector(D_bd, Omega)
-                                })
+                                make_first_order_density(D, D_a, Omega, Omega_a),
+                                make_first_order_density(D, D_c, Omega, Omega_c),
+                                make_second_order_density(
+                                    D, D_b, D_d, D_bd, Omega, Omega_b, Omega_d, Omega_bd
+                                )
                             }),
                             SymEngine::mul({
-                                SymEngine::add(
-                                    make_density_vector(D, Omega_a),
-                                    make_density_vector(D_a, Omega)
-                                ),
-                                SymEngine::add(
-                                    make_density_vector(D, Omega_d),
-                                    make_density_vector(D_d, Omega)
-                                ),
-                                SymEngine::add({
-                                    make_density_vector(D, Omega_bc),
-                                    make_density_vector(D_b, Omega_c),
-                                    make_density_vector(D_c, Omega_b),
-                                    make_density_vector(D_bc, Omega)
-                                })
+                                make_first_order_density(D, D_a, Omega, Omega_a),
+                                make_first_order_density(D, D_d, Omega, Omega_d),
+                                make_second_order_density(
+                                    D, D_b, D_c, D_bc, Omega, Omega_b, Omega_c, Omega_bc
+                                )
                             }),
                             SymEngine::mul({
-                                SymEngine::add(
-                                    make_density_vector(D, Omega_b),
-                                    make_density_vector(D_b, Omega)
-                                ),
-                                SymEngine::add(
-                                    make_density_vector(D, Omega_c),
-                                    make_density_vector(D_c, Omega)
-                                ),
-                                SymEngine::add({
-                                    make_density_vector(D, Omega_ad),
-                                    make_density_vector(D_a, Omega_d),
-                                    make_density_vector(D_d, Omega_a),
-                                    make_density_vector(D_ad, Omega)
-                                })
+                                make_first_order_density(D, D_b, Omega, Omega_b),
+                                make_first_order_density(D, D_c, Omega, Omega_c),
+                                make_second_order_density(
+                                    D, D_a, D_d, D_ad, Omega, Omega_a, Omega_d, Omega_ad
+                                )
                             }),
                             SymEngine::mul({
-                                SymEngine::add(
-                                    make_density_vector(D, Omega_b),
-                                    make_density_vector(D_b, Omega)
-                                ),
-                                SymEngine::add(
-                                    make_density_vector(D, Omega_d),
-                                    make_density_vector(D_d, Omega)
-                                ),
-                                SymEngine::add({
-                                    make_density_vector(D, Omega_ac),
-                                    make_density_vector(D_a, Omega_c),
-                                    make_density_vector(D_c, Omega_a),
-                                    make_density_vector(D_ac, Omega)
-                                })
+                                make_first_order_density(D, D_b, Omega, Omega_b),
+                                make_first_order_density(D, D_d, Omega, Omega_d),
+                                make_second_order_density(
+                                    D, D_a, D_c, D_ac, Omega, Omega_a, Omega_c, Omega_ac
+                                )
                             }),
                             SymEngine::mul({
-                                SymEngine::add(
-                                    make_density_vector(D, Omega_c),
-                                    make_density_vector(D_c, Omega)
-                                ),
-                                SymEngine::add(
-                                    make_density_vector(D, Omega_d),
-                                    make_density_vector(D_d, Omega)
-                                ),
-                                SymEngine::add({
-                                    make_density_vector(D, Omega_ab),
-                                    make_density_vector(D_a, Omega_b),
-                                    make_density_vector(D_b, Omega_a),
-                                    make_density_vector(D_ab, Omega)
-                                })
+                                make_first_order_density(D, D_c, Omega, Omega_c),
+                                make_first_order_density(D, D_d, Omega, Omega_d),
+                                make_second_order_density(
+                                    D, D_a, D_b, D_ab, Omega, Omega_a, Omega_b, Omega_ab
+                                )
                             })
                         })
                     },
                     {
                         4,
                         SymEngine::mul({
-                            SymEngine::add(
-                                make_density_vector(D, Omega_a),
-                                make_density_vector(D_a, Omega)
-                            ),
-                            SymEngine::add(
-                                make_density_vector(D, Omega_b),
-                                make_density_vector(D_b, Omega)
-                            ),
-                            SymEngine::add(
-                                make_density_vector(D, Omega_c),
-                                make_density_vector(D_c, Omega)
-                            ),
-                            SymEngine::add(
-                                make_density_vector(D, Omega_d),
-                                make_density_vector(D_d, Omega)
-                            )
+                            make_first_order_density(D, D_a, Omega, Omega_a),
+                            make_first_order_density(D, D_b, Omega, Omega_b),
+                            make_first_order_density(D, D_c, Omega, Omega_c),
+                            make_first_order_density(D, D_d, Omega, Omega_d)
                         })
                     }
                 })
@@ -624,12 +591,544 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
         })
     ));
 
-    // A more complicated case by considering the derivatives of grid weights
+    // A more complicated case is to consider the derivatives of grid weights
+    weight = make_nonel_function(
+        std::string("weight"),
+        PertDependency({
+            std::make_pair(a, 99),
+            std::make_pair(b, 99)
+        })
+    );
+    Exc = make_xc_energy(Exc_name, D, Omega, weight);
+    // (1) The first order XC energy density derivative
+    Exc_a = SymEngine::rcp_dynamic_cast<const ExchCorrEnergy>(Exc->diff(a));
+    auto weight_a = SymEngine::rcp_dynamic_cast<const NonElecFunction>(weight->diff(a));
+    REQUIRE(SymEngine::unified_eq(
+        Exc_a->get_weights(), ExcGridWeightSet({weight, weight_a})
+    ));
+    REQUIRE(SymEngine::unified_eq(Exc_a->get_states(), ExcElecStateSet({D, D_a})));
+    REQUIRE(SymEngine::unified_eq(
+        Exc_a->get_overlap_distributions(), ExcOverlapDistribSet({Omega, Omega_a})
+    ));
+    REQUIRE(Exc_a->get_exc_orders() == std::set<unsigned int>({0, 1}));
+    REQUIRE(eq_exc_contraction(
+        Exc_a->get_energy_terms(),
+        ExcContractionMap({
+            {
+                weight,
+                make_first_order_contraction(D, D_a, Omega, Omega_a)
+            },
+            {
+                weight_a,
+                make_unperturbed_contraction()
+            }
+        })
+    ));
+    // (2) The second order XC energy density derivative
+    Exc_ab = SymEngine::rcp_dynamic_cast<const ExchCorrEnergy>(Exc_a->diff(b));
+    auto weight_b = SymEngine::rcp_dynamic_cast<const NonElecFunction>(weight->diff(b));
+    auto weight_ab = SymEngine::rcp_dynamic_cast<const NonElecFunction>(weight_a->diff(b));
+    REQUIRE(SymEngine::unified_eq(
+        Exc_ab->get_weights(), ExcGridWeightSet({weight, weight_a, weight_b, weight_ab})
+    ));
+    REQUIRE(SymEngine::unified_eq(
+        Exc_ab->get_states(), ExcElecStateSet({D, D_a, D_b, D_ab})
+    ));
+    REQUIRE(SymEngine::unified_eq(
+        Exc_ab->get_overlap_distributions(),
+        ExcOverlapDistribSet({Omega, Omega_a, Omega_b, Omega_ab})
+    ));
+    REQUIRE(Exc_ab->get_exc_orders() == std::set<unsigned int>({0, 1, 2}));
+    REQUIRE(eq_exc_contraction(
+        Exc_ab->get_energy_terms(),
+        ExcContractionMap({
+            {
+                weight,
+                make_second_order_contraction(
+                    D, D_a, D_b, D_ab, Omega, Omega_a, Omega_b, Omega_ab
+                )
+            },
+            {
+                weight_a,
+                make_first_order_contraction(D, D_b, Omega, Omega_b)
+            },
+            {
+                weight_b,
+                make_first_order_contraction(D, D_a, Omega, Omega_a)
+            },
+            {
+                weight_ab,
+                make_unperturbed_contraction()
+            }
+        })
+    ));
+    // (3) The third order XC energy density derivative, note that the grid
+    // weights do not depend on the perturbation `c`
+    Exc_abc = SymEngine::rcp_dynamic_cast<const ExchCorrEnergy>(Exc_ab->diff(c));
+    REQUIRE(SymEngine::unified_eq(
+        Exc_abc->get_weights(), ExcGridWeightSet({weight, weight_a, weight_b, weight_ab})
+    ));
+    REQUIRE(SymEngine::unified_eq(
+        Exc_abc->get_states(),
+        ExcElecStateSet({D, D_a, D_b, D_c, D_ab, D_ac, D_bc, D_abc})
+    ));
+    REQUIRE(SymEngine::unified_eq(
+        Exc_abc->get_overlap_distributions(),
+        ExcOverlapDistribSet({
+          Omega, Omega_a, Omega_b, Omega_c, Omega_ab, Omega_ac, Omega_bc, Omega_abc
+        })
+    ));
+    REQUIRE(Exc_abc->get_exc_orders() == std::set<unsigned int>({1, 2, 3}));
+    REQUIRE(eq_exc_contraction(
+        Exc_abc->get_energy_terms(),
+        ExcContractionMap({
+            {
+                weight,
+                // Exactly equation (45), J. Chem. Phys. 140, 034103 (2014)
+                make_third_order_contraction(
+                    D,
+                    D_a, D_b, D_c,
+                    D_ab, D_ac, D_bc,
+                    D_abc,
+                    Omega,
+                    Omega_a, Omega_b, Omega_c,
+                    Omega_ab, Omega_ac, Omega_bc,
+                    Omega_abc
+                )
+            },
+            {
+                weight_a,
+                make_second_order_contraction(
+                    D, D_b, D_c, D_bc, Omega, Omega_b, Omega_c, Omega_bc
+                )
+            },
+            {
+                weight_b,
+                make_second_order_contraction(
+                    D, D_a, D_c, D_ac, Omega, Omega_a, Omega_c, Omega_ac
+                )
+            },
+            {
+                weight_ab,
+                make_first_order_contraction(D, D_c, Omega, Omega_c)
+            }
+        })
+    ));
+
+    // Last example is when the generalized overlap distributions do not depend
+    // on all perturbations
+    Omega = make_1el_operator(
+        std::string("Omega"),
+        PertDependency({
+            std::make_pair(c, 99),
+            std::make_pair(d, 99)
+        })
+    );
+    Omega_c = SymEngine::rcp_dynamic_cast<const OneElecOperator>(Omega->diff(c));
+    Omega_d = SymEngine::rcp_dynamic_cast<const OneElecOperator>(Omega->diff(d));
+    Omega_cd = SymEngine::rcp_dynamic_cast<const OneElecOperator>(Omega_c->diff(d));
+    Exc = make_xc_energy(Exc_name, D, Omega, weight);
+    // (1) The first order XC energy density derivative
+    Exc_a = SymEngine::rcp_dynamic_cast<const ExchCorrEnergy>(Exc->diff(a));
+    REQUIRE(SymEngine::unified_eq(
+        Exc_a->get_weights(), ExcGridWeightSet({weight, weight_a})
+    ));
+    REQUIRE(SymEngine::unified_eq(Exc_a->get_states(), ExcElecStateSet({D, D_a})));
+    REQUIRE(SymEngine::unified_eq(
+        Exc_a->get_overlap_distributions(), ExcOverlapDistribSet({Omega})
+    ));
+    REQUIRE(Exc_a->get_exc_orders() == std::set<unsigned int>({0, 1}));
+    REQUIRE(eq_exc_contraction(
+        Exc_a->get_energy_terms(),
+        ExcContractionMap({
+            {
+                weight,
+                ExcDensityContractionMap({{1, make_density_vector(D_a, Omega)}})
+            },
+            {
+                weight_a,
+                make_unperturbed_contraction()
+            }
+        })
+    ));
+    // (2) The second order XC energy density derivative
+    Exc_ab = SymEngine::rcp_dynamic_cast<const ExchCorrEnergy>(Exc_a->diff(b));
+    REQUIRE(SymEngine::unified_eq(
+        Exc_ab->get_weights(), ExcGridWeightSet({weight, weight_a, weight_b, weight_ab})
+    ));
+    REQUIRE(SymEngine::unified_eq(
+        Exc_ab->get_states(), ExcElecStateSet({D, D_a, D_b, D_ab})
+    ));
+    REQUIRE(SymEngine::unified_eq(
+        Exc_ab->get_overlap_distributions(), ExcOverlapDistribSet({Omega})
+    ));
+    REQUIRE(Exc_ab->get_exc_orders() == std::set<unsigned int>({0, 1, 2}));
+    REQUIRE(eq_exc_contraction(
+        Exc_ab->get_energy_terms(),
+        ExcContractionMap({
+            {
+                weight,
+                ExcDensityContractionMap({
+                    {
+                        1,
+                        make_density_vector(D_ab, Omega)
+                    },
+                    {
+                        2,
+                        SymEngine::mul(
+                            make_density_vector(D_a, Omega),
+                            make_density_vector(D_b, Omega)
+                        )
+                    }
+                })
+            },
+            {
+                weight_a,
+                ExcDensityContractionMap({{1, make_density_vector(D_b, Omega)}})
+            },
+            {
+                weight_b,
+                ExcDensityContractionMap({{1, make_density_vector(D_a, Omega)}})
+            },
+            {
+                weight_ab,
+                make_unperturbed_contraction()
+            }
+        })
+    ));
+    // (3) The third order XC energy density derivative, note that the grid
+    // weights do not depend on the perturbation `c`
+    Exc_abc = SymEngine::rcp_dynamic_cast<const ExchCorrEnergy>(Exc_ab->diff(c));
+    REQUIRE(SymEngine::unified_eq(
+        Exc_abc->get_weights(), ExcGridWeightSet({weight, weight_a, weight_b, weight_ab})
+    ));
+    REQUIRE(SymEngine::unified_eq(
+        Exc_abc->get_states(),
+        ExcElecStateSet({D, D_a, D_b, D_c, D_ab, D_ac, D_bc, D_abc})
+    ));
+    REQUIRE(SymEngine::unified_eq(
+        Exc_abc->get_overlap_distributions(),
+        ExcOverlapDistribSet({Omega, Omega_c})
+    ));
+    REQUIRE(Exc_abc->get_exc_orders() == std::set<unsigned int>({1, 2, 3}));
+    REQUIRE(eq_exc_contraction(
+        Exc_abc->get_energy_terms(),
+        ExcContractionMap({
+            {
+                weight,
+                // By removing derivatives of `Omega` with respect to `a` and
+                // `b` from `make_third_order_contraction()`
+                ExcDensityContractionMap({
+                    {
+                        1,
+                        make_first_order_density(D_ab, D_abc, Omega, Omega_c)
+                    },
+                    {
+                        2,
+                        SymEngine::add({
+                            SymEngine::mul(
+                                make_density_vector(D_a, Omega),
+                                make_first_order_density(D_b, D_bc, Omega, Omega_c)
+                            ),
+                            SymEngine::mul(
+                                make_density_vector(D_b, Omega),
+                                make_first_order_density(D_a, D_ac, Omega, Omega_c)
+                            ),
+                            SymEngine::mul(
+                                make_first_order_density(D, D_c, Omega, Omega_c),
+                                make_density_vector(D_ab, Omega)
+                            )
+                        })
+                    },
+                    {
+                        3,
+                        SymEngine::mul({
+                            make_density_vector(D_a, Omega),
+                            make_density_vector(D_b, Omega),
+                            make_first_order_density(D, D_c, Omega, Omega_c)
+                        })
+                    }
+                })
+            },
+            {
+                weight_a,
+                ExcDensityContractionMap({
+                    {
+                        1,
+                        make_first_order_density(D_b, D_bc, Omega, Omega_c)
+                    },
+                    {
+                        2,
+                        SymEngine::mul(
+                            make_density_vector(D_b, Omega),
+                            make_first_order_density(D, D_c, Omega, Omega_c)
+                        )
+                    }
+                })
+            },
+            {
+                weight_b,
+                ExcDensityContractionMap({
+                    {
+                        1,
+                        make_first_order_density(D_a, D_ac, Omega, Omega_c)
+                    },
+                    {
+                        2,
+                        SymEngine::mul(
+                            make_density_vector(D_a, Omega),
+                            make_first_order_density(D, D_c, Omega, Omega_c)
+                        )
+                    }
+                })
+            },
+            {
+                weight_ab,
+                make_first_order_contraction(D, D_c, Omega, Omega_c)
+            }
+        })
+    ));
+    // (4) The fourth order XC energy density derivative
+    Exc_abcd = SymEngine::rcp_dynamic_cast<const ExchCorrEnergy>(Exc_abc->diff(d));
+    REQUIRE(SymEngine::unified_eq(
+        Exc_abcd->get_weights(),
+        ExcGridWeightSet({weight, weight_a, weight_b, weight_ab})
+    ));
+    REQUIRE(SymEngine::unified_eq(
+        Exc_abcd->get_states(),
+        ExcElecStateSet({
+          D,
+          D_a, D_b, D_c, D_d,
+          D_ab, D_ac, D_ad, D_bc, D_bd, D_cd,
+          D_abc, D_abd, D_acd, D_bcd,
+          D_abcd
+        })
+    ));
+    REQUIRE(SymEngine::unified_eq(
+        Exc_abcd->get_overlap_distributions(),
+        ExcOverlapDistribSet({
+          Omega, Omega_c, Omega_d, Omega_cd
+        })
+    ));
+    REQUIRE(Exc_abcd->get_exc_orders() == std::set<unsigned int>({1, 2, 3, 4}));
+    REQUIRE(eq_exc_contraction(
+        Exc_abcd->get_energy_terms(),
+        ExcContractionMap({
+            {
+                weight,
+                ExcDensityContractionMap({
+                    {
+                        1,
+                        make_second_order_density(
+                            D_ab, D_abc, D_abd, D_abcd, Omega, Omega_c, Omega_d, Omega_cd
+                        )
+                    },
+                    {
+                        2,
+                        SymEngine::add({
+                            SymEngine::mul(
+                                make_first_order_density(D_ab, D_abc, Omega, Omega_c),
+                                make_first_order_density(D, D_d, Omega, Omega_d)
+                            ),
+                            SymEngine::mul(
+                                make_first_order_density(D_a, D_ad, Omega, Omega_d),
+                                make_first_order_density(D_b, D_bc, Omega, Omega_c)
+                            ),
+                            SymEngine::mul(
+                                make_density_vector(D_a, Omega),
+                                make_second_order_density(
+                                    D_b, D_bc, D_bd, D_bcd,
+                                    Omega, Omega_c, Omega_d, Omega_cd
+                                )
+                            ),
+                            SymEngine::mul(
+                                make_first_order_density(D_b, D_bd, Omega, Omega_d),
+                                make_first_order_density(D_a, D_ac, Omega, Omega_c)
+                            ),
+                            SymEngine::mul(
+                                make_density_vector(D_b, Omega),
+                                make_second_order_density(
+                                    D_a, D_ac, D_ad, D_acd,
+                                    Omega, Omega_c, Omega_d, Omega_cd
+                                )
+                            ),
+                            SymEngine::mul(
+                                make_density_vector(D_ab, Omega),
+                                make_second_order_density(
+                                    D, D_c, D_d, D_cd, Omega, Omega_c, Omega_d, Omega_cd
+                                )
+                            ),
+                            SymEngine::mul(
+                                make_first_order_density(D, D_c, Omega, Omega_c),
+                                make_first_order_density(D_ab, D_abd, Omega, Omega_d)
+                            )
+                        })
+                    },
+                    {
+                        3,
+                        SymEngine::add({
+                            SymEngine::mul({
+                                make_density_vector(D_a, Omega),
+                                make_first_order_density(D_b, D_bc, Omega, Omega_c),
+                                make_first_order_density(D, D_d, Omega, Omega_d)
+                            }),
+                            SymEngine::mul({
+                                make_density_vector(D_b, Omega),
+                                make_first_order_density(D_a, D_ac, Omega, Omega_c),
+                                make_first_order_density(D, D_d, Omega, Omega_d)
+                            }),
+                            SymEngine::mul({
+                                make_density_vector(D_ab, Omega),
+                                make_first_order_density(D, D_c, Omega, Omega_c),
+                                make_first_order_density(D, D_d, Omega, Omega_d)
+                            }),
+                            SymEngine::mul({
+                                make_density_vector(D_b, Omega),
+                                make_first_order_density(D_a, D_ad, Omega, Omega_d),
+                                make_first_order_density(D, D_c, Omega, Omega_c)
+                            }),
+                            SymEngine::mul({
+                                make_density_vector(D_a, Omega),
+                                make_first_order_density(D_b, D_bd, Omega, Omega_d),
+                                make_first_order_density(D, D_c, Omega, Omega_c)
+                            }),
+                            SymEngine::mul({
+                                make_density_vector(D_a, Omega),
+                                make_density_vector(D_b, Omega),
+                                make_second_order_density(
+                                    D, D_c, D_d, D_cd, Omega, Omega_c, Omega_d, Omega_cd
+                                )
+                            })
+                        })
+                    },
+                    {
+                        4,
+                        SymEngine::mul({
+                            make_density_vector(D_a, Omega),
+                            make_density_vector(D_b, Omega),
+                            make_first_order_density(D, D_c, Omega, Omega_c),
+                            make_first_order_density(D, D_d, Omega, Omega_d),
+                        })
+                    }
+                })
+            },
+            {
+                weight_a,
+                ExcDensityContractionMap({
+                    {
+                        1,
+                        make_second_order_density(
+                            D_b, D_bc, D_bd, D_bcd, Omega, Omega_c, Omega_d, Omega_cd
+                        )
+                    },
+                    {
+                        2,
+                        SymEngine::add({
+                            SymEngine::mul(
+                                make_first_order_density(D, D_d, Omega, Omega_d),
+                                make_first_order_density(D_b, D_bc, Omega, Omega_c)
+                            ),
+                            SymEngine::mul(
+                                make_first_order_density(D_b, D_bd, Omega, Omega_d),
+                                make_first_order_density(D, D_c, Omega, Omega_c)
+                            ),
+                            SymEngine::mul(
+                                make_density_vector(D_b, Omega),
+                                make_second_order_density(
+                                    D, D_c, D_d, D_cd, Omega, Omega_c, Omega_d, Omega_cd
+                                )
+                            )
+                        })
+                    },
+                    {
+                        3,
+                        SymEngine::mul({
+                            make_density_vector(D_b, Omega),
+                            make_first_order_density(D, D_c, Omega, Omega_c),
+                            make_first_order_density(D, D_d, Omega, Omega_d)
+                        })
+                    }
+                })
+            },
+            {
+                weight_b,
+                ExcDensityContractionMap({
+                    {
+                        1,
+                        make_second_order_density(
+                            D_a, D_ac, D_ad, D_acd, Omega, Omega_c, Omega_d, Omega_cd
+                        )
+                    },
+                    {
+                        2,
+                        SymEngine::add({
+                            SymEngine::mul(
+                                make_first_order_density(D, D_d, Omega, Omega_d),
+                                make_first_order_density(D_a, D_ac, Omega, Omega_c)
+                            ),
+                            SymEngine::mul(
+                                make_first_order_density(D_a, D_ad, Omega, Omega_d),
+                                make_first_order_density(D, D_c, Omega, Omega_c)
+                            ),
+                            SymEngine::mul(
+                                make_density_vector(D_a, Omega),
+                                make_second_order_density(
+                                    D, D_c, D_d, D_cd, Omega, Omega_c, Omega_d, Omega_cd
+                                )
+                            )
+                        })
+                    },
+                    {
+                        3,
+                        SymEngine::mul({
+                            make_density_vector(D_a, Omega),
+                            make_first_order_density(D, D_c, Omega, Omega_c),
+                            make_first_order_density(D, D_d, Omega, Omega_d)
+                        })
+                    }
+                })
+            },
+            {
+                weight_ab,
+                make_second_order_contraction(
+                    D, D_c, D_d, D_cd, Omega, Omega_c, Omega_d, Omega_cd
+                )
+            }
+        })
+    ));
 }
 
 TEST_CASE("Test ExchCorrPotential and make_xc_potential()", "[ExchCorrPotential]")
 {
-//    auto Fxc = SymEngine::make_rcp<const ExchCorrPotential>(
-//        std::string("Fxc"), D
-//    );
+    auto D = make_1el_density(std::string("D"));
+    auto a = make_perturbation(std::string("a"));
+    auto b = make_perturbation(std::string("b"));
+    // We first do not consider derivatives of grid weights
+    auto weight = make_nonel_function(std::string("weight"));
+    auto Omega = make_1el_operator(
+        std::string("Omega"),
+        PertDependency({std::make_pair(a, 99), std::make_pair(b, 99)})
+    );
+    auto Vxc_name = std::string("GGA");
+    auto Vxc = make_xc_potential(Vxc_name, D, Omega, weight);
+
+    REQUIRE(Vxc->get_name() == Vxc_name);
+    REQUIRE(SymEngine::eq(*Vxc->get_weight(), *weight));
+    REQUIRE(SymEngine::eq(*Vxc->get_state(), *D));
+    REQUIRE(SymEngine::eq(*Vxc->get_overlap_distribution(), *Omega));
+
+    REQUIRE(SymEngine::unified_eq(Vxc->get_weights(), ExcGridWeightSet({weight})));
+    REQUIRE(SymEngine::unified_eq(Vxc->get_states(), ExcElecStateSet({D})));
+    REQUIRE(SymEngine::unified_eq(
+        Vxc->get_overlap_distributions(), ExcOverlapDistribSet({Omega})
+    ));
+    REQUIRE(Vxc->get_exc_orders() == std::set<unsigned int>({1}));
+
+    // Tests from J. Chem. Phys. 140, 034103 (2014), equations (57)-(60).
+    auto D_a = SymEngine::rcp_dynamic_cast<const ElectronicState>(D->diff(a));
+    auto D_b = SymEngine::rcp_dynamic_cast<const ElectronicState>(D->diff(b));
+    auto D_ab = SymEngine::rcp_dynamic_cast<const ElectronicState>(D_a->diff(b));
+    auto Omega_a = SymEngine::rcp_dynamic_cast<const OneElecOperator>(Omega->diff(a));
+    auto Omega_b = SymEngine::rcp_dynamic_cast<const OneElecOperator>(Omega->diff(b));
+    auto Omega_ab = SymEngine::rcp_dynamic_cast<const OneElecOperator>(Omega_a->diff(b));
 }
