@@ -1,4 +1,3 @@
-#include <symengine/mul.h>
 #include <symengine/symengine_casts.h>
 
 #include "Tinned/ExchCorrEnergy.hpp"

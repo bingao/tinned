@@ -1098,6 +1098,8 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
     ));
 }
 
+#include <iostream>
+
 TEST_CASE("Test ExchCorrPotential and make_xc_potential()", "[ExchCorrPotential]")
 {
     auto D = make_1el_density(std::string("D"));
@@ -1123,6 +1125,22 @@ TEST_CASE("Test ExchCorrPotential and make_xc_potential()", "[ExchCorrPotential]
         Vxc->get_overlap_distributions(), ExcOverlapDistribSet({Omega})
     ));
     REQUIRE(Vxc->get_exc_orders() == std::set<unsigned int>({1}));
+auto Vxc_a = SymEngine::rcp_dynamic_cast<const ExchCorrPotential>(Vxc->diff(a));
+std::cout << stringify(Vxc_a) << "\n\n";
+//std::cout << stringify((Vxc->diff(a))->diff(b)) << "\n\n";
+//std::cout << "Vxc: " << stringify(Vxc) << "\n\n";
+for (const auto& vterm: Vxc_a->get_potential_terms()) {
+    std::cout << "Omega: " << stringify(vterm.first) << "\n";
+    for (const auto& term: vterm.second) {
+        std::cout << "weight: " << stringify(term.first) << "\n";
+        for (const auto& contr: term.second) {
+            std::cout << "order: " << contr.first << "\n";
+            if (!contr.second.is_null())
+                std::cout << "rho: " << stringify(contr.second) << "\n";
+        }
+    }
+}
+std::cout << "\n\n";
 
     // Tests from J. Chem. Phys. 140, 034103 (2014), equations (57)-(60).
     auto D_a = SymEngine::rcp_dynamic_cast<const ElectronicState>(D->diff(a));
