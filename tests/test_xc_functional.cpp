@@ -1115,6 +1115,77 @@ TEST_CASE("Test ExchCorrPotential and make_xc_potential()", "[ExchCorrPotential]
             {1, SymEngine::RCP<const SymEngine::Basic>()}
         });
     };
+    // Equation (47), J. Chem. Phys. 140, 034103 (2014)
+    auto make_first_order_density = [&](
+        const SymEngine::RCP<const ElectronicState>& D,
+        const SymEngine::RCP<const ElectronicState>& D_a,
+        const SymEngine::RCP<const OneElecOperator>& Omega,
+        const SymEngine::RCP<const OneElecOperator>& Omega_a
+    ) {
+        return SymEngine::add(
+            make_density_vector(D, Omega_a),
+            make_density_vector(D_a, Omega)
+        );
+    };
+    // Equation (59), J. Chem. Phys. 140, 034103 (2014)
+    auto make_first_order_contraction = [&](
+        const SymEngine::RCP<const ElectronicState>& D,
+        const SymEngine::RCP<const ElectronicState>& D_a,
+        const SymEngine::RCP<const OneElecOperator>& Omega,
+        const SymEngine::RCP<const OneElecOperator>& Omega_a
+    ) {
+        return ExcDensityContractionMap({
+            {
+                2,
+                make_first_order_density(D, D_a, Omega, Omega_a)
+            }
+        });
+    };
+    // Equation (48), J. Chem. Phys. 140, 034103 (2014)
+    auto make_second_order_density = [&](
+        const SymEngine::RCP<const ElectronicState>& D,
+        const SymEngine::RCP<const ElectronicState>& D_a,
+        const SymEngine::RCP<const ElectronicState>& D_b,
+        const SymEngine::RCP<const ElectronicState>& D_ab,
+        const SymEngine::RCP<const OneElecOperator>& Omega,
+        const SymEngine::RCP<const OneElecOperator>& Omega_a,
+        const SymEngine::RCP<const OneElecOperator>& Omega_b,
+        const SymEngine::RCP<const OneElecOperator>& Omega_ab
+    ) {
+        return SymEngine::add({
+            make_density_vector(D, Omega_ab),
+            make_density_vector(D_a, Omega_b),
+            make_density_vector(D_b, Omega_a),
+            make_density_vector(D_ab, Omega)
+        });
+    };
+    // Equation (60), J. Chem. Phys. 140, 034103 (2014)
+    auto make_second_order_contraction = [&](
+        const SymEngine::RCP<const ElectronicState>& D,
+        const SymEngine::RCP<const ElectronicState>& D_a,
+        const SymEngine::RCP<const ElectronicState>& D_b,
+        const SymEngine::RCP<const ElectronicState>& D_ab,
+        const SymEngine::RCP<const OneElecOperator>& Omega,
+        const SymEngine::RCP<const OneElecOperator>& Omega_a,
+        const SymEngine::RCP<const OneElecOperator>& Omega_b,
+        const SymEngine::RCP<const OneElecOperator>& Omega_ab
+    ) {
+        return ExcDensityContractionMap({
+            {
+                2,
+                make_second_order_density(
+                    D, D_a, D_b, D_ab, Omega, Omega_a, Omega_b, Omega_ab
+                )
+            },
+            {
+                3,
+                SymEngine::mul(
+                    make_first_order_density(D, D_a, Omega, Omega_a),
+                    make_first_order_density(D, D_b, Omega, Omega_b)
+                )
+            }
+        });
+    };
 
     // We first do not consider derivatives of grid weights
     auto weight = make_nonel_function(std::string("weight"));
@@ -1149,6 +1220,70 @@ TEST_CASE("Test ExchCorrPotential and make_xc_potential()", "[ExchCorrPotential]
     auto Omega_a = SymEngine::rcp_dynamic_cast<const OneElecOperator>(Omega->diff(a));
     auto Omega_b = SymEngine::rcp_dynamic_cast<const OneElecOperator>(Omega->diff(b));
     auto Omega_ab = SymEngine::rcp_dynamic_cast<const OneElecOperator>(Omega_a->diff(b));
-
+    // (1) The first order XC potential matrix
     auto Vxc_a = SymEngine::rcp_dynamic_cast<const ExchCorrPotential>(Vxc->diff(a));
+    REQUIRE(SymEngine::unified_eq(Vxc_a->get_weights(), ExcGridWeightSet({weight})));
+    REQUIRE(SymEngine::unified_eq(Vxc_a->get_states(), ExcElecStateSet({D, D_a})));
+    REQUIRE(SymEngine::unified_eq(
+        Vxc_a->get_overlap_distributions(), ExcOverlapDistribSet({Omega, Omega_a})
+    ));
+    REQUIRE(Vxc_a->get_exc_orders() == std::set<unsigned int>({1, 2}));
+    REQUIRE(eq_vxc_contraction(
+        Vxc_a->get_potential_terms(),
+        VxcContractionMap({
+            {
+                Omega,
+                ExcContractionMap({
+                    {weight, make_first_order_contraction(D, D_a, Omega, Omega_a)}
+                })
+            },
+            {
+                Omega_a,
+                ExcContractionMap({{weight, make_unperturbed_contraction()}})
+            }
+        })
+    ));
+    // (2) The first order XC potential matrix
+    auto Vxc_ab = SymEngine::rcp_dynamic_cast<const ExchCorrPotential>(Vxc_a->diff(b));
+    REQUIRE(SymEngine::unified_eq(Vxc_ab->get_weights(), ExcGridWeightSet({weight})));
+    REQUIRE(SymEngine::unified_eq(
+        Vxc_ab->get_states(), ExcElecStateSet({D, D_a, D_b, D_ab})
+    ));
+    REQUIRE(SymEngine::unified_eq(
+        Vxc_ab->get_overlap_distributions(),
+        ExcOverlapDistribSet({Omega, Omega_a, Omega_b, Omega_ab})
+    ));
+    REQUIRE(Vxc_ab->get_exc_orders() == std::set<unsigned int>({1, 2, 3}));
+    REQUIRE(eq_vxc_contraction(
+        Vxc_ab->get_potential_terms(),
+        VxcContractionMap({
+            {
+                Omega,
+                ExcContractionMap({
+                    {
+                        weight,
+                        make_second_order_contraction(
+                            D, D_a, D_b, D_ab, Omega, Omega_a, Omega_b, Omega_ab
+                        )
+                    }
+                })
+            },
+            {
+                Omega_a,
+                ExcContractionMap({
+                    {weight, make_first_order_contraction(D, D_b, Omega, Omega_b)}
+                })
+            },
+            {
+                Omega_b,
+                ExcContractionMap({
+                    {weight, make_first_order_contraction(D, D_a, Omega, Omega_a)}
+                })
+            },
+            {
+                Omega_ab,
+                ExcContractionMap({{weight, make_unperturbed_contraction()}})
+            }
+        })
+    ));
 }
