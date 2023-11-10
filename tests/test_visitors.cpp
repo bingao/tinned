@@ -1,154 +1,85 @@
+#define CATCH_CONFIG_MAIN
+
 #include <iostream>
 #include <string>
-#include <utility>
+
+#include <catch2/catch.hpp>
 
 #include <symengine/dict.h>
 #include <symengine/constants.h>
-#include <symengine/symengine_rcp.h>
-#include <symengine/matrices/matrix_add.h>
-#include <symengine/matrices/matrix_mul.h>
-
-#include <symengine/subs.h>
-
-#include <symengine/functions.h>
 #include <symengine/add.h>
 #include <symengine/mul.h>
+#include <symengine/matrices/matrix_add.h>
+#include <symengine/matrices/matrix_mul.h>
+#include <symengine/matrices/trace.h>
 
 #include "Tinned.hpp"
 
-int main()
+using namespace Tinned;
+
+TEST_CASE("Test KeepVisitor and keep_if()", "[KeepVisitor]")
 {
-    auto f = SymEngine::make_rcp<const Tinned::Perturbation>(
-        std::string("EL"),
-        SymEngine::one
-    );
-    auto g = SymEngine::make_rcp<const Tinned::Perturbation>(
-        std::string("GEO"),
-        SymEngine::two
-    );
-    std::cout << Tinned::stringify(f) << "\n";
-    std::cout << Tinned::stringify(g) << "\n\n";
 
-    auto S = SymEngine::make_rcp<const Tinned::OneElecOperator>(
-        std::string("S"),
-        Tinned::PertDependency({
-            //std::make_pair(f, 0),  //can be removed
-            std::make_pair(g, 99)
-        })
-    );
-    std::cout << Tinned::stringify(S) << "\n\n";
-
-    auto D = SymEngine::make_rcp<const Tinned::OneElecDensity>(std::string("D"));
-    std::cout << Tinned::stringify(D) << "\n\n";
-
-    // idempotency constraint Z = DSD - D
-    auto Z = SymEngine::matrix_add({
-        SymEngine::matrix_mul({D, S, D}),
-        SymEngine::matrix_mul({SymEngine::minus_one, D})
-    });
-    std::cout << Tinned::stringify(Z) << "\n\n";
-
-    auto K = (Z->diff(f))->diff(g);
-    //auto K = Z->diff(f);
-    std::cout << Tinned::stringify(K) << "\n\n";
-
-    SymEngine::map_basic_basic Dsub;
-    Dsub[D->diff(f)] = D;
-    Dsub[D] = S;
-    std::cout << "replace(K) = " << Tinned::stringify(Tinned::replace(K, Dsub)) << "\n";
-
-    return 0;
-
-    auto Dg = D->diff(g);
-    auto Dgg = Dg->diff(g);
-    auto Keq = Tinned::remove_if(K, SymEngine::vec_basic({Dg}));
-    std::cout << "remove_if(): " << Tinned::stringify(Keq) << "\n\n";
-    Keq = Tinned::remove_if(K, SymEngine::vec_basic({Dgg}));
-    std::cout << "remove_if(): " << Tinned::stringify(Keq) << "\n\n";
-    Keq = Tinned::remove_if(K, SymEngine::vec_basic({Dg, Dgg}));
-    std::cout << "remove_if(): " << Tinned::stringify(Keq) << "\n\n";
-
-    auto Kneq = Tinned::keep_if(K, SymEngine::vec_basic({Dg}));
-    std::cout << "keep_if(): " << Tinned::stringify(Kneq) << "\n\n";
-    Kneq = Tinned::keep_if(K, SymEngine::vec_basic({Dgg}));
-    std::cout << "keep_if(): " << Tinned::stringify(Kneq) << "\n\n";
-    Kneq = Tinned::keep_if(K, SymEngine::vec_basic({Dg, Dgg}));
-    std::cout << "keep_if(): " << Tinned::stringify(Kneq) << "\n\n";
-
-    auto G = SymEngine::make_rcp<const Tinned::TwoElecOperator>(
-        std::string("G"),
-        D,
-        Tinned::PertDependency({std::make_pair(g, 99)})
-    );
-    std::cout << Tinned::stringify(G) << "\n\n";
-    std::cout << Tinned::stringify((((G->diff(g))->diff(f))->diff(g))) << "\n\n";
-
-    auto Exc = SymEngine::make_rcp<const Tinned::ExchCorrEnergy>(
-        std::string("Exc"), D
-    );
-    std::cout << Tinned::stringify(Exc) << "\n\n";
-    std::cout << Tinned::stringify((((Exc->diff(g))->diff(f))->diff(g))) << "\n\n";
-
-    auto Fxc = SymEngine::make_rcp<const Tinned::ExchCorrPotential>(
-        std::string("Fxc"), D
-    );
-    std::cout << Tinned::stringify(Fxc) << "\n\n";
-    std::cout << Tinned::stringify((((Fxc->diff(g))->diff(f))->diff(g))) << "\n\n";
-
-    auto h_nuc = SymEngine::make_rcp<const Tinned::NonElecFunction>(
-        std::string("h_nuc"),
-        Tinned::PertDependency({
-            std::make_pair(f, 99),
-            std::make_pair(g, 99)
-        })
-    );
-    std::cout << Tinned::stringify(h_nuc) << "\n\n";
-    std::cout << Tinned::stringify((((h_nuc->diff(g))->diff(f))->diff(g))) << "\n\n";
-
-    auto expr = SymEngine::add({SymEngine::mul({f, h_nuc}), SymEngine::mul({g, h_nuc})});
-    auto dexpr = expr->diff(f);
-    SymEngine::map_basic_basic psub;
-    //psub[h_nuc] = Exc;
-    psub[h_nuc->diff(f)] = f;
-    psub[f] = g;
-    std::cout << "expr = " << Tinned::stringify(expr) << "\n";
-    std::cout << "dexpr = " << Tinned::stringify(dexpr) << "\n";
-    std::cout << "replace(expr) = " << Tinned::stringify(Tinned::replace(expr, psub)) << "\n";
-    std::cout << "replace(dexpr) = " << Tinned::stringify(Tinned::replace(dexpr, psub)) << "\n";
-
-    auto Dt = SymEngine::make_rcp<const Tinned::TemporumOperator>(D);
-    auto Dw = SymEngine::rcp_dynamic_cast<const Tinned::TemporumOperator>((Dt->diff(g))->diff(g));
-    std::cout << Tinned::stringify(Dt) << "\n\n";
-    std::cout << Tinned::stringify(Dw) << "\n";
-    std::cout << "frequnecy: " << Tinned::stringify(Dw->get_frequency()) << "\n\n";
-
-    auto T = SymEngine::make_rcp<const Tinned::TemporumOverlap>(
-        Tinned::PertDependency({std::make_pair(g, 99), std::make_pair(f, 99)})
-    );
-    std::cout << Tinned::stringify(T) << "\n\n";
-    auto Tg = T->diff(g);
-    std::cout << Tinned::stringify(Tg) << "\n\n";
-
-    auto Tgg = SymEngine::rcp_dynamic_cast<const Tinned::TemporumOverlap>(Tg->diff(g));
-    std::cout << Tinned::stringify(Tgg) << "\n";
-    std::cout << "size: " << Tgg->size() << "\n";
-    for (std::size_t i = 0; i<Tgg->size(); ++i) {
-        std::cout << "frequnecy: " << Tinned::stringify(Tgg->get_frequency(i));
-        auto braket = Tgg->get_braket_product(i);
-        std::cout << ", coef.: " << Tinned::stringify(std::get<0>(braket))
-                  << ", bra: " << Tinned::stringify(std::get<1>(braket))
-                  << ", ket: " << Tinned::stringify(std::get<2>(braket))
-                  << "\n\n";
-    }
-    auto braket1 = Tgg->get_braket_product(1);
-    auto braket2 = Tgg->get_braket_product(2);
-    std::cout << "equal: " << std::get<0>(braket1)->__eq__(*std::get<0>(braket2)) << "\n";
-    std::cout << "equal: " << std::get<1>(braket1)->__eq__(*std::get<1>(braket2)) << "\n";
-    std::cout << "bra: " << Tinned::stringify(std::get<1>(braket1)) << "\n"
-              << "bra: " << Tinned::stringify(std::get<1>(braket2)) << "\n";
-    std::cout << "equal: " << std::get<2>(braket1)->__eq__(*std::get<2>(braket2)) << "\n";
-    std::cout << "ket: " << Tinned::stringify(std::get<2>(braket1)) << "\n"
-              << "ket: " << Tinned::stringify(std::get<2>(braket2)) << "\n";
-
-    return 0;
 }
+
+TEST_CASE("Test RemoveVisitor and remove_if()", "[RemoveVisitor]")
+{
+    auto a = make_perturbation(std::string("a"));
+    auto dependencies = PertDependency({std::make_pair(a, 99)});
+    auto D = make_1el_density(std::string("D"));
+    auto h = make_1el_operator(std::string("h"), dependencies);
+    auto V = make_1el_operator(std::string("V"), dependencies);
+    auto G = make_2el_operator(std::string("G"), D, dependencies);
+    auto weight = make_nonel_function(std::string("weight"));
+    auto Omega = make_1el_operator(std::string("Omega"), dependencies);
+    auto Exc = make_xc_energy(std::string("GGA"), D, Omega, weight);
+    auto hnuc = make_nonel_function(std::string("hnuc"), dependencies);
+    // Equation (80), J. Chem. Phys. 129, 214108 (2008)
+    auto E = SymEngine::add(SymEngine::vec_basic({
+        SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({h, D}))),
+        SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({V, D}))),
+        SymEngine::div(
+            SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({G, D}))),
+            SymEngine::two
+        ),
+        Exc,
+        hnuc
+    }));
+    std::cout << "E = " << stringify(E) << "\n\n";
+    // Equation (81), J. Chem. Phys. 129, 214108 (2008)
+    auto E_a = E->diff(a);
+    std::cout << "E^{a} = " << stringify(E_a) << "\n\n";
+    auto D_a = D->diff(a);
+    auto E_0a = remove_if(E_a, SymEngine::set_basic({D_a}));
+    std::cout << "E^{0,a} = " << stringify(E_0a) << "\n\n";
+}
+
+TEST_CASE("Test ReplaceVisitor and replace()", "[ReplaceVisitor]")
+{
+
+}
+
+TEST_CASE("Test FindAllVisitor and find_all()", "[FindAllVisitor]")
+{
+    auto b = make_perturbation(std::string("b"));
+    auto c = make_perturbation(std::string("c"));
+    auto dependencies = PertDependency({std::make_pair(b, 99), std::make_pair(c, 99)});
+    auto D = make_1el_density(std::string("D"));
+    auto h = make_1el_operator(std::string("h"), dependencies);
+    auto V = make_1el_operator(std::string("V"), dependencies);
+    auto G = make_2el_operator(std::string("G"), D, dependencies);
+    auto weight = make_nonel_function(std::string("weight"));
+    auto Omega = make_1el_operator(std::string("Omega"), dependencies);
+    auto Fxc = make_xc_potential(std::string("GGA"), D, Omega, weight);
+    auto T = make_t_matrix(dependencies);
+    // Equation (94), J. Chem. Phys. 129, 214108 (2008)
+    auto F = SymEngine::matrix_add(SymEngine::vec_basic({h, G, V, Fxc, T}));
+    std::cout << "F = " << stringify(F) << "\n\n";
+    auto S = make_1el_operator(std::string("S"), dependencies);
+    // Equation (229), J. Chem. Phys. 129, 214108 (2008)
+    //auto Y = ;
+}
+
+//TEST_CASE("Test StringifyVisitor and stringify()", "[StringifyVisitor]")
+//{
+//}
