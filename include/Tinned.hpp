@@ -18,6 +18,7 @@
 #include "Tinned/OneElecDensity.hpp"
 #include "Tinned/OneElecOperator.hpp"
 #include "Tinned/TwoElecOperator.hpp"
+#include "Tinned/ExchCorrContraction.hpp"
 #include "Tinned/ExchCorrEnergy.hpp"
 #include "Tinned/ExchCorrPotential.hpp"
 #include "Tinned/NonElecFunction.hpp"

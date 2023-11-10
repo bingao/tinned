@@ -1098,13 +1098,24 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
     ));
 }
 
-#include <iostream>
-
 TEST_CASE("Test ExchCorrPotential and make_xc_potential()", "[ExchCorrPotential]")
 {
     auto D = make_1el_density(std::string("D"));
     auto a = make_perturbation(std::string("a"));
     auto b = make_perturbation(std::string("b"));
+
+    // Lambda expressions to make contractions of (un)perturbed generalized
+    // density vectors and the XC functional derivative vectors
+    //
+    // For unperturbed XC potential, there is only one unperturbed grid
+    // weight, and order of the XC energy functional derivative is 1, and no
+    // generalized density vectors to be contracted with
+    auto make_unperturbed_contraction = [&]() {
+        return ExcDensityContractionMap({
+            {1, SymEngine::RCP<const SymEngine::Basic>()}
+        });
+    };
+
     // We first do not consider derivatives of grid weights
     auto weight = make_nonel_function(std::string("weight"));
     auto Omega = make_1el_operator(
@@ -1118,29 +1129,18 @@ TEST_CASE("Test ExchCorrPotential and make_xc_potential()", "[ExchCorrPotential]
     REQUIRE(SymEngine::eq(*Vxc->get_weight(), *weight));
     REQUIRE(SymEngine::eq(*Vxc->get_state(), *D));
     REQUIRE(SymEngine::eq(*Vxc->get_overlap_distribution(), *Omega));
-
     REQUIRE(SymEngine::unified_eq(Vxc->get_weights(), ExcGridWeightSet({weight})));
     REQUIRE(SymEngine::unified_eq(Vxc->get_states(), ExcElecStateSet({D})));
     REQUIRE(SymEngine::unified_eq(
         Vxc->get_overlap_distributions(), ExcOverlapDistribSet({Omega})
     ));
     REQUIRE(Vxc->get_exc_orders() == std::set<unsigned int>({1}));
-auto Vxc_a = SymEngine::rcp_dynamic_cast<const ExchCorrPotential>(Vxc->diff(a));
-std::cout << stringify(Vxc_a) << "\n\n";
-//std::cout << stringify((Vxc->diff(a))->diff(b)) << "\n\n";
-//std::cout << "Vxc: " << stringify(Vxc) << "\n\n";
-for (const auto& vterm: Vxc_a->get_potential_terms()) {
-    std::cout << "Omega: " << stringify(vterm.first) << "\n";
-    for (const auto& term: vterm.second) {
-        std::cout << "weight: " << stringify(term.first) << "\n";
-        for (const auto& contr: term.second) {
-            std::cout << "order: " << contr.first << "\n";
-            if (!contr.second.is_null())
-                std::cout << "rho: " << stringify(contr.second) << "\n";
-        }
-    }
-}
-std::cout << "\n\n";
+    REQUIRE(eq_vxc_contraction(
+        Vxc->get_potential_terms(),
+        VxcContractionMap({
+            {Omega, ExcContractionMap({{weight, make_unperturbed_contraction()}})}
+        })
+    ));
 
     // Tests from J. Chem. Phys. 140, 034103 (2014), equations (57)-(60).
     auto D_a = SymEngine::rcp_dynamic_cast<const ElectronicState>(D->diff(a));
@@ -1149,4 +1149,6 @@ std::cout << "\n\n";
     auto Omega_a = SymEngine::rcp_dynamic_cast<const OneElecOperator>(Omega->diff(a));
     auto Omega_b = SymEngine::rcp_dynamic_cast<const OneElecOperator>(Omega->diff(b));
     auto Omega_ab = SymEngine::rcp_dynamic_cast<const OneElecOperator>(Omega_a->diff(b));
+
+    auto Vxc_a = SymEngine::rcp_dynamic_cast<const ExchCorrPotential>(Vxc->diff(a));
 }

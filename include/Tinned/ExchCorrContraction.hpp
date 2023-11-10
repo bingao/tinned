@@ -20,6 +20,7 @@
 
 #include <symengine/basic.h>
 #include <symengine/dict.h>
+#include <symengine/add.h>
 #include <symengine/mul.h>
 #include <symengine/matrices/matrix_mul.h>
 #include <symengine/symengine_rcp.h>
@@ -104,5 +105,10 @@ namespace Tinned
     // Check if two `ExcContractionMap`'s are equivalent
     bool eq_exc_contraction(
         const ExcContractionMap& map1, const ExcContractionMap& map2
+    );
+
+    // Check if two `VxcContractionMap`'s are equivalent
+    bool eq_vxc_contraction(
+        const VxcContractionMap& map1, const VxcContractionMap& map2
     );
 }

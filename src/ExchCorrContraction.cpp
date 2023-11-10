@@ -1,6 +1,5 @@
 #include <string>
 
-#include <symengine/add.h>
 #include <symengine/pow.h>
 #include <symengine/number.h>
 #include <symengine/constants.h>
@@ -216,6 +215,29 @@ namespace Tinned
                     else {
                         return false;
                     }
+                }
+                else {
+                    return false;
+                }
+            }
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+
+    bool eq_vxc_contraction(
+        const VxcContractionMap& map1, const VxcContractionMap& map2
+    )
+    {
+        if (map1.size() == map2.size()) {
+            auto term1 = map1.begin();
+            auto term2 = map2.begin();
+            for (; term1 != map1.end(); ++term1, ++term2) {
+                // Compare generalized overlap distribution
+                if (SymEngine::eq(*term1->first, *term2->first)) {
+                    if (!eq_exc_contraction(term1->second, term2->second)) return false;
                 }
                 else {
                     return false;
