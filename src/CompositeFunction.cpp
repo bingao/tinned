@@ -28,6 +28,14 @@ namespace Tinned
 
     bool CompositeFunction::__eq__(const SymEngine::Basic& o) const
     {
+        // We did not introduce `type_code_id`'s for classes derived from
+        // `FunctionWrapper`, such as `CompositeFunction` and
+        // `NonElecFunction`, so `SymEngine::is_a<T>` will always be true for
+        // the comparison of objects from these derived classes. The use of
+        // `SymEngine::is_a_sub<T>` solves this problem, but it can not
+        // distinguish, for example, class `CompositeFunction` and its derived
+        // ones. So derived classes from those implemented in Tinned are not
+        // recommended.
         if (SymEngine::is_a_sub<const CompositeFunction>(o)) {
             auto& op = SymEngine::down_cast<const CompositeFunction&>(o);
             return get_name() == op.get_name()

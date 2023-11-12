@@ -34,8 +34,8 @@ namespace Tinned
         // XC energy or its derivatives must be either `SymEngine::Mul` or
         // `SymEngine::Add`
         SYMENGINE_ASSERT(
-            SymEngine::is_a_sub<const SymEngine::Mul>(*energy) ||
-            SymEngine::is_a_sub<const SymEngine::Add>(*energy)
+            SymEngine::is_a<const SymEngine::Mul>(*energy) ||
+            SymEngine::is_a<const SymEngine::Add>(*energy)
         )
         SYMENGINE_ASSIGN_TYPEID()
     }
@@ -49,11 +49,14 @@ namespace Tinned
 
     bool ExchCorrEnergy::__eq__(const SymEngine::Basic& o) const
     {
-        if (SymEngine::FunctionWrapper::__eq__(o)) {
-            if (SymEngine::is_a_sub<const ExchCorrEnergy>(o)) {
-                auto& op = SymEngine::down_cast<const ExchCorrEnergy&>(o);
-                return energy_->__eq__(*op.energy_);
-            }
+        // Be careful of using base class' `__eq__()` method.
+        // `SymEngine::FunctionSymbol::__eq__()` requires
+        // `SymEngine::is_a<FunctionSymbol>(o)` which is not true here.
+        if (SymEngine::is_a_sub<const ExchCorrEnergy>(o)) {
+            auto& op = SymEngine::down_cast<const ExchCorrEnergy&>(o);
+            return get_name() == op.get_name()
+                && SymEngine::unified_eq(get_vec(), op.get_vec())
+                && energy_->__eq__(*op.energy_);
         }
         return false;
     }
@@ -61,12 +64,14 @@ namespace Tinned
     int ExchCorrEnergy::compare(const SymEngine::Basic &o) const
     {
         SYMENGINE_ASSERT(SymEngine::is_a_sub<const ExchCorrEnergy>(o))
-        int result = SymEngine::FunctionWrapper::compare(o);
-        if (result == 0) {
-            auto& op = SymEngine::down_cast<const ExchCorrEnergy&>(o);
-            return energy_->compare(*op.energy_);
+        auto& op = SymEngine::down_cast<const ExchCorrEnergy&>(o);
+        if (get_name() == op.get_name()) {
+            int result = SymEngine::unified_compare(get_vec(), op.get_vec());
+            return result == 0 ? energy_->compare(*op.energy_) : result;
         }
-        return result;
+        else {
+            return get_name() < op.get_name() ? -1 : 1;
+        }
     }
 
     SymEngine::RCP<const SymEngine::Basic> ExchCorrEnergy::create(

@@ -38,11 +38,11 @@ namespace Tinned
 
     bool TemporumOperator::__eq__(const SymEngine::Basic& o) const
     {
-        if (SymEngine::MatrixSymbol::__eq__(o)) {
-            if (SymEngine::is_a_sub<const TemporumOperator>(o)) {
-                auto& op = SymEngine::down_cast<const TemporumOperator&>(o);
-                return type_ == op.type_ && target_->__eq__(*op.target_);
-            }
+        if (SymEngine::is_a_sub<const TemporumOperator>(o)) {
+            auto& op = SymEngine::down_cast<const TemporumOperator&>(o);
+            return get_name() == op.get_name()
+                && type_ == op.type_
+                && target_->__eq__(*op.target_);
         }
         return false;
     }
@@ -50,16 +50,17 @@ namespace Tinned
     int TemporumOperator::compare(const SymEngine::Basic &o) const
     {
         SYMENGINE_ASSERT(SymEngine::is_a_sub<const TemporumOperator>(o))
-        int result = SymEngine::MatrixSymbol::compare(o);
-        if (result == 0) {
-            auto& op = SymEngine::down_cast<const TemporumOperator&>(o);
-            result = SymEngine::unified_compare(
+        auto& op = SymEngine::down_cast<const TemporumOperator&>(o);
+        if (get_name() == op.get_name()) {
+            int result = SymEngine::unified_compare(
                 static_cast<int>(type_),
                 static_cast<int>(op.type_)
             );
             return result == 0 ? target_->compare(*op.target_) : result;
         }
-        return result;
+        else {
+            return get_name() < op.get_name() ? -1 : 1;
+        }
     }
 
     SymEngine::vec_basic TemporumOperator::get_args() const

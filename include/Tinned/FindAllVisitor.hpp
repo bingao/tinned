@@ -106,10 +106,13 @@ namespace Tinned
             void bvisit(const SymEngine::MatrixDerivative& x);
     };
 
+    // Set containing the same type objects
+    template<class T>
+    using SameTypeSet = std::set<SymEngine::RCP<T>, SymEngine::RCPBasicKeyLess>;
+
     // Helper function to find a given `symbol` and all its differentiated ones
     // from `x`
-    template<typename T>
-    inline std::set<SymEngine::RCP<const T>, SymEngine::RCPBasicKeyLess> find_all(
+    template<typename T> inline SameTypeSet<const T> find_all(
         const SymEngine::RCP<const SymEngine::Basic>& x,
         const SymEngine::RCP<const SymEngine::Basic>& symbol
     )

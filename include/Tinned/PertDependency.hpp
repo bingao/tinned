@@ -69,7 +69,7 @@ namespace Tinned
         const SymEngine::RCP<const SymEngine::Symbol>& s
     )
     {
-        if (SymEngine::is_a<const Perturbation>(*s)) {
+        if (SymEngine::is_a_sub<const Perturbation>(*s)) {
             auto p = SymEngine::rcp_static_cast<const Perturbation>(s);
             for (auto& dep: dependencies) {
                 if (dep.first->__eq__(*p)) return dep.second;

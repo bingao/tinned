@@ -91,6 +91,11 @@ TEST_CASE("Test TemporumOverlap and make_t_matrix()", "[TemporumOverlap]")
     });
     auto T = make_t_matrix(dependencies);
     REQUIRE(eq_dependency(dependencies, T->get_dependencies()));
+    REQUIRE(T->size() == 1);
+    REQUIRE(T->get_frequency(0)->is_zero());
+    auto derivative = T->get_derivative(0);
+    REQUIRE(SymEngine::unified_eq(derivative.first, SymEngine::multiset_basic({})));
+    REQUIRE(SymEngine::unified_eq(derivative.second, SymEngine::multiset_basic({})));
 
     // = wg*S^{gg|0} + 0*2*S^{g|g} - wg*S^{0|gg}
     auto Tgg = SymEngine::rcp_dynamic_cast<const TemporumOverlap>(
@@ -103,7 +108,7 @@ TEST_CASE("Test TemporumOverlap and make_t_matrix()", "[TemporumOverlap]")
     });
     REQUIRE(Tgg->size() == 3);
     for (std::size_t i = 0; i < Tgg->size(); ++i) {
-        auto derivative = Tgg->get_derivative(i);
+        derivative = Tgg->get_derivative(i);
         if (
             SymEngine::unified_eq(
                 derivative.first,
@@ -165,7 +170,7 @@ TEST_CASE("Test TemporumOverlap and make_t_matrix()", "[TemporumOverlap]")
     });
     REQUIRE(Tggb->size() == 6);
     for (std::size_t i = 0; i < Tggb->size(); ++i) {
-        auto derivative = Tggb->get_derivative(i);
+        derivative = Tggb->get_derivative(i);
         if (
             SymEngine::unified_eq(
                 derivative.first,

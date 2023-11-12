@@ -19,6 +19,7 @@
 
 #include <string>
 #include <set>
+#include <vector>
 
 #include <symengine/basic.h>
 #include <symengine/dict.h>
@@ -125,20 +126,20 @@ namespace Tinned
             }
 
             // Get all unique unperturbed and perturbed grid weights
-            inline ExcGridWeightSet get_weights() const
+            inline SameTypeSet<const NonElecFunction> get_weights() const
             {
                 return find_all<NonElecFunction>(potential_, get_weight());
             }
 
             // Get all unique unperturbed and perturbed electronic states
-            inline ExcElecStateSet get_states() const
+            inline SameTypeSet<const ElectronicState> get_states() const
             {
                 return find_all<ElectronicState>(potential_, get_state());
             }
 
             // Get all unique unperturbed and perturbed generalized overlap
             // distribution vectors
-            inline ExcOverlapDistribSet get_overlap_distributions() const
+            inline SameTypeSet<const OneElecOperator> get_overlap_distributions() const
             {
                 return find_all<OneElecOperator>(potential_, get_overlap_distribution());
             }
@@ -154,6 +155,40 @@ namespace Tinned
                 return orders;
             }
 
+            // Get all terms in XC potential operator or its derivatives, each
+            // is a product of (un)perturbed weight, XC functional derivative
+            // vector, perturbed generalized density vectors and (un)perturbed
+            // generalized overlap distribution.
+            inline std::vector<SymEngine::RCP<const SymEngine::MatrixMul>>
+            get_potential_terms() const
+            {
+                // Unperturbed case or when the generalized overlap
+                // distribution does not depend on the applied perturbation(s)
+                if (SymEngine::is_a_sub<const SymEngine::MatrixMul>(*potential_)) {
+                    return std::vector<SymEngine::RCP<const SymEngine::MatrixMul>>({
+                        SymEngine::rcp_dynamic_cast<const SymEngine::MatrixMul>(potential_)
+                    });
+                }
+                // Perturbed case in particular the generalized overlap
+                // distribution depends on the applied perturbation(s).
+                // Constructor of `ExchCorrPotentail` has ensured the type of
+                // `potential_` to be either `SymEngine::MatrixMul` or
+                // `SymEngine::MatrixAdd`
+                else {
+                    std::vector<SymEngine::RCP<const SymEngine::MatrixMul>> terms;
+                    auto potential = SymEngine::rcp_dynamic_cast<const SymEngine::MatrixAdd>(potential_);
+                    for (auto& contr: potential->get_args()) {
+                        SYMENGINE_ASSERT(
+                            SymEngine::is_a_sub<const SymEngine::MatrixMul>(*contr)
+                        )
+                        terms.push_back(
+                            SymEngine::rcp_dynamic_cast<const SymEngine::MatrixMul>(contr)
+                        );
+                    }
+                    return terms;
+                }
+            }
+
             // Get all terms in XC potential operator or its derivatives, i.e.
             // (un)perturbed weights, XC functional derivative vectors,
             // perturbed generalized density vectors and (un)perturbed
@@ -161,7 +196,7 @@ namespace Tinned
             // nested map. The key of the outermost map is (un)perturbed
             // generalized overlap distributions, whose value is
             // `ExcContractionMap`.
-            inline VxcContractionMap get_potential_terms() const
+            inline VxcContractionMap get_potential_map() const
             {
                 // Unperturbed case or when the generalized overlap
                 // distribution does not depend on the applied perturbation(s)

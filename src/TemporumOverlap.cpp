@@ -32,8 +32,8 @@ namespace Tinned
         // terms should be an object of class SymEngine::MatrixMul, but we do
         // not bother to check them here
         SYMENGINE_ASSERT(
-            SymEngine::is_a_sub<const SymEngine::MatrixAdd>(*braket) ||
-            SymEngine::is_a_sub<const SymEngine::MatrixMul>(*braket)
+            SymEngine::is_a<const SymEngine::MatrixAdd>(*braket) ||
+            SymEngine::is_a<const SymEngine::MatrixMul>(*braket)
         )
     }
 
@@ -46,11 +46,9 @@ namespace Tinned
 
     bool TemporumOverlap::__eq__(const SymEngine::Basic& o) const
     {
-        if (SymEngine::MatrixSymbol::__eq__(o)) {
-            if (SymEngine::is_a_sub<const TemporumOverlap>(o)) {
-                auto& op = SymEngine::down_cast<const TemporumOverlap&>(o);
-                return braket_->__eq__(*op.braket_);
-            }
+        if (SymEngine::is_a_sub<const TemporumOverlap>(o)) {
+            auto& op = SymEngine::down_cast<const TemporumOverlap&>(o);
+            return get_name() == op.get_name() && braket_->__eq__(*op.braket_);
         }
         return false;
     }
@@ -58,12 +56,13 @@ namespace Tinned
     int TemporumOverlap::compare(const SymEngine::Basic &o) const
     {
         SYMENGINE_ASSERT(SymEngine::is_a_sub<const TemporumOverlap>(o))
-        int result = SymEngine::MatrixSymbol::compare(o);
-        if (result == 0) {
-            auto& op = SymEngine::down_cast<const TemporumOverlap&>(o);
+        auto& op = SymEngine::down_cast<const TemporumOverlap&>(o);
+        if (get_name() == op.get_name()) {
             return braket_->compare(*op.braket_);
         }
-        return result;
+        else {
+            return get_name() < op.get_name() ? -1 : 1;
+        }
     }
 
     //SymEngine::vec_basic TemporumOverlap::get_args() const

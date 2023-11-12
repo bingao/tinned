@@ -35,13 +35,12 @@ namespace Tinned
 
     bool TwoElecOperator::__eq__(const SymEngine::Basic& o) const
     {
-        if (SymEngine::MatrixSymbol::__eq__(o)) {
-            if (SymEngine::is_a_sub<const TwoElecOperator>(o)) {
-                auto& op = SymEngine::down_cast<const TwoElecOperator&>(o);
-                return state_->__eq__(*op.state_)
-                    && SymEngine::unified_eq(derivative_, op.derivative_)
-                    && eq_dependency(dependencies_, op.dependencies_);
-            }
+        if (SymEngine::is_a_sub<const TwoElecOperator>(o)) {
+            auto& op = SymEngine::down_cast<const TwoElecOperator&>(o);
+            return get_name() == op.get_name()
+                && state_->__eq__(*op.state_)
+                && SymEngine::unified_eq(derivative_, op.derivative_)
+                && eq_dependency(dependencies_, op.dependencies_);
         }
         return false;
     }
@@ -49,10 +48,9 @@ namespace Tinned
     int TwoElecOperator::compare(const SymEngine::Basic &o) const
     {
         SYMENGINE_ASSERT(SymEngine::is_a_sub<const TwoElecOperator>(o))
-        int result = SymEngine::MatrixSymbol::compare(o);
-        if (result == 0) {
-            auto& op = SymEngine::down_cast<const TwoElecOperator&>(o);
-            result = state_->compare(*op.state_);
+        auto& op = SymEngine::down_cast<const TwoElecOperator&>(o);
+        if (get_name() == op.get_name()) {
+            int result = state_->compare(*op.state_);
             if (result == 0) {
                 result = SymEngine::unified_compare(derivative_, op.derivative_);
                 return result == 0
@@ -63,7 +61,9 @@ namespace Tinned
                 return result;
             }
         }
-        return result;
+        else {
+            return get_name() < op.get_name() ? -1 : 1;
+        }
     }
 
     SymEngine::vec_basic TwoElecOperator::get_args() const

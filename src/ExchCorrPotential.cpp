@@ -46,8 +46,8 @@ namespace Tinned
         // XC potential or its derivatives must be either
         // `SymEngine::MatrixMul` or `SymEngine::MatrixAdd`
         SYMENGINE_ASSERT(
-            SymEngine::is_a_sub<const SymEngine::MatrixMul>(*potential) ||
-            SymEngine::is_a_sub<const SymEngine::MatrixAdd>(*potential)
+            SymEngine::is_a<const SymEngine::MatrixMul>(*potential) ||
+            SymEngine::is_a<const SymEngine::MatrixAdd>(*potential)
         )
         SYMENGINE_ASSIGN_TYPEID()
     }
@@ -64,14 +64,13 @@ namespace Tinned
 
     bool ExchCorrPotential::__eq__(const SymEngine::Basic& o) const
     {
-        if (SymEngine::MatrixSymbol::__eq__(o)) {
-            if (SymEngine::is_a_sub<const ExchCorrPotential>(o)) {
-                auto& op = SymEngine::down_cast<const ExchCorrPotential&>(o);
-                return state_->__eq__(*op.state_)
-                    && weight_->__eq__(*op.weight_)
-                    && Omega_->__eq__(*op.Omega_)
-                    && potential_->__eq__(*op.potential_);
-            }
+        if (SymEngine::is_a_sub<const ExchCorrPotential>(o)) {
+            auto& op = SymEngine::down_cast<const ExchCorrPotential&>(o);
+            return get_name() == op.get_name()
+                && state_->__eq__(*op.state_)
+                && weight_->__eq__(*op.weight_)
+                && Omega_->__eq__(*op.Omega_)
+                && potential_->__eq__(*op.potential_);
         }
         return false;
     }
@@ -79,10 +78,9 @@ namespace Tinned
     int ExchCorrPotential::compare(const SymEngine::Basic &o) const
     {
         SYMENGINE_ASSERT(SymEngine::is_a_sub<const ExchCorrPotential>(o))
-        int result = SymEngine::MatrixSymbol::compare(o);
-        if (result == 0) {
-            auto& op = SymEngine::down_cast<const ExchCorrPotential&>(o);
-            result = state_->compare(*op.state_);
+        auto& op = SymEngine::down_cast<const ExchCorrPotential&>(o);
+        if (get_name() == op.get_name()) {
+            int result = state_->compare(*op.state_);
             if (result == 0) {
                 result = weight_->compare(*op.weight_);
                 if (result == 0) {
@@ -97,7 +95,9 @@ namespace Tinned
                 return result;
             }
         }
-        return result;
+        else {
+            return get_name() < op.get_name() ? -1 : 1;
+        }
     }
 
     SymEngine::vec_basic ExchCorrPotential::get_args() const

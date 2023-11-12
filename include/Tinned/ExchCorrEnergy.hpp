@@ -19,6 +19,7 @@
 
 #include <string>
 #include <set>
+#include <vector>
 
 #include <symengine/basic.h>
 #include <symengine/dict.h>
@@ -67,16 +68,6 @@ namespace Tinned
             order
         );
     }
-
-    // Type for the set of unperturbed and perturbed grid weights
-    typedef std::set<SymEngine::RCP<const NonElecFunction>, SymEngine::RCPBasicKeyLess>
-        ExcGridWeightSet;
-    // Type for the set of unperturbed and perturbed electronic states
-    typedef std::set<SymEngine::RCP<const ElectronicState>, SymEngine::RCPBasicKeyLess>
-        ExcElecStateSet;
-    // Type for the set of unperturbed and perturbed generalized overlap distribution vectors
-    typedef std::set<SymEngine::RCP<const OneElecOperator>, SymEngine::RCPBasicKeyLess>
-        ExcOverlapDistribSet;
 
     // Exchange-correlation (XC) energy like functionals
     class ExchCorrEnergy: public SymEngine::FunctionWrapper
@@ -146,20 +137,20 @@ namespace Tinned
             }
 
             // Get all unique unperturbed and perturbed grid weights
-            inline ExcGridWeightSet get_weights() const
+            inline SameTypeSet<const NonElecFunction> get_weights() const
             {
                 return find_all<NonElecFunction>(energy_, get_weight());
             }
 
             // Get all unique unperturbed and perturbed electronic states
-            inline ExcElecStateSet get_states() const
+            inline SameTypeSet<const ElectronicState> get_states() const
             {
                 return find_all<ElectronicState>(energy_, get_state());
             }
 
             // Get all unique unperturbed and perturbed generalized overlap
             // distribution vectors
-            inline ExcOverlapDistribSet get_overlap_distributions() const
+            inline SameTypeSet<const OneElecOperator> get_overlap_distributions() const
             {
                 return find_all<OneElecOperator>(energy_, get_overlap_distribution());
             }
@@ -184,6 +175,41 @@ namespace Tinned
                 return orders;
             }
 
+            // Get all terms in XC energy or its derivatives, each is a product
+            // of (un)perturbed weight, XC functional derivative vector and
+            // perturbed generalized density vectors
+            inline std::vector<SymEngine::RCP<const SymEngine::Mul>>
+            get_energy_terms() const
+            {
+                // Unperturbed or the first-order case
+                if (SymEngine::is_a_sub<const SymEngine::Mul>(*energy_)) {
+                    return std::vector<SymEngine::RCP<const SymEngine::Mul>>({
+                        SymEngine::rcp_dynamic_cast<const SymEngine::Mul>(energy_)
+                    });
+                }
+                // Perturbed case, constructor of `ExchCorrEnergy` has ensured
+                // the type of `energy_` to be either `SymEngine::Mul` or
+                // `SymEngine::Add`
+                else {
+                    std::vector<SymEngine::RCP<const SymEngine::Mul>> terms;
+                    auto energy = SymEngine::rcp_dynamic_cast<const SymEngine::Add>(energy_);
+                    auto contractions = energy->get_args();
+                    // No coefficient exists in the XC energy derivatives
+                    SYMENGINE_ASSERT(
+                        !SymEngine::is_a_sub<const SymEngine::Number>(*contractions.front())
+                    )
+                    for (const auto& contr: contractions) {
+                        SYMENGINE_ASSERT(
+                            SymEngine::is_a_sub<const SymEngine::Mul>(*contr)
+                        )
+                        terms.push_back(
+                            SymEngine::rcp_dynamic_cast<const SymEngine::Mul>(contr)
+                        );
+                    }
+                    return terms;
+                }
+            }
+
             // Get all terms in XC energy or its derivatives, i.e.
             // (un)perturbed weights, XC functional derivative vectors and
             // perturbed generalized density vectors. Results are arranged in a
@@ -192,7 +218,7 @@ namespace Tinned
             // order of functional derivatives of XC energy density, and whose
             // value is the corresponding perturbed generalized density
             // vectors.
-            inline ExcContractionMap get_energy_terms() const
+            inline ExcContractionMap get_energy_map() const
             {
                 // Unperturbed or the first-order case
                 if (SymEngine::is_a_sub<const SymEngine::Mul>(*energy_)) {

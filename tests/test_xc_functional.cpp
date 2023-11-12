@@ -295,14 +295,18 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
     REQUIRE(SymEngine::eq(*Exc->get_weight(), *weight));
     REQUIRE(SymEngine::eq(*Exc->get_state(), *D));
     REQUIRE(SymEngine::eq(*Exc->get_overlap_distribution(), *Omega));
-    REQUIRE(SymEngine::unified_eq(Exc->get_weights(), ExcGridWeightSet({weight})));
-    REQUIRE(SymEngine::unified_eq(Exc->get_states(), ExcElecStateSet({D})));
     REQUIRE(SymEngine::unified_eq(
-        Exc->get_overlap_distributions(), ExcOverlapDistribSet({Omega})
+        Exc->get_weights(), SameTypeSet<const NonElecFunction>({weight})
+    ));
+    REQUIRE(SymEngine::unified_eq(
+        Exc->get_states(), SameTypeSet<const ElectronicState>({D})
+    ));
+    REQUIRE(SymEngine::unified_eq(
+        Exc->get_overlap_distributions(), SameTypeSet<const OneElecOperator>({Omega})
     ));
     REQUIRE(Exc->get_exc_orders() == std::set<unsigned int>({0}));
     REQUIRE(eq_exc_contraction(
-        Exc->get_energy_terms(),
+        Exc->get_energy_map(),
         ExcContractionMap({
             {weight, make_unperturbed_contraction()}
         })
@@ -341,14 +345,19 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
     auto Omega_abcd = SymEngine::rcp_dynamic_cast<const OneElecOperator>(Omega_abc->diff(d));
     // (1) The first order XC energy density derivative
     auto Exc_a = SymEngine::rcp_dynamic_cast<const ExchCorrEnergy>(Exc->diff(a));
-    REQUIRE(SymEngine::unified_eq(Exc_a->get_weights(), ExcGridWeightSet({weight})));
-    REQUIRE(SymEngine::unified_eq(Exc_a->get_states(), ExcElecStateSet({D, D_a})));
     REQUIRE(SymEngine::unified_eq(
-        Exc_a->get_overlap_distributions(), ExcOverlapDistribSet({Omega, Omega_a})
+        Exc_a->get_weights(), SameTypeSet<const NonElecFunction>({weight})
+    ));
+    REQUIRE(SymEngine::unified_eq(
+        Exc_a->get_states(), SameTypeSet<const ElectronicState>({D, D_a})
+    ));
+    REQUIRE(SymEngine::unified_eq(
+        Exc_a->get_overlap_distributions(),
+        SameTypeSet<const OneElecOperator>({Omega, Omega_a})
     ));
     REQUIRE(Exc_a->get_exc_orders() == std::set<unsigned int>({1}));
     REQUIRE(eq_exc_contraction(
-        Exc_a->get_energy_terms(),
+        Exc_a->get_energy_map(),
         ExcContractionMap({
             {
                 weight,
@@ -358,17 +367,19 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
     ));
     // (2) The second order XC energy density derivative
     auto Exc_ab = SymEngine::rcp_dynamic_cast<const ExchCorrEnergy>(Exc_a->diff(b));
-    REQUIRE(SymEngine::unified_eq(Exc_ab->get_weights(), ExcGridWeightSet({weight})));
     REQUIRE(SymEngine::unified_eq(
-        Exc_ab->get_states(), ExcElecStateSet({D, D_a, D_b, D_ab})
+        Exc_ab->get_weights(), SameTypeSet<const NonElecFunction>({weight})
+    ));
+    REQUIRE(SymEngine::unified_eq(
+        Exc_ab->get_states(), SameTypeSet<const ElectronicState>({D, D_a, D_b, D_ab})
     ));
     REQUIRE(SymEngine::unified_eq(
         Exc_ab->get_overlap_distributions(),
-        ExcOverlapDistribSet({Omega, Omega_a, Omega_b, Omega_ab})
+        SameTypeSet<const OneElecOperator>({Omega, Omega_a, Omega_b, Omega_ab})
     ));
     REQUIRE(Exc_ab->get_exc_orders() == std::set<unsigned int>({1, 2}));
     REQUIRE(eq_exc_contraction(
-        Exc_ab->get_energy_terms(),
+        Exc_ab->get_energy_map(),
         ExcContractionMap({
             {
                 weight,
@@ -380,20 +391,22 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
     ));
     // (3) The third order XC energy density derivative
     auto Exc_abc = SymEngine::rcp_dynamic_cast<const ExchCorrEnergy>(Exc_ab->diff(c));
-    REQUIRE(SymEngine::unified_eq(Exc_abc->get_weights(), ExcGridWeightSet({weight})));
+    REQUIRE(SymEngine::unified_eq(
+        Exc_abc->get_weights(), SameTypeSet<const NonElecFunction>({weight})
+    ));
     REQUIRE(SymEngine::unified_eq(
         Exc_abc->get_states(),
-        ExcElecStateSet({D, D_a, D_b, D_c, D_ab, D_ac, D_bc, D_abc})
+        SameTypeSet<const ElectronicState>({D, D_a, D_b, D_c, D_ab, D_ac, D_bc, D_abc})
     ));
     REQUIRE(SymEngine::unified_eq(
         Exc_abc->get_overlap_distributions(),
-        ExcOverlapDistribSet({
+        SameTypeSet<const OneElecOperator>({
           Omega, Omega_a, Omega_b, Omega_c, Omega_ab, Omega_ac, Omega_bc, Omega_abc
         })
     ));
     REQUIRE(Exc_abc->get_exc_orders() == std::set<unsigned int>({1, 2, 3}));
     REQUIRE(eq_exc_contraction(
-        Exc_abc->get_energy_terms(),
+        Exc_abc->get_energy_map(),
         ExcContractionMap({
             {
                 weight,
@@ -409,10 +422,12 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
     ));
     // (4) The fourth order XC energy density derivative
     auto Exc_abcd = SymEngine::rcp_dynamic_cast<const ExchCorrEnergy>(Exc_abc->diff(d));
-    REQUIRE(SymEngine::unified_eq(Exc_abcd->get_weights(), ExcGridWeightSet({weight})));
+    REQUIRE(SymEngine::unified_eq(
+        Exc_abcd->get_weights(), SameTypeSet<const NonElecFunction>({weight})
+    ));
     REQUIRE(SymEngine::unified_eq(
         Exc_abcd->get_states(),
-        ExcElecStateSet({
+        SameTypeSet<const ElectronicState>({
           D,
           D_a, D_b, D_c, D_d,
           D_ab, D_ac, D_ad, D_bc, D_bd, D_cd,
@@ -422,7 +437,7 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
     ));
     REQUIRE(SymEngine::unified_eq(
         Exc_abcd->get_overlap_distributions(),
-        ExcOverlapDistribSet({
+        SameTypeSet<const OneElecOperator>({
           Omega,
           Omega_a, Omega_b, Omega_c, Omega_d,
           Omega_ab, Omega_ac, Omega_ad, Omega_bc, Omega_bd, Omega_cd,
@@ -432,7 +447,7 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
     ));
     REQUIRE(Exc_abcd->get_exc_orders() == std::set<unsigned int>({1, 2, 3, 4}));
     REQUIRE(eq_exc_contraction(
-        Exc_abcd->get_energy_terms(),
+        Exc_abcd->get_energy_map(),
         // Equation (46)-(50), J. Chem. Phys. 140, 034103 (2014)
         ExcContractionMap({
             {
@@ -604,15 +619,18 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
     Exc_a = SymEngine::rcp_dynamic_cast<const ExchCorrEnergy>(Exc->diff(a));
     auto weight_a = SymEngine::rcp_dynamic_cast<const NonElecFunction>(weight->diff(a));
     REQUIRE(SymEngine::unified_eq(
-        Exc_a->get_weights(), ExcGridWeightSet({weight, weight_a})
+        Exc_a->get_weights(), SameTypeSet<const NonElecFunction>({weight, weight_a})
     ));
-    REQUIRE(SymEngine::unified_eq(Exc_a->get_states(), ExcElecStateSet({D, D_a})));
     REQUIRE(SymEngine::unified_eq(
-        Exc_a->get_overlap_distributions(), ExcOverlapDistribSet({Omega, Omega_a})
+        Exc_a->get_states(), SameTypeSet<const ElectronicState>({D, D_a})
+    ));
+    REQUIRE(SymEngine::unified_eq(
+        Exc_a->get_overlap_distributions(),
+        SameTypeSet<const OneElecOperator>({Omega, Omega_a})
     ));
     REQUIRE(Exc_a->get_exc_orders() == std::set<unsigned int>({0, 1}));
     REQUIRE(eq_exc_contraction(
-        Exc_a->get_energy_terms(),
+        Exc_a->get_energy_map(),
         ExcContractionMap({
             {
                 weight,
@@ -629,18 +647,19 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
     auto weight_b = SymEngine::rcp_dynamic_cast<const NonElecFunction>(weight->diff(b));
     auto weight_ab = SymEngine::rcp_dynamic_cast<const NonElecFunction>(weight_a->diff(b));
     REQUIRE(SymEngine::unified_eq(
-        Exc_ab->get_weights(), ExcGridWeightSet({weight, weight_a, weight_b, weight_ab})
+        Exc_ab->get_weights(),
+        SameTypeSet<const NonElecFunction>({weight, weight_a, weight_b, weight_ab})
     ));
     REQUIRE(SymEngine::unified_eq(
-        Exc_ab->get_states(), ExcElecStateSet({D, D_a, D_b, D_ab})
+        Exc_ab->get_states(), SameTypeSet<const ElectronicState>({D, D_a, D_b, D_ab})
     ));
     REQUIRE(SymEngine::unified_eq(
         Exc_ab->get_overlap_distributions(),
-        ExcOverlapDistribSet({Omega, Omega_a, Omega_b, Omega_ab})
+        SameTypeSet<const OneElecOperator>({Omega, Omega_a, Omega_b, Omega_ab})
     ));
     REQUIRE(Exc_ab->get_exc_orders() == std::set<unsigned int>({0, 1, 2}));
     REQUIRE(eq_exc_contraction(
-        Exc_ab->get_energy_terms(),
+        Exc_ab->get_energy_map(),
         ExcContractionMap({
             {
                 weight,
@@ -666,21 +685,22 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
     // weights do not depend on the perturbation `c`
     Exc_abc = SymEngine::rcp_dynamic_cast<const ExchCorrEnergy>(Exc_ab->diff(c));
     REQUIRE(SymEngine::unified_eq(
-        Exc_abc->get_weights(), ExcGridWeightSet({weight, weight_a, weight_b, weight_ab})
+        Exc_abc->get_weights(),
+        SameTypeSet<const NonElecFunction>({weight, weight_a, weight_b, weight_ab})
     ));
     REQUIRE(SymEngine::unified_eq(
         Exc_abc->get_states(),
-        ExcElecStateSet({D, D_a, D_b, D_c, D_ab, D_ac, D_bc, D_abc})
+        SameTypeSet<const ElectronicState>({D, D_a, D_b, D_c, D_ab, D_ac, D_bc, D_abc})
     ));
     REQUIRE(SymEngine::unified_eq(
         Exc_abc->get_overlap_distributions(),
-        ExcOverlapDistribSet({
+        SameTypeSet<const OneElecOperator>({
           Omega, Omega_a, Omega_b, Omega_c, Omega_ab, Omega_ac, Omega_bc, Omega_abc
         })
     ));
     REQUIRE(Exc_abc->get_exc_orders() == std::set<unsigned int>({1, 2, 3}));
     REQUIRE(eq_exc_contraction(
-        Exc_abc->get_energy_terms(),
+        Exc_abc->get_energy_map(),
         ExcContractionMap({
             {
                 weight,
@@ -731,15 +751,17 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
     // (1) The first order XC energy density derivative
     Exc_a = SymEngine::rcp_dynamic_cast<const ExchCorrEnergy>(Exc->diff(a));
     REQUIRE(SymEngine::unified_eq(
-        Exc_a->get_weights(), ExcGridWeightSet({weight, weight_a})
+        Exc_a->get_weights(), SameTypeSet<const NonElecFunction>({weight, weight_a})
     ));
-    REQUIRE(SymEngine::unified_eq(Exc_a->get_states(), ExcElecStateSet({D, D_a})));
     REQUIRE(SymEngine::unified_eq(
-        Exc_a->get_overlap_distributions(), ExcOverlapDistribSet({Omega})
+        Exc_a->get_states(), SameTypeSet<const ElectronicState>({D, D_a})
+    ));
+    REQUIRE(SymEngine::unified_eq(
+        Exc_a->get_overlap_distributions(), SameTypeSet<const OneElecOperator>({Omega})
     ));
     REQUIRE(Exc_a->get_exc_orders() == std::set<unsigned int>({0, 1}));
     REQUIRE(eq_exc_contraction(
-        Exc_a->get_energy_terms(),
+        Exc_a->get_energy_map(),
         ExcContractionMap({
             {
                 weight,
@@ -754,17 +776,18 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
     // (2) The second order XC energy density derivative
     Exc_ab = SymEngine::rcp_dynamic_cast<const ExchCorrEnergy>(Exc_a->diff(b));
     REQUIRE(SymEngine::unified_eq(
-        Exc_ab->get_weights(), ExcGridWeightSet({weight, weight_a, weight_b, weight_ab})
+        Exc_ab->get_weights(),
+        SameTypeSet<const NonElecFunction>({weight, weight_a, weight_b, weight_ab})
     ));
     REQUIRE(SymEngine::unified_eq(
-        Exc_ab->get_states(), ExcElecStateSet({D, D_a, D_b, D_ab})
+        Exc_ab->get_states(), SameTypeSet<const ElectronicState>({D, D_a, D_b, D_ab})
     ));
     REQUIRE(SymEngine::unified_eq(
-        Exc_ab->get_overlap_distributions(), ExcOverlapDistribSet({Omega})
+        Exc_ab->get_overlap_distributions(), SameTypeSet<const OneElecOperator>({Omega})
     ));
     REQUIRE(Exc_ab->get_exc_orders() == std::set<unsigned int>({0, 1, 2}));
     REQUIRE(eq_exc_contraction(
-        Exc_ab->get_energy_terms(),
+        Exc_ab->get_energy_map(),
         ExcContractionMap({
             {
                 weight,
@@ -800,19 +823,20 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
     // weights do not depend on the perturbation `c`
     Exc_abc = SymEngine::rcp_dynamic_cast<const ExchCorrEnergy>(Exc_ab->diff(c));
     REQUIRE(SymEngine::unified_eq(
-        Exc_abc->get_weights(), ExcGridWeightSet({weight, weight_a, weight_b, weight_ab})
+        Exc_abc->get_weights(),
+        SameTypeSet<const NonElecFunction>({weight, weight_a, weight_b, weight_ab})
     ));
     REQUIRE(SymEngine::unified_eq(
         Exc_abc->get_states(),
-        ExcElecStateSet({D, D_a, D_b, D_c, D_ab, D_ac, D_bc, D_abc})
+        SameTypeSet<const ElectronicState>({D, D_a, D_b, D_c, D_ab, D_ac, D_bc, D_abc})
     ));
     REQUIRE(SymEngine::unified_eq(
         Exc_abc->get_overlap_distributions(),
-        ExcOverlapDistribSet({Omega, Omega_c})
+        SameTypeSet<const OneElecOperator>({Omega, Omega_c})
     ));
     REQUIRE(Exc_abc->get_exc_orders() == std::set<unsigned int>({1, 2, 3}));
     REQUIRE(eq_exc_contraction(
-        Exc_abc->get_energy_terms(),
+        Exc_abc->get_energy_map(),
         ExcContractionMap({
             {
                 weight,
@@ -892,11 +916,11 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
     Exc_abcd = SymEngine::rcp_dynamic_cast<const ExchCorrEnergy>(Exc_abc->diff(d));
     REQUIRE(SymEngine::unified_eq(
         Exc_abcd->get_weights(),
-        ExcGridWeightSet({weight, weight_a, weight_b, weight_ab})
+        SameTypeSet<const NonElecFunction>({weight, weight_a, weight_b, weight_ab})
     ));
     REQUIRE(SymEngine::unified_eq(
         Exc_abcd->get_states(),
-        ExcElecStateSet({
+        SameTypeSet<const ElectronicState>({
           D,
           D_a, D_b, D_c, D_d,
           D_ab, D_ac, D_ad, D_bc, D_bd, D_cd,
@@ -906,13 +930,13 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
     ));
     REQUIRE(SymEngine::unified_eq(
         Exc_abcd->get_overlap_distributions(),
-        ExcOverlapDistribSet({
+        SameTypeSet<const OneElecOperator>({
           Omega, Omega_c, Omega_d, Omega_cd
         })
     ));
     REQUIRE(Exc_abcd->get_exc_orders() == std::set<unsigned int>({1, 2, 3, 4}));
     REQUIRE(eq_exc_contraction(
-        Exc_abcd->get_energy_terms(),
+        Exc_abcd->get_energy_map(),
         ExcContractionMap({
             {
                 weight,
@@ -1200,14 +1224,18 @@ TEST_CASE("Test ExchCorrPotential and make_xc_potential()", "[ExchCorrPotential]
     REQUIRE(SymEngine::eq(*Vxc->get_weight(), *weight));
     REQUIRE(SymEngine::eq(*Vxc->get_state(), *D));
     REQUIRE(SymEngine::eq(*Vxc->get_overlap_distribution(), *Omega));
-    REQUIRE(SymEngine::unified_eq(Vxc->get_weights(), ExcGridWeightSet({weight})));
-    REQUIRE(SymEngine::unified_eq(Vxc->get_states(), ExcElecStateSet({D})));
     REQUIRE(SymEngine::unified_eq(
-        Vxc->get_overlap_distributions(), ExcOverlapDistribSet({Omega})
+        Vxc->get_weights(), SameTypeSet<const NonElecFunction>({weight})
+    ));
+    REQUIRE(SymEngine::unified_eq(
+        Vxc->get_states(), SameTypeSet<const ElectronicState>({D})
+    ));
+    REQUIRE(SymEngine::unified_eq(
+        Vxc->get_overlap_distributions(), SameTypeSet<const OneElecOperator>({Omega})
     ));
     REQUIRE(Vxc->get_exc_orders() == std::set<unsigned int>({1}));
     REQUIRE(eq_vxc_contraction(
-        Vxc->get_potential_terms(),
+        Vxc->get_potential_map(),
         VxcContractionMap({
             {Omega, ExcContractionMap({{weight, make_unperturbed_contraction()}})}
         })
@@ -1222,14 +1250,19 @@ TEST_CASE("Test ExchCorrPotential and make_xc_potential()", "[ExchCorrPotential]
     auto Omega_ab = SymEngine::rcp_dynamic_cast<const OneElecOperator>(Omega_a->diff(b));
     // (1) The first order XC potential matrix
     auto Vxc_a = SymEngine::rcp_dynamic_cast<const ExchCorrPotential>(Vxc->diff(a));
-    REQUIRE(SymEngine::unified_eq(Vxc_a->get_weights(), ExcGridWeightSet({weight})));
-    REQUIRE(SymEngine::unified_eq(Vxc_a->get_states(), ExcElecStateSet({D, D_a})));
     REQUIRE(SymEngine::unified_eq(
-        Vxc_a->get_overlap_distributions(), ExcOverlapDistribSet({Omega, Omega_a})
+        Vxc_a->get_weights(), SameTypeSet<const NonElecFunction>({weight})
+    ));
+    REQUIRE(SymEngine::unified_eq(
+        Vxc_a->get_states(), SameTypeSet<const ElectronicState>({D, D_a})
+    ));
+    REQUIRE(SymEngine::unified_eq(
+        Vxc_a->get_overlap_distributions(),
+        SameTypeSet<const OneElecOperator>({Omega, Omega_a})
     ));
     REQUIRE(Vxc_a->get_exc_orders() == std::set<unsigned int>({1, 2}));
     REQUIRE(eq_vxc_contraction(
-        Vxc_a->get_potential_terms(),
+        Vxc_a->get_potential_map(),
         VxcContractionMap({
             {
                 Omega,
@@ -1245,17 +1278,19 @@ TEST_CASE("Test ExchCorrPotential and make_xc_potential()", "[ExchCorrPotential]
     ));
     // (2) The first order XC potential matrix
     auto Vxc_ab = SymEngine::rcp_dynamic_cast<const ExchCorrPotential>(Vxc_a->diff(b));
-    REQUIRE(SymEngine::unified_eq(Vxc_ab->get_weights(), ExcGridWeightSet({weight})));
     REQUIRE(SymEngine::unified_eq(
-        Vxc_ab->get_states(), ExcElecStateSet({D, D_a, D_b, D_ab})
+        Vxc_ab->get_weights(), SameTypeSet<const NonElecFunction>({weight})
+    ));
+    REQUIRE(SymEngine::unified_eq(
+        Vxc_ab->get_states(), SameTypeSet<const ElectronicState>({D, D_a, D_b, D_ab})
     ));
     REQUIRE(SymEngine::unified_eq(
         Vxc_ab->get_overlap_distributions(),
-        ExcOverlapDistribSet({Omega, Omega_a, Omega_b, Omega_ab})
+        SameTypeSet<const OneElecOperator>({Omega, Omega_a, Omega_b, Omega_ab})
     ));
     REQUIRE(Vxc_ab->get_exc_orders() == std::set<unsigned int>({1, 2, 3}));
     REQUIRE(eq_vxc_contraction(
-        Vxc_ab->get_potential_terms(),
+        Vxc_ab->get_potential_map(),
         VxcContractionMap({
             {
                 Omega,

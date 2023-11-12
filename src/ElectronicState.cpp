@@ -25,11 +25,10 @@ namespace Tinned
 
     bool ElectronicState::__eq__(const SymEngine::Basic& o) const
     {
-        if (SymEngine::MatrixSymbol::__eq__(o)) {
-            if (SymEngine::is_a_sub<const ElectronicState>(o)) {
-                auto& state = SymEngine::down_cast<const ElectronicState&>(o);
-                return SymEngine::unified_eq(derivative_, state.derivative_);
-            }
+        if (SymEngine::is_a_sub<const ElectronicState>(o)) {
+            auto& state = SymEngine::down_cast<const ElectronicState&>(o);
+            return get_name() == state.get_name()
+                && SymEngine::unified_eq(derivative_, state.derivative_);
         }
         return false;
     }
@@ -37,12 +36,13 @@ namespace Tinned
     int ElectronicState::compare(const SymEngine::Basic &o) const
     {
         SYMENGINE_ASSERT(SymEngine::is_a_sub<const ElectronicState>(o))
-        int result = SymEngine::MatrixSymbol::compare(o);
-        if (result == 0) {
-            auto& state = SymEngine::down_cast<const ElectronicState&>(o);
+        auto& state = SymEngine::down_cast<const ElectronicState&>(o);
+        if (get_name() == state.get_name()) {
             return SymEngine::unified_compare(derivative_, state.derivative_);
         }
-        return result;
+        else {
+            return get_name() < state.get_name() ? -1 : 1;
+        }
     }
 
     //SymEngine::vec_basic ElectronicState::get_args() const

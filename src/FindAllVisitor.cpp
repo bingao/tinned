@@ -127,7 +127,7 @@ namespace Tinned
             if (SymEngine::is_a_sub<const ExchCorrEnergy>(*symbol_)) {
                 auto s = SymEngine::rcp_dynamic_cast<const ExchCorrEnergy>(symbol_);
                 if (op.get_name() == s->get_name()
-                    && SymEngine::unified_compare(op.get_args(), s->get_args())) {
+                    && SymEngine::unified_eq(op.get_args(), s->get_args())) {
                     result_.insert(x.rcp_from_this());
                     return;
                 }
@@ -178,7 +178,7 @@ namespace Tinned
             if (SymEngine::is_a_sub<const ExchCorrPotential>(*symbol_)) {
                 auto s = SymEngine::rcp_dynamic_cast<const ExchCorrPotential>(symbol_);
                 if (op.get_name() == s->get_name()
-                    && SymEngine::unified_compare(op.get_args(), s->get_args())) {
+                    && SymEngine::unified_eq(op.get_args(), s->get_args())) {
                     result_.insert(x.rcp_from_this());
                     return;
                 }

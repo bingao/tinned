@@ -121,7 +121,7 @@ namespace Tinned
                     + expression->__str__()
                 );
                 auto op = SymEngine::rcp_dynamic_cast<const ExchCorrEnergy>(arg);
-                vxc_terms = op->get_energy_terms();
+                vxc_terms = op->get_energy_map();
             }
             // Generalized overlap distribution
             else if (SymEngine::is_a_sub<const OneElecOperator>(*arg)) {
