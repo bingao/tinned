@@ -4,7 +4,6 @@
 #include <symengine/number.h>
 #include <symengine/constants.h>
 #include <symengine/matrices/trace.h>
-#include <symengine/symengine_assert.h>
 #include <symengine/symengine_casts.h>
 #include <symengine/symengine_exception.h>
 

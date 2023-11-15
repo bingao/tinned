@@ -114,21 +114,21 @@ namespace Tinned
             ) const override;
 
             // Get grid weight
-            inline SymEngine::RCP<const SymEngine::Basic> get_weight() const
+            inline SymEngine::RCP<const NonElecFunction> get_weight() const
             {
-                return get_args()[0];
+                return SymEngine::rcp_dynamic_cast<const NonElecFunction>(get_args()[0]);
             }
 
             // Get electronic state
-            inline SymEngine::RCP<const SymEngine::Basic> get_state() const
+            inline SymEngine::RCP<const ElectronicState> get_state() const
             {
-                return get_args()[1];
+                return SymEngine::rcp_dynamic_cast<const ElectronicState>(get_args()[1]);
             }
 
             // Get overlap distribution
-            inline SymEngine::RCP<const SymEngine::Basic> get_overlap_distribution() const
+            inline SymEngine::RCP<const OneElecOperator> get_overlap_distribution() const
             {
-                return get_args()[2];
+                return SymEngine::rcp_dynamic_cast<const OneElecOperator>(get_args()[2]);
             }
 
             // Get XC energy or its derivatives evaluated at grid points
@@ -161,15 +161,7 @@ namespace Tinned
             {
                 auto exc = find_all<CompositeFunction>(
                     energy_,
-                    make_exc_density(
-                        SymEngine::rcp_dynamic_cast<const ElectronicState>(
-                            get_state()
-                        ),
-                        SymEngine::rcp_dynamic_cast<const OneElecOperator>(
-                            get_overlap_distribution()
-                        ),
-                        0
-                    )
+                    make_exc_density(get_state(), get_overlap_distribution(), 0)
                 );
                 std::set<unsigned int> orders;
                 for (auto& e: exc) orders.insert(e->get_order());
@@ -221,42 +213,7 @@ namespace Tinned
             // vectors.
             inline ExcContractionMap get_energy_map() const
             {
-                // Unperturbed or the first-order case
-                if (SymEngine::is_a_sub<const SymEngine::Mul>(*energy_)) {
-                    auto contr_term = extract_exc_contraction(
-                        SymEngine::rcp_dynamic_cast<const SymEngine::Mul>(energy_)
-                    );
-                    return ExcContractionMap({
-                        {
-                            std::get<0>(contr_term),
-                            ExcDensityContractionMap({
-                                {std::get<1>(contr_term), std::get<2>(contr_term)}
-                            })
-                        }
-                    });
-                }
-                // Perturbed case, constructor of `ExchCorrEnergy` has ensured
-                // the type of `energy_` to be either `SymEngine::Mul` or
-                // `SymEngine::Add`
-                else {
-                    ExcContractionMap contr_map;
-                    auto energy = SymEngine::rcp_dynamic_cast<const SymEngine::Add>(energy_);
-                    auto contractions = energy->get_args();
-                    // No coefficient exists in the XC energy derivatives
-                    SYMENGINE_ASSERT(
-                        !SymEngine::is_a_sub<const SymEngine::Number>(*contractions.front())
-                    )
-                    for (const auto& contr: contractions) {
-                        SYMENGINE_ASSERT(
-                            SymEngine::is_a_sub<const SymEngine::Mul>(*contr)
-                        )
-                        auto contr_term = extract_exc_contraction(
-                            SymEngine::rcp_dynamic_cast<const SymEngine::Mul>(contr)
-                        );
-                        add_exc_contraction(contr_map, contr_term);
-                    }
-                    return contr_map;
-                }
+                return extract_energy_map(energy_);
             }
     };
 

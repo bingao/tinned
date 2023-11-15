@@ -28,15 +28,28 @@ namespace Tinned
     ExchCorrEnergy::ExchCorrEnergy(
         const ExchCorrEnergy& other,
         const SymEngine::RCP<const SymEngine::Basic>& energy
-    ) : SymEngine::FunctionWrapper(other.get_name(), other.get_args()),
-        energy_(energy)
+    ) : SymEngine::FunctionWrapper(other.get_name(), other.get_args())
     {
-        // XC energy or its derivatives must be either `SymEngine::Mul` or
-        // `SymEngine::Add`
-        SYMENGINE_ASSERT(
-            SymEngine::is_a<const SymEngine::Mul>(*energy) ||
-            SymEngine::is_a<const SymEngine::Add>(*energy)
-        )
+        auto state = other.get_state();
+        auto Omega = other.get_overlap_distribution();
+        SymEngine::vec_basic terms;
+        auto contr_map = extract_energy_map(energy);
+        for (auto& term: contr_map) {
+            for (auto& contr: term.second) {
+                terms.push_back(SymEngine::mul(SymEngine::vec_basic({
+                    term.first,
+                    make_exc_density(state, Omega, contr.first),
+                    contr.second
+                })));
+            }
+        }
+        SYMENGINE_ASSERT(!terms.empty())
+        if (terms.size() == 1) {
+            energy_ = terms[0];
+        }
+        else {
+            energy_ = SymEngine::add(terms);
+        }
         SYMENGINE_ASSIGN_TYPEID()
     }
 

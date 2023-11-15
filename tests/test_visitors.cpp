@@ -104,6 +104,18 @@ TEST_CASE("Test KeepVisitor and keep_if()", "[KeepVisitor]")
     auto Ga = SymEngine::make_rcp<const TwoElecOperator>(
         G->get_name(), D, dependencies, SymEngine::multiset_basic({a})
     );
+    auto G_Da = SymEngine::make_rcp<const TwoElecOperator>(
+        G->get_name(), D_a, dependencies
+    );
+    auto Exc_Da = SymEngine::make_rcp<const ExchCorrEnergy>(
+        *Exc,
+        SymEngine::mul(SymEngine::vec_basic({
+            weight,
+            make_exc_density(D, Omega, 1),
+            SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({Omega, D_a})))
+        }))
+    );
+    auto hnuc_a = SymEngine::rcp_dynamic_cast<const NonElecFunction>(hnuc->diff(a));
     REQUIRE(keep_if(E_a, SymEngine::set_basic({hnuc})).is_null());
     REQUIRE(SymEngine::eq(
         *keep_if(E_a, SymEngine::set_basic({h})),
@@ -127,6 +139,30 @@ TEST_CASE("Test KeepVisitor and keep_if()", "[KeepVisitor]")
             SymEngine::two
         )
     ));
+std::cout << "E_a = " << stringify(E_a) << "\n";
+std::cout << "keep_if = " << stringify(keep_if(E_a, SymEngine::set_basic({D_a}))) << "\n";
+std::cout << "<<<<<<<<<<<<\n\n\n";
+    REQUIRE(SymEngine::eq(
+        *keep_if(E_a, SymEngine::set_basic({D_a})),
+        *SymEngine::add(SymEngine::vec_basic({
+            SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({h, D_a}))),
+            SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({V, D_a}))),
+            SymEngine::div(
+                SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({G, D_a}))),
+                SymEngine::two
+            ),
+            SymEngine::div(
+                SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({G_Da, D}))),
+                SymEngine::two
+            ),
+            Exc_Da
+        }))
+    ));
+    REQUIRE(SymEngine::eq(
+        *E_a,
+        *SymEngine::add(keep_if(E_a, SymEngine::set_basic({D, D_a})), hnuc_a)
+    ));
+    auto E_ab = E_a->diff(b);
 }
 
 TEST_CASE("Test RemoveVisitor and remove_if()", "[RemoveVisitor]")

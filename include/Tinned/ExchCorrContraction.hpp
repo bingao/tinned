@@ -24,6 +24,7 @@
 #include <symengine/mul.h>
 #include <symengine/matrices/matrix_mul.h>
 #include <symengine/symengine_rcp.h>
+#include <symengine/symengine_assert.h>
 
 #include "Tinned/NonElecFunction.hpp"
 #include "Tinned/OneElecOperator.hpp"
@@ -63,13 +64,6 @@ namespace Tinned
                SymEngine::RCP<const SymEngine::Basic>>
     extract_exc_contraction(const SymEngine::RCP<const SymEngine::Mul>& expression);
 
-    // Extract grid weight, XC functional derivative, generalized density
-    // vectors and overlap distributions from their multiplication expression.
-    std::pair<SymEngine::RCP<const OneElecOperator>, ExcContractionMap>
-    extract_vxc_contraction(
-        const SymEngine::RCP<const SymEngine::MatrixMul>& expression
-    );
-
     // Add the output from `extract_exc_contraction()` into an `ExcContractionMap`
     inline void add_exc_contraction(
         ExcContractionMap& contrMap,
@@ -98,6 +92,66 @@ namespace Tinned
             }
         }
     }
+
+    // Extract all terms in XC energy or its derivatives, i.e. (un)perturbed
+    // weights, XC functional derivative vectors and perturbed generalized
+    // density vectors. Results are arranged in a nested map. The key of the
+    // outer map is (un)perturbed weights, and the value of the outer map is
+    // another map whose key is the order of functional derivatives of XC
+    // energy density, and whose value is the corresponding perturbed
+    // generalized density vectors.
+    inline ExcContractionMap extract_energy_map(
+        const SymEngine::RCP<const SymEngine::Basic>& expression
+    )
+    {
+        // XC energy or its derivatives must be either `SymEngine::Mul` or
+        // `SymEngine::Add`
+        SYMENGINE_ASSERT(
+            SymEngine::is_a<const SymEngine::Mul>(*expression) ||
+            SymEngine::is_a<const SymEngine::Add>(*expression)
+        )
+        // Unperturbed or the first-order case
+        if (SymEngine::is_a_sub<const SymEngine::Mul>(*expression)) {
+            auto contr_term = extract_exc_contraction(
+                SymEngine::rcp_dynamic_cast<const SymEngine::Mul>(expression)
+            );
+            return ExcContractionMap({
+                {
+                    std::get<0>(contr_term),
+                    ExcDensityContractionMap({
+                        {std::get<1>(contr_term), std::get<2>(contr_term)}
+                    })
+                }
+            });
+        }
+        // Perturbed case
+        else {
+            ExcContractionMap contr_map;
+            auto energy = SymEngine::rcp_dynamic_cast<const SymEngine::Add>(expression);
+            auto contractions = energy->get_args();
+            // No coefficient exists in the XC energy derivatives
+            SYMENGINE_ASSERT(
+                !SymEngine::is_a_sub<const SymEngine::Number>(*contractions.front())
+            )
+            for (const auto& contr: contractions) {
+                SYMENGINE_ASSERT(
+                    SymEngine::is_a_sub<const SymEngine::Mul>(*contr)
+                )
+                auto contr_term = extract_exc_contraction(
+                    SymEngine::rcp_dynamic_cast<const SymEngine::Mul>(contr)
+                );
+                add_exc_contraction(contr_map, contr_term);
+            }
+            return contr_map;
+        }
+    }
+
+    // Extract grid weight, XC functional derivative, generalized density
+    // vectors and overlap distributions from their multiplication expression.
+    std::pair<SymEngine::RCP<const OneElecOperator>, ExcContractionMap>
+    extract_vxc_contraction(
+        const SymEngine::RCP<const SymEngine::MatrixMul>& expression
+    );
 
     // Merge the second `ExcContractionMap` to the first one
     void merge_exc_contraction(ExcContractionMap& map1, const ExcContractionMap& map2);
