@@ -53,7 +53,8 @@ namespace Tinned
         return SymEngine::trace(SymEngine::matrix_mul({Omega, state}));
     }
 
-    // Make XC energy density
+    // Make XC energy density from electronic state, overlap distribution and
+    // the order of XC energy functional
     inline SymEngine::RCP<const CompositeFunction> make_exc_density(
         const SymEngine::RCP<const ElectronicState>& state,
         const SymEngine::RCP<const OneElecOperator>& Omega,
