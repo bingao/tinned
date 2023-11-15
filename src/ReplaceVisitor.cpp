@@ -95,10 +95,10 @@ namespace Tinned
         }
         else if (SymEngine::is_a_sub<const ExchCorrPotential>(x)) {
             auto& op = SymEngine::down_cast<const ExchCorrPotential&>(x);
-            replace_one_arg_f<const ExchCorrPotential, const SymEngine::Basic>(
+            replace_one_arg_f<const ExchCorrPotential, const SymEngine::MatrixExpr>(
                 op,
                 op.get_potential(),
-                [&](const SymEngine::RCP<const SymEngine::Basic>& potential)
+                [&](const SymEngine::RCP<const SymEngine::MatrixExpr>& potential)
                     -> SymEngine::RCP<const ExchCorrPotential>
                 {
                     return SymEngine::make_rcp<const ExchCorrPotential>(op, potential);

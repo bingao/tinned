@@ -29,14 +29,16 @@ namespace Tinned
         state_(other.state_),
         Omega_(other.Omega_),
         weight_(other.weight_),
-        potential_(other.potential_->diff(s))
+        potential_(SymEngine::rcp_dynamic_cast<const SymEngine::MatrixExpr>(
+            other.potential_->diff(s)
+        ))
     {
         SYMENGINE_ASSIGN_TYPEID()
     }
 
     ExchCorrPotential::ExchCorrPotential(
         const ExchCorrPotential& other,
-        const SymEngine::RCP<const SymEngine::Basic>& potential
+        const SymEngine::RCP<const SymEngine::MatrixExpr>& potential
     ) : SymEngine::MatrixSymbol(other.get_name()),
         state_(other.state_),
         Omega_(other.Omega_),

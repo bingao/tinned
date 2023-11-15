@@ -47,10 +47,13 @@ namespace Tinned
         const std::string& name,
         const SymEngine::RCP<const ElectronicState>& state,
         const SymEngine::RCP<const OneElecOperator>& Omega,
-        const SymEngine::RCP<const NonElecFunction>& weight
+        const SymEngine::RCP<const NonElecFunction>& weight,
+        const unsigned int order = 1
     )
     {
-        return SymEngine::make_rcp<const ExchCorrEnergy>(name, state, Omega, weight, 1);
+        return SymEngine::make_rcp<const ExchCorrEnergy>(
+             name, state, Omega, weight, order
+        );
     }
 
     // Exchange-correlation (XC) potential like operators
@@ -66,7 +69,7 @@ namespace Tinned
 
             // XC potential operator or its derivatives evaluated at grid
             // points
-            SymEngine::RCP<const SymEngine::Basic> potential_;
+            SymEngine::RCP<const SymEngine::MatrixExpr> potential_;
 
         public:
             //! Constructor
@@ -87,7 +90,7 @@ namespace Tinned
             // Constructor mainly used by different visitors
             explicit ExchCorrPotential(
                 const ExchCorrPotential& other,
-                const SymEngine::RCP<const SymEngine::Basic>& potential
+                const SymEngine::RCP<const SymEngine::MatrixExpr>& potential
             );
 
             SymEngine::hash_t __hash__() const override;
@@ -120,7 +123,7 @@ namespace Tinned
 
             // Get XC potential operator or its derivatives evaluated at grid
             // points
-            inline SymEngine::RCP<const SymEngine::Basic> get_potential() const
+            inline SymEngine::RCP<const SymEngine::MatrixExpr> get_potential() const
             {
                 return potential_;
             }

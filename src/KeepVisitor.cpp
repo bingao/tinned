@@ -228,10 +228,10 @@ namespace Tinned
         }
         else if (SymEngine::is_a_sub<const ExchCorrPotential>(x)) {
             auto& op = SymEngine::down_cast<const ExchCorrPotential&>(x);
-            keep_if_one_arg_f<const ExchCorrPotential, const SymEngine::Basic>(
+            keep_if_one_arg_f<const ExchCorrPotential, const SymEngine::MatrixExpr>(
                 op,
                 op.get_potential(),
-                [&](const SymEngine::RCP<const SymEngine::Basic>& potential)
+                [&](const SymEngine::RCP<const SymEngine::MatrixExpr>& potential)
                     -> SymEngine::RCP<const ExchCorrPotential>
                 {
                     return SymEngine::make_rcp<const ExchCorrPotential>(op, potential);
@@ -352,19 +352,25 @@ namespace Tinned
                         return;
                     }
                     else {
-                        // Suppose `MatrixMul` is A*B*C*... = (Ak+Ar)*B*C*...,
-                        // where Ak will be kept and Ar will be removed. The
-                        // result after removal will be Ak*B*C*... . By saving
-                        // Ar = A-Ak, the result can also be computed as
-                        // A*B*C*... - Ar*B*C*... .
-                        factors.push_back(SymEngine::matrix_add(
-                            SymEngine::vec_basic({
-                                arg,
-                                SymEngine::matrix_mul(
-                                    SymEngine::vec_basic({SymEngine::minus_one, new_arg})
-                                )
-                            })
-                        ));
+                        if (SymEngine::is_a_sub<const SymEngine::MatrixExpr>(*arg)) {
+                            // Suppose `MatrixMul` is A*B*C*... = (Ak+Ar)*B*C*...,
+                            // where Ak will be kept and Ar will be removed. The
+                            // result after removal will be Ak*B*C*... . By saving
+                            // Ar = A-Ak, the result can also be computed as
+                            // A*B*C*... - Ar*B*C*... .
+                            factors.push_back(SymEngine::matrix_add(
+                                SymEngine::vec_basic({
+                                    arg,
+                                    SymEngine::matrix_mul(
+                                        SymEngine::vec_basic({SymEngine::minus_one, new_arg})
+                                    )
+                                })
+                            ));
+                        }
+                        else {
+                            // `arg` is a scalar
+                            factors.push_back(SymEngine::sub(arg, new_arg));
+                        }
                         factors_kept = true;
                     }
                 }
