@@ -1,6 +1,5 @@
 #include <iostream>
 
-#include <symengine/basic.h>
 #include <symengine/symengine_rcp.h>
 
 #include "Tinned.hpp"
