@@ -32,15 +32,28 @@ namespace Tinned
     {
         auto state = other.get_state();
         auto Omega = other.get_overlap_distribution();
-        SymEngine::vec_basic terms;
-        auto contr_map = extract_energy_map(energy);
-        for (const auto& term: contr_map) {
-            for (const auto& contr: term.second) {
-                terms.push_back(SymEngine::mul(SymEngine::vec_basic({
-                    term.first,
-                    make_exc_density(state, Omega, contr.first),
-                    contr.second
-                })));
+        SymEngine::vec_basic terms = {};
+        auto energy_map = extract_energy_map(energy);
+        // `weight_map.first` is the (un)perturbed grid weight, and
+        // `weight_map.second` is type `ExcDensityContractionMap`
+        for (const auto& weight_map: energy_map) {
+            // `exc_map.first` is the order of XC energy functional derivative
+            // vector(s), and `exc_map.second` is the generalized density
+            // vector(s)
+            for (const auto& exc_map: weight_map.second) {
+                if (exc_map.second.is_null()) {
+                    terms.push_back(SymEngine::mul(
+                        weight_map.first,
+                        make_exc_density(state, Omega, exc_map.first)
+                    ));
+                }
+                else {
+                    terms.push_back(SymEngine::mul(SymEngine::vec_basic({
+                        weight_map.first,
+                        make_exc_density(state, Omega, exc_map.first),
+                        exc_map.second
+                    })));
+                }
             }
         }
         SYMENGINE_ASSERT(!terms.empty())

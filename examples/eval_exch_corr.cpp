@@ -14,11 +14,14 @@ void eval_xc_energy(const SymEngine::RCP<const ExchCorrEnergy>& energy)
     for (const auto& term: contr_map) {
         for (const auto& contr: term.second) {
             std::cout << "Grid weight = " << stringify(term.first) << "\n";
+            //get_derivative()
             std::cout << "XC functional order = " << contr.first << "\n";
             std::cout << "Unperturbed state = " << stringify(state) << "\n";
-            if (!contr.second.is_null())
+            if (!contr.second.is_null()) {
                 std::cout << "Generalized density vector = "
-                          << stringify(contr.second) << "\n";
+                          << stringify(contr.second)
+                          << "\n";
+            }
         }
     }
     std::cout << "\n";
@@ -27,6 +30,7 @@ void eval_xc_energy(const SymEngine::RCP<const ExchCorrEnergy>& energy)
 void eval_xc_potential(const SymEngine::RCP<const ExchCorrPotential>& potential)
 {
     //auto = potential->get_potential_map();
+    //auto vxc_map = extract_potential_map(potential);
 }
 
 // This is just a simple illustration, probably not for pratical use
