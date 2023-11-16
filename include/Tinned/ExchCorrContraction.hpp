@@ -22,6 +22,7 @@
 #include <symengine/dict.h>
 #include <symengine/add.h>
 #include <symengine/mul.h>
+#include <symengine/matrices/matrix_add.h>
 #include <symengine/matrices/matrix_mul.h>
 #include <symengine/symengine_rcp.h>
 #include <symengine/symengine_assert.h>
@@ -155,6 +156,56 @@ namespace Tinned
 
     // Merge the second `ExcContractionMap` to the first one
     void merge_exc_contraction(ExcContractionMap& map1, const ExcContractionMap& map2);
+
+    // Extract all terms in XC potential operator or its derivatives, i.e.
+    // (un)perturbed weights, XC functional derivative vectors, perturbed
+    // generalized density vectors and (un)perturbed generalized overlap
+    // distributions. Results are arranged in a nested map. The key of the
+    // outermost map is (un)perturbed generalized overlap distributions, whose
+    // value is `ExcContractionMap`.
+    inline VxcContractionMap extract_potential_map(
+        const SymEngine::RCP<const SymEngine::MatrixExpr>& expression
+    )
+    {
+        // XC potential or its derivatives must be either
+        // `SymEngine::MatrixMul` or `SymEngine::MatrixAdd`
+        SYMENGINE_ASSERT(
+            SymEngine::is_a<const SymEngine::MatrixMul>(*expression) ||
+            SymEngine::is_a<const SymEngine::MatrixAdd>(*expression)
+        )
+        // Unperturbed case or when the generalized overlap distribution does
+        // not depend on the applied perturbation(s)
+        if (SymEngine::is_a_sub<const SymEngine::MatrixMul>(*expression)) {
+            auto contr_term = extract_vxc_contraction(
+                SymEngine::rcp_dynamic_cast<const SymEngine::MatrixMul>(expression)
+            );
+            return VxcContractionMap({contr_term});
+        }
+        // Perturbed case
+        else {
+            VxcContractionMap contr_map;
+            auto potential = SymEngine::rcp_dynamic_cast<const SymEngine::MatrixAdd>(expression);
+            auto contractions = potential->get_args();
+            for (const auto& contr: contractions) {
+                SYMENGINE_ASSERT(
+                    SymEngine::is_a_sub<const SymEngine::MatrixMul>(*contr)
+                )
+                auto vxc_terms = extract_vxc_contraction(
+                    SymEngine::rcp_dynamic_cast<const SymEngine::MatrixMul>(contr)
+                );
+                // Check if the generalized overlap distribution exists
+                // in the outermost map
+                auto term = contr_map.find(vxc_terms.first);
+                if (term == contr_map.end()) {
+                    contr_map.emplace(vxc_terms);
+                }
+                else {
+                    merge_exc_contraction(term->second, vxc_terms.second);
+                }
+            }
+            return contr_map;
+        }
+    }
 
     // Check if two `ExcContractionMap`'s are equivalent
     bool eq_exc_contraction(

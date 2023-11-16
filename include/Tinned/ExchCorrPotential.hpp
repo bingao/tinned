@@ -201,42 +201,7 @@ namespace Tinned
             // `ExcContractionMap`.
             inline VxcContractionMap get_potential_map() const
             {
-                // Unperturbed case or when the generalized overlap
-                // distribution does not depend on the applied perturbation(s)
-                if (SymEngine::is_a_sub<const SymEngine::MatrixMul>(*potential_)) {
-                    auto contr_term = extract_vxc_contraction(
-                        SymEngine::rcp_dynamic_cast<const SymEngine::MatrixMul>(potential_)
-                    );
-                    return VxcContractionMap({contr_term});
-                }
-                // Perturbed case in particular the generalized overlap
-                // distribution depends on the applied perturbation(s).
-                // Constructor of `ExchCorrPotentail` has ensured the type of
-                // `potential_` to be either `SymEngine::MatrixMul` or
-                // `SymEngine::MatrixAdd`
-                else {
-                    VxcContractionMap contr_map;
-                    auto potential = SymEngine::rcp_dynamic_cast<const SymEngine::MatrixAdd>(potential_);
-                    auto contractions = potential->get_args();
-                    for (const auto& contr: contractions) {
-                        SYMENGINE_ASSERT(
-                            SymEngine::is_a_sub<const SymEngine::MatrixMul>(*contr)
-                        )
-                        auto vxc_terms = extract_vxc_contraction(
-                            SymEngine::rcp_dynamic_cast<const SymEngine::MatrixMul>(contr)
-                        );
-                        // Check if the generalized overlap distribution exists
-                        // in the outermost map
-                        auto term = contr_map.find(vxc_terms.first);
-                        if (term == contr_map.end()) {
-                            contr_map.emplace(vxc_terms);
-                        }
-                        else {
-                            merge_exc_contraction(term->second, vxc_terms.second);
-                        }
-                    }
-                    return contr_map;
-                }
+                return extract_potential_map(potential_);
             }
     };
 

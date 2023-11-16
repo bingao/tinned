@@ -34,8 +34,8 @@ namespace Tinned
         auto Omega = other.get_overlap_distribution();
         SymEngine::vec_basic terms;
         auto contr_map = extract_energy_map(energy);
-        for (auto& term: contr_map) {
-            for (auto& contr: term.second) {
+        for (const auto& term: contr_map) {
+            for (const auto& contr: term.second) {
                 terms.push_back(SymEngine::mul(SymEngine::vec_basic({
                     term.first,
                     make_exc_density(state, Omega, contr.first),

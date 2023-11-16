@@ -9,6 +9,7 @@ project(Tinned
 # Options for making the library
 option(BUILD_SHARED_LIBS "Build shared library." OFF)
 option(BUILD_TESTING "Build tests." ON)
+option(BUILD_EXAMPLES "Build examples." ON)
 
 # From https://gitlab.com/CLIUtils/modern-cmake.git
 #
@@ -62,6 +63,10 @@ if((CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME) AND BUILD_TESTING)
     add_subdirectory(tests)
 endif()
 
+if((CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME) AND BUILD_EXAMPLES)
+    add_subdirectory(examples)
+endif()
+
 # Summary
 message("CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
 message("CMAKE_CXX_COMPILER: ${CMAKE_CXX_COMPILER}")
@@ -75,3 +80,4 @@ message("SYMENGINE_INCLUDE_DIRS: ${SYMENGINE_INCLUDE_DIRS}")
 message("SYMENGINE_LIBRARIES: ${SYMENGINE_LIBRARIES}")
 message("BUILD_SHARED_LIBS: ${BUILD_SHARED_LIBS}")
 message("BUILD_TESTING: ${BUILD_TESTING}")
+message("BUILD_EXAMPLES: ${BUILD_EXAMPLES}")

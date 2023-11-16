@@ -42,15 +42,32 @@ namespace Tinned
     ) : SymEngine::MatrixSymbol(other.get_name()),
         state_(other.state_),
         Omega_(other.Omega_),
-        weight_(other.weight_),
-        potential_(potential)
+        weight_(other.weight_)
     {
-        // XC potential or its derivatives must be either
-        // `SymEngine::MatrixMul` or `SymEngine::MatrixAdd`
-        SYMENGINE_ASSERT(
-            SymEngine::is_a<const SymEngine::MatrixMul>(*potential) ||
-            SymEngine::is_a<const SymEngine::MatrixAdd>(*potential)
-        )
+        potential_ = potential;
+        //SymEngine::vec_basic terms;
+        //auto vxc_map = extract_potential_map(potential);
+        //for (const auto& contr_map: vxc_map) {
+        //    for (const auto& term: contr_map.second)
+
+        //        for (const auto& contr: term.second) {
+        //            terms.push_back(SymEngine::mul(SymEngine::vec_basic({
+        //                term.first,
+        //                make_exc_density(state, Omega, contr.first),
+        //                contr.second
+        //            })));
+        //        }
+        //    }
+
+        //}
+        //SYMENGINE_ASSERT(!terms.empty())
+        //if (terms.size() == 1) {
+        //    potential_ = SymEngine::rcp_dynamic_cast<const SymEngine::MatrixExpr>(terms[0]);
+        //}
+        //else {
+        //    potential_ = SymEngine::matrix_add(terms);
+        //}
+
         SYMENGINE_ASSIGN_TYPEID()
     }
 
