@@ -107,9 +107,12 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
     // For unperturbed XC energy functional, there is only one unperturbed grid
     // weight, and order of the XC energy functional derivative is 0, and no
     // generalized density vectors to be contracted with
-    auto make_unperturbed_contraction = [&]() {
+    auto make_unperturbed_contraction = [&](
+        const SymEngine::RCP<const ElectronicState>& D,
+        const SymEngine::RCP<const OneElecOperator>& Omega
+    ) {
         return ExcDensityContractionMap({
-            {0, SymEngine::RCP<const SymEngine::Basic>()}
+            {make_exc_density(D, Omega, 0), SymEngine::RCP<const SymEngine::Basic>()}
         });
     };
     // Equation (47), J. Chem. Phys. 140, 034103 (2014)
@@ -133,7 +136,7 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
     ) {
         return ExcDensityContractionMap({
             {
-                1,
+                make_exc_density(D, Omega, 1),
                 make_first_order_density(D, D_a, Omega, Omega_a)
             }
         });
@@ -169,13 +172,13 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
     ) {
         return ExcDensityContractionMap({
             {
-                1,
+                make_exc_density(D, Omega, 1),
                 make_second_order_density(
                     D, D_a, D_b, D_ab, Omega, Omega_a, Omega_b, Omega_ab
                 )
             },
             {
-                2,
+                make_exc_density(D, Omega, 2),
                 SymEngine::mul(
                     make_first_order_density(D, D_a, Omega, Omega_a),
                     make_first_order_density(D, D_b, Omega, Omega_b)
@@ -234,7 +237,7 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
     ) {
         return ExcDensityContractionMap({
             {
-                1,
+                make_exc_density(D, Omega, 1),
                 make_third_order_density(
                     D, D_a, D_b, D_c, D_ab, D_ac, D_bc, D_abc,
                     Omega,
@@ -244,7 +247,7 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
                 )
             },
             {
-                2,
+                make_exc_density(D, Omega, 2),
                 SymEngine::add({
                     SymEngine::mul(
                         make_first_order_density(D, D_a, Omega, Omega_a),
@@ -267,7 +270,7 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
                 })
             },
             {
-                3,
+                make_exc_density(D, Omega, 3),
                 SymEngine::mul({
                     make_first_order_density(D, D_a, Omega, Omega_a),
                     make_first_order_density(D, D_b, Omega, Omega_b),
@@ -305,10 +308,10 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
         Exc->get_overlap_distributions(), SameTypeSet<const OneElecOperator>({Omega})
     ));
     REQUIRE(Exc->get_exc_orders() == std::set<unsigned int>({0}));
-    REQUIRE(eq_exc_contraction(
+    REQUIRE(eq_energy_map(
         Exc->get_energy_map(),
         ExcContractionMap({
-            {weight, make_unperturbed_contraction()}
+            {weight, make_unperturbed_contraction(D, Omega)}
         })
     ));
 
@@ -356,7 +359,7 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
         SameTypeSet<const OneElecOperator>({Omega, Omega_a})
     ));
     REQUIRE(Exc_a->get_exc_orders() == std::set<unsigned int>({1}));
-    REQUIRE(eq_exc_contraction(
+    REQUIRE(eq_energy_map(
         Exc_a->get_energy_map(),
         ExcContractionMap({
             {
@@ -378,7 +381,7 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
         SameTypeSet<const OneElecOperator>({Omega, Omega_a, Omega_b, Omega_ab})
     ));
     REQUIRE(Exc_ab->get_exc_orders() == std::set<unsigned int>({1, 2}));
-    REQUIRE(eq_exc_contraction(
+    REQUIRE(eq_energy_map(
         Exc_ab->get_energy_map(),
         ExcContractionMap({
             {
@@ -405,7 +408,7 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
         })
     ));
     REQUIRE(Exc_abc->get_exc_orders() == std::set<unsigned int>({1, 2, 3}));
-    REQUIRE(eq_exc_contraction(
+    REQUIRE(eq_energy_map(
         Exc_abc->get_energy_map(),
         ExcContractionMap({
             {
@@ -446,7 +449,7 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
         })
     ));
     REQUIRE(Exc_abcd->get_exc_orders() == std::set<unsigned int>({1, 2, 3, 4}));
-    REQUIRE(eq_exc_contraction(
+    REQUIRE(eq_energy_map(
         Exc_abcd->get_energy_map(),
         // Equation (46)-(50), J. Chem. Phys. 140, 034103 (2014)
         ExcContractionMap({
@@ -454,7 +457,7 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
                 weight,
                 ExcDensityContractionMap({
                     {
-                        1,
+                        make_exc_density(D, Omega, 1),
                         SymEngine::add({
                             make_density_vector(D, Omega_abcd),
                             make_density_vector(D_a, Omega_bcd),
@@ -475,7 +478,7 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
                         })
                     },
                     {
-                        2,
+                        make_exc_density(D, Omega, 2),
                         SymEngine::add({
                             SymEngine::mul(
                                 make_first_order_density(D, D_a, Omega, Omega_a),
@@ -546,7 +549,7 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
                         })
                     },
                     {
-                        3,
+                        make_exc_density(D, Omega, 3),
                         SymEngine::add({
                             SymEngine::mul({
                                 make_first_order_density(D, D_a, Omega, Omega_a),
@@ -593,7 +596,7 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
                         })
                     },
                     {
-                        4,
+                        make_exc_density(D, Omega, 4),
                         SymEngine::mul({
                             make_first_order_density(D, D_a, Omega, Omega_a),
                             make_first_order_density(D, D_b, Omega, Omega_b),
@@ -629,7 +632,7 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
         SameTypeSet<const OneElecOperator>({Omega, Omega_a})
     ));
     REQUIRE(Exc_a->get_exc_orders() == std::set<unsigned int>({0, 1}));
-    REQUIRE(eq_exc_contraction(
+    REQUIRE(eq_energy_map(
         Exc_a->get_energy_map(),
         ExcContractionMap({
             {
@@ -638,7 +641,7 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
             },
             {
                 weight_a,
-                make_unperturbed_contraction()
+                make_unperturbed_contraction(D, Omega)
             }
         })
     ));
@@ -658,7 +661,7 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
         SameTypeSet<const OneElecOperator>({Omega, Omega_a, Omega_b, Omega_ab})
     ));
     REQUIRE(Exc_ab->get_exc_orders() == std::set<unsigned int>({0, 1, 2}));
-    REQUIRE(eq_exc_contraction(
+    REQUIRE(eq_energy_map(
         Exc_ab->get_energy_map(),
         ExcContractionMap({
             {
@@ -677,7 +680,7 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
             },
             {
                 weight_ab,
-                make_unperturbed_contraction()
+                make_unperturbed_contraction(D, Omega)
             }
         })
     ));
@@ -699,7 +702,7 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
         })
     ));
     REQUIRE(Exc_abc->get_exc_orders() == std::set<unsigned int>({1, 2, 3}));
-    REQUIRE(eq_exc_contraction(
+    REQUIRE(eq_energy_map(
         Exc_abc->get_energy_map(),
         ExcContractionMap({
             {
@@ -760,16 +763,18 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
         Exc_a->get_overlap_distributions(), SameTypeSet<const OneElecOperator>({Omega})
     ));
     REQUIRE(Exc_a->get_exc_orders() == std::set<unsigned int>({0, 1}));
-    REQUIRE(eq_exc_contraction(
+    REQUIRE(eq_energy_map(
         Exc_a->get_energy_map(),
         ExcContractionMap({
             {
                 weight,
-                ExcDensityContractionMap({{1, make_density_vector(D_a, Omega)}})
+                ExcDensityContractionMap({
+                    {make_exc_density(D, Omega, 1), make_density_vector(D_a, Omega)}
+                })
             },
             {
                 weight_a,
-                make_unperturbed_contraction()
+                make_unperturbed_contraction(D, Omega)
             }
         })
     ));
@@ -786,18 +791,18 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
         Exc_ab->get_overlap_distributions(), SameTypeSet<const OneElecOperator>({Omega})
     ));
     REQUIRE(Exc_ab->get_exc_orders() == std::set<unsigned int>({0, 1, 2}));
-    REQUIRE(eq_exc_contraction(
+    REQUIRE(eq_energy_map(
         Exc_ab->get_energy_map(),
         ExcContractionMap({
             {
                 weight,
                 ExcDensityContractionMap({
                     {
-                        1,
+                        make_exc_density(D, Omega, 1),
                         make_density_vector(D_ab, Omega)
                     },
                     {
-                        2,
+                        make_exc_density(D, Omega, 2),
                         SymEngine::mul(
                             make_density_vector(D_a, Omega),
                             make_density_vector(D_b, Omega)
@@ -807,15 +812,19 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
             },
             {
                 weight_a,
-                ExcDensityContractionMap({{1, make_density_vector(D_b, Omega)}})
+                ExcDensityContractionMap({
+                    {make_exc_density(D, Omega, 1), make_density_vector(D_b, Omega)}
+                })
             },
             {
                 weight_b,
-                ExcDensityContractionMap({{1, make_density_vector(D_a, Omega)}})
+                ExcDensityContractionMap({
+                    {make_exc_density(D, Omega, 1), make_density_vector(D_a, Omega)}
+                })
             },
             {
                 weight_ab,
-                make_unperturbed_contraction()
+                make_unperturbed_contraction(D, Omega)
             }
         })
     ));
@@ -835,7 +844,7 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
         SameTypeSet<const OneElecOperator>({Omega, Omega_c})
     ));
     REQUIRE(Exc_abc->get_exc_orders() == std::set<unsigned int>({1, 2, 3}));
-    REQUIRE(eq_exc_contraction(
+    REQUIRE(eq_energy_map(
         Exc_abc->get_energy_map(),
         ExcContractionMap({
             {
@@ -844,11 +853,11 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
                 // `b` from `make_third_order_contraction()`
                 ExcDensityContractionMap({
                     {
-                        1,
+                        make_exc_density(D, Omega, 1),
                         make_first_order_density(D_ab, D_abc, Omega, Omega_c)
                     },
                     {
-                        2,
+                        make_exc_density(D, Omega, 2),
                         SymEngine::add({
                             SymEngine::mul(
                                 make_density_vector(D_a, Omega),
@@ -865,7 +874,7 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
                         })
                     },
                     {
-                        3,
+                        make_exc_density(D, Omega, 3),
                         SymEngine::mul({
                             make_density_vector(D_a, Omega),
                             make_density_vector(D_b, Omega),
@@ -878,11 +887,11 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
                 weight_a,
                 ExcDensityContractionMap({
                     {
-                        1,
+                        make_exc_density(D, Omega, 1),
                         make_first_order_density(D_b, D_bc, Omega, Omega_c)
                     },
                     {
-                        2,
+                        make_exc_density(D, Omega, 2),
                         SymEngine::mul(
                             make_density_vector(D_b, Omega),
                             make_first_order_density(D, D_c, Omega, Omega_c)
@@ -894,11 +903,11 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
                 weight_b,
                 ExcDensityContractionMap({
                     {
-                        1,
+                        make_exc_density(D, Omega, 1),
                         make_first_order_density(D_a, D_ac, Omega, Omega_c)
                     },
                     {
-                        2,
+                        make_exc_density(D, Omega, 2),
                         SymEngine::mul(
                             make_density_vector(D_a, Omega),
                             make_first_order_density(D, D_c, Omega, Omega_c)
@@ -935,20 +944,20 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
         })
     ));
     REQUIRE(Exc_abcd->get_exc_orders() == std::set<unsigned int>({1, 2, 3, 4}));
-    REQUIRE(eq_exc_contraction(
+    REQUIRE(eq_energy_map(
         Exc_abcd->get_energy_map(),
         ExcContractionMap({
             {
                 weight,
                 ExcDensityContractionMap({
                     {
-                        1,
+                        make_exc_density(D, Omega, 1),
                         make_second_order_density(
                             D_ab, D_abc, D_abd, D_abcd, Omega, Omega_c, Omega_d, Omega_cd
                         )
                     },
                     {
-                        2,
+                        make_exc_density(D, Omega, 2),
                         SymEngine::add({
                             SymEngine::mul(
                                 make_first_order_density(D_ab, D_abc, Omega, Omega_c),
@@ -989,7 +998,7 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
                         })
                     },
                     {
-                        3,
+                        make_exc_density(D, Omega, 3),
                         SymEngine::add({
                             SymEngine::mul({
                                 make_density_vector(D_a, Omega),
@@ -1026,7 +1035,7 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
                         })
                     },
                     {
-                        4,
+                        make_exc_density(D, Omega, 4),
                         SymEngine::mul({
                             make_density_vector(D_a, Omega),
                             make_density_vector(D_b, Omega),
@@ -1040,13 +1049,13 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
                 weight_a,
                 ExcDensityContractionMap({
                     {
-                        1,
+                        make_exc_density(D, Omega, 1),
                         make_second_order_density(
                             D_b, D_bc, D_bd, D_bcd, Omega, Omega_c, Omega_d, Omega_cd
                         )
                     },
                     {
-                        2,
+                        make_exc_density(D, Omega, 2),
                         SymEngine::add({
                             SymEngine::mul(
                                 make_first_order_density(D, D_d, Omega, Omega_d),
@@ -1065,7 +1074,7 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
                         })
                     },
                     {
-                        3,
+                        make_exc_density(D, Omega, 3),
                         SymEngine::mul({
                             make_density_vector(D_b, Omega),
                             make_first_order_density(D, D_c, Omega, Omega_c),
@@ -1078,13 +1087,13 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
                 weight_b,
                 ExcDensityContractionMap({
                     {
-                        1,
+                        make_exc_density(D, Omega, 1),
                         make_second_order_density(
                             D_a, D_ac, D_ad, D_acd, Omega, Omega_c, Omega_d, Omega_cd
                         )
                     },
                     {
-                        2,
+                        make_exc_density(D, Omega, 2),
                         SymEngine::add({
                             SymEngine::mul(
                                 make_first_order_density(D, D_d, Omega, Omega_d),
@@ -1103,7 +1112,7 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
                         })
                     },
                     {
-                        3,
+                        make_exc_density(D, Omega, 3),
                         SymEngine::mul({
                             make_density_vector(D_a, Omega),
                             make_first_order_density(D, D_c, Omega, Omega_c),
@@ -1134,9 +1143,12 @@ TEST_CASE("Test ExchCorrPotential and make_xc_potential()", "[ExchCorrPotential]
     // For unperturbed XC potential, there is only one unperturbed grid
     // weight, and order of the XC energy functional derivative is 1, and no
     // generalized density vectors to be contracted with
-    auto make_unperturbed_contraction = [&]() {
+    auto make_unperturbed_contraction = [&](
+        const SymEngine::RCP<const ElectronicState>& D,
+        const SymEngine::RCP<const OneElecOperator>& Omega
+    ) {
         return ExcDensityContractionMap({
-            {1, SymEngine::RCP<const SymEngine::Basic>()}
+            {make_exc_density(D, Omega, 1), SymEngine::RCP<const SymEngine::Basic>()}
         });
     };
     // Equation (47), J. Chem. Phys. 140, 034103 (2014)
@@ -1160,7 +1172,7 @@ TEST_CASE("Test ExchCorrPotential and make_xc_potential()", "[ExchCorrPotential]
     ) {
         return ExcDensityContractionMap({
             {
-                2,
+                make_exc_density(D, Omega, 2),
                 make_first_order_density(D, D_a, Omega, Omega_a)
             }
         });
@@ -1196,13 +1208,13 @@ TEST_CASE("Test ExchCorrPotential and make_xc_potential()", "[ExchCorrPotential]
     ) {
         return ExcDensityContractionMap({
             {
-                2,
+                make_exc_density(D, Omega, 2),
                 make_second_order_density(
                     D, D_a, D_b, D_ab, Omega, Omega_a, Omega_b, Omega_ab
                 )
             },
             {
-                3,
+                make_exc_density(D, Omega, 3),
                 SymEngine::mul(
                     make_first_order_density(D, D_a, Omega, Omega_a),
                     make_first_order_density(D, D_b, Omega, Omega_b)
@@ -1234,10 +1246,13 @@ TEST_CASE("Test ExchCorrPotential and make_xc_potential()", "[ExchCorrPotential]
         Vxc->get_overlap_distributions(), SameTypeSet<const OneElecOperator>({Omega})
     ));
     REQUIRE(Vxc->get_exc_orders() == std::set<unsigned int>({1}));
-    REQUIRE(eq_vxc_contraction(
+    REQUIRE(eq_potential_map(
         Vxc->get_potential_map(),
         VxcContractionMap({
-            {Omega, ExcContractionMap({{weight, make_unperturbed_contraction()}})}
+            {
+                Omega,
+                ExcContractionMap({{weight, make_unperturbed_contraction(D, Omega)}})
+            }
         })
     ));
 
@@ -1261,7 +1276,7 @@ TEST_CASE("Test ExchCorrPotential and make_xc_potential()", "[ExchCorrPotential]
         SameTypeSet<const OneElecOperator>({Omega, Omega_a})
     ));
     REQUIRE(Vxc_a->get_exc_orders() == std::set<unsigned int>({1, 2}));
-    REQUIRE(eq_vxc_contraction(
+    REQUIRE(eq_potential_map(
         Vxc_a->get_potential_map(),
         VxcContractionMap({
             {
@@ -1272,7 +1287,7 @@ TEST_CASE("Test ExchCorrPotential and make_xc_potential()", "[ExchCorrPotential]
             },
             {
                 Omega_a,
-                ExcContractionMap({{weight, make_unperturbed_contraction()}})
+                ExcContractionMap({{weight, make_unperturbed_contraction(D, Omega)}})
             }
         })
     ));
@@ -1289,7 +1304,7 @@ TEST_CASE("Test ExchCorrPotential and make_xc_potential()", "[ExchCorrPotential]
         SameTypeSet<const OneElecOperator>({Omega, Omega_a, Omega_b, Omega_ab})
     ));
     REQUIRE(Vxc_ab->get_exc_orders() == std::set<unsigned int>({1, 2, 3}));
-    REQUIRE(eq_vxc_contraction(
+    REQUIRE(eq_potential_map(
         Vxc_ab->get_potential_map(),
         VxcContractionMap({
             {
@@ -1317,7 +1332,7 @@ TEST_CASE("Test ExchCorrPotential and make_xc_potential()", "[ExchCorrPotential]
             },
             {
                 Omega_ab,
-                ExcContractionMap({{weight, make_unperturbed_contraction()}})
+                ExcContractionMap({{weight, make_unperturbed_contraction(D, Omega)}})
             }
         })
     ));

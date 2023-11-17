@@ -10,6 +10,7 @@
 #include "Tinned/OneElecOperator.hpp"
 #include "Tinned/TwoElecOperator.hpp"
 #include "Tinned/CompositeFunction.hpp"
+#include "Tinned/ExchCorrContraction.hpp"
 #include "Tinned/ExchCorrEnergy.hpp"
 #include "Tinned/ExchCorrPotential.hpp"
 #include "Tinned/NonElecFunction.hpp"
@@ -17,6 +18,7 @@
 #include "Tinned/TemporumOverlap.hpp"
 
 #include "Tinned/KeepVisitor.hpp"
+#include "Tinned/StringifyVisitor.hpp"
 
 namespace Tinned
 {
@@ -334,9 +336,11 @@ namespace Tinned
             // `factors` will be used to construct the product that will be
             // removed. The first factor is -1 for substraction, see
             // information below.
-            SymEngine::vec_basic factors = SymEngine::vec_basic({SymEngine::minus_one});
+            auto factors = SymEngine::vec_basic({SymEngine::minus_one});
             // Indicates if there is factor(s) kept
             bool factors_kept = false;
+            // Indicates if factors contain `ExchCorrEnergy` objects
+            bool has_exc = false;
             for (auto arg: SymEngine::down_cast<const SymEngine::MatrixMul&>(x).get_args()) {
                 auto new_arg = apply(arg);
                 if (new_arg.is_null()) {
@@ -367,8 +371,19 @@ namespace Tinned
                                 })
                             ));
                         }
+                        // We need to take care of type `ExchCorrEnergy`
+                        // because `SymEngine::sub` may not work for it
+                        else if (SymEngine::is_a_sub<const ExchCorrEnergy>(*arg)) {
+                            if (has_exc) throw SymEngine::SymEngineException(
+                                "KeepVisitor::bvisit() got two ExchCorrEnergy from "
+                                + stringify(x)
+                            );
+                            auto exc = SymEngine::rcp_dynamic_cast<const ExchCorrEnergy>(arg);
+                            factors.push_back(exc->sub(new_arg));
+                            has_exc = true;
+                        }
+                        // `arg` is a scalar
                         else {
-                            // `arg` is a scalar
                             factors.push_back(SymEngine::sub(arg, new_arg));
                         }
                         factors_kept = true;
@@ -380,12 +395,28 @@ namespace Tinned
             // where Ar, Br, Cr, ... are parts that are removed, R, S, T, ...
             // are those without kept parts.
             if (factors_kept) {
-                result_ = SymEngine::matrix_add(
-                    SymEngine::vec_basic({
-                        x.rcp_from_this(),
+                if (has_exc) {
+                    // When type `ExchCorrEnergy` is involved, `x` should be
+                    // the argument of `ExchCorrPotential`.
+                    factors.erase(factors.begin());
+                    result_ = sub_xc_potential(
+                        SymEngine::rcp_dynamic_cast<const SymEngine::MatrixExpr>(
+                            x.rcp_from_this()
+                        ),
                         SymEngine::matrix_mul(factors)
-                    })
-                );
+                    );
+                }
+                else {
+                    //FIXME: For `ExchCorrEnergy`, the multiplication with
+                    //generalized overlap distribution missing after
+                    //`SymEngine::matrix_add`
+                    result_ = SymEngine::matrix_add(
+                        SymEngine::vec_basic({
+                            x.rcp_from_this(),
+                            SymEngine::matrix_mul(factors)
+                        })
+                    );
+                }
             }
             // `MatrixMul` will be removed since all its factors are null after
             // removal

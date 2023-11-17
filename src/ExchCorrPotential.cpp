@@ -1,5 +1,4 @@
-#include <symengine/add.h>
-#include <symengine/mul.h>
+#include <symengine/matrices/matrix_mul.h>
 #include <symengine/symengine_casts.h>
 
 #include "Tinned/ExchCorrPotential.hpp"
@@ -44,60 +43,15 @@ namespace Tinned
     ) : SymEngine::MatrixSymbol(other.get_name()),
         state_(other.state_),
         Omega_(other.Omega_),
-        weight_(other.weight_)
+        weight_(other.weight_),
+        potential_(potential)
     {
-        SymEngine::vec_basic factors = {};
-        auto potential_map = extract_potential_map(potential);
-        // `energy_map.first` is the (un)perturbed generalized overlap
-        // distribution, and `energy_map.second` is type
-        // `ExcContractionMap`
-        for (const auto& energy_map: potential_map) {
-            SymEngine::vec_basic vxc_terms = {};
-            // `weight_map.first` is the (un)perturbed grid weight, and
-            // `weight_map.second` is type `ExcDensityContractionMap`
-            for (const auto& weight_map: energy_map.second) {
-                // `exc_map.first` is the order of XC energy functional
-                // derivative vector(s), and `exc_map.second` is the
-                // generalized density vector(s)
-                for (const auto& exc_map: weight_map.second) {
-                    if (exc_map.second.is_null()) {
-                        vxc_terms.push_back(SymEngine::mul(
-                            weight_map.first,
-                            make_exc_density(other.state_, other.Omega_, exc_map.first)
-                        ));
-                    }
-                    else {
-                        vxc_terms.push_back(SymEngine::mul(SymEngine::vec_basic({
-                            weight_map.first,
-                            make_exc_density(other.state_, other.Omega_, exc_map.first),
-                            exc_map.second
-                        })));
-                    }
-                }
-            }
-            SYMENGINE_ASSERT(!vxc_terms.empty())
-            if (vxc_terms.size() == 1) {
-                factors.push_back(
-                    SymEngine::matrix_mul(SymEngine::vec_basic({
-                        vxc_terms[0], energy_map.first
-                    }))
-                );
-            }
-            else {
-                factors.push_back(
-                    SymEngine::matrix_mul(SymEngine::vec_basic({
-                        SymEngine::add(vxc_terms), energy_map.first
-                    }))
-                );
-            }
-        }
-        SYMENGINE_ASSERT(!factors.empty())
-        if (factors.size() == 1) {
-            potential_ = SymEngine::rcp_dynamic_cast<const SymEngine::MatrixExpr>(factors[0]);
-        }
-        else {
-            potential_ = SymEngine::matrix_add(factors);
-        }
+        // XC potential or its derivatives must be either
+        // `SymEngine::MatrixMul` or `SymEngine::MatrixAdd`
+        SYMENGINE_ASSERT(
+            SymEngine::is_a<const SymEngine::MatrixMul>(*potential) ||
+            SymEngine::is_a<const SymEngine::MatrixAdd>(*potential)
+        )
         SYMENGINE_ASSIGN_TYPEID()
     }
 

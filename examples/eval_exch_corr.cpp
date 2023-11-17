@@ -9,17 +9,15 @@ using namespace Tinned;
 void eval_xc_energy(const SymEngine::RCP<const ExchCorrEnergy>& energy)
 {
     std::cout << "Output from eval_xc_energy()\n";
-    auto state = energy->get_state();
-    auto contr_map = energy->get_energy_map();
-    for (const auto& term: contr_map) {
-        for (const auto& contr: term.second) {
-            std::cout << "Grid weight = " << stringify(term.first) << "\n";
+    auto energy_map = energy->get_energy_map();
+    for (const auto& weight_map: energy_map) {
+        for (const auto& exc_map: weight_map.second) {
+            std::cout << "Grid weight = " << stringify(weight_map.first) << "\n";
             //get_derivative()
-            std::cout << "XC functional order = " << contr.first << "\n";
-            std::cout << "Unperturbed state = " << stringify(state) << "\n";
-            if (!contr.second.is_null()) {
+            std::cout << "XC functional = " << stringify(exc_map.first) << "\n";
+            if (!exc_map.second.is_null()) {
                 std::cout << "Generalized density vector = "
-                          << stringify(contr.second)
+                          << stringify(exc_map.second)
                           << "\n";
             }
         }

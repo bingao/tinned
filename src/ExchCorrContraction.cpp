@@ -1,9 +1,10 @@
-#include <string>
-
+#include <symengine/add.h>
+#include <symengine/mul.h>
 #include <symengine/pow.h>
 #include <symengine/number.h>
 #include <symengine/constants.h>
-#include <symengine/matrices/trace.h>
+#include <symengine/matrices/matrix_add.h>
+#include <symengine/symengine_assert.h>
 #include <symengine/symengine_casts.h>
 #include <symengine/symengine_exception.h>
 
@@ -11,18 +12,17 @@
 #include "Tinned/ExchCorrContraction.hpp"
 #include "Tinned/CompositeFunction.hpp"
 #include "Tinned/KeepVisitor.hpp"
+#include "Tinned/StringifyVisitor.hpp"
 
 namespace Tinned
 {
     std::tuple<SymEngine::RCP<const NonElecFunction>,
-               unsigned int,
+               SymEngine::RCP<const CompositeFunction>,
                SymEngine::RCP<const SymEngine::Basic>>
     extract_exc_contraction(const SymEngine::RCP<const SymEngine::Mul>& expression)
     {
         SymEngine::RCP<const NonElecFunction> weight;
         SymEngine::RCP<const CompositeFunction> exc;
-        unsigned int order;
-        bool found_order = false;
         // Hold generalized density vectors and/or coefficient
         SymEngine::vec_basic factors;
         for (const auto& arg: expression->get_args()) {
@@ -34,19 +34,17 @@ namespace Tinned
             else if (SymEngine::is_a_sub<const NonElecFunction>(*arg)) {
                 if (!weight.is_null()) throw SymEngine::SymEngineException(
                     "Two grid weights got from the XC energy density contraction "
-                    + expression->__str__()
+                    + stringify(expression)
                 );
                 weight = SymEngine::rcp_dynamic_cast<const NonElecFunction>(arg);
             }
             // XC functional derivative
             else if (SymEngine::is_a_sub<const CompositeFunction>(*arg)) {
-                if (found_order) throw SymEngine::SymEngineException(
+                if (!exc.is_null()) throw SymEngine::SymEngineException(
                     "Two XC functional derivatives got from the XC energy density contraction "
-                    + expression->__str__()
+                    + stringify(expression)
                 );
                 exc = SymEngine::rcp_dynamic_cast<const CompositeFunction>(arg);
-                order = exc->get_order();
-                found_order = true;
             }
             // Generalized density vector, sum of generalized density
             // vectors, or power of (sum of) generalized density
@@ -61,17 +59,17 @@ namespace Tinned
             else {
                 throw SymEngine::SymEngineException(
                     "Invalid type from the XC energy density contraction "
-                    + expression->__str__()
+                    + stringify(expression)
                 );
             }
         }
-        if (weight.is_null() || !found_order) {
+        if (weight.is_null() || exc.is_null()) {
             throw SymEngine::SymEngineException(
                 "Terms missing ("
                 + std::to_string(weight.is_null()) + "/"
-                + std::to_string(!found_order) +
+                + std::to_string(exc.is_null()) +
                 + ") from the XC energy density contraction "
-                + expression->__str__()
+                + stringify(expression)
             );
         }
         else {
@@ -79,7 +77,7 @@ namespace Tinned
                 // We return nullptr when there is no generalized density
                 // vectors, for example in the unperturbed case
                 return std::make_tuple(
-                    weight, order, SymEngine::RCP<const SymEngine::Basic>()
+                    weight, exc, SymEngine::RCP<const SymEngine::Basic>()
                 );
             }
             else {
@@ -90,76 +88,99 @@ namespace Tinned
                     dens_vectors, SymEngine::set_basic({weight, exc})
                 );
                 if (factors_left.is_null()) {
-                    return std::make_tuple(weight, order, dens_vectors);
+                    return std::make_tuple(weight, exc, dens_vectors);
                 }
                 else {
                     throw SymEngine::SymEngineException(
                         "Invalid grid weights and/or XC functional derivatives "
-                        + factors_left->__str__()
+                        + stringify(factors_left)
                         + " in "
-                        + dens_vectors->__str__()
+                        + stringify(dens_vectors)
                     );
                 }
             }
         }
     }
 
-    std::pair<SymEngine::RCP<const OneElecOperator>, ExcContractionMap>
-    extract_vxc_contraction(
-        const SymEngine::RCP<const SymEngine::MatrixMul>& expression
+    void add_exc_contraction(
+        ExcContractionMap& energyMap,
+        const std::tuple<SymEngine::RCP<const NonElecFunction>,
+                         SymEngine::RCP<const CompositeFunction>,
+                         SymEngine::RCP<const SymEngine::Basic>>& value
     )
     {
-        SymEngine::RCP<const OneElecOperator> Omega;
-        ExcContractionMap energy_map;
-        SymEngine::RCP<const SymEngine::Basic> scalar = SymEngine::one;
-        for (const auto& arg: expression->get_args()) {
-            // (Un)perturbed XC potential
-            if (SymEngine::is_a_sub<const ExchCorrEnergy>(*arg)) {
-                if (!energy_map.empty()) throw SymEngine::SymEngineException(
-                    "Two XC potential contractions got from "
-                    + expression->__str__()
-                );
-                auto op = SymEngine::rcp_dynamic_cast<const ExchCorrEnergy>(arg);
-                energy_map = op->get_energy_map();
-            }
-            // Generalized overlap distribution
-            else if (SymEngine::is_a_sub<const OneElecOperator>(*arg)) {
-                if (!Omega.is_null()) throw SymEngine::SymEngineException(
-                    "Two overlap distributions got from the XC potential contraction "
-                    + expression->__str__()
-                );
-                Omega = SymEngine::rcp_dynamic_cast<const OneElecOperator>(arg);
-            }
-            else {
-                scalar = SymEngine::mul(scalar, arg);
-                //throw SymEngine::SymEngineException(
-                //    "Invalid type from the XC potential contraction "
-                //    + expression->__str__()
-                //);
-            }
-        }
-        // Consider the coefficient of matrix multiplication
-        if (SymEngine::neq(*scalar, *SymEngine::one)) {
-            for (auto& weight_map: energy_map) {
-                for (auto& exc_map: weight_map.second)
-                    exc_map.second = SymEngine::mul(exc_map.second, scalar);
-            }
-        }
-        if (Omega.is_null() || energy_map.empty()) {
-            throw SymEngine::SymEngineException(
-                "Terms missing ("
-                + std::to_string(Omega.is_null()) + "/"
-                + std::to_string(energy_map.empty())
-                + ") from the XC potential contraction "
-                + expression->__str__()
+        // Check if the grid weight exists in the outer map
+        auto weight_map = energyMap.find(std::get<0>(value));
+        if (weight_map == energyMap.end()) {
+            energyMap.emplace(
+                std::get<0>(value),
+                ExcDensityContractionMap({{std::get<1>(value), std::get<2>(value)}})
             );
         }
         else {
-            return std::make_pair(Omega, energy_map);
+            // Check if the functional derivative of XC energy density exists
+            // in the inner map
+            auto exc_map = weight_map->second.find(std::get<1>(value));
+            if (exc_map == weight_map->second.end()) {
+                weight_map->second.emplace(std::get<1>(value), std::get<2>(value));
+            }
+            else {
+                exc_map->second = SymEngine::add(exc_map->second, std::get<2>(value));
+            }
         }
     }
 
-    void merge_exc_contraction(ExcContractionMap& map1, const ExcContractionMap& map2)
+    ExcContractionMap extract_energy_map(
+        const SymEngine::RCP<const SymEngine::Basic>& expression
+    )
+    {
+        // XC energy or its derivatives must be either `SymEngine::Mul` or
+        // `SymEngine::Add`
+        SYMENGINE_ASSERT(
+            SymEngine::is_a<const SymEngine::Mul>(*expression) ||
+            SymEngine::is_a<const SymEngine::Add>(*expression)
+        )
+        // Unperturbed or the first-order case
+        if (SymEngine::is_a_sub<const SymEngine::Mul>(*expression)) {
+            auto contr_term = extract_exc_contraction(
+                SymEngine::rcp_dynamic_cast<const SymEngine::Mul>(expression)
+            );
+            return ExcContractionMap({
+                {
+                    std::get<0>(contr_term),
+                    ExcDensityContractionMap({
+                        {std::get<1>(contr_term), std::get<2>(contr_term)}
+                    })
+                }
+            });
+        }
+        // Perturbed case
+        else {
+            ExcContractionMap energy_map;
+            auto energy = SymEngine::rcp_dynamic_cast<const SymEngine::Add>(expression);
+            auto energy_terms = energy->get_args();
+            // No coefficient exists in the XC energy derivatives
+            SYMENGINE_ASSERT(
+                !SymEngine::is_a_sub<const SymEngine::Number>(*energy_terms.front())
+            )
+            for (const auto& term: energy_terms) {
+                SYMENGINE_ASSERT(
+                    SymEngine::is_a_sub<const SymEngine::Mul>(*term)
+                )
+                auto contr_term = extract_exc_contraction(
+                    SymEngine::rcp_dynamic_cast<const SymEngine::Mul>(term)
+                );
+                add_exc_contraction(energy_map, contr_term);
+            }
+            return energy_map;
+        }
+    }
+
+    void merge_energy_map(
+        ExcContractionMap& map1,
+        const ExcContractionMap& map2,
+        const bool subtracted
+    )
     {
         for (const auto& weight_map2: map2) {
             auto weight_map1 = map1.find(weight_map2.first);
@@ -175,16 +196,42 @@ namespace Tinned
                         weight_map1->second.emplace(exc_map2);
                     }
                     else {
-                        exc_map1->second = SymEngine::add(
-                            exc_map1->second, exc_map2.second
-                        );
+                        exc_map1->second = subtracted
+                            ? SymEngine::sub(exc_map1->second, exc_map2.second)
+                            : SymEngine::add(exc_map1->second, exc_map2.second);
                     }
                 }
             }
         }
     }
 
-    bool eq_exc_contraction(
+    SymEngine::RCP<const SymEngine::Basic> convert_energy_map(
+        const ExcContractionMap& energyMap
+    )
+    {
+        SymEngine::vec_basic terms = {};
+        // `weight_map.first` is the (un)perturbed grid weight, and
+        // `weight_map.second` is type `ExcDensityContractionMap`
+        for (const auto& weight_map: energyMap) {
+            // `exc_map.first` is the order of XC energy functional derivative
+            // vector(s), and `exc_map.second` is the generalized density
+            // vector(s)
+            for (const auto& exc_map: weight_map.second) {
+                if (exc_map.second.is_null()) {
+                    terms.push_back(SymEngine::mul(weight_map.first, exc_map.first));
+                }
+                else {
+                    terms.push_back(SymEngine::mul(SymEngine::vec_basic({
+                        weight_map.first, exc_map.first, exc_map.second
+                    })));
+                }
+            }
+        }
+        SYMENGINE_ASSERT(!terms.empty())
+        return terms.size() == 1 ? terms[0] : SymEngine::add(terms);
+    }
+
+    bool eq_energy_map(
         const ExcContractionMap& map1, const ExcContractionMap& map2
     )
     {
@@ -198,7 +245,7 @@ namespace Tinned
                         auto exc_map1 = weight_map1->second.begin();
                         auto exc_map2 = weight_map2->second.begin();
                         for (; exc_map1 != weight_map1->second.end();) {
-                            if (exc_map1->first == exc_map2->first) {
+                            if (SymEngine::eq(*exc_map1->first, *exc_map2->first)) {
                                 if (exc_map1->second.is_null()) {
                                     if (!exc_map2->second.is_null()) return false;
                                 }
@@ -231,9 +278,186 @@ namespace Tinned
         }
     }
 
-    bool eq_vxc_contraction(
-        const VxcContractionMap& map1, const VxcContractionMap& map2
+    std::tuple<SymEngine::RCP<const OneElecOperator>,
+               SymEngine::RCP<const ExchCorrEnergy>,
+               ExcContractionMap>
+    extract_vxc_contraction(
+        const SymEngine::RCP<const SymEngine::MatrixMul>& expression
     )
+    {
+        SymEngine::RCP<const OneElecOperator> Omega;
+        SymEngine::RCP<const ExchCorrEnergy> Exc;
+        ExcContractionMap energy_map;
+        SymEngine::RCP<const SymEngine::Basic> scalar = SymEngine::one;
+        for (const auto& arg: expression->get_args()) {
+            // (Un)perturbed XC potential
+            if (SymEngine::is_a_sub<const ExchCorrEnergy>(*arg)) {
+                if (!energy_map.empty()) throw SymEngine::SymEngineException(
+                    "Two XC potential contractions got from "
+                    + stringify(expression)
+                );
+                Exc = SymEngine::rcp_dynamic_cast<const ExchCorrEnergy>(arg);
+                energy_map = Exc->get_energy_map();
+            }
+            // Generalized overlap distribution
+            else if (SymEngine::is_a_sub<const OneElecOperator>(*arg)) {
+                if (!Omega.is_null()) throw SymEngine::SymEngineException(
+                    "Two overlap distributions got from the XC potential contraction "
+                    + stringify(expression)
+                );
+                Omega = SymEngine::rcp_dynamic_cast<const OneElecOperator>(arg);
+            }
+            else {
+                scalar = SymEngine::mul(scalar, arg);
+                //throw SymEngine::SymEngineException(
+                //    "Invalid type from the XC potential contraction "
+                //    + stringify(expression)
+                //);
+            }
+        }
+        // Consider the coefficient of matrix multiplication
+        if (SymEngine::neq(*scalar, *SymEngine::one)) {
+            for (auto& weight_map: energy_map) {
+                for (auto& exc_map: weight_map.second)
+                    exc_map.second = SymEngine::mul(exc_map.second, scalar);
+            }
+        }
+        if (Omega.is_null() || energy_map.empty()) {
+            throw SymEngine::SymEngineException(
+                "Terms missing ("
+                + std::to_string(Omega.is_null()) + "/"
+                + std::to_string(energy_map.empty())
+                + ") from the XC potential contraction "
+                + stringify(expression)
+            );
+        }
+        else {
+            return std::make_tuple(Omega, Exc, energy_map);
+        }
+    }
+
+    std::pair<SymEngine::RCP<const ExchCorrEnergy>, VxcContractionMap>
+    extract_potential_map(
+        const SymEngine::RCP<const SymEngine::MatrixExpr>& expression
+    )
+    {
+        // XC potential or its derivatives must be either
+        // `SymEngine::MatrixMul` or `SymEngine::MatrixAdd`
+        SYMENGINE_ASSERT(
+            SymEngine::is_a<const SymEngine::MatrixMul>(*expression) ||
+            SymEngine::is_a<const SymEngine::MatrixAdd>(*expression)
+        )
+        // Unperturbed case or when the generalized overlap distribution does
+        // not depend on the applied perturbation(s)
+        if (SymEngine::is_a_sub<const SymEngine::MatrixMul>(*expression)) {
+            auto potential_term = extract_vxc_contraction(
+                SymEngine::rcp_dynamic_cast<const SymEngine::MatrixMul>(expression)
+            );
+            return std::make_pair(
+                std::get<1>(potential_term),
+                VxcContractionMap({
+                    {std::get<0>(potential_term), std::get<2>(potential_term)}
+                })
+            );
+        }
+        // Perturbed case
+        else {
+            VxcContractionMap potential_map;
+            auto potential = SymEngine::rcp_dynamic_cast<const SymEngine::MatrixAdd>(expression);
+            auto potential_terms = potential->get_args();
+            SymEngine::RCP<const ExchCorrEnergy> Exc;
+            for (const auto& term: potential_terms) {
+                SYMENGINE_ASSERT(
+                    SymEngine::is_a_sub<const SymEngine::MatrixMul>(*term)
+                )
+                auto vxc_factors = extract_vxc_contraction(
+                    SymEngine::rcp_dynamic_cast<const SymEngine::MatrixMul>(term)
+                );
+                if (Exc.is_null()) {
+                    Exc = std::get<1>(vxc_factors);
+                }
+                else {
+                    if (!Exc->is_same_xc(*std::get<1>(vxc_factors)))
+                        throw SymEngine::SymEngineException(
+                            "extract_potential_map() encouters different XC functionals "
+                            + stringify(Exc) + ", and "
+                            + stringify(std::get<1>(vxc_factors)) + " in "
+                            + stringify(expression)
+                        );
+                }
+                // Check if the generalized overlap distribution exists
+                // in the outermost map
+                auto energy_map = potential_map.find(std::get<0>(vxc_factors));
+                if (energy_map == potential_map.end()) {
+                    potential_map.emplace(
+                        std::get<0>(vxc_factors), std::get<2>(vxc_factors)
+                    );
+                }
+                else {
+                    merge_energy_map(energy_map->second, std::get<2>(vxc_factors));
+                }
+            }
+            return std::make_pair(Exc, potential_map);
+        }
+    }
+
+    void merge_potential_map(
+        VxcContractionMap& map1,
+        const VxcContractionMap& map2,
+        const bool subtracted
+    )
+    {
+        for (const auto& energy_map2: map2) {
+            auto energy_map1 = map1.find(energy_map2.first);
+            // New generalized overlap distribution
+            if (energy_map1 == map1.end()) {
+                 map1.emplace(energy_map2);
+            }
+            else {
+                merge_energy_map(energy_map1->second, energy_map2.second, subtracted);
+            }
+        }
+    }
+
+    SymEngine::RCP<const SymEngine::MatrixExpr> sub_xc_potential(
+        const SymEngine::RCP<const SymEngine::MatrixExpr>& minuend,
+        const SymEngine::RCP<const SymEngine::MatrixExpr>& subtrahend
+    )
+    {
+        auto map_minuend = extract_potential_map(minuend);
+        auto map_subtrahend = extract_potential_map(subtrahend);
+        if (!map_minuend.first->is_same_xc(*map_subtrahend.first))
+            return SymEngine::matrix_add(SymEngine::vec_basic({
+                minuend,
+                SymEngine::matrix_mul(SymEngine::vec_basic({
+                    SymEngine::minus_one, subtrahend
+                }))
+            }));
+
+        merge_potential_map(map_minuend.second, map_subtrahend.second, true);
+
+        // Convert `map_minuend` to XC potential or its derivatives
+        SymEngine::vec_basic factors = {};
+        // `energy_map.first` is the (un)perturbed generalized overlap
+        // distribution, and `energy_map.second` is type `ExcContractionMap`
+        for (const auto& energy_map: map_minuend.second) {
+            factors.push_back(
+                SymEngine::matrix_mul(SymEngine::vec_basic({
+                    SymEngine::make_rcp<const ExchCorrEnergy>(
+                        *map_minuend.first,
+                        convert_energy_map(energy_map.second)
+                    ),
+                    energy_map.first
+                }))
+            );
+        }
+        SYMENGINE_ASSERT(!factors.empty())
+        return factors.size() == 1
+            ? SymEngine::rcp_dynamic_cast<const SymEngine::MatrixExpr>(factors[0])
+            : SymEngine::matrix_add(factors);
+    }
+
+    bool eq_potential_map(const VxcContractionMap& map1, const VxcContractionMap& map2)
     {
         if (map1.size() == map2.size()) {
             auto energy_map1 = map1.begin();
@@ -241,9 +465,8 @@ namespace Tinned
             for (; energy_map1 != map1.end(); ++energy_map1, ++energy_map2) {
                 // Compare generalized overlap distribution
                 if (SymEngine::eq(*energy_map1->first, *energy_map2->first)) {
-                    if (!eq_exc_contraction(
-                        energy_map1->second, energy_map2->second
-                    )) return false;
+                    if (!eq_energy_map(energy_map1->second, energy_map2->second))
+                        return false;
                 }
                 else {
                     return false;

@@ -198,7 +198,20 @@ TEST_CASE("Test KeepVisitor and keep_if()", "[KeepVisitor]")
 //        *keep_if(F_a, SymEngine::set_basic({D})),
 //        *SymEngine::matrix_add(SymEngine::vec_basic({Ga, Fxc->diff(a)}))
 //    ));
-std::cout << "keep_if = \n\n" << stringify(keep_if(F_a, SymEngine::set_basic({D_a}))) << "\n\n";
+std::cout << "keep_if = " << stringify(keep_if(F_a, SymEngine::set_basic({D_a}))) << "\n";
+std::cout << "ref     = " << stringify(SymEngine::matrix_add(SymEngine::vec_basic({
+            G_Da,
+            SymEngine::make_rcp<const ExchCorrPotential>(
+                *Fxc,
+                SymEngine::matrix_mul(SymEngine::vec_basic({
+                    SymEngine::mul(
+                        make_vxc(Fxc->get_name(), D, Omega, weight, 2),
+                        make_density_vector(D_a, Omega)
+                    ),
+                    Omega
+                }))
+            )
+        }))) << "\n\n";
     REQUIRE(SymEngine::eq(
         *keep_if(F_a, SymEngine::set_basic({D_a})),
         *SymEngine::matrix_add(SymEngine::vec_basic({
@@ -206,8 +219,13 @@ std::cout << "keep_if = \n\n" << stringify(keep_if(F_a, SymEngine::set_basic({D_
             SymEngine::make_rcp<const ExchCorrPotential>(
                 *Fxc,
                 SymEngine::matrix_mul(SymEngine::vec_basic({
-                    make_vxc(Fxc->get_name(), D, Omega, weight, 2),
-                    make_density_vector(D_a, Omega),
+                    //FIXME:
+                    SymEngine::mul(
+                        make_vxc(Fxc->get_name(), D, Omega, weight, 2),
+                        make_density_vector(D_a, Omega)
+                    ),
+                    //make_density_vector(D_a, Omega),
+                    //make_vxc(Fxc->get_name(), D, Omega, weight, 2),
                     Omega
                 }))
             )

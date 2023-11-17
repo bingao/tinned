@@ -43,33 +43,6 @@
 
 namespace Tinned
 {
-    // Make generalized density vector
-    //FIXME: change `ElectronicState` to OneElecDensity?
-    inline SymEngine::RCP<const SymEngine::Basic> make_density_vector(
-        const SymEngine::RCP<const ElectronicState>& state,
-        const SymEngine::RCP<const OneElecOperator>& Omega
-    )
-    {
-        return SymEngine::trace(SymEngine::matrix_mul({Omega, state}));
-    }
-
-    // Make XC energy density from electronic state, overlap distribution and
-    // the order of XC energy functional
-    inline SymEngine::RCP<const CompositeFunction> make_exc_density(
-        const SymEngine::RCP<const ElectronicState>& state,
-        const SymEngine::RCP<const OneElecOperator>& Omega,
-        const unsigned int order
-    )
-    {
-        return SymEngine::make_rcp<const CompositeFunction>(
-            // XC energy density as the outer function
-            std::string("exc"),
-            // Generalized density vector as the inner function
-            make_density_vector(state, Omega),
-            order
-        );
-    }
-
     // Exchange-correlation (XC) energy like functionals
     class ExchCorrEnergy: public SymEngine::FunctionWrapper
     {
@@ -100,6 +73,18 @@ namespace Tinned
                 const ExchCorrEnergy& other,
                 const SymEngine::RCP<const SymEngine::Basic>& energy
             );
+
+            // Check if the same XC functional
+            inline bool is_same_xc(const ExchCorrEnergy& other) const
+            {
+                return get_name() == other.get_name()
+                    && SymEngine::unified_eq(get_vec(), other.get_vec());
+            }
+
+            // Take the subtraction from XC energy functional
+            SymEngine::RCP<const SymEngine::Basic> sub(
+                const SymEngine::RCP<const SymEngine::Basic>& other
+            ) const;
 
             SymEngine::hash_t __hash__() const override;
             bool __eq__(const SymEngine::Basic& o) const override;

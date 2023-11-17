@@ -26,8 +26,6 @@
 #include <symengine/symbol.h>
 #include <symengine/symengine_rcp.h>
 #include <symengine/symengine_assert.h>
-#include <symengine/matrices/matrix_add.h>
-#include <symengine/matrices/matrix_mul.h>
 #include <symengine/matrices/matrix_symbol.h>
 
 #include "Tinned/PertDependency.hpp"
@@ -201,7 +199,7 @@ namespace Tinned
             // `ExcContractionMap`.
             inline VxcContractionMap get_potential_map() const
             {
-                return extract_potential_map(potential_);
+                return extract_potential_map(potential_).second;
             }
     };
 

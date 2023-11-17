@@ -1,3 +1,4 @@
+#include <symengine/constants.h>
 #include <symengine/symengine_casts.h>
 
 #include "Tinned/ExchCorrEnergy.hpp"
@@ -28,42 +29,31 @@ namespace Tinned
     ExchCorrEnergy::ExchCorrEnergy(
         const ExchCorrEnergy& other,
         const SymEngine::RCP<const SymEngine::Basic>& energy
-    ) : SymEngine::FunctionWrapper(other.get_name(), other.get_args())
+    ) : SymEngine::FunctionWrapper(other.get_name(), other.get_args()),
+        energy_(canonicalize_xc_energy(energy))
     {
-        auto state = other.get_state();
-        auto Omega = other.get_overlap_distribution();
-        SymEngine::vec_basic terms = {};
-        auto energy_map = extract_energy_map(energy);
-        // `weight_map.first` is the (un)perturbed grid weight, and
-        // `weight_map.second` is type `ExcDensityContractionMap`
-        for (const auto& weight_map: energy_map) {
-            // `exc_map.first` is the order of XC energy functional derivative
-            // vector(s), and `exc_map.second` is the generalized density
-            // vector(s)
-            for (const auto& exc_map: weight_map.second) {
-                if (exc_map.second.is_null()) {
-                    terms.push_back(SymEngine::mul(
-                        weight_map.first,
-                        make_exc_density(state, Omega, exc_map.first)
-                    ));
-                }
-                else {
-                    terms.push_back(SymEngine::mul(SymEngine::vec_basic({
-                        weight_map.first,
-                        make_exc_density(state, Omega, exc_map.first),
-                        exc_map.second
-                    })));
-                }
+        SYMENGINE_ASSIGN_TYPEID()
+    }
+
+    SymEngine::RCP<const SymEngine::Basic> ExchCorrEnergy::sub(
+        const SymEngine::RCP<const SymEngine::Basic>& other
+    ) const
+    {
+        if (SymEngine::is_a_sub<const ExchCorrEnergy>(*other)) {
+            auto op = SymEngine::rcp_dynamic_cast<const ExchCorrEnergy>(other);
+            if (is_same_xc(*op)) {
+                return SymEngine::make_rcp<const ExchCorrEnergy>(
+                    *this,
+                    SymEngine::sub(energy_, op->energy_)
+                );
+            }
+            else {
+                return SymEngine::sub(this->rcp_from_this(), other);
             }
         }
-        SYMENGINE_ASSERT(!terms.empty())
-        if (terms.size() == 1) {
-            energy_ = terms[0];
-        }
         else {
-            energy_ = SymEngine::add(terms);
+            return SymEngine::sub(this->rcp_from_this(), other);
         }
-        SYMENGINE_ASSIGN_TYPEID()
     }
 
     SymEngine::hash_t ExchCorrEnergy::__hash__() const
@@ -80,9 +70,7 @@ namespace Tinned
         // `SymEngine::is_a<FunctionSymbol>(o)` which is not true here.
         if (SymEngine::is_a_sub<const ExchCorrEnergy>(o)) {
             auto& op = SymEngine::down_cast<const ExchCorrEnergy&>(o);
-            return get_name() == op.get_name()
-                && SymEngine::unified_eq(get_vec(), op.get_vec())
-                && energy_->__eq__(*op.energy_);
+            return is_same_xc(op) && energy_->__eq__(*op.energy_);
         }
         return false;
     }
