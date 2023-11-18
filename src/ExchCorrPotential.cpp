@@ -17,7 +17,13 @@ namespace Tinned
         Omega_(Omega),
         weight_(weight),
         potential_(SymEngine::matrix_mul(
-            SymEngine::vec_basic({make_vxc(name, state, Omega, weight), Omega})
+            SymEngine::vec_basic({
+                // Order for the XC potential is 1
+                SymEngine::make_rcp<const ExchCorrEnergy>(
+                    name, state, Omega, weight, 1
+                ),
+                Omega
+            })
         ))
     {
         SYMENGINE_ASSIGN_TYPEID()

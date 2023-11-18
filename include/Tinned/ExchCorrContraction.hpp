@@ -64,7 +64,7 @@ namespace Tinned
     // Forward declaration
     class ExchCorrEnergy;
 
-    // Make generalized density vector
+    // Make (unperturbed) generalized density vector
     //FIXME: change `ElectronicState` to OneElecDensity?
     inline SymEngine::RCP<const SymEngine::Basic> make_density_vector(
         const SymEngine::RCP<const ElectronicState>& state,

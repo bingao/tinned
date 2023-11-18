@@ -39,21 +39,6 @@
 
 namespace Tinned
 {
-    // Make exchange-correlation potential, or the functional derivative of
-    // exchange-correlation energy
-    inline SymEngine::RCP<const ExchCorrEnergy> make_vxc(
-        const std::string& name,
-        const SymEngine::RCP<const ElectronicState>& state,
-        const SymEngine::RCP<const OneElecOperator>& Omega,
-        const SymEngine::RCP<const NonElecFunction>& weight,
-        const unsigned int order = 1
-    )
-    {
-        return SymEngine::make_rcp<const ExchCorrEnergy>(
-             name, state, Omega, weight, order
-        );
-    }
-
     // Exchange-correlation (XC) potential like operators
     class ExchCorrPotential: public SymEngine::MatrixSymbol
     {
