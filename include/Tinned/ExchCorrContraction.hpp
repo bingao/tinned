@@ -61,9 +61,6 @@ namespace Tinned
                      SymEngine::RCPBasicKeyLess>
         VxcContractionMap;
 
-    // Forward declaration
-    class ExchCorrEnergy;
-
     // Make (unperturbed) generalized density vector
     //FIXME: change `ElectronicState` to OneElecDensity?
     inline SymEngine::RCP<const SymEngine::Basic> make_density_vector(
@@ -119,11 +116,7 @@ namespace Tinned
     );
 
     // Merge the second `ExcContractionMap` to the first one
-    void merge_energy_map(
-        ExcContractionMap& map1,
-        const ExcContractionMap& map2,
-        const bool subtracted = false
-    );
+    void merge_energy_map(ExcContractionMap& map1, const ExcContractionMap& map2);
 
     // Convert `ExcContractionMap` to XC energy or its derivatives
     SymEngine::RCP<const SymEngine::Basic> convert_energy_map(
@@ -143,9 +136,7 @@ namespace Tinned
 
     // Extract grid weight, XC functional derivative, generalized density
     // vectors and overlap distributions from their multiplication expression.
-    std::tuple<SymEngine::RCP<const OneElecOperator>,
-               SymEngine::RCP<const ExchCorrEnergy>,
-               ExcContractionMap>
+    std::pair<SymEngine::RCP<const OneElecOperator>, ExcContractionMap>
     extract_vxc_contraction(
         const SymEngine::RCP<const SymEngine::MatrixMul>& expression
     );
@@ -156,23 +147,25 @@ namespace Tinned
     // distributions. Results are arranged in a nested map. The key of the
     // outermost map is (un)perturbed generalized overlap distributions, whose
     // value is `ExcContractionMap`.
-    std::pair<SymEngine::RCP<const ExchCorrEnergy>, VxcContractionMap>
-    extract_potential_map(
+    VxcContractionMap extract_potential_map(
         const SymEngine::RCP<const SymEngine::MatrixExpr>& expression
     );
 
     // Merge the second `VxcContractionMap` to the first one
-    void merge_potential_map(
-        VxcContractionMap& map1,
-        const VxcContractionMap& map2,
-        const bool subtracted = false
+    void merge_potential_map(VxcContractionMap& map1, const VxcContractionMap& map2);
+
+    // Convert `VxcContractionMap` to XC potential operator or its derivatives
+    SymEngine::RCP<const SymEngine::MatrixExpr> convert_potential_map(
+        const VxcContractionMap& potentialMap
     );
 
-    // Take the subtraction from XC potential operator or its derivatives
-    SymEngine::RCP<const SymEngine::MatrixExpr> sub_xc_potential(
-        const SymEngine::RCP<const SymEngine::MatrixExpr>& minuend,
-        const SymEngine::RCP<const SymEngine::MatrixExpr>& subtrahend
-    );
+    // Canonicalize the expression of XC potential operator or its derivatives
+    inline SymEngine::RCP<const SymEngine::MatrixExpr> canonicalize_xc_potential(
+        const SymEngine::RCP<const SymEngine::MatrixExpr>& expression
+    )
+    {
+        return convert_potential_map(extract_potential_map(expression));
+    }
 
     // Check if two `VxcContractionMap`'s are equivalent
     bool eq_potential_map(const VxcContractionMap& map1, const VxcContractionMap& map2);

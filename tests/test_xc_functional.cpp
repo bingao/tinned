@@ -291,7 +291,7 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
             std::make_pair(d, 99)
         })
     );
-    auto Exc_name = std::string("GGA");
+    auto Exc_name = std::string("Exc");
     auto Exc = make_xc_energy(Exc_name, D, Omega, weight);
 
     REQUIRE(Exc->get_name() == Exc_name);
@@ -1229,7 +1229,7 @@ TEST_CASE("Test ExchCorrPotential and make_xc_potential()", "[ExchCorrPotential]
         std::string("Omega"),
         PertDependency({std::make_pair(a, 99), std::make_pair(b, 99)})
     );
-    auto Vxc_name = std::string("GGA");
+    auto Vxc_name = std::string("Vxc");
     auto Vxc = make_xc_potential(Vxc_name, D, Omega, weight);
 
     REQUIRE(Vxc->get_name() == Vxc_name);

@@ -35,27 +35,6 @@ namespace Tinned
         SYMENGINE_ASSIGN_TYPEID()
     }
 
-    SymEngine::RCP<const SymEngine::Basic> ExchCorrEnergy::sub(
-        const SymEngine::RCP<const SymEngine::Basic>& other
-    ) const
-    {
-        if (SymEngine::is_a_sub<const ExchCorrEnergy>(*other)) {
-            auto op = SymEngine::rcp_dynamic_cast<const ExchCorrEnergy>(other);
-            if (is_same_xc(*op)) {
-                return SymEngine::make_rcp<const ExchCorrEnergy>(
-                    *this,
-                    SymEngine::sub(energy_, op->energy_)
-                );
-            }
-            else {
-                return SymEngine::sub(this->rcp_from_this(), other);
-            }
-        }
-        else {
-            return SymEngine::sub(this->rcp_from_this(), other);
-        }
-    }
-
     SymEngine::hash_t ExchCorrEnergy::__hash__() const
     {
         SymEngine::hash_t seed = SymEngine::FunctionWrapper::__hash__();
@@ -70,7 +49,9 @@ namespace Tinned
         // `SymEngine::is_a<FunctionSymbol>(o)` which is not true here.
         if (SymEngine::is_a_sub<const ExchCorrEnergy>(o)) {
             auto& op = SymEngine::down_cast<const ExchCorrEnergy&>(o);
-            return is_same_xc(op) && energy_->__eq__(*op.energy_);
+            return get_name() == op.get_name()
+                && SymEngine::unified_eq(get_vec(), op.get_vec())
+                && energy_->__eq__(*op.energy_);
         }
         return false;
     }

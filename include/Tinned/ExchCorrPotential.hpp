@@ -9,7 +9,7 @@
    operators.
 
    2023-10-26, Bin Gao:
-   * rewrite by using `CompositeFunction` and `ExchCorrEnergy`
+   * rewrite by using `CompositeFunction`
 
    2023-09-24, Bin Gao:
    * first version
@@ -33,7 +33,6 @@
 #include "Tinned/ElectronicState.hpp"
 #include "Tinned/CompositeFunction.hpp"
 #include "Tinned/NonElecFunction.hpp"
-#include "Tinned/ExchCorrEnergy.hpp"
 #include "Tinned/ExchCorrContraction.hpp"
 #include "Tinned/FindAllVisitor.hpp"
 
@@ -142,9 +141,9 @@ namespace Tinned
             }
 
             // Get all terms in XC potential operator or its derivatives, each
-            // is a product of (un)perturbed weight, XC functional derivative
-            // vector, perturbed generalized density vectors and (un)perturbed
-            // generalized overlap distribution.
+            // is a product of (un)perturbed grid weight, XC functional
+            // derivative vector, perturbed generalized density vectors and
+            // (un)perturbed generalized overlap distribution.
             inline std::vector<SymEngine::RCP<const SymEngine::MatrixMul>>
             get_potential_terms() const
             {
@@ -176,7 +175,7 @@ namespace Tinned
             }
 
             // Get all terms in XC potential operator or its derivatives, i.e.
-            // (un)perturbed weights, XC functional derivative vectors,
+            // (un)perturbed grid weights, XC functional derivative vectors,
             // perturbed generalized density vectors and (un)perturbed
             // generalized overlap distributions. Results are arranged in a
             // nested map. The key of the outermost map is (un)perturbed
@@ -184,7 +183,7 @@ namespace Tinned
             // `ExcContractionMap`.
             inline VxcContractionMap get_potential_map() const
             {
-                return extract_potential_map(potential_).second;
+                return extract_potential_map(potential_);
             }
     };
 

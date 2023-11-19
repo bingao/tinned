@@ -74,18 +74,6 @@ namespace Tinned
                 const SymEngine::RCP<const SymEngine::Basic>& energy
             );
 
-            // Check if the same XC functional
-            inline bool is_same_xc(const ExchCorrEnergy& other) const
-            {
-                return get_name() == other.get_name()
-                    && SymEngine::unified_eq(get_vec(), other.get_vec());
-            }
-
-            // Take the subtraction from XC energy functional
-            SymEngine::RCP<const SymEngine::Basic> sub(
-                const SymEngine::RCP<const SymEngine::Basic>& other
-            ) const;
-
             SymEngine::hash_t __hash__() const override;
             bool __eq__(const SymEngine::Basic& o) const override;
             int compare(const SymEngine::Basic& o) const override;
@@ -154,8 +142,8 @@ namespace Tinned
             }
 
             // Get all terms in XC energy or its derivatives, each is a product
-            // of (un)perturbed weight, XC functional derivative vector and
-            // perturbed generalized density vectors
+            // of (un)perturbed grid weight, XC functional derivative vector
+            // and perturbed generalized density vectors
             inline std::vector<SymEngine::RCP<const SymEngine::Mul>>
             get_energy_terms() const
             {
@@ -189,12 +177,12 @@ namespace Tinned
             }
 
             // Get all terms in XC energy or its derivatives, i.e.
-            // (un)perturbed weights, XC functional derivative vectors and
+            // (un)perturbed grid weights, XC functional derivative vectors and
             // perturbed generalized density vectors. Results are arranged in a
-            // nested map. The key of the outer map is (un)perturbed weights,
-            // and the value of the outer map is another map whose key is the
-            // order of functional derivatives of XC energy density, and whose
-            // value is the corresponding perturbed generalized density
+            // nested map. The key of the outer map is (un)perturbed grid
+            // weights, and the value of the outer map is another map whose key
+            // is the order of functional derivatives of XC energy density, and
+            // whose value is the corresponding perturbed generalized density
             // vectors.
             inline ExcContractionMap get_energy_map() const
             {

@@ -1,3 +1,4 @@
+#include <symengine/mul.h>
 #include <symengine/matrices/matrix_mul.h>
 #include <symengine/symengine_casts.h>
 
@@ -6,7 +7,7 @@
 namespace Tinned
 {
     //FIXME: Here we use the same `Omega` to construct the density, maybe we
-    //should use a different one?
+    //could use a different one?
     ExchCorrPotential::ExchCorrPotential(
         const std::string& name,
         const SymEngine::RCP<const ElectronicState>& state,
@@ -19,9 +20,7 @@ namespace Tinned
         potential_(SymEngine::matrix_mul(
             SymEngine::vec_basic({
                 // Order for the XC potential is 1
-                SymEngine::make_rcp<const ExchCorrEnergy>(
-                    name, state, Omega, weight, 1
-                ),
+                SymEngine::mul(weight, make_exc_density(state, Omega, 1)),
                 Omega
             })
         ))
@@ -50,14 +49,8 @@ namespace Tinned
         state_(other.state_),
         Omega_(other.Omega_),
         weight_(other.weight_),
-        potential_(potential)
+        potential_(canonicalize_xc_potential(potential))
     {
-        // XC potential or its derivatives must be either
-        // `SymEngine::MatrixMul` or `SymEngine::MatrixAdd`
-        SYMENGINE_ASSERT(
-            SymEngine::is_a<const SymEngine::MatrixMul>(*potential) ||
-            SymEngine::is_a<const SymEngine::MatrixAdd>(*potential)
-        )
         SYMENGINE_ASSIGN_TYPEID()
     }
 
