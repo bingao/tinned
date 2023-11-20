@@ -179,10 +179,10 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
             },
             {
                 make_exc_density(D, Omega, 2),
-                SymEngine::mul(
+                SymEngine::expand(SymEngine::mul(
                     make_first_order_density(D, D_a, Omega, Omega_a),
                     make_first_order_density(D, D_b, Omega, Omega_b)
-                )
+                ))
             }
         });
     };
@@ -248,7 +248,7 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
             },
             {
                 make_exc_density(D, Omega, 2),
-                SymEngine::add({
+                SymEngine::expand(SymEngine::add({
                     SymEngine::mul(
                         make_first_order_density(D, D_a, Omega, Omega_a),
                         make_second_order_density(
@@ -267,15 +267,15 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
                             D, D_a, D_b, D_ab, Omega, Omega_a, Omega_b, Omega_ab
                         )
                     )
-                })
+                }))
             },
             {
                 make_exc_density(D, Omega, 3),
-                SymEngine::mul({
+                SymEngine::expand(SymEngine::mul({
                     make_first_order_density(D, D_a, Omega, Omega_a),
                     make_first_order_density(D, D_b, Omega, Omega_b),
                     make_first_order_density(D, D_c, Omega, Omega_c)
-                })
+                }))
             }
         });
     };
@@ -479,7 +479,7 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
                     },
                     {
                         make_exc_density(D, Omega, 2),
-                        SymEngine::add({
+                        SymEngine::expand(SymEngine::add({
                             SymEngine::mul(
                                 make_first_order_density(D, D_a, Omega, Omega_a),
                                 make_third_order_density(
@@ -546,11 +546,11 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
                                     D, D_a, D_b, D_ab, Omega, Omega_a, Omega_b, Omega_ab
                                 )
                             )
-                        })
+                        }))
                     },
                     {
                         make_exc_density(D, Omega, 3),
-                        SymEngine::add({
+                        SymEngine::expand(SymEngine::add({
                             SymEngine::mul({
                                 make_first_order_density(D, D_a, Omega, Omega_a),
                                 make_first_order_density(D, D_b, Omega, Omega_b),
@@ -593,16 +593,16 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
                                     D, D_a, D_b, D_ab, Omega, Omega_a, Omega_b, Omega_ab
                                 )
                             })
-                        })
+                        }))
                     },
                     {
                         make_exc_density(D, Omega, 4),
-                        SymEngine::mul({
+                        SymEngine::expand(SymEngine::mul({
                             make_first_order_density(D, D_a, Omega, Omega_a),
                             make_first_order_density(D, D_b, Omega, Omega_b),
                             make_first_order_density(D, D_c, Omega, Omega_c),
                             make_first_order_density(D, D_d, Omega, Omega_d)
-                        })
+                        }))
                     }
                 })
             }
@@ -803,10 +803,10 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
                     },
                     {
                         make_exc_density(D, Omega, 2),
-                        SymEngine::mul(
+                        SymEngine::expand(SymEngine::mul(
                             make_density_vector(D_a, Omega),
                             make_density_vector(D_b, Omega)
-                        )
+                        ))
                     }
                 })
             },
@@ -858,7 +858,7 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
                     },
                     {
                         make_exc_density(D, Omega, 2),
-                        SymEngine::add({
+                        SymEngine::expand(SymEngine::add({
                             SymEngine::mul(
                                 make_density_vector(D_a, Omega),
                                 make_first_order_density(D_b, D_bc, Omega, Omega_c)
@@ -871,15 +871,15 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
                                 make_first_order_density(D, D_c, Omega, Omega_c),
                                 make_density_vector(D_ab, Omega)
                             )
-                        })
+                        }))
                     },
                     {
                         make_exc_density(D, Omega, 3),
-                        SymEngine::mul({
+                        SymEngine::expand(SymEngine::mul({
                             make_density_vector(D_a, Omega),
                             make_density_vector(D_b, Omega),
                             make_first_order_density(D, D_c, Omega, Omega_c)
-                        })
+                        }))
                     }
                 })
             },
@@ -892,10 +892,10 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
                     },
                     {
                         make_exc_density(D, Omega, 2),
-                        SymEngine::mul(
+                        SymEngine::expand(SymEngine::mul(
                             make_density_vector(D_b, Omega),
                             make_first_order_density(D, D_c, Omega, Omega_c)
-                        )
+                        ))
                     }
                 })
             },
@@ -908,10 +908,10 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
                     },
                     {
                         make_exc_density(D, Omega, 2),
-                        SymEngine::mul(
+                        SymEngine::expand(SymEngine::mul(
                             make_density_vector(D_a, Omega),
                             make_first_order_density(D, D_c, Omega, Omega_c)
-                        )
+                        ))
                     }
                 })
             },
@@ -958,7 +958,7 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
                     },
                     {
                         make_exc_density(D, Omega, 2),
-                        SymEngine::add({
+                        SymEngine::expand(SymEngine::add({
                             SymEngine::mul(
                                 make_first_order_density(D_ab, D_abc, Omega, Omega_c),
                                 make_first_order_density(D, D_d, Omega, Omega_d)
@@ -995,11 +995,11 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
                                 make_first_order_density(D, D_c, Omega, Omega_c),
                                 make_first_order_density(D_ab, D_abd, Omega, Omega_d)
                             )
-                        })
+                        }))
                     },
                     {
                         make_exc_density(D, Omega, 3),
-                        SymEngine::add({
+                        SymEngine::expand(SymEngine::add({
                             SymEngine::mul({
                                 make_density_vector(D_a, Omega),
                                 make_first_order_density(D_b, D_bc, Omega, Omega_c),
@@ -1032,16 +1032,16 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
                                     D, D_c, D_d, D_cd, Omega, Omega_c, Omega_d, Omega_cd
                                 )
                             })
-                        })
+                        }))
                     },
                     {
                         make_exc_density(D, Omega, 4),
-                        SymEngine::mul({
+                        SymEngine::expand(SymEngine::mul({
                             make_density_vector(D_a, Omega),
                             make_density_vector(D_b, Omega),
                             make_first_order_density(D, D_c, Omega, Omega_c),
                             make_first_order_density(D, D_d, Omega, Omega_d),
-                        })
+                        }))
                     }
                 })
             },
@@ -1056,7 +1056,7 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
                     },
                     {
                         make_exc_density(D, Omega, 2),
-                        SymEngine::add({
+                        SymEngine::expand(SymEngine::add({
                             SymEngine::mul(
                                 make_first_order_density(D, D_d, Omega, Omega_d),
                                 make_first_order_density(D_b, D_bc, Omega, Omega_c)
@@ -1071,15 +1071,15 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
                                     D, D_c, D_d, D_cd, Omega, Omega_c, Omega_d, Omega_cd
                                 )
                             )
-                        })
+                        }))
                     },
                     {
                         make_exc_density(D, Omega, 3),
-                        SymEngine::mul({
+                        SymEngine::expand(SymEngine::mul({
                             make_density_vector(D_b, Omega),
                             make_first_order_density(D, D_c, Omega, Omega_c),
                             make_first_order_density(D, D_d, Omega, Omega_d)
-                        })
+                        }))
                     }
                 })
             },
@@ -1094,7 +1094,7 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
                     },
                     {
                         make_exc_density(D, Omega, 2),
-                        SymEngine::add({
+                        SymEngine::expand(SymEngine::add({
                             SymEngine::mul(
                                 make_first_order_density(D, D_d, Omega, Omega_d),
                                 make_first_order_density(D_a, D_ac, Omega, Omega_c)
@@ -1109,15 +1109,15 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
                                     D, D_c, D_d, D_cd, Omega, Omega_c, Omega_d, Omega_cd
                                 )
                             )
-                        })
+                        }))
                     },
                     {
                         make_exc_density(D, Omega, 3),
-                        SymEngine::mul({
+                        SymEngine::expand(SymEngine::mul({
                             make_density_vector(D_a, Omega),
                             make_first_order_density(D, D_c, Omega, Omega_c),
                             make_first_order_density(D, D_d, Omega, Omega_d)
-                        })
+                        }))
                     }
                 })
             },
@@ -1215,10 +1215,10 @@ TEST_CASE("Test ExchCorrPotential and make_xc_potential()", "[ExchCorrPotential]
             },
             {
                 make_exc_density(D, Omega, 3),
-                SymEngine::mul(
+                SymEngine::expand(SymEngine::mul(
                     make_first_order_density(D, D_a, Omega, Omega_a),
                     make_first_order_density(D, D_b, Omega, Omega_b)
-                )
+                ))
             }
         });
     };
