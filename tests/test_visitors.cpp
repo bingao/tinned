@@ -568,6 +568,7 @@ TEST_CASE("Test ReplaceVisitor and replace()", "[ReplaceVisitor]")
         remove_if(Y_b, SymEngine::set_basic({T})),
         SymEngine::map_basic_basic({{D_b, DP_b}})
     );
+std::cout << "Y_b = " << stringify(remove_if(Y_b, SymEngine::set_basic({T}))) << "\n";
 std::cout << "M_b = " << stringify(M_b) << "\n\n";
 
     auto h_b = SymEngine::rcp_dynamic_cast<const OneElecOperator>(h->diff(b));

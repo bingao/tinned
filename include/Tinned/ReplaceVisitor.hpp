@@ -53,14 +53,14 @@ namespace Tinned
             )
             {
                 // We first check if the argument will be replaced
-                replace_whole<Arg>(*arg);
+                auto new_arg = apply(arg);
                 SymEngine::RCP<const SymEngine::Basic> new_fun;
-                if (SymEngine::eq(*arg, *result_)) {
+                if (SymEngine::eq(*arg, *new_arg)) {
                     new_fun = x.rcp_from_this();
                 }
                 else {
                     new_fun = constructor(
-                        SymEngine::rcp_dynamic_cast<Arg>(result_)
+                        SymEngine::rcp_dynamic_cast<Arg>(new_arg)
                     );
                 }
                 // Next we check if the "new" function will be replaced
