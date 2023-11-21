@@ -58,8 +58,6 @@ inline SymEngine::RCP<const SymEngine::Basic> make_tdscf_equation(
     }));
 }
 
-#include <iostream>
-
 TEST_CASE("Test KeepVisitor and keep_if()", "[KeepVisitor]")
 {
     auto a = make_perturbation(std::string("a"));
@@ -78,29 +76,29 @@ TEST_CASE("Test KeepVisitor and keep_if()", "[KeepVisitor]")
     auto E = make_ks_energy(h, V, G, D, Exc, hnuc);
     auto F = SymEngine::matrix_add(SymEngine::vec_basic({h, G, V, Fxc}));
 
-//    REQUIRE(SymEngine::eq(
-//        *keep_if(E, SymEngine::set_basic({h})),
-//        *SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({h, D})))
-//    ));
-//    REQUIRE(SymEngine::eq(
-//        *keep_if(E, SymEngine::set_basic({h, V})),
-//        *SymEngine::add(SymEngine::vec_basic({
-//            SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({h, D}))),
-//            SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({V, D})))
-//        }))
-//    ));
-//    REQUIRE(SymEngine::eq(
-//        *keep_if(E, SymEngine::set_basic({D})),
-//        *SymEngine::add(SymEngine::vec_basic({
-//            SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({h, D}))),
-//            SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({V, D}))),
-//            SymEngine::div(
-//                SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({G, D}))),
-//                SymEngine::two
-//            ),
-//            Exc
-//        }))
-//    ));
+    REQUIRE(SymEngine::eq(
+        *keep_if(E, SymEngine::set_basic({h})),
+        *SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({h, D})))
+    ));
+    REQUIRE(SymEngine::eq(
+        *keep_if(E, SymEngine::set_basic({h, V})),
+        *SymEngine::add(SymEngine::vec_basic({
+            SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({h, D}))),
+            SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({V, D})))
+        }))
+    ));
+    REQUIRE(SymEngine::eq(
+        *keep_if(E, SymEngine::set_basic({D})),
+        *SymEngine::add(SymEngine::vec_basic({
+            SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({h, D}))),
+            SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({V, D}))),
+            SymEngine::div(
+                SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({G, D}))),
+                SymEngine::two
+            ),
+            Exc
+        }))
+    ));
 
     // The first order
     auto E_a = E->diff(a);
@@ -125,106 +123,103 @@ TEST_CASE("Test KeepVisitor and keep_if()", "[KeepVisitor]")
     );
     auto hnuc_a = SymEngine::rcp_dynamic_cast<const NonElecFunction>(hnuc->diff(a));
     auto Fxc_a = SymEngine::rcp_dynamic_cast<const ExchCorrPotential>(Fxc->diff(a));
-//    REQUIRE(keep_if(E_a, SymEngine::set_basic({hnuc})).is_null());
-//    REQUIRE(SymEngine::eq(
-//        *keep_if(E_a, SymEngine::set_basic({h})),
-//        *SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({h, D_a})))
-//    ));
-//    REQUIRE(SymEngine::eq(
-//        *keep_if(E_a, SymEngine::set_basic({h_a})),
-//        *SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({h_a, D})))
-//    ));
-//    REQUIRE(SymEngine::eq(
-//        *keep_if(E_a, SymEngine::set_basic({G})),
-//        *SymEngine::div(
-//            SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({G, D_a}))),
-//            SymEngine::two
-//        )
-//    ));
-//    REQUIRE(SymEngine::eq(
-//        *keep_if(E_a, SymEngine::set_basic({Ga})),
-//        *SymEngine::div(
-//            SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({Ga, D}))),
-//            SymEngine::two
-//        )
-//    ));
-//    REQUIRE(SymEngine::eq(
-//        *keep_if(E_a, SymEngine::set_basic({D})),
-//        *SymEngine::add(SymEngine::vec_basic({
-//            SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({h_a, D}))),
-//            SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({V_a, D}))),
-//            //FIXME: how to make the following snippet work?
-//            //(SymEngine::div(
-//            //    SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({G, D}))),
-//            //    SymEngine::two
-//            //))->diff(a),
-//            SymEngine::div(
-//                SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({G, D_a}))),
-//                SymEngine::two
-//            ),
-//            SymEngine::div(
-//                SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({G_Da, D}))),
-//                SymEngine::two
-//            ),
-//            SymEngine::div(
-//                SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({Ga, D}))),
-//                SymEngine::two
-//            ),
-//            Exc_a
-//        }))
-//    ));
-//    REQUIRE(SymEngine::eq(
-//        *keep_if(E_a, SymEngine::set_basic({D_a})),
-//        *SymEngine::add(SymEngine::vec_basic({
-//            SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({h, D_a}))),
-//            SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({V, D_a}))),
-//            SymEngine::div(
-//                SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({G, D_a}))),
-//                SymEngine::two
-//            ),
-//            SymEngine::div(
-//                SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({G_Da, D}))),
-//                SymEngine::two
-//            ),
-//            Exc_Da
-//        }))
-//    ));
-//    REQUIRE(SymEngine::eq(
-//        *E_a,
-//        *SymEngine::add(keep_if(E_a, SymEngine::set_basic({D, D_a})), hnuc_a)
-//    ));
-//    REQUIRE(keep_if(F_a, SymEngine::set_basic({h})).is_null());
-//    REQUIRE(SymEngine::eq(*keep_if(F_a, SymEngine::set_basic({h_a})), *h_a));
-//    REQUIRE(SymEngine::eq(
-//        *keep_if(F_a, SymEngine::set_basic({D})),
-//        *SymEngine::matrix_add(SymEngine::vec_basic({Ga, Fxc_a}))
-//    ));
-//    REQUIRE(SymEngine::eq(
-//        *keep_if(F_a, SymEngine::set_basic({D_a})),
-//        *SymEngine::matrix_add(SymEngine::vec_basic({
-//            G_Da,
-//            SymEngine::make_rcp<const ExchCorrPotential>(
-//                *Fxc,
-//                // The first term of Equation (57), J. Chem. Phys. 140, 034103
-//                // (2014), but only keeping the second term of Equation (47)
-//                SymEngine::matrix_mul(SymEngine::vec_basic({
-//                    SymEngine::make_rcp<const ExchCorrEnergy>(
-//                        *Exc,
-//                        SymEngine::mul(SymEngine::vec_basic({
-//                            weight,
-//                            make_exc_density(D, Omega, 2),
-//                            make_density_vector(D_a, Omega)
-//                        }))
-//                    ),
-//                    Omega
-//                }))
-//            )
-//        }))
-//    ));
-//    REQUIRE(SymEngine::eq(
-//        *keep_if(F_a, SymEngine::set_basic({D, D_a})),
-//        *SymEngine::matrix_add(SymEngine::vec_basic({G->diff(a), Fxc_a}))
-//    ));
+    REQUIRE(keep_if(E_a, SymEngine::set_basic({hnuc})).is_null());
+    REQUIRE(SymEngine::eq(
+        *keep_if(E_a, SymEngine::set_basic({h})),
+        *SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({h, D_a})))
+    ));
+    REQUIRE(SymEngine::eq(
+        *keep_if(E_a, SymEngine::set_basic({h_a})),
+        *SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({h_a, D})))
+    ));
+    REQUIRE(SymEngine::eq(
+        *keep_if(E_a, SymEngine::set_basic({G})),
+        *SymEngine::div(
+            SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({G, D_a}))),
+            SymEngine::two
+        )
+    ));
+    REQUIRE(SymEngine::eq(
+        *keep_if(E_a, SymEngine::set_basic({Ga})),
+        *SymEngine::div(
+            SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({Ga, D}))),
+            SymEngine::two
+        )
+    ));
+    REQUIRE(SymEngine::eq(
+        *keep_if(E_a, SymEngine::set_basic({D})),
+        *SymEngine::add(SymEngine::vec_basic({
+            SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({h_a, D}))),
+            SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({V_a, D}))),
+            //FIXME: how to make the following snippet work?
+            //(SymEngine::div(
+            //    SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({G, D}))),
+            //    SymEngine::two
+            //))->diff(a),
+            SymEngine::div(
+                SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({G, D_a}))),
+                SymEngine::two
+            ),
+            SymEngine::div(
+                SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({G_Da, D}))),
+                SymEngine::two
+            ),
+            SymEngine::div(
+                SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({Ga, D}))),
+                SymEngine::two
+            ),
+            Exc_a
+        }))
+    ));
+    REQUIRE(SymEngine::eq(
+        *keep_if(E_a, SymEngine::set_basic({D_a})),
+        *SymEngine::add(SymEngine::vec_basic({
+            SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({h, D_a}))),
+            SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({V, D_a}))),
+            SymEngine::div(
+                SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({G, D_a}))),
+                SymEngine::two
+            ),
+            SymEngine::div(
+                SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({G_Da, D}))),
+                SymEngine::two
+            ),
+            Exc_Da
+        }))
+    ));
+    REQUIRE(SymEngine::eq(
+        *E_a,
+        *SymEngine::add(keep_if(E_a, SymEngine::set_basic({D, D_a})), hnuc_a)
+    ));
+    REQUIRE(keep_if(F_a, SymEngine::set_basic({h})).is_null());
+    REQUIRE(SymEngine::eq(*keep_if(F_a, SymEngine::set_basic({h_a})), *h_a));
+    REQUIRE(SymEngine::eq(
+        *keep_if(F_a, SymEngine::set_basic({D})),
+        *SymEngine::matrix_add(SymEngine::vec_basic({Ga, Fxc_a}))
+    ));
+    REQUIRE(SymEngine::eq(
+        *keep_if(F_a, SymEngine::set_basic({D_a})),
+        *SymEngine::matrix_add(SymEngine::vec_basic({
+            G_Da,
+            SymEngine::make_rcp<const ExchCorrPotential>(
+                *Fxc,
+                // The first term of Equation (57), J. Chem. Phys. 140, 034103
+                // (2014), but only keeping the second term of Equation (47)
+                SymEngine::matrix_mul(SymEngine::vec_basic({
+                    SymEngine::mul(SymEngine::vec_basic({
+                        weight,
+                        make_exc_density(D, Omega, 2),
+                        make_density_vector(D_a, Omega)
+                    })),
+                    Omega
+                }))
+            )
+        }))
+    ));
+    REQUIRE(SymEngine::eq(
+        *keep_if(F_a, SymEngine::set_basic({D, D_a})),
+        *SymEngine::matrix_add(SymEngine::vec_basic({G->diff(a), Fxc_a}))
+    ));
 
     // The second order
     auto E_ab = E_a->diff(b);
@@ -248,59 +243,54 @@ TEST_CASE("Test KeepVisitor and keep_if()", "[KeepVisitor]")
     auto Gab = SymEngine::make_rcp<const TwoElecOperator>(
         G->get_name(), D, dependencies, SymEngine::multiset_basic({a, b})
     );
+    auto Omega_a = SymEngine::rcp_dynamic_cast<const OneElecOperator>(Omega->diff(a));
     auto Omega_b = SymEngine::rcp_dynamic_cast<const OneElecOperator>(Omega->diff(b));
     auto Exc_ab = SymEngine::rcp_dynamic_cast<const ExchCorrEnergy>(Exc_a->diff(b));
     auto Fxc_ab = SymEngine::rcp_dynamic_cast<const ExchCorrPotential>(Fxc_a->diff(b));
-//    REQUIRE(SymEngine::eq(
-//        *keep_if(E_ab, SymEngine::set_basic({h_a})),
-//        *SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({h_a, D_b})))
-//    ));
-//    REQUIRE(SymEngine::eq(
-//        *keep_if(E_ab, SymEngine::set_basic({D})),
-//        *SymEngine::add(SymEngine::vec_basic({
-//            SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({h_ab, D}))),
-//            SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({V_ab, D}))),
-//            SymEngine::div(
-//                SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({Gb, D_a}))),
-//                SymEngine::two
-//            ),
-//            SymEngine::div(
-//                SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({G, D_ab}))),
-//                SymEngine::two
-//            ),
-//            SymEngine::div(
-//                SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({Gb_Da, D}))),
-//                SymEngine::two
-//            ),
-//            SymEngine::div(
-//                SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({G_Dab, D}))),
-//                SymEngine::two
-//            ),
-//            SymEngine::div(
-//                SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({Ga_Db, D}))),
-//                SymEngine::two
-//            ),
-//            SymEngine::div(
-//                SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({Ga, D_b}))),
-//                SymEngine::two
-//            ),
-//            SymEngine::div(
-//                SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({Gab, D}))),
-//                SymEngine::two
-//            ),
-//            Exc_ab
-//        }))
-//    ));
-//    // h+G+V+Fxc
-//    // Gab(D) + Ga(Db) + Gb(Da) + G(Dab)
-//    REQUIRE(SymEngine::eq(
-//        *keep_if(F_ab, SymEngine::set_basic({D})),
-//        *SymEngine::matrix_add(SymEngine::vec_basic({Gab, Fxc_ab}))
-//    ));
-
-auto expr = keep_if(F_ab, SymEngine::set_basic({D_a}));
-std::cout << "\nkeep_if = " << stringify(expr) << "\n";
-
+    REQUIRE(SymEngine::eq(
+        *keep_if(E_ab, SymEngine::set_basic({h_a})),
+        *SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({h_a, D_b})))
+    ));
+    REQUIRE(SymEngine::eq(
+        *keep_if(E_ab, SymEngine::set_basic({D})),
+        *SymEngine::add(SymEngine::vec_basic({
+            SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({h_ab, D}))),
+            SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({V_ab, D}))),
+            SymEngine::div(
+                SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({Gb, D_a}))),
+                SymEngine::two
+            ),
+            SymEngine::div(
+                SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({G, D_ab}))),
+                SymEngine::two
+            ),
+            SymEngine::div(
+                SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({Gb_Da, D}))),
+                SymEngine::two
+            ),
+            SymEngine::div(
+                SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({G_Dab, D}))),
+                SymEngine::two
+            ),
+            SymEngine::div(
+                SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({Ga_Db, D}))),
+                SymEngine::two
+            ),
+            SymEngine::div(
+                SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({Ga, D_b}))),
+                SymEngine::two
+            ),
+            SymEngine::div(
+                SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({Gab, D}))),
+                SymEngine::two
+            ),
+            Exc_ab
+        }))
+    ));
+    REQUIRE(SymEngine::eq(
+        *keep_if(F_ab, SymEngine::set_basic({D})),
+        *SymEngine::matrix_add(SymEngine::vec_basic({Gab, Fxc_ab}))
+    ));
     REQUIRE(SymEngine::eq(
         *keep_if(F_ab, SymEngine::set_basic({D_a})),
         *SymEngine::matrix_add(SymEngine::vec_basic({
@@ -342,7 +332,94 @@ std::cout << "\nkeep_if = " << stringify(expr) << "\n";
             )
         }))
     ));
-
+    REQUIRE(SymEngine::eq(
+        *keep_if(F_ab, SymEngine::set_basic({D_ab})),
+        *SymEngine::matrix_add(SymEngine::vec_basic({
+            G_Dab,
+            SymEngine::make_rcp<const ExchCorrPotential>(
+                *Fxc,
+                // The first term of Equation (58), J. Chem. Phys. 140, 034103
+                // (2014), but only keeping the last term of Equation (48)
+                SymEngine::matrix_mul(SymEngine::vec_basic({
+                    SymEngine::mul(SymEngine::vec_basic({
+                        weight,
+                        make_exc_density(D, Omega, 2),
+                        make_density_vector(D_ab, Omega)
+                    })),
+                    Omega
+                }))
+            )
+        }))
+    ));
+    REQUIRE(SymEngine::eq(
+        *keep_if(F_ab, SymEngine::set_basic({D_a, D_b})),
+        *SymEngine::matrix_add(SymEngine::vec_basic({
+            Ga_Db,
+            Gb_Da,
+            SymEngine::make_rcp<const ExchCorrPotential>(
+                *Fxc,
+                SymEngine::matrix_add(SymEngine::vec_basic({
+                    // The first term of Equation (58), J. Chem. Phys. 140,
+                    // 034103 (2014), but removing the product of unperturbed
+                    // density matrix of Equation (47) and keeping the second
+                    // and the third terms of Equation (48)
+                    SymEngine::matrix_mul(SymEngine::vec_basic({
+                        SymEngine::add(
+                            SymEngine::mul(SymEngine::vec_basic({
+                                weight,
+                                make_exc_density(D, Omega, 3),
+                                SymEngine::add(SymEngine::vec_basic({
+                                    SymEngine::mul(
+                                        make_density_vector(D, Omega_a),
+                                        make_density_vector(D_b, Omega)
+                                    ),
+                                    SymEngine::mul(
+                                        make_density_vector(D_a, Omega),
+                                        make_density_vector(D, Omega_b)
+                                    ),
+                                    SymEngine::mul(
+                                        make_density_vector(D_a, Omega),
+                                        make_density_vector(D_b, Omega)
+                                    )
+                                }))
+                            })),
+                            SymEngine::mul(SymEngine::vec_basic({
+                                weight,
+                                make_exc_density(D, Omega, 2),
+                                SymEngine::add(
+                                    make_density_vector(D_a, Omega_b),
+                                    make_density_vector(D_b, Omega_a)
+                                )
+                            }))
+                        ),
+                        Omega
+                    })),
+                    // The second term of Equation (58), J. Chem. Phys. 140,
+                    // 034103 (2014), but only keeping the second term of
+                    // Equation (47)
+                    SymEngine::matrix_mul(SymEngine::vec_basic({
+                        SymEngine::mul(SymEngine::vec_basic({
+                            weight,
+                            make_exc_density(D, Omega, 2),
+                            make_density_vector(D_a, Omega)
+                        })),
+                        Omega_b
+                    })),
+                    // The third term of Equation (58), J. Chem. Phys. 140,
+                    // 034103 (2014), but only keeping the second term of
+                    // Equation (47)
+                    SymEngine::matrix_mul(SymEngine::vec_basic({
+                        SymEngine::mul(SymEngine::vec_basic({
+                            weight,
+                            make_exc_density(D, Omega, 2),
+                            make_density_vector(D_b, Omega)
+                        })),
+                        Omega_a
+                    }))
+                }))
+            )
+        }))
+    ));
 }
 
 TEST_CASE("Test RemoveVisitor and remove_if()", "[RemoveVisitor]")
@@ -461,6 +538,8 @@ TEST_CASE("Test RemoveVisitor and remove_if()", "[RemoveVisitor]")
         }))
     ));
 }
+
+#include <iostream>
 
 TEST_CASE("Test ReplaceVisitor and replace()", "[ReplaceVisitor]")
 {
