@@ -100,7 +100,7 @@ namespace Tinned
                     ? SymEngine::rcp_dynamic_cast<const SymEngine::MatrixMul>((
                           SymEngine::rcp_dynamic_cast<const SymEngine::MatrixAdd>(
                               braket_
-                          )->get_terms()
+                          )->get_args()
                       )[index])
                     : SymEngine::rcp_dynamic_cast<const SymEngine::MatrixMul>(braket_);
 
