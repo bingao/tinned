@@ -553,7 +553,7 @@ TEST_CASE("Test ReplaceVisitor and replace()", "[ReplaceVisitor]")
     auto weight = make_nonel_function(std::string("weight"));
     auto Omega = make_1el_operator(std::string("Omega"), dependencies);
     auto Fxc = make_xc_potential(std::string("Fxc"), D, Omega, weight);
-    auto F0 = SymEngine::matrix_add(SymEngine::vec_basic({h, G, V, Fxc}));
+    auto F_ks = SymEngine::matrix_add(SymEngine::vec_basic({h, G, V, Fxc}));
     auto T = make_t_matrix(dependencies);
     // Equation (94), J. Chem. Phys. 129, 214108 (2008)
     auto F = SymEngine::matrix_add(SymEngine::vec_basic({h, G, V, Fxc, T}));
@@ -572,14 +572,14 @@ TEST_CASE("Test ReplaceVisitor and replace()", "[ReplaceVisitor]")
         remove_if(Y_b, SymEngine::set_basic({Dt, St, T})),
         SymEngine::map_basic_basic({{D_b, DP_b}})
     );
-    auto h_b = SymEngine::rcp_dynamic_cast<const OneElecOperator>(h->diff(b));
-    auto V_b = SymEngine::rcp_dynamic_cast<const OneElecOperator>(V->diff(b));
+    auto h_b = h->diff(b);
+    auto V_b = V->diff(b);
     auto Gb = SymEngine::make_rcp<const TwoElecOperator>(
         G->get_name(), D, dependencies, SymEngine::multiset_basic({b})
     );
     auto G_DPb = make_2el_operator(G->get_name(), DP_b, dependencies);
     auto Omega_b = SymEngine::rcp_dynamic_cast<const OneElecOperator>(Omega->diff(b));
-    auto Fxc_b = SymEngine::rcp_dynamic_cast<const ExchCorrPotential>(Fxc->diff(b));
+    auto Fxc_b = Fxc->diff(b);
     // Equation (A26), J. Chem. Phys. 129, 214108 (2008)
     auto Fxc_DPb = replace(Fxc_b, SymEngine::map_basic_basic({{D_b, DP_b}}));
 //    REQUIRE(SymEngine::eq(
@@ -607,30 +607,112 @@ TEST_CASE("Test ReplaceVisitor and replace()", "[ReplaceVisitor]")
 //            }))
 //        )
 //    ));
-    auto T_b = SymEngine::rcp_dynamic_cast<const TemporumOverlap>(T->diff(b));
-    auto S_b = SymEngine::rcp_dynamic_cast<const OneElecOperator>(S->diff(b));
+    auto T_b = T->diff(b);
+    auto S_b = S->diff(b);
     auto DPt = make_dt_operator(DP);
-    auto DPt_b = SymEngine::rcp_dynamic_cast<const TemporumOperator>(DPt->diff(b));
-    auto St_b = SymEngine::rcp_dynamic_cast<const TemporumOperator>(St->diff(b));
+    auto DPt_b = DPt->diff(b);
+    auto St_b = St->diff(b);
     auto Fb = SymEngine::matrix_add(SymEngine::vec_basic({
         h_b, V_b, Gb, G_DPb, Fxc_DPb, T_b
     }));
     auto minus_one_half = SymEngine::div(SymEngine::minus_one, SymEngine::two);
+//    REQUIRE(SymEngine::eq(
+//        *M_b,
+//        *SymEngine::matrix_add(SymEngine::vec_basic({
+//            SymEngine::matrix_mul(SymEngine::vec_basic({Fb, D, S})),
+//            SymEngine::matrix_mul(SymEngine::vec_basic({F_ks, DP_b, S})),
+//            SymEngine::matrix_mul(SymEngine::vec_basic({F_ks, D, S_b})),
+//            SymEngine::matrix_mul(SymEngine::vec_basic({SymEngine::minus_one, S, D, Fb})),
+//            SymEngine::matrix_mul(SymEngine::vec_basic({SymEngine::minus_one, S, DP_b, F_ks})),
+//            SymEngine::matrix_mul(SymEngine::vec_basic({SymEngine::minus_one, S_b, D, F_ks})),
+//            SymEngine::matrix_mul(SymEngine::vec_basic({minus_one_half, S, DPt_b, S})),
+//            SymEngine::matrix_mul(SymEngine::vec_basic({minus_one_half, S, D, St_b})),
+//            SymEngine::matrix_mul(SymEngine::vec_basic({minus_one_half, S, DPt_b, S})),
+//            SymEngine::matrix_mul(SymEngine::vec_basic({minus_one_half, St_b, D, S}))
+//        }))
+//    ));
+    auto Y_bc = Y_b->diff(c);
+    auto D_c = SymEngine::rcp_dynamic_cast<const ElectronicState>(D->diff(c));
+    auto D_bc = D_b->diff(c);
+    auto DP_bc = SymEngine::rcp_dynamic_cast<const ElectronicState>(DP_b->diff(c));
+    // Equation (187) without the frequency, J. Chem. Phys. 129, 214108 (2008)
+    auto M_bc = replace(
+        remove_if(Y_bc, SymEngine::set_basic({Dt, St, T})),
+        SymEngine::map_basic_basic({{D_bc, DP_bc}})
+    );
+    auto h_bc = h_b->diff(c);
+    auto V_bc = V_b->diff(c);
+    auto Gbc = SymEngine::make_rcp<const TwoElecOperator>(
+        G->get_name(), D, dependencies, SymEngine::multiset_basic({b, c})
+    );
+    auto Gb_Dc = SymEngine::make_rcp<const TwoElecOperator>(
+        G->get_name(), D_c, dependencies, SymEngine::multiset_basic({b})
+    );
+    auto Gc_Db = SymEngine::make_rcp<const TwoElecOperator>(
+        G->get_name(), D_b, dependencies, SymEngine::multiset_basic({c})
+    );
+    auto G_DPbc = make_2el_operator(G->get_name(), DP_bc, dependencies);
+    auto Fxc_bc = Fxc_b->diff(c);
+    // The second term of Equation (A31), J. Chem. Phys. 129, 214108 (2008)
+    auto Fxc_DPbc = replace(Fxc_bc, SymEngine::map_basic_basic({{D_bc, DP_bc}}));
+    auto T_bc = T_b->diff(c);
+    auto S_c = S->diff(c);
+    auto S_bc = S_b->diff(c);
+    auto Dt_b = Dt->diff(b);
+    auto Dt_c = Dt->diff(c);
+    auto DPt_bc = DPt_b->diff(c);
+    auto St_c = St->diff(c);
+    auto St_bc = St_b->diff(c);
+    auto Fbc = SymEngine::matrix_add(SymEngine::vec_basic({
+        h_bc, V_bc, Gbc, Gb_Dc, Gc_Db, G_DPbc, Fxc_DPbc, T_bc
+    }));
+    auto F_b = F->diff(b);
+    auto F_c = F->diff(c);
     REQUIRE(SymEngine::eq(
-        *M_b,
+        *M_bc,
         *SymEngine::matrix_add(SymEngine::vec_basic({
-            SymEngine::matrix_mul(SymEngine::vec_basic({Fb, D, S})),
-            SymEngine::matrix_mul(SymEngine::vec_basic({F0, DP_b, S})),
-            SymEngine::matrix_mul(SymEngine::vec_basic({F0, D, S_b})),
-            SymEngine::matrix_mul(SymEngine::vec_basic({SymEngine::minus_one, S, D, Fb})),
-            SymEngine::matrix_mul(SymEngine::vec_basic({SymEngine::minus_one, S, DP_b, F0})),
-            SymEngine::matrix_mul(SymEngine::vec_basic({SymEngine::minus_one, S_b, D, F0})),
-            SymEngine::matrix_mul(SymEngine::vec_basic({minus_one_half, S, DPt_b, S})),
-            SymEngine::matrix_mul(SymEngine::vec_basic({minus_one_half, S, D, St_b})),
-            SymEngine::matrix_mul(SymEngine::vec_basic({minus_one_half, S, DPt_b, S})),
-            SymEngine::matrix_mul(SymEngine::vec_basic({minus_one_half, St_b, D, S}))
+            SymEngine::matrix_mul(SymEngine::vec_basic({Fbc, D, S})),
+            SymEngine::matrix_mul(SymEngine::vec_basic({F_ks, DP_bc, S})),
+            SymEngine::matrix_mul(SymEngine::vec_basic({F_b, D_c, S})),
+            SymEngine::matrix_mul(SymEngine::vec_basic({F_b, D, S_c})),
+            SymEngine::matrix_mul(SymEngine::vec_basic({F_c, D_b, S})),
+            SymEngine::matrix_mul(SymEngine::vec_basic({F_c, D, S_b})),
+            SymEngine::matrix_mul(SymEngine::vec_basic({F_ks, D_b, S_c})),
+            SymEngine::matrix_mul(SymEngine::vec_basic({F_ks, D_c, S_b})),
+            SymEngine::matrix_mul(SymEngine::vec_basic({F_ks, D, S_bc})),
+            SymEngine::matrix_mul(SymEngine::vec_basic({SymEngine::minus_one, S, D, Fbc})),
+            SymEngine::matrix_mul(SymEngine::vec_basic({SymEngine::minus_one, S, DP_bc, F_ks})),
+            SymEngine::matrix_mul(SymEngine::vec_basic({SymEngine::minus_one, S_c, D, F_b})),
+            SymEngine::matrix_mul(SymEngine::vec_basic({SymEngine::minus_one, S, D_c, F_b})),
+            SymEngine::matrix_mul(SymEngine::vec_basic({SymEngine::minus_one, S_b, D, F_c})),
+            SymEngine::matrix_mul(SymEngine::vec_basic({SymEngine::minus_one, S, D_b, F_c})),
+            SymEngine::matrix_mul(SymEngine::vec_basic({SymEngine::minus_one, S_c, D_b, F_ks})),
+            SymEngine::matrix_mul(SymEngine::vec_basic({SymEngine::minus_one, S_b, D_c, F_ks})),
+            SymEngine::matrix_mul(SymEngine::vec_basic({SymEngine::minus_one, S_bc, D, F_ks})),
+            SymEngine::matrix_mul(SymEngine::vec_basic({minus_one_half, S_b, Dt_c, S})),
+            SymEngine::matrix_mul(SymEngine::vec_basic({minus_one_half, S_b, D, St_c})),
+            SymEngine::matrix_mul(SymEngine::vec_basic({minus_one_half, S_c, Dt_b, S})),
+            SymEngine::matrix_mul(SymEngine::vec_basic({minus_one_half, S_c, D, St_b})),
+            SymEngine::matrix_mul(SymEngine::vec_basic({minus_one_half, S, DPt_bc, S})),
+            SymEngine::matrix_mul(SymEngine::vec_basic({minus_one_half, S, Dt_b, S_c})),
+            SymEngine::matrix_mul(SymEngine::vec_basic({minus_one_half, S, D_b, St_c})),
+            SymEngine::matrix_mul(SymEngine::vec_basic({minus_one_half, S, D_c, St_b})),
+            SymEngine::matrix_mul(SymEngine::vec_basic({minus_one_half, S, Dt_c, S_b})),
+            SymEngine::matrix_mul(SymEngine::vec_basic({minus_one_half, S, D, St_bc})),
+            SymEngine::matrix_mul(SymEngine::vec_basic({minus_one_half, S, Dt_c, S_b})),
+            SymEngine::matrix_mul(SymEngine::vec_basic({minus_one_half, St_c, D, S_b})),
+            SymEngine::matrix_mul(SymEngine::vec_basic({minus_one_half, S, Dt_b, S_c})),
+            SymEngine::matrix_mul(SymEngine::vec_basic({minus_one_half, St_b, D, S_c})),
+            SymEngine::matrix_mul(SymEngine::vec_basic({minus_one_half, S, DPt_bc, S})),
+            SymEngine::matrix_mul(SymEngine::vec_basic({minus_one_half, S_c, Dt_b, S})),
+            SymEngine::matrix_mul(SymEngine::vec_basic({minus_one_half, St_c, D_b, S})),
+            SymEngine::matrix_mul(SymEngine::vec_basic({minus_one_half, St_b, D_c, S})),
+            SymEngine::matrix_mul(SymEngine::vec_basic({minus_one_half, S_b, Dt_c, S})),
+            SymEngine::matrix_mul(SymEngine::vec_basic({minus_one_half, St_bc, D, S}))
         }))
     ));
+
+    // replace more than one
 }
 
 //TEST_CASE("Test FindAllVisitor and find_all()", "[FindAllVisitor]")
