@@ -70,7 +70,11 @@ namespace Tinned
             );
             // Constructor mainly used by different visitors
             explicit ExchCorrEnergy(
-                const ExchCorrEnergy& other,
+                //const ExchCorrEnergy& other,
+                const std::string& name,
+                const SymEngine::RCP<const ElectronicState>& state,
+                const SymEngine::RCP<const OneElecOperator>& Omega,
+                const SymEngine::RCP<const NonElecFunction>& weight,
                 const SymEngine::RCP<const SymEngine::Basic>& energy
             );
 

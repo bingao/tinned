@@ -188,7 +188,13 @@ namespace Tinned
                 [&](const SymEngine::RCP<const SymEngine::Basic>& energy)
                     -> SymEngine::RCP<const ExchCorrEnergy>
                 {
-                    return SymEngine::make_rcp<const ExchCorrEnergy>(op, energy);
+                    return SymEngine::make_rcp<const ExchCorrEnergy>(
+                        op.get_name(),
+                        op.get_state(),
+                        op.get_overlap_distribution(),
+                        op.get_weight(),
+                        energy
+                    );
                 }
             );
         }
@@ -241,7 +247,13 @@ namespace Tinned
                 [&](const SymEngine::RCP<const SymEngine::MatrixExpr>& potential)
                     -> SymEngine::RCP<const ExchCorrPotential>
                 {
-                    return SymEngine::make_rcp<const ExchCorrPotential>(op, potential);
+                    return SymEngine::make_rcp<const ExchCorrPotential>(
+                        op.get_name(),
+                        op.get_state(),
+                        op.get_overlap_distribution(),
+                        op.get_weight(),
+                        potential
+                    );
                 }
             );
         }

@@ -188,8 +188,8 @@ namespace Tinned
         const SymEngine::RCP<const SymEngine::Basic>& expression
     )
     {
-        // Here we first expand `expression` so that generalized density
-        // vectors could be collected and simplified
+        // We first expand `expression` so that generalized density vectors
+        // could be collected and simplified
         auto expr_expand = SymEngine::expand(expression);
         // XC energy or its derivatives must be either `SymEngine::Mul` or
         // `SymEngine::Add`

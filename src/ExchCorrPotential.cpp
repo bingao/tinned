@@ -43,12 +43,15 @@ namespace Tinned
     }
 
     ExchCorrPotential::ExchCorrPotential(
-        const ExchCorrPotential& other,
+        const std::string& name,
+        const SymEngine::RCP<const ElectronicState>& state,
+        const SymEngine::RCP<const OneElecOperator>& Omega,
+        const SymEngine::RCP<const NonElecFunction>& weight,
         const SymEngine::RCP<const SymEngine::MatrixExpr>& potential
-    ) : SymEngine::MatrixSymbol(other.get_name()),
-        state_(other.state_),
-        Omega_(other.Omega_),
-        weight_(other.weight_),
+    ) : SymEngine::MatrixSymbol(name),
+        state_(state),
+        Omega_(Omega),
+        weight_(weight),
         potential_(canonicalize_xc_potential(potential))
     {
         SYMENGINE_ASSIGN_TYPEID()
@@ -72,6 +75,9 @@ namespace Tinned
                 && state_->__eq__(*op.state_)
                 && weight_->__eq__(*op.weight_)
                 && Omega_->__eq__(*op.Omega_)
+                //&& canonicalize_xc_potential(potential_)->__eq__(
+                //       *canonicalize_xc_potential(op.potential_)
+                //   );
                 && potential_->__eq__(*op.potential_);
         }
         return false;

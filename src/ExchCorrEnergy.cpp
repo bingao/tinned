@@ -27,9 +27,12 @@ namespace Tinned
     }
 
     ExchCorrEnergy::ExchCorrEnergy(
-        const ExchCorrEnergy& other,
+        const std::string& name,
+        const SymEngine::RCP<const ElectronicState>& state,
+        const SymEngine::RCP<const OneElecOperator>& Omega,
+        const SymEngine::RCP<const NonElecFunction>& weight,
         const SymEngine::RCP<const SymEngine::Basic>& energy
-    ) : SymEngine::FunctionWrapper(other.get_name(), other.get_args()),
+    ) : SymEngine::FunctionWrapper(name, SymEngine::vec_basic({weight, state, Omega})),
         energy_(canonicalize_xc_energy(energy))
     {
         SYMENGINE_ASSIGN_TYPEID()
@@ -51,6 +54,9 @@ namespace Tinned
             auto& op = SymEngine::down_cast<const ExchCorrEnergy&>(o);
             return get_name() == op.get_name()
                 && SymEngine::unified_eq(get_vec(), op.get_vec())
+                //&& canonicalize_xc_energy(energy_)->__eq__(
+                //       *canonicalize_xc_energy(op.energy_)
+                //   );
                 && energy_->__eq__(*op.energy_);
         }
         return false;
