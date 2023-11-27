@@ -5,12 +5,9 @@
    License, v. 2.0. If a copy of the MPL was not distributed with this
    file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-   This file is the header file of non-electron like functions.
+   This file is the header file of two-electron like energies.
 
-   2023-10-28, Bin Gao:
-   * remove member method get_args()
-
-   2023-09-08, Bin Gao:
+   2023-11-22, Bin Gao:
    * first version
 */
 
@@ -25,15 +22,18 @@
 #include <symengine/symbol.h>
 #include <symengine/symengine_rcp.h>
 
+#include "Tinned/ElectronicState.hpp"
 #include "Tinned/PertDependency.hpp"
 
 namespace Tinned
 {
-    // For example, the internuclear repulsion and nucleus interaction with
-    // external fields
-    class NonElecFunction: public SymEngine::FunctionWrapper
+    class TwoElecEnergy: public SymEngine::FunctionWrapper
     {
         protected:
+            // Electron states (may contain derivatives) that the two-electron
+            // energy is represented as Tr[G(`inner_`)*`outer_`]
+            SymEngine::RCP<const ElectronicState> inner_;
+            SymEngine::RCP<const ElectronicState> outer_;
             // dependencies_ stores perturbations that the operator depends on
             // and their maximum orders that can be differentiated
             PertDependency dependencies_;
@@ -43,8 +43,10 @@ namespace Tinned
         public:
             //! Constructor
             // `derivative` may only be used for `diff_impl()`
-            explicit NonElecFunction(
+            explicit TwoElecEnergy(
                 const std::string& name,
+                const SymEngine::RCP<const ElectronicState>& inner,
+                const SymEngine::RCP<const ElectronicState>& outer,
                 const PertDependency& dependencies,
                 const SymEngine::multiset_basic& derivative = {}
             );
@@ -62,6 +64,18 @@ namespace Tinned
                 const SymEngine::RCP<const SymEngine::Symbol> &s
             ) const override;
 
+            // Get inner electronic state
+            inline SymEngine::RCP<const ElectronicState> get_inner_state() const
+            {
+                return inner_;
+            }
+
+            // Get outer electronic state
+            inline SymEngine::RCP<const ElectronicState> get_outer_state() const
+            {
+                return outer_;
+            }
+
             // Get dependencies
             inline PertDependency get_dependencies() const
             {
@@ -75,12 +89,14 @@ namespace Tinned
             }
     };
 
-    // Helper function to make non-electron like functions
-    inline SymEngine::RCP<const NonElecFunction> make_nonel_function(
+    // Helper function to make two-electron like energies
+    inline SymEngine::RCP<const TwoElecEnergy> make_2el_energy(
         const std::string& name,
+        const SymEngine::RCP<const ElectronicState>& inner,
+        const SymEngine::RCP<const ElectronicState>& outer,
         const PertDependency& dependencies = {}
     )
     {
-        return SymEngine::make_rcp<const NonElecFunction>(name, dependencies);
+        return SymEngine::make_rcp<const TwoElecEnergy>(name, inner, outer, dependencies);
     }
 }

@@ -25,7 +25,6 @@
 #include <symengine/matrices/matrix_symbol.h>
 
 #include "Tinned/ElectronicState.hpp"
-#include "Tinned/Perturbation.hpp"
 #include "Tinned/PertDependency.hpp"
 
 namespace Tinned

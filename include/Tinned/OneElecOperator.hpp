@@ -24,7 +24,6 @@
 #include <symengine/symengine_rcp.h>
 #include <symengine/matrices/matrix_symbol.h>
 
-#include "Tinned/Perturbation.hpp"
 #include "Tinned/PertDependency.hpp"
 
 namespace Tinned

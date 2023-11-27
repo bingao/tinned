@@ -1,6 +1,7 @@
 #include "Tinned/Perturbation.hpp"
 #include "Tinned/OneElecDensity.hpp"
 #include "Tinned/OneElecOperator.hpp"
+#include "Tinned/TwoElecEnergy.hpp"
 #include "Tinned/TwoElecOperator.hpp"
 #include "Tinned/CompositeFunction.hpp"
 #include "Tinned/ExchCorrEnergy.hpp"

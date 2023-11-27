@@ -4,6 +4,7 @@ add_library(tinned
             ${LIB_TINNED_PATH}/src/ElectronicState.cpp
             ${LIB_TINNED_PATH}/src/OneElecDensity.cpp
             ${LIB_TINNED_PATH}/src/OneElecOperator.cpp
+            ${LIB_TINNED_PATH}/src/TwoElecEnergy.cpp
             ${LIB_TINNED_PATH}/src/TwoElecOperator.cpp
             ${LIB_TINNED_PATH}/src/CompositeFunction.cpp
             ${LIB_TINNED_PATH}/src/ExchCorrContraction.cpp

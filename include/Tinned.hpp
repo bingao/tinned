@@ -17,6 +17,7 @@
 #include "Tinned/PertDependency.hpp"
 #include "Tinned/OneElecDensity.hpp"
 #include "Tinned/OneElecOperator.hpp"
+#include "Tinned/TwoElecEnergy.hpp"
 #include "Tinned/TwoElecOperator.hpp"
 #include "Tinned/ExchCorrContraction.hpp"
 #include "Tinned/ExchCorrEnergy.hpp"
