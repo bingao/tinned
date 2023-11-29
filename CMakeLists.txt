@@ -2,9 +2,7 @@
 cmake_minimum_required(VERSION 3.14 FATAL_ERROR)
 
 # Project name
-project(Tinned
-        VERSION 0.1.0
-        LANGUAGES CXX)
+project(Tinned VERSION 0.1.0 LANGUAGES CXX)
 
 # Options for making the library
 option(BUILD_SHARED_LIBS "Build shared library." OFF)
@@ -49,8 +47,7 @@ endif()
 
 # Include Tinned and SymEngine header file directories
 set(TINNED_INCLUDE_DIRS ${LIB_TINNED_PATH}/include)
-include_directories(${TINNED_INCLUDE_DIRS}
-                    ${SYMENGINE_INCLUDE_DIRS})
+include_directories(${TINNED_INCLUDE_DIRS} ${SYMENGINE_INCLUDE_DIRS})
 
 # Tinned library source codes
 add_subdirectory(src)
@@ -66,6 +63,57 @@ endif()
 if((CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME) AND BUILD_EXAMPLES)
     add_subdirectory(examples)
 endif()
+
+# Use `CMAKE_INSTALL_DATADIR`
+include(GNUInstallDirs)
+
+# Generate a config file, modified from
+# https://cmake.org/cmake/help/v3.14/module/CMakePackageConfigHelpers.html
+# https://cmake.org/cmake/help/latest/guide/tutorial/Adding%20Export%20Configuration.html
+#
+# find_package(Tinned REQUIRED)
+# target_link_libraries(... tinned)
+install(TARGETS tinned
+        EXPORT TinnedTargets
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+        INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+# Install include headers
+install(FILES ${TINNED_INCLUDE_DIRS}/Tinned.hpp
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+install(DIRECTORY ${TINNED_INCLUDE_DIRS}/Tinned
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+# Install generated `TinnedTargets.cmake`
+set(TINNED_INSTALL_CMAKE_DIR ${CMAKE_INSTALL_LIBDIR}/cmake/tinned)
+#set(TINNED_INSTALL_CMAKE_DIR ${CMAKE_INSTALL_DATADIR}/tinned/cmake)
+install(EXPORT TinnedTargets
+        FILE TinnedTargets.cmake
+        DESTINATION ${TINNED_INSTALL_CMAKE_DIR})
+# Helpers functions for creating config files
+include(CMakePackageConfigHelpers)
+# Generate the config file that includes the exports
+configure_package_config_file(
+    ${LIB_TINNED_PATH}/TinnedConfig.cmake.in
+    ${PROJECT_BINARY_DIR}/TinnedConfig.cmake
+    INSTALL_DESTINATION ${TINNED_INSTALL_CMAKE_DIR}
+    #NO_SET_AND_CHECK_MACRO
+    #NO_CHECK_REQUIRED_COMPONENTS_MACRO
+)
+# Create a version file
+write_basic_package_version_file(
+    ${PROJECT_BINARY_DIR}/TinnedConfigVersion.cmake
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY AnyNewerVersion
+)
+install(FILES
+        ${PROJECT_BINARY_DIR}/TinnedConfig.cmake
+        ${PROJECT_BINARY_DIR}/TinnedConfigVersion.cmake
+        DESTINATION ${TINNED_INSTALL_CMAKE_DIR})
+
+# `export` lets one use Tinned without installing it
+#export(TARGETS tinned FILE "${PROJECT_BINARY_DIR}/TinnedTargets.cmake")
+export(EXPORT TinnedTargets FILE "${PROJECT_BINARY_DIR}/TinnedTargets.cmake")
 
 # Summary
 message("CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")

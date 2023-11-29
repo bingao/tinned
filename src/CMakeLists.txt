@@ -18,4 +18,6 @@ add_library(tinned
             ${LIB_TINNED_PATH}/src/FindAllVisitor.cpp
             ${LIB_TINNED_PATH}/src/StringifyVisitor.cpp)
 
-target_include_directories(tinned PUBLIC ${TINNED_INCLUDE_DIRS})
+target_include_directories(tinned INTERFACE
+    $<BUILD_INTERFACE:${TINNED_INCLUDE_DIRS}>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
