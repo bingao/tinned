@@ -57,6 +57,18 @@ namespace Tinned
                 str_ = to_string(name, derivative);
             }
         }
+        else if (SymEngine::is_a_sub<const TwoElecEnergy>(x)) {
+            auto& op = SymEngine::down_cast<const TwoElecEnergy&>(x);
+            auto str_inner = to_string(op.get_inner_state());
+            auto str_outer = to_string(op.get_outer_state());
+            auto derivative = op.get_derivative();
+            auto str_eri = derivative.empty()
+                ? to_string(std::string("ERI"), op.get_dependencies())
+                : to_string(std::string("ERI"), derivative);
+            str_ = "1/2*tr(" + op.get_name() + "(" + str_eri + ", " + str_inner
+                 + ")*" + str_outer + ")";
+        }
+
         else if (SymEngine::is_a_sub<const CompositeFunction>(x)) {
             auto& fun = SymEngine::down_cast<const CompositeFunction&>(x);
             auto order = fun.get_order();

@@ -27,6 +27,29 @@ namespace Tinned
                 SymEngine::down_cast<const NonElecFunction&>(x)
             );
         }
+        else if (SymEngine::is_a_sub<const TwoElecEnergy>(x)) {
+            auto& op = SymEngine::down_cast<const TwoElecEnergy&>(x);
+            auto inner_state = op.get_inner_state();
+            auto outer_state = op.get_outer_state();
+            auto new_inner = apply(inner_state);
+            auto new_outer = apply(outer_state);
+            if (SymEngine::eq(*inner_state, *new_inner)
+                && SymEngine::eq(*outer_state, *new_outer)) {
+                replace_whole<const TwoElecEnergy>(op);
+            }
+            else {
+                auto new_op = SymEngine::make_rcp<const TwoElecEnergy>(
+                    op.get_name(),
+                    SymEngine::rcp_dynamic_cast<const ElectronicState>(new_inner),
+                    SymEngine::rcp_dynamic_cast<const ElectronicState>(new_outer),
+                    op.get_dependencies(),
+                    op.get_derivative()
+                );
+                replace_whole<const TwoElecEnergy>(
+                    SymEngine::down_cast<const TwoElecEnergy&>(*new_op)
+                );
+            }
+        }
         else if (SymEngine::is_a_sub<const CompositeFunction>(x)) {
             auto& op = SymEngine::down_cast<const CompositeFunction&>(x);
             replace_one_arg_f<const CompositeFunction, const SymEngine::Basic>(
