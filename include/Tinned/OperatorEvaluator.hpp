@@ -13,7 +13,10 @@
 
 #pragma once
 
+#include <cstddef>
+
 #include <symengine/basic.h>
+#include <symengine/constants.h>
 #include <symengine/number.h>
 #include <symengine/matrices/conjugate_matrix.h>
 #include <symengine/matrices/matrix_add.h>
@@ -36,7 +39,7 @@
 namespace Tinned
 {
     template<typename OperatorType>
-    class OperatorEvaluator: public SymEngine::BaseVisitor<OperatorEvaluator>
+    class OperatorEvaluator: public SymEngine::BaseVisitor<OperatorEvaluator<OperatorType>>
     {
         protected:
             bool in_place_conjugate_;
@@ -48,12 +51,14 @@ namespace Tinned
             virtual OperatorType eval_2el_operator(const TwoElecOperator& x) = 0;
             virtual OperatorType eval_temporum_operator(const TemporumOperator& x) = 0;
             virtual OperatorType eval_temporum_overlap(const TemporumOverlap& x) = 0;
-            virtual void conjugate_matrix(OperatorType& A, OperatorType& B) = 0;
-            virtual void transpose(OperatorType& A, OperatorType& B) = 0;
-            virtual void add_operator(OperatorType& A, OperatorType& B) = 0;
-            virtual void mul_operator(OperatorType& A, OperatorType& B) = 0;
-            virtual void scale_operator(
-                const SymEngine::RCP<const SymEngine::Number>& scal_number,
+            virtual void eval_conjugate_matrix(OperatorType& A, OperatorType& B) = 0;
+            virtual void eval_transpose(OperatorType& A, OperatorType& B) = 0;
+            virtual void eval_oper_addition(OperatorType& A, const OperatorType& B) = 0;
+            virtual void eval_oper_multiplication(
+                OperatorType& A, const OperatorType& B
+            ) = 0;
+            virtual void eval_oper_scale(
+                const SymEngine::RCP<const SymEngine::Number>& scalar,
                 OperatorType& A
             ) = 0;
 
@@ -122,10 +127,10 @@ namespace Tinned
                 auto& op = SymEngine::down_cast<const SymEngine::ConjugateMatrix&>(x);
                 if (in_place_conjugate_) {
                     result_ = apply(op.get_arg());
-                    conjugate_matrix(result_, result_);
+                    eval_conjugate_matrix(result_, result_);
                 }
                 else {
-                    conjugate_matrix(apply(op.get_arg()), result_);
+                    eval_conjugate_matrix(apply(op.get_arg()), result_);
                 }
             }
 
@@ -134,10 +139,10 @@ namespace Tinned
                 auto& op = SymEngine::down_cast<const SymEngine::Transpose&>(x);
                 if (in_place_transpose_) {
                     result_ = apply(op.get_arg());
-                    transpose(result_, result_);
+                    eval_transpose(result_, result_);
                 }
                 else {
-                    transpose(apply(op.get_arg()), result_);
+                    eval_transpose(apply(op.get_arg()), result_);
                 }
             }
 
@@ -146,7 +151,8 @@ namespace Tinned
                 auto& op = SymEngine::down_cast<const SymEngine::MatrixAdd&>(x);
                 auto args = op.get_args();
                 result_ = apply(args[0]);
-                for (int i = 1; i<args.size(); ++i) add_operator(result_, apply(args[i]));
+                for (std::size_t i = 1; i<args.size(); ++i)
+                    eval_oper_addition(result_, apply(args[i]));
             }
 
             void bvisit(const SymEngine::MatrixMul& x)
@@ -154,12 +160,12 @@ namespace Tinned
                 auto& op = SymEngine::down_cast<const SymEngine::MatrixMul&>(x);
                 auto factors = op.get_factors();
                 result_ = apply(factors[0]);
-                for (int i = 1; i<factors.size(); ++i)
-                    mul_operator(result_, apply(factors[i]));
+                for (std::size_t i = 1; i<factors.size(); ++i)
+                    eval_oper_multiplication(result_, apply(factors[i]));
                 auto scalar = op.get_scalar();
                 if (SymEngine::neq(*scalar, *SymEngine::one)) {
                     if (SymEngine::is_a_Number(*scalar)) {
-                        scale_operator(
+                        eval_oper_scale(
                             SymEngine::rcp_dynamic_cast<const SymEngine::Number>(scalar),
                             result_
                         );

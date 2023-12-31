@@ -19,8 +19,8 @@ TEST_CASE("Test OneElecDensity and make_1el_density()", "[ElectronicState]")
     auto D_name = std::string("D");
     auto D = make_1el_density(D_name);
     REQUIRE(D->get_name() == D_name);
-    auto derivative = D->get_derivative();
-    REQUIRE(SymEngine::unified_eq(derivative, SymEngine::multiset_basic({})));
+    auto derivatives = D->get_derivatives();
+    REQUIRE(SymEngine::unified_eq(derivatives, SymEngine::multiset_basic({})));
 
     auto el0 = make_perturbation(std::string("EL"), SymEngine::two);
     auto el1 = make_perturbation(
@@ -31,9 +31,9 @@ TEST_CASE("Test OneElecDensity and make_1el_density()", "[ElectronicState]")
         (((D->diff(geo))->diff(el0))->diff(el1))->diff(el0)
     );
     REQUIRE(Dp->get_name() == D_name);
-    derivative = Dp->get_derivative();
+    derivatives = Dp->get_derivatives();
     REQUIRE(SymEngine::unified_eq(
-        derivative, SymEngine::multiset_basic({el0, el0, el1, geo})
+        derivatives, SymEngine::multiset_basic({el0, el0, el1, geo})
     ));
 }
 
@@ -54,9 +54,9 @@ TEST_CASE("Test OneElecOperator and make_1el_operator()", "[OneElecOperator]")
         ((W->diff(geo))->diff(mag))->diff(geo)
     );
     REQUIRE(Wp->get_name() == W_name);
-    auto derivative = Wp->get_derivative();
+    auto derivatives = Wp->get_derivatives();
     REQUIRE(SymEngine::unified_eq(
-        derivative, SymEngine::multiset_basic({geo, geo, mag})
+        derivatives, SymEngine::multiset_basic({geo, geo, mag})
     ));
 
     REQUIRE(SymEngine::eq(*Wp->diff(el), *make_zero_operator()));

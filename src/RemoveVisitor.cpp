@@ -158,7 +158,7 @@ namespace Tinned
     void RemoveVisitor::bvisit(const SymEngine::FunctionSymbol& x)
     {
         // We don't allow for the removal of derivative symbols, but only check
-        // if the `NonElecFunction` (or its derivative) will be removed as a
+        // if the `NonElecFunction` (or its derivatives) will be removed as a
         // whole
         if (SymEngine::is_a_sub<const NonElecFunction>(x)) {
             remove_if_symbol_like<const NonElecFunction>(
@@ -256,7 +256,7 @@ namespace Tinned
                         op.get_name(),
                         state,
                         op.get_dependencies(),
-                        op.get_derivative()
+                        op.get_derivatives()
                     );
                 }
             );

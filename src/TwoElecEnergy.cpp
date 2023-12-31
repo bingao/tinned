@@ -12,10 +12,12 @@ namespace Tinned
         const SymEngine::RCP<const ElectronicState>& inner,
         const SymEngine::RCP<const ElectronicState>& outer,
         const PertDependency& dependencies,
-        const SymEngine::multiset_basic& derivative
+        const SymEngine::multiset_basic& derivatives
     ) : SymEngine::FunctionWrapper(name, SymEngine::vec_basic({inner, outer})),
+        inner_(inner),
+        outer_(outer),
         dependencies_(dependencies),
-        derivative_(derivative)
+        derivatives_(derivatives)
     {
         SYMENGINE_ASSIGN_TYPEID()
     }
@@ -27,7 +29,7 @@ namespace Tinned
             SymEngine::hash_combine(seed, *dep.first);
             SymEngine::hash_combine(seed, dep.second);
         }
-        for (auto& p: derivative_) {
+        for (auto& p: derivatives_) {
             SymEngine::hash_combine(seed, *p);
         }
         return seed;
@@ -39,7 +41,7 @@ namespace Tinned
             auto& op = SymEngine::down_cast<const TwoElecEnergy&>(o);
             return get_name() == op.get_name()
                 && SymEngine::unified_eq(get_vec(), op.get_vec())
-                && SymEngine::unified_eq(derivative_, op.derivative_)
+                && SymEngine::unified_eq(derivatives_, op.derivatives_)
                 && eq_dependency(dependencies_, op.dependencies_);
         }
         return false;
@@ -52,7 +54,7 @@ namespace Tinned
         if (get_name() == op.get_name()) {
             int result = SymEngine::unified_compare(get_vec(), op.get_vec());
             if (result == 0) {
-                result = SymEngine::unified_compare(derivative_, op.derivative_);
+                result = SymEngine::unified_compare(derivatives_, op.derivatives_);
                 return result == 0
                     ? SymEngine::ordered_compare(dependencies_, op.dependencies_)
                     : result;
@@ -69,7 +71,7 @@ namespace Tinned
     //SymEngine::vec_basic TwoElecEnergy::get_args() const
     //{
     //    SymEngine::vec_basic args = to_vec_basic(dependencies_);
-    //    args.insert(args.end(), derivative_.begin(), derivative_.end());
+    //    args.insert(args.end(), derivatives_.begin(), derivatives_.end());
     //    return args;
     //}
 
@@ -99,7 +101,7 @@ namespace Tinned
             diff_inner,
             outer_,
             dependencies_,
-            derivative_
+            derivatives_
         );
         // tr(contr(g, inner_), outer_->diff(s))
         auto diff_outer = SymEngine::rcp_dynamic_cast<const ElectronicState>(
@@ -110,15 +112,15 @@ namespace Tinned
             inner_,
             diff_outer,
             dependencies_,
-            derivative_
+            derivatives_
         );
         auto op_diff_state = SymEngine::add(op_diff_inner, op_diff_outer);
         auto max_order = find_dependency(dependencies_, s);
         if (max_order > 0) {
-            auto order = derivative_.count(s) + 1;
+            auto order = derivatives_.count(s) + 1;
             if (order <= max_order) {
-                auto derivative = derivative_;
-                derivative.insert(s);
+                auto derivatives = derivatives_;
+                derivatives.insert(s);
                 return SymEngine::add(
                     // tr(contr(g->diff(s), inner_), outer_)
                     SymEngine::make_rcp<const TwoElecEnergy>(
@@ -126,7 +128,7 @@ namespace Tinned
                         inner_,
                         outer_,
                         dependencies_,
-                        derivative
+                        derivatives
                     ),
                     op_diff_state
                 );

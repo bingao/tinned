@@ -10,11 +10,11 @@ namespace Tinned
         const std::string& name,
         const SymEngine::RCP<const ElectronicState>& state,
         const PertDependency& dependencies,
-        const SymEngine::multiset_basic& derivative
+        const SymEngine::multiset_basic& derivatives
     ) : SymEngine::MatrixSymbol(name),
         state_(state),
         dependencies_(dependencies),
-        derivative_(derivative)
+        derivatives_(derivatives)
     {
         SYMENGINE_ASSIGN_TYPEID()
     }
@@ -27,7 +27,7 @@ namespace Tinned
             SymEngine::hash_combine(seed, *dep.first);
             SymEngine::hash_combine(seed, dep.second);
         }
-        for (auto& p: derivative_) {
+        for (auto& p: derivatives_) {
             SymEngine::hash_combine(seed, *p);
         }
         return seed;
@@ -39,7 +39,7 @@ namespace Tinned
             auto& op = SymEngine::down_cast<const TwoElecOperator&>(o);
             return get_name() == op.get_name()
                 && state_->__eq__(*op.state_)
-                && SymEngine::unified_eq(derivative_, op.derivative_)
+                && SymEngine::unified_eq(derivatives_, op.derivatives_)
                 && eq_dependency(dependencies_, op.dependencies_);
         }
         return false;
@@ -52,7 +52,7 @@ namespace Tinned
         if (get_name() == op.get_name()) {
             int result = state_->compare(*op.state_);
             if (result == 0) {
-                result = SymEngine::unified_compare(derivative_, op.derivative_);
+                result = SymEngine::unified_compare(derivatives_, op.derivatives_);
                 return result == 0
                     ? SymEngine::ordered_compare(dependencies_, op.dependencies_)
                     : result;
@@ -72,7 +72,7 @@ namespace Tinned
         //auto args = SymEngine::vec_basic({state_});
         //auto deps = to_vec_basic(dependencies_);
         //args.insert(args.end(), deps.begin(), deps.end());
-        //args.insert(args.end(), derivative_.begin(), derivative_.end());
+        //args.insert(args.end(), derivatives_.begin(), derivatives_.end());
         //return args;
     }
 
@@ -88,21 +88,21 @@ namespace Tinned
             get_name(),
             diff_state,
             dependencies_,
-            derivative_
+            derivatives_
         );
         auto max_order = find_dependency(dependencies_, s);
         if (max_order > 0) {
-            auto order = derivative_.count(s) + 1;
+            auto order = derivatives_.count(s) + 1;
             if (order <= max_order) {
                 // Return contr(g->diff(s), D) + contr(g, D->diff(s))
-                auto derivative = derivative_;
-                derivative.insert(s);
+                auto derivatives = derivatives_;
+                derivatives.insert(s);
                 return SymEngine::matrix_add({
                     SymEngine::make_rcp<const TwoElecOperator>(
                         get_name(),
                         state_,
                         dependencies_,
-                        derivative
+                        derivatives
                     ),
                     op_diff_state
                 });

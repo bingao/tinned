@@ -44,14 +44,14 @@ TEST_CASE("Test TemporumOperator and make_dt_operator()", "[TemporumOperator]")
         *SymEngine::subnum(SymEngine::real_double(0), sum_freq)
     ));
     REQUIRE(SymEngine::unified_eq(
-        Dp->get_derivative(), SymEngine::multiset_basic({el, geo, mag})
+        Dp->get_derivatives(), SymEngine::multiset_basic({el, geo, mag})
     ));
     Dp = SymEngine::rcp_dynamic_cast<const TemporumOperator>(
         ((Dket->diff(el))->diff(geo))->diff(mag)
     );
     REQUIRE(SymEngine::eq(*Dp->get_frequency(), *sum_freq));
     REQUIRE(SymEngine::unified_eq(
-        Dp->get_derivative(), SymEngine::multiset_basic({el, geo, mag})
+        Dp->get_derivatives(), SymEngine::multiset_basic({el, geo, mag})
     ));
 
     auto dependencies = PertDependency({
@@ -63,7 +63,7 @@ TEST_CASE("Test TemporumOperator and make_dt_operator()", "[TemporumOperator]")
         (St->diff(geo))->diff(mag)
     );
     REQUIRE(SymEngine::unified_eq(
-        Sp->get_derivative(), SymEngine::multiset_basic({geo, mag})
+        Sp->get_derivatives(), SymEngine::multiset_basic({geo, mag})
     ));
     REQUIRE(SymEngine::eq(*Sp->diff(el), *make_zero_operator()));
 
@@ -73,7 +73,7 @@ TEST_CASE("Test TemporumOperator and make_dt_operator()", "[TemporumOperator]")
         (ht->diff(geo))->diff(mag)
     );
     REQUIRE(SymEngine::unified_eq(
-        hp->get_derivative(), SymEngine::multiset_basic({geo, mag})
+        hp->get_derivatives(), SymEngine::multiset_basic({geo, mag})
     ));
     REQUIRE(SymEngine::eq(*hp->diff(el), *SymEngine::zero));
 }
@@ -93,9 +93,9 @@ TEST_CASE("Test TemporumOverlap and make_t_matrix()", "[TemporumOverlap]")
     REQUIRE(eq_dependency(dependencies, T->get_dependencies()));
     REQUIRE(T->size() == 1);
     REQUIRE(T->get_frequency(0)->is_zero());
-    auto derivative = T->get_derivative(0);
-    REQUIRE(SymEngine::unified_eq(derivative.first, SymEngine::multiset_basic({})));
-    REQUIRE(SymEngine::unified_eq(derivative.second, SymEngine::multiset_basic({})));
+    auto derivatives = T->get_derivatives(0);
+    REQUIRE(SymEngine::unified_eq(derivatives.first, SymEngine::multiset_basic({})));
+    REQUIRE(SymEngine::unified_eq(derivatives.second, SymEngine::multiset_basic({})));
 
     // = wg*S^{gg|0} + 0*2*S^{g|g} - wg*S^{0|gg}
     auto Tgg = SymEngine::rcp_dynamic_cast<const TemporumOverlap>(
@@ -108,15 +108,15 @@ TEST_CASE("Test TemporumOverlap and make_t_matrix()", "[TemporumOverlap]")
     });
     REQUIRE(Tgg->size() == 3);
     for (std::size_t i = 0; i < Tgg->size(); ++i) {
-        derivative = Tgg->get_derivative(i);
+        derivatives = Tgg->get_derivatives(i);
         if (
             SymEngine::unified_eq(
-                derivative.first,
+                derivatives.first,
                 SymEngine::multiset_basic({geo, geo})
             )
             &&
             SymEngine::unified_eq(
-                derivative.second,
+                derivatives.second,
                 SymEngine::multiset_basic({})
             )
         ) {
@@ -125,12 +125,12 @@ TEST_CASE("Test TemporumOverlap and make_t_matrix()", "[TemporumOverlap]")
         }
         else if (
             SymEngine::unified_eq(
-                derivative.first,
+                derivatives.first,
                 SymEngine::multiset_basic({geo})
             )
             &&
             SymEngine::unified_eq(
-                derivative.second,
+                derivatives.second,
                 SymEngine::multiset_basic({geo})
             )
         ) {
@@ -139,12 +139,12 @@ TEST_CASE("Test TemporumOverlap and make_t_matrix()", "[TemporumOverlap]")
         }
         else if (
             SymEngine::unified_eq(
-                derivative.first,
+                derivatives.first,
                 SymEngine::multiset_basic({})
             )
             &&
             SymEngine::unified_eq(
-                derivative.second,
+                derivatives.second,
                 SymEngine::multiset_basic({geo, geo})
             )
         ) {
@@ -170,15 +170,15 @@ TEST_CASE("Test TemporumOverlap and make_t_matrix()", "[TemporumOverlap]")
     });
     REQUIRE(Tggb->size() == 6);
     for (std::size_t i = 0; i < Tggb->size(); ++i) {
-        derivative = Tggb->get_derivative(i);
+        derivatives = Tggb->get_derivatives(i);
         if (
             SymEngine::unified_eq(
-                derivative.first,
+                derivatives.first,
                 SymEngine::multiset_basic({geo, geo, mag})
             )
             &&
             SymEngine::unified_eq(
-                derivative.second,
+                derivatives.second,
                 SymEngine::multiset_basic({})
             )
         ) {
@@ -193,12 +193,12 @@ TEST_CASE("Test TemporumOverlap and make_t_matrix()", "[TemporumOverlap]")
         }
         else if (
             SymEngine::unified_eq(
-                derivative.first,
+                derivatives.first,
                 SymEngine::multiset_basic({geo, geo})
             )
             &&
             SymEngine::unified_eq(
-                derivative.second,
+                derivatives.second,
                 SymEngine::multiset_basic({mag})
             )
         ) {
@@ -213,12 +213,12 @@ TEST_CASE("Test TemporumOverlap and make_t_matrix()", "[TemporumOverlap]")
         }
         else if (
             SymEngine::unified_eq(
-                derivative.first,
+                derivatives.first,
                 SymEngine::multiset_basic({geo, mag})
             )
             &&
             SymEngine::unified_eq(
-                derivative.second,
+                derivatives.second,
                 SymEngine::multiset_basic({geo})
             )
         ) {
@@ -227,12 +227,12 @@ TEST_CASE("Test TemporumOverlap and make_t_matrix()", "[TemporumOverlap]")
         }
         else if (
             SymEngine::unified_eq(
-                derivative.first,
+                derivatives.first,
                 SymEngine::multiset_basic({geo})
             )
             &&
             SymEngine::unified_eq(
-                derivative.second,
+                derivatives.second,
                 SymEngine::multiset_basic({geo, mag})
             )
         ) {
@@ -244,12 +244,12 @@ TEST_CASE("Test TemporumOverlap and make_t_matrix()", "[TemporumOverlap]")
         }
         else if (
             SymEngine::unified_eq(
-                derivative.first,
+                derivatives.first,
                 SymEngine::multiset_basic({mag})
             )
             &&
             SymEngine::unified_eq(
-                derivative.second,
+                derivatives.second,
                 SymEngine::multiset_basic({geo, geo})
             )
         ) {
@@ -264,12 +264,12 @@ TEST_CASE("Test TemporumOverlap and make_t_matrix()", "[TemporumOverlap]")
         }
         else if (
             SymEngine::unified_eq(
-                derivative.first,
+                derivatives.first,
                 SymEngine::multiset_basic({})
             )
             &&
             SymEngine::unified_eq(
-                derivative.second,
+                derivatives.second,
                 SymEngine::multiset_basic({geo, geo, mag})
             )
         ) {

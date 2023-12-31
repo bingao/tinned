@@ -43,7 +43,7 @@ namespace Tinned
                     SymEngine::rcp_dynamic_cast<const ElectronicState>(new_inner),
                     SymEngine::rcp_dynamic_cast<const ElectronicState>(new_outer),
                     op.get_dependencies(),
-                    op.get_derivative()
+                    op.get_derivatives()
                 );
                 replace_whole<const TwoElecEnergy>(
                     SymEngine::down_cast<const TwoElecEnergy&>(*new_op)
@@ -123,7 +123,7 @@ namespace Tinned
                         op.get_name(),
                         state,
                         op.get_dependencies(),
-                        op.get_derivative()
+                        op.get_derivatives()
                     );
                 }
             );

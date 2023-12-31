@@ -29,9 +29,9 @@ TEST_CASE("Test NonElecFunction and make_nonel_function()", "[NonElecFunction]")
         ((h->diff(geo))->diff(mag))->diff(geo)
     );
     REQUIRE(hp->get_name() == h_name);
-    auto derivative = hp->get_derivative();
+    auto derivatives = hp->get_derivatives();
     REQUIRE(SymEngine::unified_eq(
-        derivative, SymEngine::multiset_basic({geo, geo, mag})
+        derivatives, SymEngine::multiset_basic({geo, geo, mag})
     ));
 
     REQUIRE(SymEngine::eq(*hp->diff(el), *SymEngine::zero));

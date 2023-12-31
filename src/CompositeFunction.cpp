@@ -79,8 +79,8 @@ namespace Tinned
         const SymEngine::RCP<const SymEngine::Symbol>& s
     ) const
     {
-        // Zero will be returned if the derivative of the inner function
-        // becomes zero
+        // Zero will be returned if the derivatives of the inner function
+        // become zero
         return SymEngine::mul(
             SymEngine::make_rcp<const CompositeFunction>(
                 get_name(), inner_, order_+1

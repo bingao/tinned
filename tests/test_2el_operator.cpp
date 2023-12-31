@@ -54,31 +54,35 @@ TEST_CASE("Test TwoElecOperator and make_2el_operator()", "[TwoElecOperator]")
         REQUIRE(Gp->get_name() == G_name);
         auto Dp = Gp->get_state();
         REQUIRE(Dp->get_name() == D_name);
-        auto derivative = Gp->get_derivative();
+        auto derivatives = Gp->get_derivatives();
         if (SymEngine::eq(*Dp, *Df)) {
             REQUIRE(SymEngine::unified_eq(
-                derivative, SymEngine::multiset_basic({geo, mag})
+                derivatives, SymEngine::multiset_basic({geo, mag})
             ));
             found[Df] = true;
         }
         else if (SymEngine::eq(*Dp, *Dfg)) {
             REQUIRE(SymEngine::unified_eq(
-                derivative, SymEngine::multiset_basic({mag})
+                derivatives, SymEngine::multiset_basic({mag})
             ));
             found[Dfg] = true;
         }
         else if (SymEngine::eq(*Dp, *Dfb)) {
             REQUIRE(SymEngine::unified_eq(
-                derivative, SymEngine::multiset_basic({geo})
+                derivatives, SymEngine::multiset_basic({geo})
             ));
             found[Dfb] = true;
         }
         else if (SymEngine::eq(*Dp, *Dfgb)) {
             REQUIRE(SymEngine::unified_eq(
-                derivative, SymEngine::multiset_basic({})
+                derivatives, SymEngine::multiset_basic({})
             ));
             found[Dfgb] = true;
         }
     }
     for (auto it = found.begin(); it != found.end(); ++it) REQUIRE(it->second);
+}
+
+TEST_CASE("Test TwoElecEnergy and make_2el_energy()", "[TwoElecEnergy]")
+{
 }

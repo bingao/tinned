@@ -6,8 +6,8 @@ namespace Tinned
 {
     OneElecDensity::OneElecDensity(
         const std::string& name,
-        const SymEngine::multiset_basic& derivative
-    ) : ElectronicState(name, derivative)
+        const SymEngine::multiset_basic& derivatives
+    ) : ElectronicState(name, derivatives)
     {
         SYMENGINE_ASSIGN_TYPEID()
     }
@@ -16,11 +16,11 @@ namespace Tinned
         const SymEngine::RCP<const SymEngine::Symbol>& s
     ) const
     {
-        auto derivative = derivative_;
-        derivative.insert(s);
+        auto derivatives = derivatives_;
+        derivatives.insert(s);
         return SymEngine::make_rcp<const OneElecDensity>(
             get_name(),
-            derivative
+            derivatives
         );
     }
 }

@@ -72,7 +72,7 @@ namespace Tinned
             inline SymEngine::RCP<const SymEngine::Number> get_frequency() const
             {
                 SymEngine::RCP<const SymEngine::Number> result = SymEngine::zero;
-                for (const auto& var: get_derivative()) {
+                for (const auto& var: get_derivatives()) {
                     auto pert = SymEngine::rcp_dynamic_cast<const Perturbation>(var);
                     auto frequency = pert->get_frequency();
                     result = SymEngine::addnum(result, frequency);
@@ -81,20 +81,20 @@ namespace Tinned
                     ? result : SymEngine::subnum(SymEngine::zero, result);
             }
 
-            // Get derivative
-            inline SymEngine::multiset_basic get_derivative() const
+            // Get derivatives
+            inline SymEngine::multiset_basic get_derivatives() const
             {
                 if (SymEngine::is_a_sub<const ElectronicState>(*target_)) {
                     auto target = SymEngine::rcp_dynamic_cast<const ElectronicState>(target_);
-                    return target->get_derivative();
+                    return target->get_derivatives();
                 }
                 else if (SymEngine::is_a_sub<const OneElecOperator>(*target_)) {
                     auto target = SymEngine::rcp_dynamic_cast<const OneElecOperator>(target_);
-                    return target->get_derivative();
+                    return target->get_derivatives();
                 }
                 else if (SymEngine::is_a_sub<const NonElecFunction>(*target_)) {
                     auto target = SymEngine::rcp_dynamic_cast<const NonElecFunction>(target_);
-                    return target->get_derivative();
+                    return target->get_derivatives();
                 }
                 else {
                     throw SymEngine::SymEngineException(

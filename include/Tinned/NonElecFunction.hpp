@@ -37,16 +37,16 @@ namespace Tinned
             // dependencies_ stores perturbations that the operator depends on
             // and their maximum orders that can be differentiated
             PertDependency dependencies_;
-            // derivative_ holds derivatives with respect to perturbations
-            SymEngine::multiset_basic derivative_;
+            // derivatives_ holds derivatives with respect to perturbations
+            SymEngine::multiset_basic derivatives_;
 
         public:
             //! Constructor
-            // `derivative` may only be used for `diff_impl()`
+            // `derivatives` may only be used for `diff_impl()`
             explicit NonElecFunction(
                 const std::string& name,
                 const PertDependency& dependencies,
-                const SymEngine::multiset_basic& derivative = {}
+                const SymEngine::multiset_basic& derivatives = {}
             );
 
             SymEngine::hash_t __hash__() const override;
@@ -68,10 +68,10 @@ namespace Tinned
                 return dependencies_;
             }
 
-            // Get derivative
-            inline SymEngine::multiset_basic get_derivative() const
+            // Get derivatives
+            inline SymEngine::multiset_basic get_derivatives() const
             {
-                return derivative_;
+                return derivatives_;
             }
     };
 

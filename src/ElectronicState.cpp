@@ -7,9 +7,9 @@ namespace Tinned
 {
     ElectronicState::ElectronicState(
         const std::string& name,
-        const SymEngine::multiset_basic& derivative
+        const SymEngine::multiset_basic& derivatives
     ) : SymEngine::MatrixSymbol(name),
-        derivative_(derivative)
+        derivatives_(derivatives)
     {
         SYMENGINE_ASSIGN_TYPEID()
     }
@@ -17,7 +17,7 @@ namespace Tinned
     SymEngine::hash_t ElectronicState::__hash__() const
     {
         SymEngine::hash_t seed = SymEngine::MatrixSymbol::__hash__();
-        for (auto& p: derivative_) {
+        for (auto& p: derivatives_) {
             SymEngine::hash_combine(seed, *p);
         }
         return seed;
@@ -28,7 +28,7 @@ namespace Tinned
         if (SymEngine::is_a_sub<const ElectronicState>(o)) {
             auto& state = SymEngine::down_cast<const ElectronicState&>(o);
             return get_name() == state.get_name()
-                && SymEngine::unified_eq(derivative_, state.derivative_);
+                && SymEngine::unified_eq(derivatives_, state.derivatives_);
         }
         return false;
     }
@@ -38,7 +38,7 @@ namespace Tinned
         SYMENGINE_ASSERT(SymEngine::is_a_sub<const ElectronicState>(o))
         auto& state = SymEngine::down_cast<const ElectronicState&>(o);
         if (get_name() == state.get_name()) {
-            return SymEngine::unified_compare(derivative_, state.derivative_);
+            return SymEngine::unified_compare(derivatives_, state.derivatives_);
         }
         else {
             return get_name() < state.get_name() ? -1 : 1;
@@ -47,11 +47,11 @@ namespace Tinned
 
     //SymEngine::vec_basic ElectronicState::get_args() const
     //{
-    //    if (derivative_.empty()) {
+    //    if (derivatives_.empty()) {
     //        return {};
     //    }
     //    else {
-    //        return SymEngine::vec_basic(derivative_.begin(), derivative_.end());
+    //        return SymEngine::vec_basic(derivatives_.begin(), derivatives_.end());
     //    }
     //}
 
@@ -59,11 +59,11 @@ namespace Tinned
     //    const SymEngine::RCP<const SymEngine::Symbol>& s
     //) const
     //{
-    //    auto derivative = derivative_;
-    //    derivative.insert(s);
+    //    auto derivatives = derivatives_;
+    //    derivatives.insert(s);
     //    return SymEngine::make_rcp<const ElectronicState>(
     //        get_name(),
-    //        derivative
+    //        derivatives
     //    );
     //}
 }

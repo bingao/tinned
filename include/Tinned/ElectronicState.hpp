@@ -30,14 +30,14 @@ namespace Tinned
     class ElectronicState: public SymEngine::MatrixSymbol
     {
         protected:
-            // derivative_ holds derivatives with respect to perturbations
-            SymEngine::multiset_basic derivative_;
+            // derivatives_ holds derivatives with respect to perturbations
+            SymEngine::multiset_basic derivatives_;
 
         public:
             //! Constructor
             explicit ElectronicState(
                 const std::string& name,
-                const SymEngine::multiset_basic& derivative = {}
+                const SymEngine::multiset_basic& derivatives = {}
             );
 
             SymEngine::hash_t __hash__() const override;
@@ -50,10 +50,10 @@ namespace Tinned
             //    const SymEngine::RCP<const SymEngine::Symbol>& s
             //) const override;
 
-            // Get derivative
-            inline SymEngine::multiset_basic get_derivative() const
+            // Get derivatives
+            inline SymEngine::multiset_basic get_derivatives() const
             {
-                return derivative_;
+                return derivatives_;
             }
     };
 }

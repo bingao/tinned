@@ -50,17 +50,15 @@ namespace Tinned
                 return o.str();
             }
 
-            // Stringify the derivative of an operator
+            // Stringify derivatives of an operator
             inline std::string to_string(
                 const std::string& name,
-                const SymEngine::multiset_basic& derivative
+                const SymEngine::multiset_basic& derivatives
             )
             {
                 std::ostringstream o;
                 o << "Derivative(" << name;
-                for (const auto& var: derivative) {
-                    o << ", " << apply(*var);
-                }
+                for (const auto& var: derivatives) o << ", " << apply(*var);
                 o << ")";
                 return o.str();
             }
@@ -74,17 +72,17 @@ namespace Tinned
                 return str_;
             }
 
-            // Stringify the derivative of an operator with an electronic state
-            // as the argument
+            // Stringify derivatives of an operator with an electronic state as
+            // the argument
             inline std::string to_string(
                 const std::string& name,
                 const SymEngine::RCP<const ElectronicState>& state,
-                const SymEngine::multiset_basic& derivative
+                const SymEngine::multiset_basic& derivatives
             )
             {
                 auto str_state = to_string(state);
                 auto str_op = name + "(" + str_state + ")";
-                return derivative.empty() ? str_op : to_string(str_op, derivative);
+                return derivatives.empty() ? str_op : to_string(str_op, derivatives);
             }
 
         public:
