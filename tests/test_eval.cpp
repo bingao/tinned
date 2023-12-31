@@ -170,7 +170,6 @@ inline SymEngine::RCP<const SymEngine::Basic> mock_2el_energy(
 )
 {
     auto G = mock_2el_operator(dependencies, derivatives, inner);
-std::cout << "G = " << stringify(G) << "\n";
     return SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({G, outer})));
 }
 
@@ -252,7 +251,7 @@ inline SymEngine::RCP<const SymEngine::Basic> mock_xc_energy(
             else if (SymEngine::is_a_sub<const CompositeFunction>(*arg)) {
                 auto op = SymEngine::rcp_dynamic_cast<const CompositeFunction>(arg);
                 factors.push_back(
-                    SymEngine::pow(density, SymEngine::integer(-op->get_order()-1))
+                    SymEngine::pow(density, SymEngine::integer(-int(op->get_order()+1)))
                 );
             }
             // Generalized density vector, sum of generalized density
@@ -366,7 +365,7 @@ inline SymEngine::RCP<const SymEngine::Basic> mock_xc_potential(
             else if (SymEngine::is_a_sub<const CompositeFunction>(*arg)) {
                 auto op = SymEngine::rcp_dynamic_cast<const CompositeFunction>(arg);
                 factors.push_back(
-                    SymEngine::pow(density, SymEngine::integer(-op->get_order()-1))
+                    SymEngine::pow(density, SymEngine::integer(-int(op->get_order()+1)))
                 );
             }
             // Generalized density vector, sum of generalized density
@@ -459,7 +458,6 @@ class FunMockEvaluator: public FunctionEvaluator<SymEngine::RCP<const SymEngine:
             const TwoElecEnergy& x
         ) override
         {
-std::cout << "x = " << stringify(x) << "\n";
             auto inner = mock_1el_density(
                 perturbations_,
                 x.get_inner_state()->get_derivatives()
@@ -468,8 +466,6 @@ std::cout << "x = " << stringify(x) << "\n";
                 perturbations_,
                 x.get_outer_state()->get_derivatives()
             );
-std::cout << "inner = " << stringify(inner) << "\n";
-std::cout << "outer = " << stringify(outer) << "\n";
             return mock_2el_energy(
                 x.get_dependencies(), x.get_derivatives(), inner, outer
             );
@@ -616,8 +612,6 @@ std::cout << "outer = " << stringify(outer) << "\n";
         ~FunMockEvaluator() = default;
 };
 
-#include <iostream>
-
 TEST_CASE("Test FunctionEvaluator", "[FunctionEvaluator]")
 {
     auto a = make_perturbation(std::string("a"));
@@ -632,7 +626,7 @@ TEST_CASE("Test FunctionEvaluator", "[FunctionEvaluator]")
     auto E = SymEngine::add(SymEngine::vec_basic({
         SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({h, D}))),
         make_2el_energy(std::string("G"), D, D, dependencies),
-        //Exc,
+        Exc,
         hnuc
     }));
 
