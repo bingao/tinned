@@ -24,6 +24,7 @@
 
 #include "Tinned/ElectronicState.hpp"
 #include "Tinned/PertDependency.hpp"
+#include "Tinned/TwoElecOperator.hpp"
 
 namespace Tinned
 {
@@ -89,7 +90,8 @@ namespace Tinned
             }
     };
 
-    // Helper function to make two-electron like energies
+    // Helper function to make two-electron like energies from
+    // `ElectronicState`
     inline SymEngine::RCP<const TwoElecEnergy> make_2el_energy(
         const std::string& name,
         const SymEngine::RCP<const ElectronicState>& inner,
@@ -97,6 +99,20 @@ namespace Tinned
         const PertDependency& dependencies = {}
     )
     {
-        return SymEngine::make_rcp<const TwoElecEnergy>(name, inner, outer, dependencies);
+        return SymEngine::make_rcp<const TwoElecEnergy>(
+            name, inner, outer, dependencies
+        );
+    }
+
+    // Helper function to make two-electron like energies from
+    // `TwoElecOperator`
+    inline SymEngine::RCP<const TwoElecEnergy> make_2el_energy(
+        const std::string& name,
+        const SymEngine::RCP<const TwoElecOperator>& G
+    )
+    {
+        return SymEngine::make_rcp<const TwoElecEnergy>(
+            name, G->get_state(), G->get_state(), G->get_dependencies()
+        );
     }
 }
