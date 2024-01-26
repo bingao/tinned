@@ -40,6 +40,7 @@ namespace Tinned
             SymEngine::RCP<const SymEngine::Basic> target_;
             // Type of the time differentiation operator
             TemporumType type_;
+
         public:
             explicit TemporumOperator(
                 const SymEngine::RCP<const SymEngine::Basic>& target,

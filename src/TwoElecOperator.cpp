@@ -23,13 +23,8 @@ namespace Tinned
     {
         SymEngine::hash_t seed = SymEngine::MatrixSymbol::__hash__();
         SymEngine::hash_combine(seed, *state_);
-        for (auto& dep: dependencies_) {
-            SymEngine::hash_combine(seed, *dep.first);
-            SymEngine::hash_combine(seed, dep.second);
-        }
-        for (auto& p: derivatives_) {
-            SymEngine::hash_combine(seed, *p);
-        }
+        hash_dependency(seed, dependencies_);
+        for (auto& p: derivatives_) SymEngine::hash_combine(seed, *p);
         return seed;
     }
 

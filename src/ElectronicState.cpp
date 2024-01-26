@@ -17,9 +17,7 @@ namespace Tinned
     SymEngine::hash_t ElectronicState::__hash__() const
     {
         SymEngine::hash_t seed = SymEngine::MatrixSymbol::__hash__();
-        for (auto& p: derivatives_) {
-            SymEngine::hash_combine(seed, *p);
-        }
+        for (auto& p: derivatives_) SymEngine::hash_combine(seed, *p);
         return seed;
     }
 

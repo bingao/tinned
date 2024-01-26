@@ -25,13 +25,8 @@ namespace Tinned
     SymEngine::hash_t TwoElecEnergy::__hash__() const
     {
         SymEngine::hash_t seed = SymEngine::FunctionWrapper::__hash__();
-        for (auto& dep: dependencies_) {
-            SymEngine::hash_combine(seed, *dep.first);
-            SymEngine::hash_combine(seed, dep.second);
-        }
-        for (auto& p: derivatives_) {
-            SymEngine::hash_combine(seed, *p);
-        }
+        hash_dependency(seed, dependencies_);
+        for (auto& p: derivatives_) SymEngine::hash_combine(seed, *p);
         return seed;
     }
 

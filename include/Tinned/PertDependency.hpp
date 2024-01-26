@@ -14,10 +14,11 @@
 
 #pragma once
 
-#include <set>
+#include <map>
 #include <utility>
 
 #include <symengine/basic.h>
+#include <symengine/dict.h>
 #include <symengine/integer.h>
 #include <symengine/symengine_rcp.h>
 #include <symengine/matrices/matrix_expr.h>
@@ -27,25 +28,23 @@
 
 namespace Tinned
 {
-    // Comparison function for std::pair<SymEngine::RCP<const Perturbation>,unsigned int>
-    struct PertDependencyKeyLess {
-        //! true if `x < y`, false otherwise
-        bool operator()(
-            const std::pair<SymEngine::RCP<const Perturbation>,unsigned int>& x,
-            const std::pair<SymEngine::RCP<const Perturbation>,unsigned int>& y
-        ) const
-        {
-            auto result = SymEngine::unified_compare(x, y);
-            if (result == 0) return false;
-            return result == -1;
-        }
-    };
-
     // Type for perturbations that an operator depends on and their maximum
     // orders that can be differentiated
-    typedef std::set<std::pair<SymEngine::RCP<const Perturbation>,unsigned int>,
-                     PertDependencyKeyLess>
+    typedef std::map<SymEngine::RCP<const Perturbation>, unsigned int,
+                     SymEngine::RCPBasicKeyLess>
         PertDependency;
+
+    // Combine the hash of perturbation dependencies
+    inline void hash_dependency(
+        SymEngine::hash_t& seed,
+        const PertDependency& dependencies
+    )
+    {
+        for (auto& dep: dependencies) {
+            SymEngine::hash_combine(seed, *dep.first);
+            SymEngine::hash_combine(seed, dep.second);
+        }
+    }
 
     // Equality comparator for perturbation dependencies
     inline bool eq_dependency(const PertDependency& dep1, const PertDependency& dep2)
