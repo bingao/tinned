@@ -13,11 +13,11 @@ namespace Tinned
     AdjointMap::AdjointMap(
         const std::string& name,
         const SymEngine::vec_basic& x,
-        const SymEngine::RCP<const SymEngine::Basic>& y,
+        const SymEngine::RCP<const SymEngine::Basic>& y
     ) : SymEngine::MatrixSymbol(name)
     {
         x_ = x;
-        if (x_.size()>1) std::sort(x_.begin(), x_.end(), SymEngine::RCPBasicKeyLess);
+        if (x_.size()>1) std::sort(x_.begin(), x_.end(), SymEngine::RCPBasicKeyLess());
         y_ = y;
         SYMENGINE_ASSIGN_TYPEID()
     }
@@ -25,11 +25,11 @@ namespace Tinned
     AdjointMap::AdjointMap(
         const AdjointMap& other,
         const SymEngine::RCP<const SymEngine::Basic>& x
-    ) : SymEngine::MatrixSymbol(other.name)
+    ) : SymEngine::MatrixSymbol(other.get_name())
     {
         x_ = other.x_;
         x_.push_back(x);
-        if (x_.size()>1) std::sort(x_.begin(), x_.end(), SymEngine::RCPBasicKeyLess);
+        if (x_.size()>1) std::sort(x_.begin(), x_.end(), SymEngine::RCPBasicKeyLess());
         y_ = other.y_;
         SYMENGINE_ASSIGN_TYPEID()
     }
@@ -86,9 +86,9 @@ namespace Tinned
             if (diff_x[i]->__eq__(*make_zero_operator())) continue;
             // Sort X's
             if (diff_x.size()>1)
-                std::sort(diff_x.begin(), diff_x.end(), SymEngine::RCPBasicKeyLess);
+                std::sort(diff_x.begin(), diff_x.end(), SymEngine::RCPBasicKeyLess());
             terms.push_back(SymEngine::make_rcp<const AdjointMap>(
-                get_name(), diff_x, y
+                get_name(), diff_x, y_
             ));
         }
         // Differentiate Y

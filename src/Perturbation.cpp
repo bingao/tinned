@@ -1,5 +1,3 @@
-#include <iostream>
-
 #include <symengine/complex.h>
 //#include <symengine/complex_double.h>
 //#include <symengine/complex_mpc.h>

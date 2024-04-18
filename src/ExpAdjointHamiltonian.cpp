@@ -7,6 +7,7 @@
 
 #include "Tinned/PertDependency.hpp"
 #include "Tinned/AdjointMap.hpp"
+#include "Tinned/OneElecOperator.hpp"
 #include "Tinned/ExpAdjointHamiltonian.hpp"
 
 namespace Tinned
@@ -120,7 +121,7 @@ namespace Tinned
                     state_operator_,
                     SymEngine::make_rcp<const AdjointMap>(
                         std::string("ad_{")
-                            + state_oper_->get_name()
+                            + state_operator_->get_name()
                             + std::string("}(")
                             + name_hamiltonian
                             + std::string(")"),

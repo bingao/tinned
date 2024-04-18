@@ -52,12 +52,14 @@ namespace Tinned
         const SymEngine::RCP<const SymEngine::Symbol>& s
     ) const
     {
-        auto result = state_->diff(s);
-        if (result->__eq__(*make_zero_operator())) {
+        auto diff_state = SymEngine::rcp_dynamic_cast<const StateVector>(
+            state_->diff(s)
+        );
+        if (diff_state->__eq__(*make_zero_operator())) {
             return make_zero_operator();
         }
         else {
-            return SymEngine::make_rcp<const StateOperator>(get_name(), result);
+            return SymEngine::make_rcp<const StateOperator>(get_name(), diff_state);
         }
     }
 }
