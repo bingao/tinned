@@ -1,5 +1,5 @@
 /* Tinned: a set of nonnumerical routines for computational chemistry
-   Copyright 2023 Bin Gao
+   Copyright 2023-2024 Bin Gao
 
    This Source Code Form is subject to the terms of the Mozilla Public
    License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -94,6 +94,7 @@ namespace Tinned
 
     // Helper function to return a 1x1 zero matrix, can be used for zero
     // derivative
+    //FIXME: move to another header file?
     inline SymEngine::RCP<const SymEngine::MatrixExpr> make_zero_operator()
     {
         return SymEngine::zero_matrix(SymEngine::integer(1), SymEngine::integer(1));

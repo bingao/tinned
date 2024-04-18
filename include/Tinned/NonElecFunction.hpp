@@ -1,5 +1,5 @@
 /* Tinned: a set of nonnumerical routines for computational chemistry
-   Copyright 2023 Bin Gao
+   Copyright 2023-2024 Bin Gao
 
    This Source Code Form is subject to the terms of the Mozilla Public
    License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -75,7 +75,7 @@ namespace Tinned
             }
     };
 
-    // Helper function to make non-electron like functions
+    // Helper function to make a non-electron like function
     inline SymEngine::RCP<const NonElecFunction> make_nonel_function(
         const std::string& name,
         const PertDependency& dependencies = {}

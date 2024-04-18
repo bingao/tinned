@@ -1,5 +1,5 @@
 /* Tinned: a set of nonnumerical routines for computational chemistry
-   Copyright 2023 Bin Gao
+   Copyright 2023-2024 Bin Gao
 
    This Source Code Form is subject to the terms of the Mozilla Public
    License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -111,7 +111,7 @@ namespace Tinned
     using SameTypeSet = std::set<SymEngine::RCP<T>, SymEngine::RCPBasicKeyLess>;
 
     // Helper function to find a given `symbol` and all its differentiated ones
-    // from `x`
+    // in `x`
     template<typename T> inline SameTypeSet<const T> find_all(
         const SymEngine::RCP<const SymEngine::Basic>& x,
         const SymEngine::RCP<const SymEngine::Basic>& symbol

@@ -5,6 +5,7 @@
 #include <symengine/symengine_assert.h>
 #include <symengine/symengine_casts.h>
 
+#include "Tinned/PertDependency.hpp"
 #include "Tinned/TemporumOperator.hpp"
 
 namespace Tinned

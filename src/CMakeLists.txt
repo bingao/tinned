@@ -12,6 +12,11 @@ add_library(tinned
             ${LIB_TINNED_PATH}/src/ExchCorrPotential.cpp
             ${LIB_TINNED_PATH}/src/TemporumOperator.cpp
             ${LIB_TINNED_PATH}/src/TemporumOverlap.cpp
+            ${LIB_TINNED_PATH}/src//LagMultiplier.cpp
+            ${LIB_TINNED_PATH}/src//StateVector.cpp
+            ${LIB_TINNED_PATH}/src//StateOperator.cpp
+            ${LIB_TINNED_PATH}/src//AdjointMap.cpp
+            ${LIB_TINNED_PATH}/src//ExpAdjointHamiltonian.cpp
             ${LIB_TINNED_PATH}/src/KeepVisitor.cpp
             ${LIB_TINNED_PATH}/src/RemoveVisitor.cpp
             ${LIB_TINNED_PATH}/src/ReplaceVisitor.cpp

@@ -1,5 +1,5 @@
 /* Tinned: a set of nonnumerical routines for computational chemistry
-   Copyright 2023 Bin Gao
+   Copyright 2023-2024 Bin Gao
 
    This Source Code Form is subject to the terms of the Mozilla Public
    License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -93,11 +93,12 @@ namespace Tinned
     // to those in SymEngine::msubs()
     inline SymEngine::RCP<const SymEngine::Basic> replace(
         const SymEngine::RCP<const SymEngine::Basic>& x,
-        const SymEngine::map_basic_basic& subs_dict,
-        bool cache = true
+        const SymEngine::map_basic_basic& subs_dict
+        //bool cache = false
     )
     {
-        ReplaceVisitor visitor(subs_dict, cache);
+        //ReplaceVisitor visitor(subs_dict, cache);
+        ReplaceVisitor visitor(subs_dict, false);
         return visitor.apply(x);
     }
 }

@@ -5,9 +5,9 @@
    License, v. 2.0. If a copy of the MPL was not distributed with this
    file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-   This file is the header file of one-electron spin-orbital density matrix.
+   This file is the header file of state vectors.
 
-   2023-09-21, Bin Gao:
+   2024-04-17, Bin Gao:
    * first version
 */
 
@@ -17,12 +17,12 @@
 
 namespace Tinned
 {
-    class OneElecDensity: public ElectronicState
+    class StateVector: public ElectronicState
     {
         public:
             //! Constructor
             // `derivatives` may only be used for `diff_impl()`
-            explicit OneElecDensity(
+            explicit StateVector(
                 const std::string& name,
                 const SymEngine::multiset_basic& derivatives = {}
             );
@@ -33,11 +33,11 @@ namespace Tinned
             ) const override;
     };
 
-    // Helper function to make a one-electron spin-orbital density matrix
-    inline SymEngine::RCP<const OneElecDensity> make_1el_density(
+    // Helper function to make a state vector
+    inline SymEngine::RCP<const StateVector> make_state_vector(
         const std::string& name
     )
     {
-        return SymEngine::make_rcp<const OneElecDensity>(name);
+        return SymEngine::make_rcp<const StateVector>(name);
     }
 }

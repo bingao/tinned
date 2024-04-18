@@ -1,5 +1,5 @@
 /* Tinned: a set of nonnumerical routines for computational chemistry
-   Copyright 2023 Bin Gao
+   Copyright 2023-2024 Bin Gao
 
    This Source Code Form is subject to the terms of the Mozilla Public
    License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -104,7 +104,7 @@ namespace Tinned
         );
     }
 
-    // Helper function to make two-electron like energies from
+    // Helper function to make a two-electron like energy from
     // `TwoElecOperator`
     inline SymEngine::RCP<const TwoElecEnergy> make_2el_energy(
         const std::string& name,
