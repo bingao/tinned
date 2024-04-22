@@ -48,6 +48,24 @@ for computational chemistry:
 * [`class TemporumOverlap`](include/Tinned/TemporumOverlap.hpp), for the operator
   $-\frac{1}{2}(\langle\mathrm{i}\frac{\partial}{\partial t}\chi_{\kappa}\vert\chi_{\lambda}\rangle
   +\langle\chi_{\kappa}\vert\mathrm{i}\frac{\partial}{\partial t}\chi_{\lambda}\rangle)$;
+* [`class StateVector`](include/Tinned/StateVector.hpp) for state vectors, such
+  as the coupled-cluster amplitude vector $\tilde{\boldsymbol{t}}$;
+* [`class LagMultiplier`](include/Tinned/LagMultiplier.hpp), Lagrangian
+  multiplier vectors;
+* [`class StateOperator`](include/Tinned/StateOperator.hpp) for state operators,
+  such as the coupled-cluster operator $\hat{T}$;
+* [`class AdjointMap`](include/Tinned/AdjointMap.hpp) represents an adjoint map
+  $\prod_{j}\left(\text{ad}_{\tilde{\mathbf{X}}_{j}}\right)(\tilde{\mathbf{Y}})$
+  where all $\tilde{\mathbf{X}}_{j}$'s and all their derivatives are commutative;
+* [`class ExpAdjointHamiltonian`](include/Tinned/ExpAdjointHamiltonian.hpp)
+  represents an exponential map in the form of
+  $\text{e}^{\text{ad}_{-\hat{T}}}(\hat{H}^{b_{P}})$ or
+  $\text{e}^{\text{ad}_{-\hat{T}}}\left(\prod_{j=1}^{j_{\max}} %
+    \left(\text{ad}_{\hat{T}^{b_{Q_{j}}}}\right)(\hat{H}^{b_{P}})\right)$ with
+  $1\le j_{\max}\le3$.
+* function template [`find_all<T>(x, symbol)`](include/Tinned/FindAllVisitor.hpp)
+  finds a given `symbol` and all its differentiated ones in `x`. The template
+  parameter `T` is the data type of `symbol`;
 * function [`keep_if(x, symbols)`](include/Tinned/KeepVisitor.hpp) keeps given
   `symbols` in `x` while removing others;
 * function [`remove_if(x, symbols)`](include/Tinned/RemoveVisitor.hpp) removes
