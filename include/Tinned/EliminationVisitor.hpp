@@ -14,7 +14,6 @@
 
 #pragma once
 
-#include <cmath>
 #include <functional>
 #include <string>
 
@@ -141,28 +140,19 @@ namespace Tinned
 
     // Helper function to eliminate a given response `parameter`'s derivatives
     // from `x`. Maximum order of derivatives to be eliminated is the length
-    // of `perturbations`, and minimum order is specified by `min_order` but
-    // which should be greater than the floor function of the half length of
-    // `perturbations`. If `min_order` is equal to 0, it will be computed as
-    // the aforementioned floor function plus one.
+    // of `perturbations`, and minimum order is specified by `min_order`. For
+    // wave function parameters, it should be greater than the floor function
+    // of the half length of `perturbations`. For multipliers, it should be
+    // greater than or equal to the ceiling function of the half length of
+    // `perturbations`.
     inline SymEngine::RCP<const SymEngine::Basic> eliminate(
         const SymEngine::RCP<const SymEngine::Basic>& x,
         const SymEngine::RCP<const SymEngine::Basic>& parameter,
         const SymEngine::multiset_basic& perturbations,
-        const unsigned int min_order = 0
+        const unsigned int min_order
     )
     {
-        auto min_elimination = static_cast<unsigned int>(std::floor(0.5*perturbations.size()))+1;
-        if (min_order==0) {
-            EliminationVisitor visitor(parameter, perturbations, min_elimination);
-            return visitor.apply(x);
-        }
-        else {
-            if (min_order<min_elimination) throw SymEngine::SymEngineException(
-                "eliminate() gets invalid minimum order "+std::to_string(min_order)
-            );
-            EliminationVisitor visitor(parameter, perturbations, min_order);
-            return visitor.apply(x);
-        }
+        EliminationVisitor visitor(parameter, perturbations, min_order);
+        return visitor.apply(x);
     }
 }
