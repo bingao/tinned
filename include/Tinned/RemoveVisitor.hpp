@@ -76,7 +76,8 @@ namespace Tinned
             std::function<bool(const SymEngine::Basic&)> condition_;
 
             // Check equality for `x` and symbols to be removed
-            inline bool is_equal(const SymEngine::Basic& x) {
+            inline bool is_equal(const SymEngine::Basic& x) const
+            {
                 for (const auto& s: symbols_) {
                     if (SymEngine::eq(x, *s)) return true;
                 }

@@ -19,6 +19,7 @@ add_library(tinned
             ${LIB_TINNED_PATH}/src//ExpAdjointHamiltonian.cpp
             ${LIB_TINNED_PATH}/src/KeepVisitor.cpp
             ${LIB_TINNED_PATH}/src/RemoveVisitor.cpp
+            ${LIB_TINNED_PATH}/src/EliminationVisitor.cpp
             ${LIB_TINNED_PATH}/src/ReplaceVisitor.cpp
             ${LIB_TINNED_PATH}/src/FindAllVisitor.cpp
             ${LIB_TINNED_PATH}/src/StringifyVisitor.cpp)

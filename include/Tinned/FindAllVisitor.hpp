@@ -59,7 +59,7 @@ namespace Tinned
                 return false;
             }
 
-            // Template method for objects without arguments, we only compare
+            // Template method for objects without arguments, we compare only
             // their names and dependencies
             template<typename T> inline bool find_with_dependencies(T& x)
             {

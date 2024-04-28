@@ -8,7 +8,7 @@
    This file is the header file of two-electron like operators.
 
    2023-10-27, Bin Gao:
-   * rewrite member method get_args() that only returns the electronic state
+   * rewrite member method get_args() that returns only the electronic state
 
    2023-09-22, Bin Gao:
    * first version
@@ -45,7 +45,7 @@ namespace Tinned
 
         public:
             //! Constructor
-            // `derivatives` may only be used for `diff_impl()`
+            // `derivatives` may be used only for `diff_impl()`
             explicit TwoElecOperator(
                 const std::string& name,
                 const SymEngine::RCP<const ElectronicState>& state,

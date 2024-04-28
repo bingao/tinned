@@ -7,6 +7,9 @@
 
    This file is the header file of T matrix.
 
+   2024-04-28, Bin Gao:
+   * add a member function `get_derivatives()` for elimination
+
    2023-10-28, Bin Gao:
    * remove member method get_args()
 
@@ -47,10 +50,8 @@ namespace Tinned
 
         public:
             explicit TemporumOverlap(const PertDependency& dependencies);
-            // Only used for `diff_impl()`
-            explicit TemporumOverlap(
-                const SymEngine::RCP<const SymEngine::Basic>& braket
-            );
+            // Used only for `diff_impl()`
+            explicit TemporumOverlap(const SymEngine::RCP<const SymEngine::Basic>& braket);
 
             SymEngine::hash_t __hash__() const override;
             bool __eq__(const SymEngine::Basic& o) const override;
@@ -148,6 +149,17 @@ namespace Tinned
                     std::get<1>(term)->get_derivatives(),
                     std::get<2>(term)->get_derivatives()
                 );
+            }
+
+            // Get derivatives on the T matrix, currently used only for elimination
+            inline SymEngine::multiset_basic get_derivatives() const
+            {
+                auto term = get_braket_product(0);
+                auto derivatives = std::get<1>(term)->get_derivatives();
+                auto ket_derivatives = std::get<2>(term)->get_derivatives();
+                if (!ket_derivatives.empty())
+                    derivatives.insert(ket_derivatives.begin(), ket_derivatives.end());
+                return derivatives;
             }
     };
 

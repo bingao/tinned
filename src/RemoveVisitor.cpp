@@ -91,8 +91,8 @@ namespace Tinned
                 );
             }
             result_ = kept
-                ? x.rcp_from_this()
-                : SymEngine::Add::from_dict(coef, std::move(d));
+                    ? x.rcp_from_this()
+                    : SymEngine::Add::from_dict(coef, std::move(d));
         }
     }
 
@@ -130,22 +130,18 @@ namespace Tinned
                     // The value in the pair (the exponent) is not allowed to
                     // be removed completely
                     auto new_value = apply(p.second);
-                    if (new_value.is_null()) {
-                        throw SymEngine::SymEngineException(
-                            "RemoveVisitor::bvisit() does not allow to remove the exponent in a key-value pair of Mul."
-                        );
-                    }
-                    else {
-                        if (SymEngine::neq(*p.first, *new_key) ||
-                            SymEngine::neq(*p.second, *new_value)) kept = false;
-                        SymEngine::Mul::dict_add_term_new(
-                            SymEngine::outArg(coef), d, new_value, new_key
-                        );
-                    }
+                    if (new_value.is_null()) throw SymEngine::SymEngineException(
+                        "RemoveVisitor::bvisit() does not allow to remove the exponent in a key-value pair of Mul."
+                    );
+                    if (SymEngine::neq(*p.first, *new_key) ||
+                        SymEngine::neq(*p.second, *new_value)) kept = false;
+                    SymEngine::Mul::dict_add_term_new(
+                        SymEngine::outArg(coef), d, new_value, new_key
+                    );
                 }
                 result_ = kept
-                    ? x.rcp_from_this()
-                    : SymEngine::Mul::from_dict(coef, std::move(d));
+                        ? x.rcp_from_this()
+                        : SymEngine::Mul::from_dict(coef, std::move(d));
             }
         }
     }
@@ -157,7 +153,7 @@ namespace Tinned
 
     void RemoveVisitor::bvisit(const SymEngine::FunctionSymbol& x)
     {
-        // We don't allow for the removal of derivative symbols, but only check
+        // We don't allow for the removal of derivative symbols, but check only
         // if the `NonElecFunction` (or its derivatives) will be removed as a
         // whole
         if (SymEngine::is_a_sub<const NonElecFunction>(x)) {
@@ -420,7 +416,7 @@ namespace Tinned
     void RemoveVisitor::bvisit(const SymEngine::MatrixDerivative& x)
     {
         // Because only `MatrixSymbol` can be used as the argument of
-        // `MatrixDerivative`, we only need to check if `MatrixDerivative` will
+        // `MatrixDerivative`, we need only check if `MatrixDerivative` will
         // be removed as a whole
         remove_if_symbol_like<const SymEngine::MatrixDerivative>(x);
     }

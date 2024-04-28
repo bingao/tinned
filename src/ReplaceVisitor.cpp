@@ -21,7 +21,7 @@ namespace Tinned
     void ReplaceVisitor::bvisit(const SymEngine::FunctionSymbol& x)
     {
         if (SymEngine::is_a_sub<const NonElecFunction>(x)) {
-            // We only allow replacement of `NonElecFunction` as a whole, not
+            // We allow only replacement of `NonElecFunction` as a whole, not
             // its arguments
             replace_whole<const NonElecFunction>(
                 SymEngine::down_cast<const NonElecFunction&>(x)
@@ -263,7 +263,7 @@ namespace Tinned
     void ReplaceVisitor::bvisit(const SymEngine::MatrixDerivative& x)
     {
         // Because only `MatrixSymbol` can be used as the argument of
-        // `MatrixDerivative`, we only need to check if `MatrixDerivative` will
+        // `MatrixDerivative`, we need only check if `MatrixDerivative` will
         // be replaced as a whole
         replace_whole<const SymEngine::MatrixDerivative>(x);
     }

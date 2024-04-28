@@ -27,10 +27,10 @@ namespace Tinned
                 "Exponential map does not allow fourfold or high-fold commutators"
             );
         }
-        //FIXME: currently we only allow `OneElecOperator`
+        //FIXME: currently we allow only `OneElecOperator`
         else if (!SymEngine::is_a_sub<const OneElecOperator>(*hamiltonian)) {
             throw SymEngine::SymEngineException(
-                "Exponential map currently only allows AdjointMap and OneElecOperator"
+                "Exponential map currently allows only AdjointMap and OneElecOperator"
             );
         }
         hamiltonian_ = hamiltonian;

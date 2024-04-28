@@ -20,7 +20,7 @@ namespace Tinned
         type_(type)
     {
         SYMENGINE_ASSIGN_TYPEID()
-        // Currently we only allow the following classes as the target that the
+        // Currently we allow only the following classes as the target that the
         // time differentiation operator acts on
         SYMENGINE_ASSERT(
             SymEngine::is_a_sub<const ElectronicState>(*target) ||

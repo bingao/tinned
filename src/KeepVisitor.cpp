@@ -157,7 +157,7 @@ namespace Tinned
 
     void KeepVisitor::bvisit(const SymEngine::FunctionSymbol& x)
     {
-        // We don't allow for the removal of derivative symbols, but only check
+        // We don't allow for the removal of derivative symbols, but check only
         // if the `NonElecFunction` (or its derivatives) will be removed as a
         // whole
         if (SymEngine::is_a_sub<const NonElecFunction>(x)) {

@@ -161,7 +161,7 @@ namespace Tinned
 
     void FindAllVisitor::bvisit(const SymEngine::MatrixSymbol& x)
     {
-        // We only check the name for one-electron spin-orbital density matrix
+        // We check only the name for one-electron spin-orbital density matrix
         if (SymEngine::is_a_sub<const OneElecDensity>(x)) {
             if (SymEngine::is_a_sub<const OneElecDensity>(*symbol_)) {
                 auto& op = SymEngine::down_cast<const OneElecDensity&>(x);
@@ -199,7 +199,7 @@ namespace Tinned
             if (!result.empty()) result_.insert(result.begin(), result.end());
         }
         else if (SymEngine::is_a_sub<const TemporumOperator>(x)) {
-            // We only need to check the target of `TemporumOperator`
+            // We need only check the target of `TemporumOperator`
             auto& op = SymEngine::down_cast<const TemporumOperator&>(x);
             auto result = apply(op.get_target());
             if (!result.empty()) result_.insert(result.begin(), result.end());
@@ -216,7 +216,7 @@ namespace Tinned
         }
     }
 
-    // We only need to check the argument of `Trace`, `ConjugateMatrix`, `Transpose`
+    // We need only check the argument of `Trace`, `ConjugateMatrix`, `Transpose`
     void FindAllVisitor::bvisit(const SymEngine::Trace& x)
     {
         auto result = apply(x.get_args()[0]);
@@ -262,7 +262,7 @@ namespace Tinned
     void FindAllVisitor::bvisit(const SymEngine::MatrixDerivative& x)
     {
         // Because only `MatrixSymbol` can be used as the argument of
-        // `MatrixDerivative`, we only need to check if its argument is that we
+        // `MatrixDerivative`, we need only check if its argument is that we
         // are looking for
         auto arg = x.get_arg();
         if (arg->__eq__(*symbol_)) result_.insert(x.rcp_from_this());

@@ -46,7 +46,8 @@ namespace Tinned
     {
         protected:
             // Check inequality for `x` and symbols to be kept
-            inline bool is_not_equal(const SymEngine::Basic& x) {
+            inline bool is_not_equal(const SymEngine::Basic& x) const
+            {
                 for (const auto& s: symbols_) {
                     if (SymEngine::eq(x, *s)) return false;
                 }

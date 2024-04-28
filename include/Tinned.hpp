@@ -7,6 +7,9 @@
 
    This file is the header file of Tinned library.
 
+   2024-04-28, Bin Gao:
+   * add elimination visitor
+
    2024-04-17, Bin Gao:
    * support coupled-cluster response theory
 
@@ -38,6 +41,7 @@
 
 #include "Tinned/KeepVisitor.hpp"
 #include "Tinned/RemoveVisitor.hpp"
+#include "Tinned/EliminationVisitor.hpp"
 #include "Tinned/ReplaceVisitor.hpp"
 #include "Tinned/FindAllVisitor.hpp"
 #include "Tinned/StringifyVisitor.hpp"

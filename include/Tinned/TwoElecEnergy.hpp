@@ -43,7 +43,7 @@ namespace Tinned
 
         public:
             //! Constructor
-            // `derivatives` may only be used for `diff_impl()`
+            // `derivatives` may be used only for `diff_impl()`
             explicit TwoElecEnergy(
                 const std::string& name,
                 const SymEngine::RCP<const ElectronicState>& inner,

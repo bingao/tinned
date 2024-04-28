@@ -31,7 +31,7 @@ namespace Tinned
 
         public:
             //! Constructor
-            // `derivatives` may only be used for `diff_impl()`
+            // `derivatives` may be used only for `diff_impl()`
             explicit LagMultiplier(
                 const std::string& name,
                 const SymEngine::multiset_basic& derivatives = {}
