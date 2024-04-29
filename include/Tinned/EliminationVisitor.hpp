@@ -139,12 +139,12 @@ namespace Tinned
     };
 
     // Helper function to eliminate a given response `parameter`'s derivatives
-    // from `x`. Maximum order of derivatives to be eliminated is the length
-    // of `perturbations`, and minimum order is specified by `min_order`. For
-    // wave function parameters, it should be greater than the floor function
-    // of the half length of `perturbations`. For multipliers, it should be
-    // greater than or equal to the ceiling function of the half length of
-    // `perturbations`.
+    // from `x`. Maximum order of derivatives to be eliminated is the length of
+    // `perturbations`, and minimum order is specified by `min_order`. For wave
+    // function parameters, it should be greater than the floor function of the
+    // half length of `perturbations`, and or multipliers, it should be greater
+    // than or equal to the ceiling function of the half length of
+    // `perturbations` according to J. Chem. Phys. 129, 214103 (2008).
     inline SymEngine::RCP<const SymEngine::Basic> eliminate(
         const SymEngine::RCP<const SymEngine::Basic>& x,
         const SymEngine::RCP<const SymEngine::Basic>& parameter,
