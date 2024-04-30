@@ -29,11 +29,13 @@
 #include <symengine/matrices/transpose.h>
 #include <symengine/matrices/zero_matrix.h>
 #include <symengine/symengine_casts.h>
+#include <symengine/symengine_exception.h>
 #include <symengine/symengine_rcp.h>
 #include <symengine/visitor.h>
 #include <symengine/subs.h>
 
 #include "Tinned/FindAllVisitor.hpp"
+#include "Tinned/StringifyVisitor.hpp"
 
 namespace Tinned
 {
@@ -131,8 +133,19 @@ namespace Tinned
         for (const auto& d: subs_dict) {
             for (const auto& rep: find_all<T>(x, d.first)) {
                 auto diff_symbol = d.second;
-                for (const auto& p: rep->get_derivatives())
-                    diff_symbol = diff_symbol->diff(p);
+                //FIXME: we may store derivatives in terms of SymEngine::RCP<const Perturbation>?
+                for (const auto& p: rep->get_derivatives()) {
+                    if (SymEngine::is_a_sub<const SymEngine::Symbol>(*p)) {
+                        auto s = SymEngine::rcp_dynamic_cast<const SymEngine::Symbol>(p);
+                        diff_symbol = diff_symbol->diff(s);
+                    }
+                    else {
+                        throw SymEngine::SymEngineException(
+                            "replace_with_derivatives() gets an invalid perturbation "
+                            + stringify(p)
+                        );
+                    }
+                }
                 diff_subs_dict.insert({rep, diff_symbol});
             }
         }

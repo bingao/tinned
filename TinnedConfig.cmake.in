@@ -1,17 +1,17 @@
 # Modified from https://cmake.org/cmake/help/v3.14/module/CMakePackageConfigHelpers.html
 
-#set(TINNED_VERSION x.y.z)
+set(TINNED_VERSION @PROJECT_VERSION@)
+message(STATUS "Tinned library version: ${TINNED_VERSION}")
 
 @PACKAGE_INIT@
+
+include(${CMAKE_CURRENT_LIST_DIR}/TinnedTargets.cmake)
 
 #https://cmake.org/cmake/help/v3.14/manual/cmake-packages.7.html
 #include(CMakeFindDependencyMacro)
 #find_dependency(SymEngine)?
 
-### Old way of using Tinned, see https://stackoverflow.com/a/70182830
-##set(TINNED_INCLUDE_DIRS @CMAKE_INSTALL_PREFIX@/@CMAKE_INSTALL_INCLUDEDIR@)
-##set(TINNED_LIBRARIES tinned)
+set_and_check(TINNED_INCLUDE_DIR "@PACKAGE_INCLUDE_INSTALL_DIR@")
+message(STATUS "Tinned library include directory: ${TINNED_INCLUDE_DIR}")
 
-include(${CMAKE_CURRENT_LIST_DIR}/TinnedTargets.cmake)
-
-#check_required_components(Tinned)
+check_required_components(Tinned)

@@ -73,30 +73,33 @@ include(GNUInstallDirs)
 #
 # find_package(Tinned REQUIRED)
 # target_link_libraries(... tinned)
+set(INCLUDE_INSTALL_DIR ${CMAKE_INSTALL_INCLUDEDIR}
+    CACHE PATH "Location of include directory")
 install(TARGETS tinned
         EXPORT TinnedTargets
         ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-        INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+        INCLUDES DESTINATION ${INCLUDE_INSTALL_DIR})
 # Install include headers
 install(FILES ${TINNED_INCLUDE_DIRS}/Tinned.hpp
-        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+        DESTINATION ${INCLUDE_INSTALL_DIR})
 install(DIRECTORY ${TINNED_INCLUDE_DIRS}/Tinned
-        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+        DESTINATION ${INCLUDE_INSTALL_DIR})
 # Install generated `TinnedTargets.cmake`
-set(TINNED_INSTALL_CMAKE_DIR ${CMAKE_INSTALL_LIBDIR}/cmake/tinned)
-#set(TINNED_INSTALL_CMAKE_DIR ${CMAKE_INSTALL_DATADIR}/tinned/cmake)
+set(TINNED_CMAKE_INSTALL_DIR ${CMAKE_INSTALL_LIBDIR}/cmake/tinned)
+#set(TINNED_CMAKE_INSTALL_DIR ${CMAKE_INSTALL_DATADIR}/tinned/cmake)
 install(EXPORT TinnedTargets
         FILE TinnedTargets.cmake
-        DESTINATION ${TINNED_INSTALL_CMAKE_DIR})
+        DESTINATION ${TINNED_CMAKE_INSTALL_DIR})
 # Helpers functions for creating config files
 include(CMakePackageConfigHelpers)
 # Generate the config file that includes the exports
 configure_package_config_file(
     ${LIB_TINNED_PATH}/TinnedConfig.cmake.in
     ${PROJECT_BINARY_DIR}/TinnedConfig.cmake
-    INSTALL_DESTINATION ${TINNED_INSTALL_CMAKE_DIR}
+    INSTALL_DESTINATION ${TINNED_CMAKE_INSTALL_DIR}
+    PATH_VARS INCLUDE_INSTALL_DIR
     #NO_SET_AND_CHECK_MACRO
     #NO_CHECK_REQUIRED_COMPONENTS_MACRO
 )
@@ -104,12 +107,12 @@ configure_package_config_file(
 write_basic_package_version_file(
     ${PROJECT_BINARY_DIR}/TinnedConfigVersion.cmake
     VERSION ${PROJECT_VERSION}
-    COMPATIBILITY AnyNewerVersion
+    COMPATIBILITY SameMajorVersion
 )
 install(FILES
         ${PROJECT_BINARY_DIR}/TinnedConfig.cmake
         ${PROJECT_BINARY_DIR}/TinnedConfigVersion.cmake
-        DESTINATION ${TINNED_INSTALL_CMAKE_DIR})
+        DESTINATION ${TINNED_CMAKE_INSTALL_DIR})
 
 # `export` lets one use Tinned without installing it
 #export(TARGETS tinned FILE "${PROJECT_BINARY_DIR}/TinnedTargets.cmake")

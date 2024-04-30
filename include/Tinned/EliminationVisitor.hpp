@@ -39,6 +39,8 @@
 #include <symengine/symengine_rcp.h>
 #include <symengine/visitor.h>
 
+#include "Tinned/Perturbation.hpp"
+
 namespace Tinned
 {
     class EliminationVisitor: public SymEngine::BaseVisitor<EliminationVisitor>
@@ -104,7 +106,7 @@ namespace Tinned
         public:
             explicit EliminationVisitor(
                 const SymEngine::RCP<const SymEngine::Basic>& parameter,
-                const SymEngine::multiset_basic& perturbations,
+                const PerturbationTuple& perturbations,
                 const unsigned int min_order
             ) : parameter_(parameter),
                 perturbations_(SymEngine::set_basic(perturbations.begin(), perturbations.end())),
@@ -148,7 +150,7 @@ namespace Tinned
     inline SymEngine::RCP<const SymEngine::Basic> eliminate(
         const SymEngine::RCP<const SymEngine::Basic>& x,
         const SymEngine::RCP<const SymEngine::Basic>& parameter,
-        const SymEngine::multiset_basic& perturbations,
+        const PerturbationTuple& perturbations,
         const unsigned int min_order
     )
     {
