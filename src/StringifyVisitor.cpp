@@ -10,6 +10,12 @@
 #include "Tinned/TemporumOperator.hpp"
 #include "Tinned/TemporumOverlap.hpp"
 
+#include "Tinned/LagMultiplier.hpp"
+#include "Tinned/StateVector.hpp"
+#include "Tinned/StateOperator.hpp"
+#include "Tinned/AdjointMap.hpp"
+#include "Tinned/ExpAdjointHamiltonian.hpp"
+
 #include "Tinned/StringifyVisitor.hpp"
 
 namespace Tinned
@@ -125,6 +131,12 @@ namespace Tinned
             std::ostringstream o;
             o << op.get_name() << "(" << apply(*op.get_braket()) << ")";
             str_ = o.str();
+        }
+        else if (SymEngine::is_a_sub<const LagMultiplier>(x)) {
+            auto& op = SymEngine::down_cast<const LagMultiplier&>(x);
+            auto name = op.get_name();
+            auto derivatives = op.get_derivatives();
+            str_ = derivatives.empty() ? name : to_string(name, derivatives);
         }
         else {
             SymEngine::StrPrinter::bvisit(x);
