@@ -13,6 +13,12 @@
 #include "Tinned/TemporumOperator.hpp"
 #include "Tinned/TemporumOverlap.hpp"
 
+#include "Tinned/LagMultiplier.hpp"
+#include "Tinned/StateVector.hpp"
+#include "Tinned/StateOperator.hpp"
+#include "Tinned/AdjointMap.hpp"
+#include "Tinned/ExpAdjointHamiltonian.hpp"
+
 #include "Tinned/FindAllVisitor.hpp"
 
 namespace Tinned
@@ -163,11 +169,9 @@ namespace Tinned
     {
         // We check only the name for one-electron spin-orbital density matrix
         if (SymEngine::is_a_sub<const OneElecDensity>(x)) {
-            if (SymEngine::is_a_sub<const OneElecDensity>(*symbol_)) {
-                auto& op = SymEngine::down_cast<const OneElecDensity&>(x);
-                auto s = SymEngine::rcp_dynamic_cast<const OneElecDensity>(symbol_);
-                if (op.get_name() == s->get_name()) result_.insert(x.rcp_from_this());
-            }
+            find_only_name<const OneElecDensity>(
+                SymEngine::down_cast<const OneElecDensity&>(x)
+            );
         }
         else if (SymEngine::is_a_sub<const OneElecOperator>(x)) {
             find_with_dependencies<const OneElecOperator>(
@@ -207,6 +211,12 @@ namespace Tinned
         else if (SymEngine::is_a_sub<const TemporumOverlap>(x)) {
             find_with_dependencies<const TemporumOverlap>(
                 SymEngine::down_cast<const TemporumOverlap&>(x)
+            );
+        }
+        // We check only the name for the Lagrangian multiplier
+        else if (SymEngine::is_a_sub<const LagMultiplier>(x)) {
+            find_only_name<const LagMultiplier>(
+                SymEngine::down_cast<const LagMultiplier&>(x)
             );
         }
         else {

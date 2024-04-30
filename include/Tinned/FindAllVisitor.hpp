@@ -49,6 +49,15 @@ namespace Tinned
             SymEngine::set_basic result_;
             SymEngine::RCP<const SymEngine::Basic> symbol_;
 
+            // Template method for objects that compares only the names
+            template<typename T> inline void find_only_name(T& x)
+            {
+                if (SymEngine::is_a_sub<T>(*symbol_)) {
+                    auto s = SymEngine::rcp_dynamic_cast<T>(symbol_);
+                    if (x.get_name() == s->get_name()) result_.insert(x.rcp_from_this());
+                }
+            }
+
             // Template method for objects that requires equivalence comparison
             template<typename T> inline bool find_equivalence(T& x)
             {
@@ -63,8 +72,8 @@ namespace Tinned
             // their names and dependencies
             template<typename T> inline bool find_with_dependencies(T& x)
             {
-                if (SymEngine::is_a_sub<const T>(*symbol_)) {
-                    auto s = SymEngine::rcp_dynamic_cast<const T>(symbol_);
+                if (SymEngine::is_a_sub<T>(*symbol_)) {
+                    auto s = SymEngine::rcp_dynamic_cast<T>(symbol_);
                     if (x.get_name() == s->get_name() &&
                         eq_dependency(x.get_dependencies(), s->get_dependencies())) {
                         result_.insert(x.rcp_from_this());

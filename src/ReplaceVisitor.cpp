@@ -12,6 +12,12 @@
 #include "Tinned/TemporumOperator.hpp"
 #include "Tinned/TemporumOverlap.hpp"
 
+#include "Tinned/LagMultiplier.hpp"
+#include "Tinned/StateVector.hpp"
+#include "Tinned/StateOperator.hpp"
+#include "Tinned/AdjointMap.hpp"
+#include "Tinned/ExpAdjointHamiltonian.hpp"
+
 #include "Tinned/ReplaceVisitor.hpp"
 
 namespace Tinned
@@ -166,6 +172,11 @@ namespace Tinned
         else if (SymEngine::is_a_sub<const TemporumOverlap>(x)) {
             replace_whole<const TemporumOverlap>(
                 SymEngine::down_cast<const TemporumOverlap&>(x)
+            );
+        }
+        else if (SymEngine::is_a_sub<const LagMultiplier>(x)) {
+            replace_whole<const LagMultiplier>(
+                SymEngine::down_cast<const LagMultiplier&>(x)
             );
         }
         else {

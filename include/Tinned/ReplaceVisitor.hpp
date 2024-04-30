@@ -53,6 +53,7 @@ namespace Tinned
                 }
                 result_ = x.rcp_from_this();
             }
+
             // Template method for one argument function like classes
             template<typename Fun, typename Arg>
             inline void replace_one_arg_f(
