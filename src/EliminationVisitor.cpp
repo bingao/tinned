@@ -2,7 +2,6 @@
 
 #include <symengine/symengine_exception.h>
 
-#include "Tinned/OneElecDensity.hpp"
 #include "Tinned/OneElecOperator.hpp"
 #include "Tinned/TwoElecEnergy.hpp"
 #include "Tinned/TwoElecOperator.hpp"
@@ -13,8 +12,6 @@
 #include "Tinned/TemporumOperator.hpp"
 #include "Tinned/TemporumOverlap.hpp"
 
-#include "Tinned/LagMultiplier.hpp"
-#include "Tinned/StateVector.hpp"
 #include "Tinned/StateOperator.hpp"
 #include "Tinned/AdjointMap.hpp"
 #include "Tinned/ExpAdjointHamiltonian.hpp"
@@ -103,28 +100,19 @@ namespace Tinned
     void EliminationVisitor::bvisit(const SymEngine::FunctionSymbol& x)
     {
         if (SymEngine::is_a_sub<const NonElecFunction>(x)) {
-            eliminate_parameter<const NonElecFunction>(
-                SymEngine::down_cast<const NonElecFunction&>(x)
-            );
+            result_ = x.rcp_from_this();
         }
         else if (SymEngine::is_a_sub<const TwoElecEnergy>(x)) {
             auto& op = SymEngine::down_cast<const TwoElecEnergy&>(x);
-            if (is_eliminable(op)) {
+            if (is_parameter_eliminable(op.get_inner_state())) {
                 result_ = SymEngine::RCP<const SymEngine::Basic>();
             }
             else {
-                auto inner_state = op.get_inner_state();
-                if (is_eliminable(*inner_state)) {
+                if (is_parameter_eliminable(op.get_outer_state())) {
                     result_ = SymEngine::RCP<const SymEngine::Basic>();
                 }
                 else {
-                    auto outer_state = op.get_outer_state();
-                    if (is_eliminable(*outer_state)) {
-                        result_ = SymEngine::RCP<const SymEngine::Basic>();
-                    }
-                    else {
-                        result_ = x.rcp_from_this();
-                    }
+                    result_ = x.rcp_from_this();
                 }
             }
         }
@@ -182,23 +170,15 @@ namespace Tinned
             );
         }
         else if (SymEngine::is_a_sub<const OneElecOperator>(x)) {
-            eliminate_parameter<const OneElecOperator>(
-                SymEngine::down_cast<const OneElecOperator&>(x)
-            );
+            result_ = x.rcp_from_this();
         }
         else if (SymEngine::is_a_sub<const TwoElecOperator>(x)) {
             auto& op = SymEngine::down_cast<const TwoElecOperator&>(x);
-            if (is_eliminable(op)) {
+            if (is_parameter_eliminable(op.get_state())) {
                 result_ = SymEngine::RCP<const SymEngine::Basic>();
             }
             else {
-                auto state = op.get_state();
-                if (is_eliminable(*state)) {
-                    result_ = SymEngine::RCP<const SymEngine::Basic>();
-                }
-                else {
-                    result_ = x.rcp_from_this();
-                }
+                result_ = x.rcp_from_this();
             }
         }
         else if (SymEngine::is_a_sub<const ExchCorrPotential>(x)) {
@@ -234,10 +214,7 @@ namespace Tinned
             );
         }
         else if (SymEngine::is_a_sub<const TemporumOverlap>(x)) {
-            // We allow only the elimination of `x` as a whole
-            eliminate_parameter<const TemporumOverlap>(
-                SymEngine::down_cast<const TemporumOverlap&>(x)
-            );
+            result_ = x.rcp_from_this();
         }
         else if (SymEngine::is_a_sub<const LagMultiplier>(x)) {
             eliminate_parameter<const LagMultiplier>(

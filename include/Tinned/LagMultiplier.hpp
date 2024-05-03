@@ -51,6 +51,18 @@ namespace Tinned
             {
                 return derivatives_;
             }
+
+            // Check if `x` is a same response parameter
+            inline bool is_same_parameter(
+                const SymEngine::RCP<const SymEngine::Basic>& x
+            ) const
+            {
+                if (SymEngine::is_a_sub<const LagMultiplier>(*x)) {
+                    auto op = SymEngine::rcp_dynamic_cast<const LagMultiplier>(x);
+                    return get_name()==op->get_name() ? true : false;
+                }
+                return false;
+            }
     };
 
     // Helper function to make a vector Lagrangian multipliers

@@ -55,5 +55,10 @@ namespace Tinned
             {
                 return derivatives_;
             }
+
+            // Check if `x` is a same response parameter
+            virtual inline bool is_same_parameter(
+                const SymEngine::RCP<const SymEngine::Basic>& x
+            ) const = 0;
     };
 }

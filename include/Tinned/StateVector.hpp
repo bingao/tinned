@@ -13,6 +13,9 @@
 
 #pragma once
 
+#include <symengine/basic.h>
+#include <symengine/symengine_rcp.h>
+
 #include "Tinned/ElectronicState.hpp"
 
 namespace Tinned
@@ -31,6 +34,18 @@ namespace Tinned
             SymEngine::RCP<const SymEngine::Basic> diff_impl(
                 const SymEngine::RCP<const SymEngine::Symbol>& s
             ) const override;
+
+            // Check if `x` is a same response parameter
+            inline bool is_same_parameter(
+                const SymEngine::RCP<const SymEngine::Basic>& x
+            ) const override
+            {
+                if (SymEngine::is_a_sub<const StateVector>(*x)) {
+                    auto op = SymEngine::rcp_dynamic_cast<const StateVector>(x);
+                    return get_name()==op->get_name() ? true : false;
+                }
+                return false;
+            }
     };
 
     // Helper function to make a state vector

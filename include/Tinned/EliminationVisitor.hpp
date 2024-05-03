@@ -8,6 +8,11 @@
    This file is the header file of elimination of response parameters by
    following J. Chem. Phys. 129, 214103 (2008).
 
+   2024-05-03, Bin Gao:
+   * previous implementation does not work since it uses `SymEngine::eq()` to
+     compare a symbol and the parameter to be eliminated, which will also
+     compare their derivatives.
+
    2024-04-26, Bin Gao:
    * first version
 */
@@ -16,6 +21,7 @@
 
 #include <functional>
 #include <string>
+#include <type_traits>
 
 #include <symengine/basic.h>
 #include <symengine/add.h>
@@ -40,6 +46,9 @@
 #include <symengine/visitor.h>
 
 #include "Tinned/Perturbation.hpp"
+#include "Tinned/OneElecDensity.hpp"
+#include "Tinned/StateVector.hpp"
+#include "Tinned/LagMultiplier.hpp"
 
 namespace Tinned
 {
@@ -60,11 +69,29 @@ namespace Tinned
                 return (order<=max_order_ && order>=min_order_) ? true : false;
             }
 
-            // Check if `x` should be eliminated
-            template<typename T> inline bool is_eliminable(T& x) const
+            // Check if a (response) parameter `x` should be eliminated
+            template<typename T,
+                     typename std::enable_if<
+                         std::is_same<T, const OneElecDensity>::value ||
+                         std::is_same<T, const StateVector>::value ||
+                         std::is_same<T, const LagMultiplier>::value, int>::type = 0>
+            inline bool is_parameter_eliminable(T& x) const
             {
-                if (SymEngine::eq(x, *parameter_)) {
+                if (x.is_same_parameter(parameter_)) {
                     return match_derivatives(x.get_derivatives());
+                }
+                else {
+                    return false;
+                }
+            }
+
+            // Check if a wave function parameter `x` should be eliminated
+            inline bool is_parameter_eliminable(
+                const SymEngine::RCP<const ElectronicState>& x
+            ) const
+            {
+                if (x->is_same_parameter(parameter_)) {
+                    return match_derivatives(x->get_derivatives());
                 }
                 else {
                     return false;
@@ -74,7 +101,7 @@ namespace Tinned
             // Template method to eliminate a (response) parameter
             template<typename T> inline void eliminate_parameter(T& x)
             {
-                result_ = is_eliminable(x)
+                result_ = is_parameter_eliminable(x)
                     ? SymEngine::RCP<const SymEngine::Basic>() : x.rcp_from_this();
             }
 

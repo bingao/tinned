@@ -85,7 +85,9 @@ install(TARGETS tinned
 install(FILES ${TINNED_INCLUDE_DIRS}/Tinned.hpp
         DESTINATION ${INCLUDE_INSTALL_DIR})
 install(DIRECTORY ${TINNED_INCLUDE_DIRS}/Tinned
-        DESTINATION ${INCLUDE_INSTALL_DIR})
+        DESTINATION ${INCLUDE_INSTALL_DIR}
+        FILES_MATCHING
+        PATTERN "*.swp" EXCLUDE)
 # Install generated `TinnedTargets.cmake`
 set(TINNED_CMAKE_INSTALL_DIR ${CMAKE_INSTALL_LIBDIR}/cmake/tinned)
 #set(TINNED_CMAKE_INSTALL_DIR ${CMAKE_INSTALL_DATADIR}/tinned/cmake)
