@@ -97,7 +97,9 @@ namespace Tinned
             inline void remove_if_one_arg_f(
                 Fun& x,
                 const SymEngine::RCP<Arg>& arg,
-                std::function<SymEngine::RCP<Fun>(const SymEngine::RCP<Arg>&)> constructor
+                std::function<SymEngine::RCP<const SymEngine::Basic>(
+                    const SymEngine::RCP<Arg>&
+                )> constructor
             )
             {
                 // We first check if the function will be removed

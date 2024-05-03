@@ -59,7 +59,9 @@ namespace Tinned
             inline void keep_if_one_arg_f(
                 Fun& x,
                 const SymEngine::RCP<Arg>& arg,
-                std::function<SymEngine::RCP<Fun>(const SymEngine::RCP<Arg>&)> constructor
+                std::function<SymEngine::RCP<const SymEngine::Basic>(
+                    const SymEngine::RCP<Arg>&
+                )> constructor
             )
             {
                 // If the function will not be kept as whole, we then check if

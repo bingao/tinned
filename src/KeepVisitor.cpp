@@ -192,7 +192,7 @@ namespace Tinned
                 op,
                 op.get_inner(),
                 [&](const SymEngine::RCP<const SymEngine::Basic>& inner)
-                    -> SymEngine::RCP<const CompositeFunction>
+                    -> SymEngine::RCP<const SymEngine::Basic>
                 {
                     return SymEngine::make_rcp<const CompositeFunction>(
                         op.get_name(),
@@ -208,7 +208,7 @@ namespace Tinned
                 op,
                 op.get_energy(),
                 [&](const SymEngine::RCP<const SymEngine::Basic>& energy)
-                    -> SymEngine::RCP<const ExchCorrEnergy>
+                    -> SymEngine::RCP<const SymEngine::Basic>
                 {
                     return SymEngine::make_rcp<const ExchCorrEnergy>(
                         op.get_name(),
@@ -245,7 +245,7 @@ namespace Tinned
                 op,
                 op.get_state(),
                 [&](const SymEngine::RCP<const ElectronicState>& state)
-                    -> SymEngine::RCP<const TwoElecOperator>
+                    -> SymEngine::RCP<const SymEngine::Basic>
                 {
                     return SymEngine::make_rcp<const TwoElecOperator>(
                         op.get_name(),
@@ -262,7 +262,7 @@ namespace Tinned
                 op,
                 op.get_potential(),
                 [&](const SymEngine::RCP<const SymEngine::MatrixExpr>& potential)
-                    -> SymEngine::RCP<const ExchCorrPotential>
+                    -> SymEngine::RCP<const SymEngine::Basic>
                 {
                     return SymEngine::make_rcp<const ExchCorrPotential>(
                         op.get_name(),
@@ -280,7 +280,7 @@ namespace Tinned
                 op,
                 op.get_target(),
                 [&](const SymEngine::RCP<const SymEngine::Basic>& target)
-                    -> SymEngine::RCP<const TemporumOperator>
+                    -> SymEngine::RCP<const SymEngine::Basic>
                 {
                     return SymEngine::make_rcp<const TemporumOperator>(
                         target, op.get_type()
@@ -306,9 +306,9 @@ namespace Tinned
             x,
             SymEngine::rcp_dynamic_cast<const SymEngine::MatrixExpr>(x.get_args()[0]),
             [&](const SymEngine::RCP<const SymEngine::MatrixExpr>& arg)
-                -> SymEngine::RCP<const SymEngine::Trace>
+                -> SymEngine::RCP<const SymEngine::Basic>
             {
-                return SymEngine::make_rcp<const SymEngine::Trace>(arg);
+                return SymEngine::trace(arg);
             }
         );
     }
@@ -319,9 +319,9 @@ namespace Tinned
             x,
             x.get_arg(),
             [&](const SymEngine::RCP<const SymEngine::MatrixExpr>& arg)
-                -> SymEngine::RCP<const SymEngine::ConjugateMatrix>
+                -> SymEngine::RCP<const SymEngine::Basic>
             {
-                return SymEngine::make_rcp<const SymEngine::ConjugateMatrix>(arg);
+                return SymEngine::conjugate_matrix(arg);
             }
         );
     }
@@ -332,9 +332,9 @@ namespace Tinned
             x,
             x.get_arg(),
             [&](const SymEngine::RCP<const SymEngine::MatrixExpr>& arg)
-                -> SymEngine::RCP<const SymEngine::Transpose>
+                -> SymEngine::RCP<const SymEngine::Basic>
             {
-                return SymEngine::make_rcp<const SymEngine::Transpose>(arg);
+                return SymEngine::transpose(arg);
             }
         );
     }
