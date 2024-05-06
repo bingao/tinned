@@ -136,11 +136,15 @@ namespace Tinned
         if (num_terms==0) {
             str_ = "";
         }
-        else if (num_terms==1) {
-            str_ = o.str();
-        }
         else {
-            str_ = parenthesize(o.str());
+            // Important to set `zero_factor_` in particular the last term is zero
+            zero_factor_ = false;
+            if (num_terms==1) {
+                str_ = o.str();
+            }
+            else {
+                str_ = parenthesize(o.str());
+            }
         }
     }
 
@@ -254,15 +258,19 @@ namespace Tinned
         if (num_terms==0) {
             str_ = "";
         }
-        else if (num_terms==1) {
-            str_ = o.str();
-            // `MatrixMul` may have -1 as the coefficient factor
-            if (str_.substr(0, 3)==std::string("-1 ")) str_.erase(1, 2);
-        }
         else {
-            str_ = parenthesize(o.str());
-            str_ = std::regex_replace(str_, std::regex(R"(-1\s)"), R"(-)");
-            str_ = std::regex_replace(str_, std::regex(R"(\+-)"), R"(-)");
+            // Important to set `zero_factor_` in particular the last term is zero
+            zero_factor_ = false;
+            if (num_terms==1) {
+                str_ = o.str();
+                // `MatrixMul` may have -1 as the coefficient factor
+                if (str_.substr(0, 3)==std::string("-1 ")) str_.erase(1, 2);
+            }
+            else {
+                str_ = parenthesize(o.str());
+                str_ = std::regex_replace(str_, std::regex(R"(-1\s)"), R"(-)");
+                str_ = std::regex_replace(str_, std::regex(R"(\+-)"), R"(-)");
+            }
         }
     }
 
