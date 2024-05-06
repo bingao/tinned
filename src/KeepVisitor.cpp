@@ -345,7 +345,7 @@ namespace Tinned
         // arguments will be kept
         if (condition_(x)) {
             SymEngine::vec_basic terms;
-            for (auto arg: SymEngine::down_cast<const SymEngine::MatrixAdd&>(x).get_args()) {
+            for (auto& arg: SymEngine::down_cast<const SymEngine::MatrixAdd&>(x).get_args()) {
                 auto new_arg = apply(arg);
                 if (!new_arg.is_null()) terms.push_back(new_arg);
             }
@@ -373,7 +373,7 @@ namespace Tinned
             auto factors = SymEngine::vec_basic({SymEngine::minus_one});
             // Indicates if there is factor(s) kept
             bool factors_kept = false;
-            for (auto arg: SymEngine::down_cast<const SymEngine::MatrixMul&>(x).get_args()) {
+            for (auto& arg: SymEngine::down_cast<const SymEngine::MatrixMul&>(x).get_args()) {
                 auto new_arg = apply(arg);
                 if (new_arg.is_null()) {
                     // This factor does not match any given symbols, but we

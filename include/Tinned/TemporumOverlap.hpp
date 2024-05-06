@@ -96,7 +96,7 @@ namespace Tinned
                               SymEngine::RCP<const TemporumOperator>>
             get_braket_product(const std::size_t index) const
             {
-                SYMENGINE_ASSERT(index < size())
+                SYMENGINE_ASSERT(index<size())
                 auto product = SymEngine::is_a_sub<const SymEngine::MatrixAdd>(*braket_)
                     ? SymEngine::rcp_dynamic_cast<const SymEngine::MatrixMul>((
                           SymEngine::rcp_dynamic_cast<const SymEngine::MatrixAdd>(
@@ -110,7 +110,7 @@ namespace Tinned
                 );
                 auto factors = product->get_factors();
                 auto chi = SymEngine::rcp_dynamic_cast<const TemporumOperator>(factors[0]);
-                return chi->get_type() == TemporumType::Bra
+                return chi->get_type()==TemporumType::Bra
                     ? std::make_tuple(
                           coef,
                           chi,
@@ -151,7 +151,8 @@ namespace Tinned
                 );
             }
 
-            // Get derivatives on the T matrix, currently used only for elimination
+            // Get derivatives on the T matrix, currently used only for
+            // `EliminationVisitor` and `LaTeXifyVisitor`
             inline SymEngine::multiset_basic get_derivatives() const
             {
                 auto term = get_braket_product(0);

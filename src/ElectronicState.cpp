@@ -25,7 +25,7 @@ namespace Tinned
     {
         if (SymEngine::is_a_sub<const ElectronicState>(o)) {
             auto& state = SymEngine::down_cast<const ElectronicState&>(o);
-            return get_name() == state.get_name()
+            return get_name()==state.get_name()
                 && SymEngine::unified_eq(derivatives_, state.derivatives_);
         }
         return false;
@@ -35,11 +35,11 @@ namespace Tinned
     {
         SYMENGINE_ASSERT(SymEngine::is_a_sub<const ElectronicState>(o))
         auto& state = SymEngine::down_cast<const ElectronicState&>(o);
-        if (get_name() == state.get_name()) {
+        if (get_name()==state.get_name()) {
             return SymEngine::unified_compare(derivatives_, state.derivatives_);
         }
         else {
-            return get_name() < state.get_name() ? -1 : 1;
+            return get_name()<state.get_name() ? -1 : 1;
         }
     }
 

@@ -78,7 +78,7 @@ namespace Tinned
                     auto frequency = pert->get_frequency();
                     result = SymEngine::addnum(result, frequency);
                 }
-                return type_ == TemporumType::Ket
+                return type_==TemporumType::Ket
                     ? result : SymEngine::subnum(SymEngine::zero, result);
             }
 

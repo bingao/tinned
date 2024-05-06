@@ -228,7 +228,7 @@ namespace Tinned
         // We first check each argument for replacement
         bool new_terms = false;
         SymEngine::vec_basic terms;
-        for (auto arg: SymEngine::down_cast<const SymEngine::MatrixAdd&>(x).get_args()) {
+        for (auto& arg: SymEngine::down_cast<const SymEngine::MatrixAdd&>(x).get_args()) {
             auto new_arg = apply(arg);
             if (SymEngine::neq(*arg, *new_arg)) new_terms = true;
             terms.push_back(new_arg);
@@ -251,7 +251,7 @@ namespace Tinned
         // We first check each argument for replacement
         bool new_factors = false;
         SymEngine::vec_basic factors;
-        for (auto arg: SymEngine::down_cast<const SymEngine::MatrixMul&>(x).get_args()) {
+        for (auto& arg: SymEngine::down_cast<const SymEngine::MatrixMul&>(x).get_args()) {
             auto new_arg = apply(arg);
             if (SymEngine::neq(*arg, *new_arg)) new_factors = true;
             factors.push_back(new_arg);

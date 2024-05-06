@@ -52,7 +52,7 @@ namespace Tinned
         // `SymEngine::is_a<FunctionSymbol>(o)` which is not true here.
         if (SymEngine::is_a_sub<const ExchCorrEnergy>(o)) {
             auto& op = SymEngine::down_cast<const ExchCorrEnergy&>(o);
-            return get_name() == op.get_name()
+            return get_name()==op.get_name()
                 && SymEngine::unified_eq(get_vec(), op.get_vec())
                 //&& canonicalize_xc_energy(energy_)->__eq__(
                 //       *canonicalize_xc_energy(op.energy_)
@@ -66,12 +66,12 @@ namespace Tinned
     {
         SYMENGINE_ASSERT(SymEngine::is_a_sub<const ExchCorrEnergy>(o))
         auto& op = SymEngine::down_cast<const ExchCorrEnergy&>(o);
-        if (get_name() == op.get_name()) {
+        if (get_name()==op.get_name()) {
             int result = SymEngine::unified_compare(get_vec(), op.get_vec());
-            return result == 0 ? energy_->compare(*op.energy_) : result;
+            return result==0 ? energy_->compare(*op.energy_) : result;
         }
         else {
-            return get_name() < op.get_name() ? -1 : 1;
+            return get_name()<op.get_name() ? -1 : 1;
         }
     }
 

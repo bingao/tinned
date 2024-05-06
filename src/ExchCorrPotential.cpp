@@ -71,7 +71,7 @@ namespace Tinned
     {
         if (SymEngine::is_a_sub<const ExchCorrPotential>(o)) {
             auto& op = SymEngine::down_cast<const ExchCorrPotential&>(o);
-            return get_name() == op.get_name()
+            return get_name()==op.get_name()
                 && state_->__eq__(*op.state_)
                 && weight_->__eq__(*op.weight_)
                 && Omega_->__eq__(*op.Omega_)
@@ -87,13 +87,13 @@ namespace Tinned
     {
         SYMENGINE_ASSERT(SymEngine::is_a_sub<const ExchCorrPotential>(o))
         auto& op = SymEngine::down_cast<const ExchCorrPotential&>(o);
-        if (get_name() == op.get_name()) {
+        if (get_name()==op.get_name()) {
             int result = state_->compare(*op.state_);
-            if (result == 0) {
+            if (result==0) {
                 result = weight_->compare(*op.weight_);
-                if (result == 0) {
+                if (result==0) {
                     result = Omega_->compare(*op.Omega_);
-                    return result == 0 ? potential_->compare(*op.potential_) : result;
+                    return result==0 ? potential_->compare(*op.potential_) : result;
                 }
                 else {
                     return result;
@@ -104,7 +104,7 @@ namespace Tinned
             }
         }
         else {
-            return get_name() < op.get_name() ? -1 : 1;
+            return get_name()<op.get_name() ? -1 : 1;
         }
     }
 

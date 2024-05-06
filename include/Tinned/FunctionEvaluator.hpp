@@ -76,7 +76,7 @@ namespace Tinned
                 auto& op = SymEngine::down_cast<const SymEngine::Add&>(x);
                 auto args = op.get_args();
                 result_ = apply(args[0]);
-                for (std::size_t i = 1; i<args.size(); ++i)
+                for (std::size_t i=1; i<args.size(); ++i)
                     eval_fun_addition(result_, apply(args[i]));
             }
 

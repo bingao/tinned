@@ -48,7 +48,7 @@ namespace Tinned
     {
         if (SymEngine::is_a_sub<const TemporumOverlap>(o)) {
             auto& op = SymEngine::down_cast<const TemporumOverlap&>(o);
-            return get_name() == op.get_name() && braket_->__eq__(*op.braket_);
+            return get_name()==op.get_name() && braket_->__eq__(*op.braket_);
         }
         return false;
     }
@@ -57,11 +57,11 @@ namespace Tinned
     {
         SYMENGINE_ASSERT(SymEngine::is_a_sub<const TemporumOverlap>(o))
         auto& op = SymEngine::down_cast<const TemporumOverlap&>(o);
-        if (get_name() == op.get_name()) {
+        if (get_name()==op.get_name()) {
             return braket_->compare(*op.braket_);
         }
         else {
-            return get_name() < op.get_name() ? -1 : 1;
+            return get_name()<op.get_name() ? -1 : 1;
         }
     }
 

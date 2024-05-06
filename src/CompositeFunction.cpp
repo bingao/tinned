@@ -38,8 +38,8 @@ namespace Tinned
         // recommended.
         if (SymEngine::is_a_sub<const CompositeFunction>(o)) {
             auto& op = SymEngine::down_cast<const CompositeFunction&>(o);
-            return get_name() == op.get_name()
-                && order_ == op.order_
+            return get_name()==op.get_name()
+                && order_==op.order_
                 && inner_->__eq__(*op.inner_);
         }
         return false;
@@ -49,12 +49,12 @@ namespace Tinned
     {
         SYMENGINE_ASSERT(SymEngine::is_a_sub<const CompositeFunction>(o))
         auto& op = SymEngine::down_cast<const CompositeFunction&>(o);
-        if (get_name() == op.get_name()) {
+        if (get_name()==op.get_name()) {
             int result = SymEngine::unified_compare(order_, op.order_);
-            return result == 0 ? inner_->compare(*op.inner_) : result;
+            return result==0 ? inner_->compare(*op.inner_) : result;
         }
         else {
-            return get_name() < op.get_name() ? -1 : 1;
+            return get_name()<op.get_name() ? -1 : 1;
         }
     }
 

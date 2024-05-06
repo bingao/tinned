@@ -25,7 +25,7 @@ namespace Tinned
     {
         if (SymEngine::is_a_sub<const LagMultiplier>(o)) {
             auto& op = SymEngine::down_cast<const LagMultiplier&>(o);
-            return get_name() == op.get_name()
+            return get_name()==op.get_name()
                 && SymEngine::unified_eq(derivatives_, op.derivatives_);
         }
         return false;
@@ -35,11 +35,11 @@ namespace Tinned
     {
         SYMENGINE_ASSERT(SymEngine::is_a_sub<const LagMultiplier>(o))
         auto& op = SymEngine::down_cast<const LagMultiplier&>(o);
-        if (get_name() == op.get_name()) {
+        if (get_name()==op.get_name()) {
             return SymEngine::unified_compare(derivatives_, op.derivatives_);
         }
         else {
-            return get_name() < op.get_name() ? -1 : 1;
+            return get_name()<op.get_name() ? -1 : 1;
         }
     }
 

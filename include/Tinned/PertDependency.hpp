@@ -49,10 +49,10 @@ namespace Tinned
     // Equality comparator for perturbation dependencies
     inline bool eq_dependency(const PertDependency& dep1, const PertDependency& dep2)
     {
-        if (dep1.size() != dep2.size()) return false;
+        if (dep1.size()!=dep2.size()) return false;
         auto p1 = dep1.begin();
         auto p2 = dep2.begin();
-        for (; p1 != dep1.end(); ++p1, ++p2) {
+        for (; p1!=dep1.end(); ++p1, ++p2) {
             if (not (
                 SymEngine::unified_eq(p1->first, p2->first) and
                 SymEngine::unified_eq(p1->second, p2->second)

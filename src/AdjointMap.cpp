@@ -46,7 +46,7 @@ namespace Tinned
     {
         if (SymEngine::is_a_sub<const AdjointMap>(o)) {
             auto& op = SymEngine::down_cast<const AdjointMap&>(o);
-            return get_name() == op.get_name()
+            return get_name()==op.get_name()
                 && SymEngine::unified_eq(x_, op.x_)
                 && y_->__eq__(*op.y_);
         }
@@ -57,12 +57,12 @@ namespace Tinned
     {
         SYMENGINE_ASSERT(SymEngine::is_a_sub<const AdjointMap>(o))
         auto& op = SymEngine::down_cast<const AdjointMap&>(o);
-        if (get_name() == op.get_name()) {
+        if (get_name()==op.get_name()) {
             int result = SymEngine::unified_compare(x_, op.x_);
-            return result == 0 ? y_->compare(*op.y_) : result;
+            return result==0 ? y_->compare(*op.y_) : result;
         }
         else {
-            return get_name() < op.get_name() ? -1 : 1;
+            return get_name()<op.get_name() ? -1 : 1;
         }
     }
 
@@ -79,7 +79,7 @@ namespace Tinned
     {
         SymEngine::vec_basic terms;
         // Differentiate each X
-        for (std::size_t i = 0; i<x_.size(); ++i) {
+        for (std::size_t i=0; i<x_.size(); ++i) {
             auto diff_x = x_;
             diff_x[i] = x_[i]->diff(s);
             // Skip zero derivative

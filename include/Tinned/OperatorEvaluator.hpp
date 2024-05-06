@@ -151,7 +151,7 @@ namespace Tinned
                 auto& op = SymEngine::down_cast<const SymEngine::MatrixAdd&>(x);
                 auto args = op.get_args();
                 result_ = apply(args[0]);
-                for (std::size_t i = 1; i<args.size(); ++i)
+                for (std::size_t i=1; i<args.size(); ++i)
                     eval_oper_addition(result_, apply(args[i]));
             }
 
@@ -160,7 +160,7 @@ namespace Tinned
                 auto& op = SymEngine::down_cast<const SymEngine::MatrixMul&>(x);
                 auto factors = op.get_factors();
                 result_ = apply(factors[0]);
-                for (std::size_t i = 1; i<factors.size(); ++i)
+                for (std::size_t i=1; i<factors.size(); ++i)
                     eval_oper_multiplication(result_, apply(factors[i]));
                 auto scalar = op.get_scalar();
                 if (SymEngine::neq(*scalar, *SymEngine::one)) {

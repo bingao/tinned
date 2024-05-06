@@ -26,7 +26,7 @@ namespace Tinned
     {
         if (SymEngine::is_a_sub<const StateOperator>(o)) {
             auto& op = SymEngine::down_cast<const StateOperator&>(o);
-            return get_name() == op.get_name() && state_->__eq__(*op.state_);
+            return get_name()==op.get_name() && state_->__eq__(*op.state_);
         }
         return false;
     }
@@ -35,11 +35,11 @@ namespace Tinned
     {
         SYMENGINE_ASSERT(SymEngine::is_a_sub<const StateOperator>(o))
         auto& op = SymEngine::down_cast<const StateOperator&>(o);
-        if (get_name() == op.get_name()) {
+        if (get_name()==op.get_name()) {
             return state_->compare(*op.state_);
         }
         else {
-            return get_name() < op.get_name() ? -1 : 1;
+            return get_name()<op.get_name() ? -1 : 1;
         }
     }
 

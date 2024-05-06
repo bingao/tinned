@@ -31,7 +31,7 @@ namespace Tinned
         if (SymEngine::is_a_sub<const NonElecFunction>(o)) {
             auto& op = SymEngine::down_cast<const NonElecFunction&>(o);
             // We check the name, derivatives and perturbation dependencies
-            return get_name() == op.get_name()
+            return get_name()==op.get_name()
                 && SymEngine::unified_eq(derivatives_, op.derivatives_)
                 && eq_dependency(dependencies_, op.dependencies_);
         }
@@ -42,14 +42,14 @@ namespace Tinned
     {
         SYMENGINE_ASSERT(SymEngine::is_a_sub<const NonElecFunction>(o))
         auto& op = SymEngine::down_cast<const NonElecFunction&>(o);
-        if (get_name() == op.get_name()) {
+        if (get_name()==op.get_name()) {
             int result = SymEngine::unified_compare(derivatives_, op.derivatives_);
-            return result == 0
+            return result==0
                 ? SymEngine::ordered_compare(dependencies_, op.dependencies_)
                 : result;
         }
         else {
-            return get_name() < op.get_name() ? -1 : 1;
+            return get_name()<op.get_name() ? -1 : 1;
         }
     }
 
@@ -77,9 +77,9 @@ namespace Tinned
     ) const
     {
         auto max_order = find_dependency(dependencies_, s);
-        if (max_order > 0) {
+        if (max_order>0) {
             auto order = derivatives_.count(s) + 1;
-            if (order <= max_order) {
+            if (order<=max_order) {
                 auto derivatives = derivatives_;
                 derivatives.insert(s);
                 return SymEngine::make_rcp<const NonElecFunction>(

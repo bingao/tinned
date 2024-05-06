@@ -24,26 +24,30 @@ namespace Tinned
     {
         if (SymEngine::is_a_sub<const Perturbation>(x)) {
             auto& p = SymEngine::down_cast<const Perturbation&>(x);
-            auto name = p.get_name();
-            auto frequency = p.get_frequency();
-            auto components = p.get_components();
-            std::ostringstream o;
-            o << name << "[" << apply(frequency) << "; ";
-            if (components.empty()) {
-                o << "-]";
-            }
-            else {
-                for (auto c = components.begin(); c != components.end(); ++c) {
-                    if (c == components.begin()) {
-                        o << *c;
-                    }
-                    else {
-                        o << "," << *c;
+            if (verbose_) {
+                auto name = p.get_name();
+                auto frequency = p.get_frequency();
+                auto components = p.get_components();
+                std::ostringstream o;
+                o << apply(frequency) << "; ";
+                if (components.empty()) {
+                    o << "-";
+                }
+                else {
+                    for (auto c=components.begin(); c!=components.end(); ++c) {
+                        if (c==components.begin()) {
+                            o << *c;
+                        }
+                        else {
+                            o << "," << *c;
+                        }
                     }
                 }
-                o << "]";
+                str_ = name + square_bracket(o.str());
             }
-            str_ = o.str();
+            else {
+                str_ = p.get_name();
+            }
         }
         else {
             SymEngine::StrPrinter::bvisit(x);
@@ -54,37 +58,32 @@ namespace Tinned
     {
         if (SymEngine::is_a_sub<const NonElecFunction>(x)) {
             auto& op = SymEngine::down_cast<const NonElecFunction&>(x);
-            auto name = op.get_name();
-            auto derivatives = op.get_derivatives();
-            if (derivatives.empty()) {
-                str_ = to_string(name, op.get_dependencies());
-            }
-            else {
-                str_ = to_string(name, derivatives);
-            }
+            str_ = stringify_operator(
+                op.get_name(), op.get_derivatives(), op.get_dependencies()
+            );
         }
         else if (SymEngine::is_a_sub<const TwoElecEnergy>(x)) {
             auto& op = SymEngine::down_cast<const TwoElecEnergy&>(x);
-            auto str_inner = to_string(op.get_inner_state());
-            auto str_outer = to_string(op.get_outer_state());
-            auto derivatives = op.get_derivatives();
-            auto str_eri = derivatives.empty()
-                ? to_string(std::string("ERI"), op.get_dependencies())
-                : to_string(std::string("ERI"), derivatives);
-            str_ = "1/2*tr(" + op.get_name() + "(" + str_eri + ", " + str_inner
-                 + ")*" + str_outer + ")";
+            auto str_eri = stringify_operator(
+                std::string("ERI"), op.get_derivatives(), op.get_dependencies()
+            );
+            auto str_inner = stringify_state(op.get_inner_state());
+            auto str_outer = stringify_state(op.get_outer_state());
+            str_ = "tr" + square_bracket(
+                "1/2*"+op.get_name()+parenthesize(str_eri+", "+str_inner)+"*"+str_outer
+            );
         }
         else if (SymEngine::is_a_sub<const CompositeFunction>(x)) {
-            auto& fun = SymEngine::down_cast<const CompositeFunction&>(x);
-            auto order = fun.get_order();
-            auto str_fun = order > 0
-                ? fun.get_name() + "^(" + std::to_string(order) + ")"
-                : fun.get_name();
-            str_ = str_fun + "(" + apply(*fun.get_inner()) + ")";
+            auto& op = SymEngine::down_cast<const CompositeFunction&>(x);
+            auto order = op.get_order();
+            auto str_op = order>0
+                        ? op.get_name() + "^" + parenthesize(std::to_string(order))
+                        : op.get_name();
+            str_ = str_op + parenthesize(apply(op.get_inner()));
         }
         else if (SymEngine::is_a_sub<const ExchCorrEnergy>(x)) {
             auto& op = SymEngine::down_cast<const ExchCorrEnergy&>(x);
-            str_ = op.get_name() + "(" + apply(*op.get_energy()) + ")";
+            str_ = op.get_name() + parenthesize(apply(op.get_energy()));
         }
         else {
             SymEngine::StrPrinter::bvisit(x);
@@ -95,57 +94,40 @@ namespace Tinned
     {
         if (SymEngine::is_a_sub<const OneElecDensity>(x)) {
             auto& op = SymEngine::down_cast<const OneElecDensity&>(x);
-            auto name = op.get_name();
-            auto derivatives = op.get_derivatives();
-            str_ = derivatives.empty() ? name : to_string(name, derivatives);
+            str_ = stringify_operator(op.get_name(), op.get_derivatives());
         }
         else if (SymEngine::is_a_sub<const OneElecOperator>(x)) {
             auto& op = SymEngine::down_cast<const OneElecOperator&>(x);
-            auto name = op.get_name();
-            auto derivatives = op.get_derivatives();
-            str_ = derivatives.empty()
-                 ? to_string(name, op.get_dependencies())
-                 : to_string(name, derivatives);
+            str_ = stringify_operator(
+                op.get_name(), op.get_derivatives(), op.get_dependencies()
+            );
         }
         else if (SymEngine::is_a_sub<const TwoElecOperator>(x)) {
             auto& op = SymEngine::down_cast<const TwoElecOperator&>(x);
-            auto str_state = to_string(op.get_state());
-            auto derivatives = op.get_derivatives();
-            auto str_eri = derivatives.empty()
-                ? to_string(std::string("ERI"), op.get_dependencies())
-                : to_string(std::string("ERI"), derivatives);
-            str_ = op.get_name() + "(" + str_eri + ", " + str_state + ")";
+            auto str_eri = stringify_operator(
+                std::string("ERI"), op.get_derivatives(), op.get_dependencies()
+            );
+            auto str_state = stringify_state(op.get_state());
+            str_ = op.get_name() + parenthesize(str_eri+", "+str_state);
         }
         else if (SymEngine::is_a_sub<const ExchCorrPotential>(x)) {
             auto& op = SymEngine::down_cast<const ExchCorrPotential&>(x);
-            str_ = op.get_name() + "(" + apply(*op.get_potential()) + ")";
+            str_ = op.get_name() + parenthesize(apply(op.get_potential()));
         }
         else if (SymEngine::is_a_sub<const TemporumOperator>(x)) {
             auto& op = SymEngine::down_cast<const TemporumOperator&>(x);
-            std::ostringstream o;
-            o << op.get_name() << "(" << apply(*op.get_target()) << ")";
-            str_ = o.str();
+            str_ = op.get_name() + parenthesize(apply(op.get_target()));
         }
         else if (SymEngine::is_a_sub<const TemporumOverlap>(x)) {
             auto& op = SymEngine::down_cast<const TemporumOverlap&>(x);
-            std::ostringstream o;
-            o << op.get_name() << "(" << apply(*op.get_braket()) << ")";
-            str_ = o.str();
+            str_ = op.get_name() + parenthesize(apply(op.get_braket()));
         }
         else if (SymEngine::is_a_sub<const LagMultiplier>(x)) {
             auto& op = SymEngine::down_cast<const LagMultiplier&>(x);
-            auto name = op.get_name();
-            auto derivatives = op.get_derivatives();
-            str_ = derivatives.empty() ? name : to_string(name, derivatives);
+            str_ = stringify_operator(op.get_name(), op.get_derivatives());
         }
         else {
             SymEngine::StrPrinter::bvisit(x);
         }
     }
-
-    //std::string StringifyVisitor::apply(const SymEngine::Basic& x)
-    //{
-    //    x.accept(*this);
-    //    return str_;
-    //}
 }

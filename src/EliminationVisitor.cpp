@@ -70,7 +70,7 @@ namespace Tinned
         SymEngine::RCP<const SymEngine::Number> coef = x.get_coef();
         // We check each pair (`Basic` and `Basic`) in the dictionary of `Mul`
         SymEngine::map_basic_basic d;
-        for (const auto& p : x.get_dict()) {
+        for (const auto& p: x.get_dict()) {
             // Remove the whole `Mul` if the key will be eliminated
             auto new_key = apply(p.first);
             if (new_key.is_null()) {

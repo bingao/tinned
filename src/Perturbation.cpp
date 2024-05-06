@@ -31,7 +31,7 @@ namespace Tinned
     {
         if (SymEngine::is_a_sub<const Perturbation>(o)) {
             auto& s = SymEngine::down_cast<const Perturbation&>(o);
-            return get_name() == s.get_name()
+            return get_name()==s.get_name()
                 && frequency_->__eq__(*s.frequency_)
                 && SymEngine::ordered_eq(components_, s.components_);
         }
@@ -42,7 +42,7 @@ namespace Tinned
     {
         SYMENGINE_ASSERT(SymEngine::is_a_sub<const Perturbation>(o))
         auto& s = SymEngine::down_cast<const Perturbation&>(o);
-        if (get_name() == s.get_name()) {
+        if (get_name()==s.get_name()) {
             int result;
             // Some subclasses of SymEngine::Number cannot be compared
             // directly, so we take their difference and compare
@@ -80,12 +80,12 @@ namespace Tinned
                     result = 1;
                 }
             }
-            return result == 0
+            return result==0
                 ? SymEngine::ordered_compare(components_, s.components_)
                 : result;
         }
         else {
-            return get_name() < s.get_name() ? -1 : 1;
+            return get_name()<s.get_name() ? -1 : 1;
         }
     }
 }

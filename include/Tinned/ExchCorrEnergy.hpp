@@ -8,6 +8,9 @@
    This file is the header file of exchange-correlation (XC) energy like
    functionals.
 
+   2024-05-04, Bin Gao:
+   * add function `get_derivatives`
+
    2023-10-25, Bin Gao:
    * rewrite by using `CompositeFunction`
 
@@ -19,6 +22,7 @@
 
 #include <string>
 #include <set>
+#include <utility>
 #include <vector>
 
 #include <symengine/basic.h>
@@ -124,6 +128,20 @@ namespace Tinned
             inline SameTypeSet<const ElectronicState> get_states() const
             {
                 return find_all<ElectronicState>(energy_, get_state());
+            }
+
+            // Get derivatives, currently used only for `LaTeXifyVisitor`
+            inline SymEngine::multiset_basic get_derivatives() const
+            {
+                auto states = get_states();
+                auto state = states.begin();
+                auto max_derivatives = (*state)->get_derivatives();
+                for (; state!=states.end(); ++state) {
+                    auto derivatives = (*state)->get_derivatives();
+                    if (derivatives.size()>max_derivatives.size())
+                        max_derivatives = std::move(derivatives);
+                }
+                return max_derivatives;
             }
 
             // Get all unique unperturbed and perturbed generalized overlap

@@ -49,7 +49,7 @@ namespace Tinned
     {
         if (SymEngine::is_a_sub<const ExpAdjointHamiltonian>(o)) {
             auto& op = SymEngine::down_cast<const ExpAdjointHamiltonian&>(o);
-            return get_name() == op.get_name()
+            return get_name()==op.get_name()
                 && state_operator_->__eq__(*op.state_operator_)
                 && hamiltonian_->__eq__(*op.hamiltonian_);
         }
@@ -60,12 +60,12 @@ namespace Tinned
     {
         SYMENGINE_ASSERT(SymEngine::is_a_sub<const ExpAdjointHamiltonian>(o))
         auto& op = SymEngine::down_cast<const ExpAdjointHamiltonian&>(o);
-        if (get_name() == op.get_name()) {
+        if (get_name()==op.get_name()) {
             int result = state_operator_->compare(*op.state_operator_);
-            return result == 0 ? hamiltonian_->compare(*op.hamiltonian_) : result;
+            return result==0 ? hamiltonian_->compare(*op.hamiltonian_) : result;
         }
         else {
-            return get_name() < op.get_name() ? -1 : 1;
+            return get_name()<op.get_name() ? -1 : 1;
         }
     }
 

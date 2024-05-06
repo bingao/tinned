@@ -111,7 +111,7 @@ namespace Tinned
     {
         // Check if the grid weight exists in the outer map
         auto weight_map = energyMap.find(std::get<0>(value));
-        if (weight_map == energyMap.end()) {
+        if (weight_map==energyMap.end()) {
             energyMap.emplace(
                 std::get<0>(value),
                 ExcDensityContractionMap({{std::get<1>(value), std::get<2>(value)}})
@@ -121,7 +121,7 @@ namespace Tinned
             // Check if the functional derivative of XC energy density exists
             // in the inner map
             auto exc_map = weight_map->second.find(std::get<1>(value));
-            if (exc_map == weight_map->second.end()) {
+            if (exc_map==weight_map->second.end()) {
                 weight_map->second.emplace(std::get<1>(value), std::get<2>(value));
             }
             else {
@@ -149,7 +149,7 @@ namespace Tinned
             auto energy = SymEngine::rcp_dynamic_cast<const SymEngine::Mul>(expr_energy);
             auto args = energy->get_args();
             // This is another sum of XC energy or its derivatives
-            if (args.size() == 2
+            if (args.size()==2
                 && SymEngine::is_a_sub<const SymEngine::Number>(*args.front())
                 && SymEngine::is_a_sub<const SymEngine::Add>(*args.back())) {
                 if (energy_map.empty()) {
@@ -202,7 +202,7 @@ namespace Tinned
         if (SymEngine::is_a_sub<const SymEngine::Mul>(*expr_expand)) {
             auto energy = SymEngine::rcp_dynamic_cast<const SymEngine::Mul>(expr_expand);
             auto args = energy->get_args();
-            if (args.size() == 2
+            if (args.size()==2
                 && SymEngine::is_a_sub<const SymEngine::Number>(*args.front())
                 && SymEngine::is_a_sub<const SymEngine::Add>(*args.back()))
             {
@@ -236,14 +236,14 @@ namespace Tinned
         for (const auto& weight_map2: map2) {
             auto weight_map1 = map1.find(weight_map2.first);
             // New grid weight and corresponding contractions
-            if (weight_map1 == map1.end()) {
+            if (weight_map1==map1.end()) {
                  map1.emplace(weight_map2);
             }
             else {
                 for (const auto& exc_map2: weight_map2.second) {
                     auto exc_map1 = weight_map1->second.find(exc_map2.first);
                     // New XC energy derivative found
-                    if (exc_map1 == weight_map1->second.end()) {
+                    if (exc_map1==weight_map1->second.end()) {
                         weight_map1->second.emplace(exc_map2);
                     }
                     else {
@@ -279,23 +279,23 @@ namespace Tinned
             }
         }
         SYMENGINE_ASSERT(!terms.empty())
-        return terms.size() == 1 ? terms[0] : SymEngine::add(terms);
+        return terms.size()==1 ? terms[0] : SymEngine::add(terms);
     }
 
     bool eq_energy_map(
         const ExcContractionMap& map1, const ExcContractionMap& map2
     )
     {
-        if (map1.size() == map2.size()) {
+        if (map1.size()==map2.size()) {
             auto weight_map1 = map1.begin();
             auto weight_map2 = map2.begin();
-            for (; weight_map1 != map1.end(); ++weight_map1, ++weight_map2) {
+            for (; weight_map1!=map1.end(); ++weight_map1, ++weight_map2) {
                 // Compare grid weights
                 if (SymEngine::eq(*weight_map1->first, *weight_map2->first)) {
-                    if (weight_map1->second.size() == weight_map2->second.size()) {
+                    if (weight_map1->second.size()==weight_map2->second.size()) {
                         auto exc_map1 = weight_map1->second.begin();
                         auto exc_map2 = weight_map2->second.begin();
-                        for (; exc_map1 != weight_map1->second.end();) {
+                        for (; exc_map1!=weight_map1->second.end();) {
                             if (SymEngine::eq(*exc_map1->first, *exc_map2->first)) {
                                 if (exc_map1->second.is_null()) {
                                     if (!exc_map2->second.is_null()) return false;
@@ -336,7 +336,7 @@ namespace Tinned
     {
         auto energy_map = extract_energy_map(expression->get_scalar());
         auto factors = expression->get_factors();
-        if (factors.size() == 1) {
+        if (factors.size()==1) {
             SYMENGINE_ASSERT(SymEngine::is_a_sub<const OneElecOperator>(*factors[0]))
             auto Omega = SymEngine::rcp_dynamic_cast<const OneElecOperator>(factors[0]);
             if (energy_map.empty()) {
@@ -389,7 +389,7 @@ namespace Tinned
                 // Check if the generalized overlap distribution exists
                 // in the outermost map
                 auto energy_map = potential_map.find(vxc_factors.first);
-                if (energy_map == potential_map.end()) {
+                if (energy_map==potential_map.end()) {
                     potential_map.emplace(vxc_factors);
                 }
                 else {
@@ -405,7 +405,7 @@ namespace Tinned
         for (const auto& energy_map2: map2) {
             auto energy_map1 = map1.find(energy_map2.first);
             // New generalized overlap distribution
-            if (energy_map1 == map1.end()) {
+            if (energy_map1==map1.end()) {
                  map1.emplace(energy_map2);
             }
             else {
@@ -430,17 +430,17 @@ namespace Tinned
             );
         }
         SYMENGINE_ASSERT(!factors.empty())
-        return factors.size() == 1
+        return factors.size()==1
             ? SymEngine::rcp_dynamic_cast<const SymEngine::MatrixExpr>(factors[0])
             : SymEngine::matrix_add(factors);
     }
 
     bool eq_potential_map(const VxcContractionMap& map1, const VxcContractionMap& map2)
     {
-        if (map1.size() == map2.size()) {
+        if (map1.size()==map2.size()) {
             auto energy_map1 = map1.begin();
             auto energy_map2 = map2.begin();
-            for (; energy_map1 != map1.end(); ++energy_map1, ++energy_map2) {
+            for (; energy_map1!=map1.end(); ++energy_map1, ++energy_map2) {
                 // Compare generalized overlap distribution
                 if (SymEngine::eq(*energy_map1->first, *energy_map2->first)) {
                     if (!eq_energy_map(energy_map1->second, energy_map2->second))

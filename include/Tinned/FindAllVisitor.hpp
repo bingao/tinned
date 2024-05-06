@@ -54,7 +54,7 @@ namespace Tinned
             {
                 if (SymEngine::is_a_sub<T>(*symbol_)) {
                     auto s = SymEngine::rcp_dynamic_cast<T>(symbol_);
-                    if (x.get_name() == s->get_name()) result_.insert(x.rcp_from_this());
+                    if (x.get_name()==s->get_name()) result_.insert(x.rcp_from_this());
                 }
             }
 
@@ -74,7 +74,7 @@ namespace Tinned
             {
                 if (SymEngine::is_a_sub<T>(*symbol_)) {
                     auto s = SymEngine::rcp_dynamic_cast<T>(symbol_);
-                    if (x.get_name() == s->get_name() &&
+                    if (x.get_name()==s->get_name() &&
                         eq_dependency(x.get_dependencies(), s->get_dependencies())) {
                         result_.insert(x.rcp_from_this());
                         return true;

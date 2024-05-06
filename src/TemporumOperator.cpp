@@ -14,7 +14,7 @@ namespace Tinned
         const SymEngine::RCP<const SymEngine::Basic>& target,
         const TemporumType type
     ) : SymEngine::MatrixSymbol(
-            type == TemporumType::Ket ? std::string("i*dt") : std::string("-i*dt")
+            type==TemporumType::Ket ? std::string("i*dt") : std::string("-i*dt")
         ),
         target_(target),
         type_(type)
@@ -41,8 +41,8 @@ namespace Tinned
     {
         if (SymEngine::is_a_sub<const TemporumOperator>(o)) {
             auto& op = SymEngine::down_cast<const TemporumOperator&>(o);
-            return get_name() == op.get_name()
-                && type_ == op.type_
+            return get_name()==op.get_name()
+                && type_==op.type_
                 && target_->__eq__(*op.target_);
         }
         return false;
@@ -52,15 +52,15 @@ namespace Tinned
     {
         SYMENGINE_ASSERT(SymEngine::is_a_sub<const TemporumOperator>(o))
         auto& op = SymEngine::down_cast<const TemporumOperator&>(o);
-        if (get_name() == op.get_name()) {
+        if (get_name()==op.get_name()) {
             int result = SymEngine::unified_compare(
                 static_cast<int>(type_),
                 static_cast<int>(op.type_)
             );
-            return result == 0 ? target_->compare(*op.target_) : result;
+            return result==0 ? target_->compare(*op.target_) : result;
         }
         else {
-            return get_name() < op.get_name() ? -1 : 1;
+            return get_name()<op.get_name() ? -1 : 1;
         }
     }
 

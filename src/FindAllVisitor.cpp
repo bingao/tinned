@@ -125,7 +125,7 @@ namespace Tinned
             // by comparing its name and inner function
             if (SymEngine::is_a_sub<const CompositeFunction>(*symbol_)) {
                 auto s = SymEngine::rcp_dynamic_cast<const CompositeFunction>(symbol_);
-                if (op.get_name() == s->get_name()
+                if (op.get_name()==s->get_name()
                     && inner->__eq__(*s->get_inner())) {
                     result_.insert(x.rcp_from_this());
                     return;
@@ -142,7 +142,7 @@ namespace Tinned
             // comparing its name and arguments
             if (SymEngine::is_a_sub<const ExchCorrEnergy>(*symbol_)) {
                 auto s = SymEngine::rcp_dynamic_cast<const ExchCorrEnergy>(symbol_);
-                if (op.get_name() == s->get_name()
+                if (op.get_name()==s->get_name()
                     && SymEngine::unified_eq(op.get_args(), s->get_args())) {
                     result_.insert(x.rcp_from_this());
                     return;
@@ -191,7 +191,7 @@ namespace Tinned
             // comparing its name and arguments
             if (SymEngine::is_a_sub<const ExchCorrPotential>(*symbol_)) {
                 auto s = SymEngine::rcp_dynamic_cast<const ExchCorrPotential>(symbol_);
-                if (op.get_name() == s->get_name()
+                if (op.get_name()==s->get_name()
                     && SymEngine::unified_eq(op.get_args(), s->get_args())) {
                     result_.insert(x.rcp_from_this());
                     return;

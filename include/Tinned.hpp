@@ -7,6 +7,9 @@
 
    This file is the header file of Tinned library.
 
+   2024-05-04, Bin Gao:
+   * add latexify visitor
+
    2024-04-28, Bin Gao:
    * add elimination visitor
 
@@ -44,4 +47,5 @@
 #include "Tinned/EliminationVisitor.hpp"
 #include "Tinned/ReplaceVisitor.hpp"
 #include "Tinned/FindAllVisitor.hpp"
+#include "Tinned/LaTeXifyVisitor.hpp"
 #include "Tinned/StringifyVisitor.hpp"
