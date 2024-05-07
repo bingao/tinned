@@ -1,7 +1,8 @@
 #include <symengine/pow.h>
 
 //#include "Tinned/Perturbation.hpp"
-#include "Tinned/ElectronicState.hpp"
+#include "Tinned/LagMultiplier.hpp"
+
 #include "Tinned/OneElecDensity.hpp"
 #include "Tinned/OneElecOperator.hpp"
 #include "Tinned/TwoElecEnergy.hpp"
@@ -13,11 +14,12 @@
 #include "Tinned/TemporumOperator.hpp"
 #include "Tinned/TemporumOverlap.hpp"
 
-#include "Tinned/LagMultiplier.hpp"
 #include "Tinned/StateVector.hpp"
 #include "Tinned/StateOperator.hpp"
 #include "Tinned/AdjointMap.hpp"
 #include "Tinned/ExpAdjointHamiltonian.hpp"
+
+#include "Tinned/ZeroOperator.hpp"
 
 #include "Tinned/FindAllVisitor.hpp"
 
@@ -26,7 +28,7 @@ namespace Tinned
     void FindAllVisitor::bvisit(const SymEngine::Basic& x)
     {
         throw SymEngine::NotImplementedError(
-            "FindAllVisitor::bvisit() not implemented for " + x.__str__()
+            "FindAllVisitor::bvisit() not implemented for "+x.__str__()
         );
     }
 
@@ -111,6 +113,8 @@ namespace Tinned
         }
         else if (SymEngine::is_a_sub<const TwoElecEnergy>(x)) {
             auto& op = SymEngine::down_cast<const TwoElecEnergy&>(x);
+            // For `TwoElecEnergy`, we actually check its two-electron
+            // integrals using `find_with_dependencies`
             if (!find_with_dependencies<const TwoElecEnergy>(op)) {
                 auto result = apply(op.get_inner_state());
                 if (!result.empty()) result_.insert(result.begin(), result.end());
@@ -155,7 +159,7 @@ namespace Tinned
         }
         else {
             throw SymEngine::NotImplementedError(
-                "FindAllVisitor::bvisit() not implemented for FunctionSymbol " + x.__str__()
+                "FindAllVisitor::bvisit() not implemented for FunctionSymbol "+x.__str__()
             );
         }
     }
@@ -167,8 +171,14 @@ namespace Tinned
 
     void FindAllVisitor::bvisit(const SymEngine::MatrixSymbol& x)
     {
+        // We check only the name for the Lagrangian multiplier
+        if (SymEngine::is_a_sub<const LagMultiplier>(x)) {
+            find_only_name<const LagMultiplier>(
+                SymEngine::down_cast<const LagMultiplier&>(x)
+            );
+        }
         // We check only the name for one-electron spin-orbital density matrix
-        if (SymEngine::is_a_sub<const OneElecDensity>(x)) {
+        else if (SymEngine::is_a_sub<const OneElecDensity>(x)) {
             find_only_name<const OneElecDensity>(
                 SymEngine::down_cast<const OneElecDensity&>(x)
             );
@@ -180,6 +190,8 @@ namespace Tinned
         }
         else if (SymEngine::is_a_sub<const TwoElecOperator>(x)) {
             auto& op = SymEngine::down_cast<const TwoElecOperator&>(x);
+            // For `TwoElecOperator`, we actually check its two-electron
+            // integrals using `find_with_dependencies`
             if (!find_with_dependencies<const TwoElecOperator>(op)) {
                 auto result = apply(op.get_state());
                 if (!result.empty()) result_.insert(result.begin(), result.end());
@@ -203,46 +215,82 @@ namespace Tinned
             if (!result.empty()) result_.insert(result.begin(), result.end());
         }
         else if (SymEngine::is_a_sub<const TemporumOperator>(x)) {
-            // We need only check the target of `TemporumOperator`
             auto& op = SymEngine::down_cast<const TemporumOperator&>(x);
-            auto result = apply(op.get_target());
-            if (!result.empty()) result_.insert(result.begin(), result.end());
+            // If the symbol to find is also a `TemporumOperator` object, we
+            // compare their arguments according to the rules of
+            // `FindAllVisitor`
+            if (SymEngine::is_a_sub<const TemporumOperator>(*symbol_)) {
+                auto s = SymEngine::rcp_dynamic_cast<const TemporumOperator>(symbol_);
+                auto visitor = FindAllVisitor(s->get_target());
+                if (!visitor.apply(op.get_target()).empty())
+                    result_.insert(x.rcp_from_this());
+            }
+            // If the symbol to find is not a `TemporumOperator` object, we
+            // simply check the target of `x`
+            else {
+                auto result = apply(op.get_target());
+                if (!result.empty()) result_.insert(result.begin(), result.end());
+            }
         }
         else if (SymEngine::is_a_sub<const TemporumOverlap>(x)) {
             find_with_dependencies<const TemporumOverlap>(
                 SymEngine::down_cast<const TemporumOverlap&>(x)
             );
         }
-        // We check only the name for the Lagrangian multiplier
-        else if (SymEngine::is_a_sub<const LagMultiplier>(x)) {
-            find_only_name<const LagMultiplier>(
-                SymEngine::down_cast<const LagMultiplier&>(x)
+        else if (SymEngine::is_a_sub<const ZeroOperator>(x)) {
+            find_equivalence<const ZeroOperator>(
+                SymEngine::down_cast<const ZeroOperator&>(x)
             );
         }
         else {
             throw SymEngine::NotImplementedError(
-                "FindAllVisitor::bvisit() not implemented for MatrixSymbol " + x.__str__()
+                "FindAllVisitor::bvisit() not implemented for MatrixSymbol "+x.__str__()
             );
         }
     }
 
-    // We need only check the argument of `Trace`, `ConjugateMatrix`, `Transpose`
+    // For `Trace`, `ConjugateMatrix` and `Transpose`, we follow the same
+    // procedure as `TemporumOperator`
     void FindAllVisitor::bvisit(const SymEngine::Trace& x)
     {
-        auto result = apply(x.get_args()[0]);
-        if (!result.empty()) result_.insert(result.begin(), result.end());
+        if (SymEngine::is_a_sub<const SymEngine::Trace>(*symbol_)) {
+            auto s = SymEngine::rcp_dynamic_cast<const SymEngine::Trace>(symbol_);
+            auto visitor = FindAllVisitor(s->get_args()[0]);
+            if (!visitor.apply(x.get_args()[0]).empty())
+                result_.insert(x.rcp_from_this());
+        }
+        else {
+            auto result = apply(x.get_args()[0]);
+            if (!result.empty()) result_.insert(result.begin(), result.end());
+        }
     }
 
     void FindAllVisitor::bvisit(const SymEngine::ConjugateMatrix& x)
     {
-        auto result = apply(x.get_arg());
-        if (!result.empty()) result_.insert(result.begin(), result.end());
+        if (SymEngine::is_a_sub<const SymEngine::ConjugateMatrix>(*symbol_)) {
+            auto s = SymEngine::rcp_dynamic_cast<const SymEngine::ConjugateMatrix>(symbol_);
+            auto visitor = FindAllVisitor(s->get_arg());
+            if (!visitor.apply(x.get_arg()).empty())
+                result_.insert(x.rcp_from_this());
+        }
+        else {
+            auto result = apply(x.get_arg());
+            if (!result.empty()) result_.insert(result.begin(), result.end());
+        }
     }
 
     void FindAllVisitor::bvisit(const SymEngine::Transpose& x)
     {
-        auto result = apply(x.get_arg());
-        if (!result.empty()) result_.insert(result.begin(), result.end());
+        if (SymEngine::is_a_sub<const SymEngine::Transpose>(*symbol_)) {
+            auto s = SymEngine::rcp_dynamic_cast<const SymEngine::Transpose>(symbol_);
+            auto visitor = FindAllVisitor(s->get_arg());
+            if (!visitor.apply(x.get_arg()).empty())
+                result_.insert(x.rcp_from_this());
+        }
+        else {
+            auto result = apply(x.get_arg());
+            if (!result.empty()) result_.insert(result.begin(), result.end());
+        }
     }
 
     void FindAllVisitor::bvisit(const SymEngine::MatrixAdd& x)

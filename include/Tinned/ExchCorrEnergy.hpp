@@ -119,15 +119,15 @@ namespace Tinned
             }
 
             // Get all unique unperturbed and perturbed grid weights
-            inline SameTypeSet<const NonElecFunction> get_weights() const
+            inline SymEngine::set_basic get_weights() const
             {
-                return find_all<NonElecFunction>(energy_, get_weight());
+                return find_all(energy_, get_weight());
             }
 
             // Get all unique unperturbed and perturbed electronic states
-            inline SameTypeSet<const ElectronicState> get_states() const
+            inline SymEngine::set_basic get_states() const
             {
-                return find_all<ElectronicState>(energy_, get_state());
+                return find_all(energy_, get_state());
             }
 
             // Get derivatives, currently used only for `LaTeXifyVisitor`
@@ -135,9 +135,13 @@ namespace Tinned
             {
                 auto states = get_states();
                 auto state = states.begin();
-                auto max_derivatives = (*state)->get_derivatives();
+                SYMENGINE_ASSERT(SymEngine::is_a_sub<const ElectronicState>(*(*state)))
+                auto op = SymEngine::rcp_dynamic_cast<const ElectronicState>(*state);
+                auto max_derivatives = op->get_derivatives();
                 for (; state!=states.end(); ++state) {
-                    auto derivatives = (*state)->get_derivatives();
+                    SYMENGINE_ASSERT(SymEngine::is_a_sub<const ElectronicState>(*(*state)))
+                    op = SymEngine::rcp_dynamic_cast<const ElectronicState>(*state);
+                    auto derivatives = op->get_derivatives();
                     if (derivatives.size()>max_derivatives.size())
                         max_derivatives = std::move(derivatives);
                 }
@@ -146,20 +150,24 @@ namespace Tinned
 
             // Get all unique unperturbed and perturbed generalized overlap
             // distribution vectors
-            inline SameTypeSet<const OneElecOperator> get_overlap_distributions() const
+            inline SymEngine::set_basic get_overlap_distributions() const
             {
-                return find_all<OneElecOperator>(energy_, get_overlap_distribution());
+                return find_all(energy_, get_overlap_distribution());
             }
 
             // Get all unique orders of functional derivatives of XC energy density
             inline std::set<unsigned int> get_exc_orders() const
             {
-                auto exc = find_all<CompositeFunction>(
+                auto exc = find_all(
                     energy_,
                     make_exc_density(get_state(), get_overlap_distribution(), 0)
                 );
                 std::set<unsigned int> orders;
-                for (auto& e: exc) orders.insert(e->get_order());
+                for (auto& e: exc) {
+                    SYMENGINE_ASSERT(SymEngine::is_a_sub<const CompositeFunction>(*e))
+                    auto op = SymEngine::rcp_dynamic_cast<const CompositeFunction>(e);
+                    orders.insert(op->get_order());
+                }
                 return orders;
             }
 

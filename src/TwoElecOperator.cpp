@@ -65,7 +65,7 @@ namespace Tinned
     {
         return SymEngine::vec_basic({state_});
         //auto args = SymEngine::vec_basic({state_});
-        //auto deps = to_vec_basic(dependencies_);
+        //auto deps = dependency_to_vector(dependencies_);
         //args.insert(args.end(), deps.begin(), deps.end());
         //args.insert(args.end(), derivatives_.begin(), derivatives_.end());
         //return args;

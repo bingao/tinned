@@ -4,6 +4,7 @@
 
 #include "Tinned/NonElecFunction.hpp"
 #include "Tinned/TemporumOverlap.hpp"
+#include "Tinned/ZeroOperator.hpp"
 
 namespace Tinned
 {

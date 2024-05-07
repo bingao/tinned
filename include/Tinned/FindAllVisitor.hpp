@@ -8,6 +8,9 @@
    This file is the header file of finding a given symbol and all its
    differentiated ones.
 
+   2024-05-07, Bin Gao:
+   * change `find_all` to a function that returns `SymEngine::set_basic`
+
    2023-10-28, Bin Gao:
    * first version
 */
@@ -15,7 +18,6 @@
 #pragma once
 
 #include <functional>
-#include <set>
 
 #include <symengine/basic.h>
 #include <symengine/add.h>
@@ -35,7 +37,6 @@
 #include <symengine/matrices/trace.h>
 #include <symengine/matrices/transpose.h>
 #include <symengine/matrices/zero_matrix.h>
-#include <symengine/symengine_exception.h>
 #include <symengine/symengine_rcp.h>
 #include <symengine/visitor.h>
 
@@ -115,29 +116,13 @@ namespace Tinned
             void bvisit(const SymEngine::MatrixDerivative& x);
     };
 
-    // Set containing the same type objects
-    template<class T>
-    using SameTypeSet = std::set<SymEngine::RCP<T>, SymEngine::RCPBasicKeyLess>;
-
-    // Helper function to find a given `symbol` and all its differentiated ones
-    // in `x`
-    template<typename T> inline SameTypeSet<const T> find_all(
+    // Helper function to find a given `symbol` and all its differentiated ones in `x`
+    inline SymEngine::set_basic find_all(
         const SymEngine::RCP<const SymEngine::Basic>& x,
         const SymEngine::RCP<const SymEngine::Basic>& symbol
     )
     {
-        std::set<SymEngine::RCP<const T>, SymEngine::RCPBasicKeyLess> result;
         FindAllVisitor visitor(symbol);
-        for (auto& s: visitor.apply(x)) {
-            if (SymEngine::is_a_sub<const T>(*s)) {
-                result.insert(SymEngine::rcp_dynamic_cast<const T>(s));
-            }
-            else {
-                throw SymEngine::SymEngineException(
-                    "find_all() encounters an invalid type of: "+s->__str__()
-                );
-            }
-        }
-        return result;
+        return visitor.apply(x);
     }
 }

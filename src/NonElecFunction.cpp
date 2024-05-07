@@ -1,4 +1,4 @@
-#include <symengine/integer.h>
+#include <symengine/constants.h>
 #include <symengine/symengine_assert.h>
 #include <symengine/symengine_casts.h>
 #include <symengine/symengine_exception.h>
@@ -55,7 +55,7 @@ namespace Tinned
 
     //SymEngine::vec_basic NonElecFunction::get_args() const
     //{
-    //    SymEngine::vec_basic args = to_vec_basic(dependencies_);
+    //    SymEngine::vec_basic args = dependency_to_vector(dependencies_);
     //    args.insert(args.end(), derivatives_.begin(), derivatives_.end());
     //    return args;
     //}
@@ -89,11 +89,11 @@ namespace Tinned
                 );
             }
             else {
-                return SymEngine::integer(0);
+                return SymEngine::zero;
             }
         }
         else {
-            return SymEngine::integer(0);
+            return SymEngine::zero;
         }
     }
 }

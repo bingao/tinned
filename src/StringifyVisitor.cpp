@@ -1,4 +1,6 @@
 #include "Tinned/Perturbation.hpp"
+#include "Tinned/LagMultiplier.hpp"
+
 #include "Tinned/OneElecDensity.hpp"
 #include "Tinned/OneElecOperator.hpp"
 #include "Tinned/TwoElecEnergy.hpp"
@@ -10,11 +12,12 @@
 #include "Tinned/TemporumOperator.hpp"
 #include "Tinned/TemporumOverlap.hpp"
 
-#include "Tinned/LagMultiplier.hpp"
 #include "Tinned/StateVector.hpp"
 #include "Tinned/StateOperator.hpp"
 #include "Tinned/AdjointMap.hpp"
 #include "Tinned/ExpAdjointHamiltonian.hpp"
+
+#include "Tinned/ZeroOperator.hpp"
 
 #include "Tinned/StringifyVisitor.hpp"
 
@@ -92,7 +95,11 @@ namespace Tinned
 
     void StringifyVisitor::bvisit(const SymEngine::MatrixSymbol& x)
     {
-        if (SymEngine::is_a_sub<const OneElecDensity>(x)) {
+        if (SymEngine::is_a_sub<const LagMultiplier>(x)) {
+            auto& op = SymEngine::down_cast<const LagMultiplier&>(x);
+            str_ = stringify_operator(op.get_name(), op.get_derivatives());
+        }
+        else if (SymEngine::is_a_sub<const OneElecDensity>(x)) {
             auto& op = SymEngine::down_cast<const OneElecDensity&>(x);
             str_ = stringify_operator(op.get_name(), op.get_derivatives());
         }
@@ -122,9 +129,9 @@ namespace Tinned
             auto& op = SymEngine::down_cast<const TemporumOverlap&>(x);
             str_ = op.get_name() + parenthesize(apply(op.get_braket()));
         }
-        else if (SymEngine::is_a_sub<const LagMultiplier>(x)) {
-            auto& op = SymEngine::down_cast<const LagMultiplier&>(x);
-            str_ = stringify_operator(op.get_name(), op.get_derivatives());
+        else if (SymEngine::is_a_sub<const ZeroOperator>(x)) {
+            auto& op = SymEngine::down_cast<const ZeroOperator&>(x);
+            str_ = stringify_operator(op.get_name());
         }
         else {
             SymEngine::StrPrinter::bvisit(x);

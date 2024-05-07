@@ -1,6 +1,8 @@
 #include "Tinned/Perturbation.hpp"
 #include "Tinned/PertDependency.hpp"
 #include "Tinned/ElectronicState.hpp"
+#include "Tinned/LagMultiplier.hpp"
+
 #include "Tinned/OneElecDensity.hpp"
 #include "Tinned/OneElecOperator.hpp"
 #include "Tinned/TwoElecEnergy.hpp"
@@ -12,11 +14,12 @@
 #include "Tinned/TemporumOperator.hpp"
 #include "Tinned/TemporumOverlap.hpp"
 
-#include "Tinned/LagMultiplier.hpp"
 #include "Tinned/StateVector.hpp"
 #include "Tinned/StateOperator.hpp"
 #include "Tinned/AdjointMap.hpp"
 #include "Tinned/ExpAdjointHamiltonian.hpp"
+
+#include "Tinned/ZeroOperator.hpp"
 
 #include "Tinned/ReplaceVisitor.hpp"
 
@@ -105,7 +108,12 @@ namespace Tinned
 
     void ReplaceVisitor::bvisit(const SymEngine::MatrixSymbol& x)
     {
-        if (SymEngine::is_a_sub<const OneElecDensity>(x)) {
+        if (SymEngine::is_a_sub<const LagMultiplier>(x)) {
+            replace_whole<const LagMultiplier>(
+                SymEngine::down_cast<const LagMultiplier&>(x)
+            );
+        }
+        else if (SymEngine::is_a_sub<const OneElecDensity>(x)) {
             replace_whole<const OneElecDensity>(
                 SymEngine::down_cast<const OneElecDensity&>(x)
             );
@@ -174,9 +182,9 @@ namespace Tinned
                 SymEngine::down_cast<const TemporumOverlap&>(x)
             );
         }
-        else if (SymEngine::is_a_sub<const LagMultiplier>(x)) {
-            replace_whole<const LagMultiplier>(
-                SymEngine::down_cast<const LagMultiplier&>(x)
+        else if (SymEngine::is_a_sub<const ZeroOperator>(x)) {
+            replace_whole<const ZeroOperator>(
+                SymEngine::down_cast<const ZeroOperator&>(x)
             );
         }
         else {

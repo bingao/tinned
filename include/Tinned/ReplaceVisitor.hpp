@@ -7,16 +7,11 @@
 
    This file is the header file of symbolic replacement.
 
-   2024-04-29, Bin Gao:
-   * add function `replace_with_derivatives()`
-
    2023-09-24, Bin Gao:
    * first version
 */
 
 #pragma once
-
-#include <map>
 
 #include <symengine/basic.h>
 #include <symengine/dict.h>
@@ -33,9 +28,6 @@
 #include <symengine/symengine_rcp.h>
 #include <symengine/visitor.h>
 #include <symengine/subs.h>
-
-#include "Tinned/FindAllVisitor.hpp"
-#include "Tinned/StringifyVisitor.hpp"
 
 namespace Tinned
 {
@@ -111,48 +103,6 @@ namespace Tinned
     {
         //ReplaceVisitor visitor(subs_dict, cache);
         ReplaceVisitor visitor(subs_dict, false);
-        return visitor.apply(x);
-    }
-
-    // Map for the substitution of Tinned classes with SymEngine `Basic`
-    // symbols as well as their derivatives
-    template<typename T>
-    using TinnedBasicMap = std::map<SymEngine::RCP<const T>,
-                                    SymEngine::RCP<const SymEngine::Basic>,
-                                    SymEngine::RCPBasicKeyLess>;
-
-    // Helper function to replace classes defined in Tinned library as well as
-    // their derivatives with symbols that they represent and corresponding
-    // derivatives
-    template<typename T>
-    inline SymEngine::RCP<const SymEngine::Basic> replace_with_derivatives(
-        const SymEngine::RCP<const SymEngine::Basic>& x,
-        const TinnedBasicMap<T>& subs_dict
-    )
-    {
-        SymEngine::map_basic_basic diff_subs_dict;
-        // For each Tinned class `rep`, find all its derivatives in `x` and
-        // that will be replaced with a symbol and its derivatives
-        for (const auto& d: subs_dict) {
-            for (const auto& rep: find_all<T>(x, d.first)) {
-                auto diff_symbol = d.second;
-                //FIXME: we may store derivatives in terms of SymEngine::RCP<const Perturbation>?
-                for (const auto& p: rep->get_derivatives()) {
-                    if (SymEngine::is_a_sub<const SymEngine::Symbol>(*p)) {
-                        auto s = SymEngine::rcp_dynamic_cast<const SymEngine::Symbol>(p);
-                        diff_symbol = diff_symbol->diff(s);
-                    }
-                    else {
-                        throw SymEngine::SymEngineException(
-                            "replace_with_derivatives() gets an invalid perturbation "
-                            + stringify(p)
-                        );
-                    }
-                }
-                diff_subs_dict.insert({rep, diff_symbol});
-            }
-        }
-        ReplaceVisitor visitor(diff_subs_dict, false);
         return visitor.apply(x);
     }
 }

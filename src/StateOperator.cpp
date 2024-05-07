@@ -1,8 +1,8 @@
 #include <symengine/symengine_assert.h>
 #include <symengine/symengine_casts.h>
 
-#include "Tinned/PertDependency.hpp"
 #include "Tinned/StateOperator.hpp"
+#include "Tinned/ZeroOperator.hpp"
 
 namespace Tinned
 {

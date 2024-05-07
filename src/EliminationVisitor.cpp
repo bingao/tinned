@@ -16,6 +16,8 @@
 #include "Tinned/AdjointMap.hpp"
 #include "Tinned/ExpAdjointHamiltonian.hpp"
 
+#include "Tinned/ZeroOperator.hpp"
+
 #include "Tinned/EliminationVisitor.hpp"
 
 namespace Tinned
@@ -164,7 +166,12 @@ namespace Tinned
 
     void EliminationVisitor::bvisit(const SymEngine::MatrixSymbol& x)
     {
-        if (SymEngine::is_a_sub<const OneElecDensity>(x)) {
+        if (SymEngine::is_a_sub<const LagMultiplier>(x)) {
+            eliminate_parameter<const LagMultiplier>(
+                SymEngine::down_cast<const LagMultiplier&>(x)
+            );
+        }
+        else if (SymEngine::is_a_sub<const OneElecDensity>(x)) {
             eliminate_parameter<const OneElecDensity>(
                 SymEngine::down_cast<const OneElecDensity&>(x)
             );
@@ -216,10 +223,8 @@ namespace Tinned
         else if (SymEngine::is_a_sub<const TemporumOverlap>(x)) {
             result_ = x.rcp_from_this();
         }
-        else if (SymEngine::is_a_sub<const LagMultiplier>(x)) {
-            eliminate_parameter<const LagMultiplier>(
-                SymEngine::down_cast<const LagMultiplier&>(x)
-            );
+        else if (SymEngine::is_a_sub<const ZeroOperator>(x)) {
+            result_ = x.rcp_from_this();
         }
         else {
             throw SymEngine::NotImplementedError(

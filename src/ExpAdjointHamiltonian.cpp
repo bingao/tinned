@@ -5,10 +5,10 @@
 #include <symengine/symengine_casts.h>
 #include <symengine/symengine_exception.h>
 
-#include "Tinned/PertDependency.hpp"
 #include "Tinned/AdjointMap.hpp"
 #include "Tinned/OneElecOperator.hpp"
 #include "Tinned/ExpAdjointHamiltonian.hpp"
+#include "Tinned/ZeroOperator.hpp"
 
 namespace Tinned
 {

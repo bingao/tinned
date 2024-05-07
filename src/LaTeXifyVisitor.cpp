@@ -4,6 +4,8 @@
 #include <symengine/number.h>
 
 #include "Tinned/Perturbation.hpp"
+#include "Tinned/LagMultiplier.hpp"
+
 #include "Tinned/OneElecDensity.hpp"
 #include "Tinned/OneElecOperator.hpp"
 #include "Tinned/TwoElecEnergy.hpp"
@@ -15,11 +17,12 @@
 #include "Tinned/TemporumOperator.hpp"
 #include "Tinned/TemporumOverlap.hpp"
 
-#include "Tinned/LagMultiplier.hpp"
 #include "Tinned/StateVector.hpp"
 #include "Tinned/StateOperator.hpp"
 #include "Tinned/AdjointMap.hpp"
 #include "Tinned/ExpAdjointHamiltonian.hpp"
+
+#include "Tinned/ZeroOperator.hpp"
 
 #include "Tinned/LaTeXifyVisitor.hpp"
 
@@ -76,6 +79,7 @@ namespace Tinned
         }
         else {
             SymEngine::LatexPrinter::bvisit(x);
+            //FIXME: only one symbol?
             update_num_symbols(1, str_);
         }
     }
@@ -161,7 +165,12 @@ namespace Tinned
 
     void LaTeXifyVisitor::bvisit(const SymEngine::MatrixSymbol& x)
     {
-        if (SymEngine::is_a_sub<const OneElecDensity>(x)) {
+        if (SymEngine::is_a_sub<const LagMultiplier>(x)) {
+            auto& op = SymEngine::down_cast<const LagMultiplier&>(x);
+            str_ = latexify_operator(op.get_name(), op.get_derivatives());
+            update_num_symbols(1, str_);
+        }
+        else if (SymEngine::is_a_sub<const OneElecDensity>(x)) {
             auto& op = SymEngine::down_cast<const OneElecDensity&>(x);
             str_ = latexify_operator(op.get_name(), op.get_derivatives());
             update_num_symbols(1, str_);
@@ -226,13 +235,14 @@ namespace Tinned
                 update_num_symbols(1, str_);
             }
         }
-        else if (SymEngine::is_a_sub<const LagMultiplier>(x)) {
-            auto& op = SymEngine::down_cast<const LagMultiplier&>(x);
-            str_ = latexify_operator(op.get_name(), op.get_derivatives());
+        else if (SymEngine::is_a_sub<const ZeroOperator>(x)) {
+            auto& op = SymEngine::down_cast<const ZeroOperator&>(x);
+            str_ = latexify_operator(op.get_name());
             update_num_symbols(1, str_);
         }
         else {
-            str_ = latexify_operator(x.get_name());
+            SymEngine::LatexPrinter::bvisit(x);
+            //FIXME: only one symbol?
             update_num_symbols(1, str_);
         }
     }

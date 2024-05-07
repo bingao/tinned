@@ -82,7 +82,7 @@ namespace Tinned
 
     // Convert the dependencies into vec_basic
     // Should be tested for use
-    inline SymEngine::vec_basic to_vec_basic(const PertDependency& dependencies)
+    inline SymEngine::vec_basic dependency_to_vector(const PertDependency& dependencies)
     {
         SymEngine::vec_basic args;
         for (auto& dep: dependencies) {
@@ -90,13 +90,5 @@ namespace Tinned
             args.push_back(SymEngine::integer(dep.second));
         }
         return args;
-    }
-
-    // Helper function to return a 1x1 zero matrix, can be used for zero
-    // derivative
-    //FIXME: move to another header file?
-    inline SymEngine::RCP<const SymEngine::MatrixExpr> make_zero_operator()
-    {
-        return SymEngine::zero_matrix(SymEngine::integer(1), SymEngine::integer(1));
     }
 }

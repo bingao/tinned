@@ -2,6 +2,7 @@
 #include <symengine/symengine_casts.h>
 
 #include "Tinned/OneElecOperator.hpp"
+#include "Tinned/ZeroOperator.hpp"
 
 namespace Tinned
 {
@@ -52,7 +53,7 @@ namespace Tinned
 
     //SymEngine::vec_basic OneElecOperator::get_args() const
     //{
-    //    SymEngine::vec_basic args = to_vec_basic(dependencies_);
+    //    SymEngine::vec_basic args = dependency_to_vector(dependencies_);
     //    args.insert(args.end(), derivatives_.begin(), derivatives_.end());
     //    return args;
     //}

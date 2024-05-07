@@ -24,6 +24,8 @@
 
 #include "Tinned/Perturbation.hpp"
 #include "Tinned/PertDependency.hpp"
+#include "Tinned/LagMultiplier.hpp"
+#include "Tinned/ZeroOperator.hpp"
 
 #include "Tinned/OneElecDensity.hpp"
 #include "Tinned/OneElecOperator.hpp"
@@ -36,7 +38,6 @@
 #include "Tinned/TemporumOperator.hpp"
 #include "Tinned/TemporumOverlap.hpp"
 
-#include "Tinned/LagMultiplier.hpp"
 #include "Tinned/StateVector.hpp"
 #include "Tinned/StateOperator.hpp"
 #include "Tinned/AdjointMap.hpp"
@@ -49,3 +50,4 @@
 #include "Tinned/FindAllVisitor.hpp"
 #include "Tinned/LaTeXifyVisitor.hpp"
 #include "Tinned/StringifyVisitor.hpp"
+#include "Tinned/Utilities.hpp"
