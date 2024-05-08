@@ -63,9 +63,7 @@ namespace Tinned
                     new_fun = x.rcp_from_this();
                 }
                 else {
-                    new_fun = constructor(
-                        SymEngine::rcp_dynamic_cast<Arg>(new_arg)
-                    );
+                    new_fun = constructor(SymEngine::rcp_dynamic_cast<Arg>(new_arg));
                 }
                 // Next we check if the "new" function will be replaced
                 replace_whole<Fun>(SymEngine::down_cast<const Fun&>(*new_fun));

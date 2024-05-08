@@ -7,6 +7,9 @@
 
    This file is the header file of Tinned library.
 
+   2024-05-08, Bin Gao:
+   * add more visitors for response theory
+
    2024-05-04, Bin Gao:
    * add latexify visitor
 
@@ -43,11 +46,13 @@
 #include "Tinned/AdjointMap.hpp"
 #include "Tinned/ExpAdjointHamiltonian.hpp"
 
-#include "Tinned/KeepVisitor.hpp"
 #include "Tinned/RemoveVisitor.hpp"
-#include "Tinned/EliminationVisitor.hpp"
+#include "Tinned/KeepVisitor.hpp"
+#include "Tinned/ZerosRemover.hpp"
 #include "Tinned/ReplaceVisitor.hpp"
 #include "Tinned/FindAllVisitor.hpp"
+#include "Tinned/EliminationVisitor.hpp"
+#include "Tinned/TemporumCleaner.hpp"
 #include "Tinned/LaTeXifyVisitor.hpp"
 #include "Tinned/StringifyVisitor.hpp"
 #include "Tinned/Utilities.hpp"

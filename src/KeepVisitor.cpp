@@ -1,5 +1,6 @@
 #include <utility>
 
+#include <symengine/number.h>
 #include <symengine/pow.h>
 #include <symengine/symengine_exception.h>
 
@@ -69,7 +70,7 @@ namespace Tinned
                     );
                 }
             }
-            if (SymEngine::eq(*coef, *SymEngine::zero) && d.empty()) {
+            if (coef->is_zero() && d.empty()) {
                 result_ = SymEngine::RCP<const SymEngine::Basic>();
             }
             else {

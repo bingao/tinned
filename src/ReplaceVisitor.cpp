@@ -279,9 +279,9 @@ namespace Tinned
 
     void ReplaceVisitor::bvisit(const SymEngine::MatrixDerivative& x)
     {
-        // Because only `MatrixSymbol` can be used as the argument of
-        // `MatrixDerivative`, we need only check if `MatrixDerivative` will
-        // be replaced as a whole
+        // `MatrixDerivative` represents derivatives of a `MatrixSymbol`
+        // object, so we need only check if `MatrixDerivative` will be replaced
+        // as a whole instead of replacing the `MatrixSymbol` object
         replace_whole<const SymEngine::MatrixDerivative>(x);
     }
 }

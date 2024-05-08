@@ -29,13 +29,15 @@
 
 #include "Tinned/FindAllVisitor.hpp"
 #include "Tinned/RemoveVisitor.hpp"
+#include "Tinned/ZerosRemover.hpp"
 #include "Tinned/ReplaceVisitor.hpp"
+#include "Tinned/TemporumCleaner.hpp"
 #include "Tinned/StringifyVisitor.hpp"
 
 namespace Tinned
 {
-    // Helper function to do high-order differentiation, and to remove
-    // `ZeroOperator` objects
+    // Helper function to do high-order differentiation, and to remove zero
+    // quantities
     inline SymEngine::RCP<const SymEngine::Basic> differentiate(
         const SymEngine::RCP<const SymEngine::Basic>& expr,
         const PerturbationTuple& perturbations
@@ -43,9 +45,7 @@ namespace Tinned
     {
         auto result = expr;
         for (const auto& p: perturbations) result = result->diff(p);
-        return remove_if(
-            result, SymEngine::set_basic({make_zero_operator(), SymEngine::zero})
-        );
+        return remove_zeros(result);
     }
 
     // Map for the substitution of Tinned objects (type `T`) with SymEngine
@@ -97,61 +97,5 @@ namespace Tinned
         if (diff_subs_dict.empty()) return x;
         ReplaceVisitor visitor(diff_subs_dict, false);
         return visitor.apply(x);
-    }
-
-    // Helper function to remove undifferentiated `TemporumOperator` objects
-    // and replace differentiated ones with its corresponding target's
-    // derivatives multiplied by sums of perturbation frequencies
-    template<typename T>
-    inline SymEngine::RCP<const SymEngine::Basic> replace_temporum(
-        const SymEngine::RCP<const SymEngine::Basic>& x,
-        const SymEngine::RCP<const T>& target,
-        const TemporumType type = TemporumType::Ket
-    )
-    {
-        auto dt_target = make_dt_operator(target, type);
-        // Remove undifferentiated `TemporumOperator` objects in `x`
-        auto diff_x = remove_if(x, SymEngine::set_basic({dt_target}));
-        // Find all differentiated `TemporumOperator` objects in `diff_x`
-        SymEngine::map_basic_basic dt_subs_dict;
-        // `TemporumOperator` objects with zero sum of perturbation frequencies
-        // should be removed before replacement
-        SymEngine::set_basic dt_zero_freq;
-        for (const auto& diff_dt: find_all(diff_x, dt_target)) {
-            //FIXME: should `get_derivatives` return perturbations of type SymEngine::RCP<const Perturbation>?
-            if (SymEngine::is_a_sub<const TemporumOperator>(*diff_dt)) {
-                auto op = SymEngine::rcp_dynamic_cast<const TemporumOperator>(diff_dt);
-                if (op->get_frequency()->is_zero()) {
-                    dt_zero_freq.insert(diff_dt);
-                }
-                else {
-                    SymEngine::RCP<const SymEngine::Basic> diff_target = target;
-                    for (const auto& p: op->get_derivatives()) {
-                        if (SymEngine::is_a_sub<const SymEngine::Symbol>(*p)) {
-                            auto s = SymEngine::rcp_dynamic_cast<const SymEngine::Symbol>(p);
-                            diff_target = diff_target->diff(s);
-                        }
-                        else {
-                            throw SymEngine::SymEngineException(
-                                "replace_temporum() gets an invalid perturbation "+stringify(p)
-                            );
-                        }
-                    }
-                    dt_subs_dict.insert({
-                        diff_dt, SymEngine::matrix_mul({op->get_frequency(), diff_target})
-                    });
-                }
-            }
-            else {
-                throw SymEngine::SymEngineException(
-                    "replace_temporum() gets an invalid temporum "+stringify(diff_dt)
-                );
-            }
-        }
-        if (!dt_zero_freq.empty()) diff_x = remove_if(diff_x, dt_zero_freq);
-        if (dt_subs_dict.empty()) return diff_x;
-        ReplaceVisitor visitor(dt_subs_dict, false);
-        return visitor.apply(diff_x);
-//FIXME: after the above replacement, there might be new zero frequency terms due to the collection of same terms
     }
 }

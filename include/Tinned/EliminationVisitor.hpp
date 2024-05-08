@@ -125,9 +125,7 @@ namespace Tinned
                         result_ = x.rcp_from_this();
                     }
                     else {
-                        result_ = constructor(
-                            SymEngine::rcp_dynamic_cast<Arg>(new_arg)
-                        );
+                        result_ = constructor(SymEngine::rcp_dynamic_cast<Arg>(new_arg));
                     }
                 }
             }

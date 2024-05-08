@@ -1,5 +1,6 @@
 #include <utility>
 
+#include <symengine/number.h>
 #include <symengine/pow.h>
 #include <symengine/symengine_exception.h>
 
@@ -99,9 +100,17 @@ namespace Tinned
                     SymEngine::outArg(coef), d, p.second, new_key
                 );
             }
-            result_ = kept
-                    ? x.rcp_from_this()
-                    : SymEngine::Add::from_dict(coef, std::move(d));
+            if (kept) {
+                result_ = x.rcp_from_this();
+            }
+            else {
+                if (coef->is_zero() && d.empty()) {
+                    result_ = SymEngine::RCP<const SymEngine::Basic>();
+                }
+                else {
+                    result_ = SymEngine::Add::from_dict(coef, std::move(d));
+                }
+            }
         }
     }
 
@@ -434,9 +443,10 @@ namespace Tinned
 
     void RemoveVisitor::bvisit(const SymEngine::MatrixDerivative& x)
     {
-        // Because only `MatrixSymbol` can be used as the argument of
-        // `MatrixDerivative`, we need only check if `MatrixDerivative` will
-        // be removed as a whole
+        // `MatrixDerivative` represents derivatives of a `MatrixSymbol`
+        // object, so according to rule "(3) Symbols and their derivatives are
+        // different for the removal procedure", we need only check if
+        // `MatrixDerivative` will be removed as a whole
         remove_if_symbol_like<const SymEngine::MatrixDerivative>(x);
     }
 }

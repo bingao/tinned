@@ -1,5 +1,6 @@
 #include <utility>
 
+#include <symengine/number.h>
 #include <symengine/symengine_exception.h>
 
 #include "Tinned/OneElecOperator.hpp"
@@ -62,9 +63,9 @@ namespace Tinned
                 SymEngine::outArg(coef), d, p.second, new_key
             );
         }
-        result_ = d.empty()
-                ? SymEngine::RCP<const SymEngine::Basic>()
-                : SymEngine::Add::from_dict(coef, std::move(d));
+        // `SymEngine::Add::from_dict` will take care of empty `d`, that is
+        // simply the coefficient
+        result_ = SymEngine::Add::from_dict(coef, std::move(d));
     }
 
     void EliminationVisitor::bvisit(const SymEngine::Mul& x)
@@ -89,6 +90,8 @@ namespace Tinned
                 SymEngine::outArg(coef), d, new_value, new_key
             );
         }
+        // Probably we do not need to check if `d` is empty because the above
+        // loop should either execute at least once or simply return
         result_ = d.empty()
                 ? SymEngine::RCP<const SymEngine::Basic>()
                 : SymEngine::Mul::from_dict(coef, std::move(d));
@@ -302,8 +305,8 @@ namespace Tinned
                 factors.push_back(new_arg);
             }
         }
-        // Probably we do not need to check if factors is empty because the
-        // above loop over arguments should be at least executed once
+        // Probably we do not need to check if `factors` are empty because the
+        // above loop should either execute at least once or simply return
         if (factors.empty()) {
             result_ = SymEngine::RCP<const SymEngine::Basic>();
         }

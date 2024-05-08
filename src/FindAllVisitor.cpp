@@ -319,9 +319,9 @@ namespace Tinned
 
     void FindAllVisitor::bvisit(const SymEngine::MatrixDerivative& x)
     {
-        // Because only `MatrixSymbol` can be used as the argument of
-        // `MatrixDerivative`, we need only check if its argument is that we
-        // are looking for
+        // `MatrixDerivative` represents derivatives of a `MatrixSymbol`
+        // object, so we need only check if its this object is that we are
+        // looking for
         auto arg = x.get_arg();
         if (arg->__eq__(*symbol_)) result_.insert(x.rcp_from_this());
     }
