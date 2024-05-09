@@ -46,9 +46,9 @@
 #include "Tinned/AdjointMap.hpp"
 #include "Tinned/ExpAdjointHamiltonian.hpp"
 
+#include "Tinned/ZerosRemover.hpp"
 #include "Tinned/RemoveVisitor.hpp"
 #include "Tinned/KeepVisitor.hpp"
-#include "Tinned/ZerosRemover.hpp"
 #include "Tinned/ReplaceVisitor.hpp"
 #include "Tinned/FindAllVisitor.hpp"
 #include "Tinned/EliminationVisitor.hpp"

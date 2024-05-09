@@ -30,9 +30,12 @@ inline SymEngine::RCP<const SymEngine::Basic> make_ks_energy(
     return SymEngine::add(SymEngine::vec_basic({
         SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({h, D}))),
         SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({V, D}))),
-        SymEngine::div(
-            SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({G, D}))),
-            SymEngine::two
+        SymEngine::make_rcp<const TwoElecEnergy>(
+            G->get_name(),
+            G->get_state(),
+            G->get_state(),
+            G->get_dependencies(),
+            G->get_derivatives()
         ),
         Exc,
         hnuc
@@ -92,10 +95,7 @@ TEST_CASE("Test KeepVisitor and keep_if()", "[KeepVisitor]")
         *SymEngine::add(SymEngine::vec_basic({
             SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({h, D}))),
             SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({V, D}))),
-            SymEngine::div(
-                SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({G, D}))),
-                SymEngine::two
-            ),
+            make_2el_energy(G->get_name(), G),
             Exc
         }))
     ));
@@ -135,42 +135,45 @@ TEST_CASE("Test KeepVisitor and keep_if()", "[KeepVisitor]")
         *keep_if(E_a, SymEngine::set_basic({h_a})),
         *SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({h_a, D})))
     ));
+    // Unperturbed two-electron operator contracted with perturbed density matrix
+    auto E2_Da = SymEngine::make_rcp<const TwoElecEnergy>(
+        G->get_name(),
+        G->get_state(),
+        D_a,
+        G->get_dependencies(),
+        G->get_derivatives()
+    );
     REQUIRE(SymEngine::eq(
-        *keep_if(E_a, SymEngine::set_basic({G})),
-        *SymEngine::div(
-            SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({G, D_a}))),
-            SymEngine::two
-        )
+        *keep_if(E_a, SymEngine::set_basic({E2_Da})),
+        *SymEngine::mul(SymEngine::two, E2_Da)
     ));
-    REQUIRE(SymEngine::eq(
-        *keep_if(E_a, SymEngine::set_basic({Ga})),
-        *SymEngine::div(
-            SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({Ga, D}))),
-            SymEngine::two
-        )
-    ));
+    // Perturbed two-electron operator contracted with unperturbed density matrix
+    auto E2a_D = SymEngine::make_rcp<const TwoElecEnergy>(
+        Ga->get_name(),
+        Ga->get_state(),
+        D,
+        Ga->get_dependencies(),
+        Ga->get_derivatives()
+    );
+    REQUIRE(SymEngine::eq(*keep_if(E_a, SymEngine::set_basic({E2a_D})), *E2a_D));
     REQUIRE(SymEngine::eq(
         *keep_if(E_a, SymEngine::set_basic({D})),
         *SymEngine::add(SymEngine::vec_basic({
             SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({h_a, D}))),
             SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({V_a, D}))),
-            //FIXME: how to make the following snippet work?
-            //(SymEngine::div(
-            //    SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({G, D}))),
+            make_2el_energy(G->get_name(), G)->diff(a),
+            //SymEngine::div(
+            //    SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({G, D_a}))),
             //    SymEngine::two
-            //))->diff(a),
-            SymEngine::div(
-                SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({G, D_a}))),
-                SymEngine::two
-            ),
-            SymEngine::div(
-                SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({G_Da, D}))),
-                SymEngine::two
-            ),
-            SymEngine::div(
-                SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({Ga, D}))),
-                SymEngine::two
-            ),
+            //),
+            //SymEngine::div(
+            //    SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({G_Da, D}))),
+            //    SymEngine::two
+            //),
+            //SymEngine::div(
+            //    SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({Ga, D}))),
+            //    SymEngine::two
+            //),
             Exc_a
         }))
     ));
@@ -179,13 +182,19 @@ TEST_CASE("Test KeepVisitor and keep_if()", "[KeepVisitor]")
         *SymEngine::add(SymEngine::vec_basic({
             SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({h, D_a}))),
             SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({V, D_a}))),
-            SymEngine::div(
-                SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({G, D_a}))),
-                SymEngine::two
+            SymEngine::make_rcp<const TwoElecEnergy>(
+                G->get_name(),
+                G->get_state(),
+                D_a,
+                G->get_dependencies(),
+                G->get_derivatives()
             ),
-            SymEngine::div(
-                SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({G_Da, D}))),
-                SymEngine::two
+            SymEngine::make_rcp<const TwoElecEnergy>(
+                G_Da->get_name(),
+                G_Da->get_state(),
+                D,
+                G_Da->get_dependencies(),
+                G_Da->get_derivatives()
             ),
             Exc_Da
         }))
@@ -262,33 +271,54 @@ TEST_CASE("Test KeepVisitor and keep_if()", "[KeepVisitor]")
         *SymEngine::add(SymEngine::vec_basic({
             SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({h_ab, D}))),
             SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({V_ab, D}))),
-            SymEngine::div(
-                SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({Gb, D_a}))),
-                SymEngine::two
+            SymEngine::make_rcp<const TwoElecEnergy>(
+                Gb->get_name(),
+                Gb->get_state(),
+                D_a,
+                Gb->get_dependencies(),
+                Gb->get_derivatives()
             ),
-            SymEngine::div(
-                SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({G, D_ab}))),
-                SymEngine::two
+            SymEngine::make_rcp<const TwoElecEnergy>(
+                G->get_name(),
+                G->get_state(),
+                D_ab,
+                G->get_dependencies(),
+                G->get_derivatives()
             ),
-            SymEngine::div(
-                SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({Gb_Da, D}))),
-                SymEngine::two
+            SymEngine::make_rcp<const TwoElecEnergy>(
+                Gb_Da->get_name(),
+                Gb_Da->get_state(),
+                D,
+                Gb_Da->get_dependencies(),
+                Gb_Da->get_derivatives()
             ),
-            SymEngine::div(
-                SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({G_Dab, D}))),
-                SymEngine::two
+            SymEngine::make_rcp<const TwoElecEnergy>(
+                G_Dab->get_name(),
+                G_Dab->get_state(),
+                D,
+                G_Dab->get_dependencies(),
+                G_Dab->get_derivatives()
             ),
-            SymEngine::div(
-                SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({Ga_Db, D}))),
-                SymEngine::two
+            SymEngine::make_rcp<const TwoElecEnergy>(
+                Ga_Db->get_name(),
+                Ga_Db->get_state(),
+                D,
+                Ga_Db->get_dependencies(),
+                Ga_Db->get_derivatives()
             ),
-            SymEngine::div(
-                SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({Ga, D_b}))),
-                SymEngine::two
+            SymEngine::make_rcp<const TwoElecEnergy>(
+                Ga->get_name(),
+                Ga->get_state(),
+                D_b,
+                Ga->get_dependencies(),
+                Ga->get_derivatives()
             ),
-            SymEngine::div(
-                SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({Gab, D}))),
-                SymEngine::two
+            SymEngine::make_rcp<const TwoElecEnergy>(
+                Gab->get_name(),
+                Gab->get_state(),
+                D,
+                Gab->get_dependencies(),
+                Gab->get_derivatives()
             ),
             Exc_ab
         }))
@@ -531,32 +561,37 @@ TEST_CASE("Test RemoveVisitor and remove_if()", "[RemoveVisitor]")
     auto response = remove_if(E_ab, SymEngine::set_basic({D_a, D_ab}));
     REQUIRE(SymEngine::eq(
         *response,
-        *SymEngine::add(SymEngine::vec_basic({
-            SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({h_a, D_b}))),
-            SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({h_ab, D}))),
-            SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({V_a, D_b}))),
-            SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({V_ab, D}))),
-            //FIXME: We need to consider trace(G(N)*M) = trace(G(M)*N),
-            //equation (210), J. Chem. Phys. 129, 214108 (2008)
-            //
-            //FIXME: Not sure if it is a bug in SymEngine, we can not sum `Gab`
-            //and `Ga_Db`, then take the trace with `D`. Otherwise
-            //`SymEngine::eq` will fail.
-            SymEngine::div(
-                SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({Ga, D_b}))),
-                SymEngine::two
+        *SymEngine::add({
+            SymEngine::trace(SymEngine::matrix_mul({h_a, D_b})),
+            SymEngine::trace(SymEngine::matrix_mul({h_ab, D})),
+            SymEngine::trace(SymEngine::matrix_mul({V_a, D_b})),
+            SymEngine::trace(SymEngine::matrix_mul({V_ab, D})),
+            // `TwoElecEnergy` considers trace(G(N)*M) = trace(G(M)*N),
+            // Equation (210), J. Chem. Phys. 129, 214108 (2008)
+            SymEngine::make_rcp<const TwoElecEnergy>(
+                Ga->get_name(),
+                Ga->get_state(),
+                D_b,
+                Ga->get_dependencies(),
+                Ga->get_derivatives()
             ),
-            SymEngine::div(
-                SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({Gab, D}))),
-                SymEngine::two
+            SymEngine::make_rcp<const TwoElecEnergy>(
+                Gab->get_name(),
+                Gab->get_state(),
+                D,
+                Gab->get_dependencies(),
+                Gab->get_derivatives()
             ),
-            SymEngine::div(
-                SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({Ga_Db, D}))),
-                SymEngine::two
+            SymEngine::make_rcp<const TwoElecEnergy>(
+                Ga_Db->get_name(),
+                Ga_Db->get_state(),
+                D,
+                Ga_Db->get_dependencies(),
+                Ga_Db->get_derivatives()
             ),
             Exc_ab_D,
             hnuc_ab
-        }))
+        })
     ));
 }
 

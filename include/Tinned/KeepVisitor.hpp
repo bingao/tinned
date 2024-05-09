@@ -131,7 +131,10 @@ namespace Tinned
             void bvisit(const SymEngine::MatrixMul& x);
     };
 
-    // Helper function to keep given `symbols` in `x` while removing others
+    // Helper function to keep given `symbols` in `x` while removing others.
+    // Note that zero quantities may produce after processing `MatrixMul`. One
+    // can call `remove_zeros` on the result from `keep_if` if there are no
+    // zero quantities in `x`.
     inline SymEngine::RCP<const SymEngine::Basic> keep_if(
         const SymEngine::RCP<const SymEngine::Basic>& x,
         const SymEngine::set_basic& symbols

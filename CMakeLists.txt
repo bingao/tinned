@@ -84,9 +84,11 @@ install(TARGETS tinned
 # Install include headers
 install(FILES ${TINNED_INCLUDE_DIRS}/Tinned.hpp
         DESTINATION ${INCLUDE_INSTALL_DIR})
+# Pattern matching option from https://stackoverflow.com/a/67883070
 install(DIRECTORY ${TINNED_INCLUDE_DIRS}/Tinned
         DESTINATION ${INCLUDE_INSTALL_DIR}
         FILES_MATCHING
+        PATTERN "*.hpp"
         PATTERN "*.swp" EXCLUDE)
 # Install generated `TinnedTargets.cmake`
 set(TINNED_CMAKE_INSTALL_DIR ${CMAKE_INSTALL_LIBDIR}/cmake/tinned)

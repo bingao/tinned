@@ -29,7 +29,6 @@
 #include "Tinned/ZeroOperator.hpp"
 
 #include "Tinned/KeepVisitor.hpp"
-#include "Tinned/StringifyVisitor.hpp"
 
 namespace Tinned
 {

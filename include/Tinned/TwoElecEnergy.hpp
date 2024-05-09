@@ -7,6 +7,9 @@
 
    This file is the header file of two-electron like energies.
 
+   2024-05-09, Bin Gao:
+   * sort states according to their `compare` function
+
    2023-11-22, Bin Gao:
    * first version
 */
@@ -40,6 +43,22 @@ namespace Tinned
             PertDependency dependencies_;
             // derivatives_ holds derivatives with respect to perturbations
             SymEngine::multiset_basic derivatives_;
+
+            // Sort `inner_` and `outer_` according to their `compare` function
+            // For `SymEngine::FunctionWrapper` constructor, see
+            // https://stackoverflow.com/a/32702783
+            inline SymEngine::vec_basic sort_states(
+                const SymEngine::RCP<const ElectronicState>& inner,
+                const SymEngine::RCP<const ElectronicState>& outer
+            ) const
+            {
+                if (inner->compare(*outer)<=0) {
+                    return SymEngine::vec_basic({inner, outer});
+                }
+                else {
+                    return SymEngine::vec_basic({outer, inner});
+                }
+            }
 
         public:
             //! Constructor

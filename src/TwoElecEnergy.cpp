@@ -13,7 +13,7 @@ namespace Tinned
         const SymEngine::RCP<const ElectronicState>& outer,
         const PertDependency& dependencies,
         const SymEngine::multiset_basic& derivatives
-    ) : SymEngine::FunctionWrapper(name, SymEngine::vec_basic({inner, outer}))
+    ) : SymEngine::FunctionWrapper(name, sort_states(inner, outer))
     {
         // For numerical evaulation, one may put fewer density matrices in the
         // innermost loop. But we do not know the number of components of each
@@ -102,32 +102,23 @@ namespace Tinned
         auto diff_inner = SymEngine::rcp_dynamic_cast<const ElectronicState>(
             inner_->diff(s)
         );
-        auto op_diff_inner = diff_inner->compare(*outer_)<=0
-            ? SymEngine::make_rcp<const TwoElecEnergy>(
-                  get_name(), diff_inner, outer_, dependencies_, derivatives_
-              )
-            : SymEngine::make_rcp<const TwoElecEnergy>(
-                  get_name(), outer_, diff_inner, dependencies_, derivatives_
-              );
+        auto op_diff_inner = SymEngine::make_rcp<const TwoElecEnergy>(
+            get_name(), diff_inner, outer_, dependencies_, derivatives_
+        );
         // tr(contr(g, inner_), outer_->diff(s))
         auto diff_outer = SymEngine::rcp_dynamic_cast<const ElectronicState>(
             outer_->diff(s)
         );
-        auto op_diff_outer = inner_->compare(*diff_outer)<=0
-            ? SymEngine::make_rcp<const TwoElecEnergy>(
-                  get_name(), inner_, diff_outer, dependencies_, derivatives_
-              )
-            : SymEngine::make_rcp<const TwoElecEnergy>(
-                  get_name(), diff_outer, inner_, dependencies_, derivatives_
-              );
-        auto op_diff_state = SymEngine::add(op_diff_inner, op_diff_outer);
+        auto op_diff_outer = SymEngine::make_rcp<const TwoElecEnergy>(
+            get_name(), inner_, diff_outer, dependencies_, derivatives_
+        );
         auto max_order = find_dependency(dependencies_, s);
         if (max_order>0) {
             auto order = derivatives_.count(s) + 1;
             if (order<=max_order) {
                 auto derivatives = derivatives_;
                 derivatives.insert(s);
-                return SymEngine::add(
+                return SymEngine::add({
                     // tr(contr(g->diff(s), inner_), outer_)
                     SymEngine::make_rcp<const TwoElecEnergy>(
                         get_name(),
@@ -136,15 +127,16 @@ namespace Tinned
                         dependencies_,
                         derivatives
                     ),
-                    op_diff_state
-                );
+                    op_diff_inner,
+                    op_diff_outer
+                });
             }
             else {
-                return op_diff_state;
+                return SymEngine::add(op_diff_inner, op_diff_outer);
             }
         }
         else {
-            return op_diff_state;
+            return SymEngine::add(op_diff_inner, op_diff_outer);
         }
     }
 }
