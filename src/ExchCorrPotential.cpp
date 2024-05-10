@@ -3,6 +3,7 @@
 #include <symengine/symengine_casts.h>
 
 #include "Tinned/ExchCorrPotential.hpp"
+#include "Tinned/ZerosRemover.hpp"
 
 namespace Tinned
 {
@@ -36,7 +37,7 @@ namespace Tinned
         Omega_(other.Omega_),
         weight_(other.weight_),
         potential_(SymEngine::rcp_dynamic_cast<const SymEngine::MatrixExpr>(
-            other.potential_->diff(s)
+            remove_zeros(other.potential_->diff(s))
         ))
     {
         SYMENGINE_ASSIGN_TYPEID()
@@ -52,7 +53,9 @@ namespace Tinned
         state_(state),
         Omega_(Omega),
         weight_(weight),
-        potential_(canonicalize_xc_potential(potential))
+        potential_(SymEngine::rcp_dynamic_cast<const SymEngine::MatrixExpr>(
+            remove_zeros(canonicalize_xc_potential(potential))
+        ))
     {
         SYMENGINE_ASSIGN_TYPEID()
     }

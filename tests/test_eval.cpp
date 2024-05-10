@@ -170,7 +170,7 @@ inline SymEngine::RCP<const SymEngine::Basic> mock_2el_energy(
 )
 {
     auto G = mock_2el_operator(dependencies, derivatives, inner);
-    return SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({G, outer})));
+    return SymEngine::trace(SymEngine::matrix_mul({G, outer}));
 }
 
 // Make a mock generalized density vector
@@ -623,12 +623,12 @@ TEST_CASE("Test FunctionEvaluator", "[FunctionEvaluator]")
     auto Omega = make_1el_operator(std::string("Omega"), dependencies);
     auto Exc = make_xc_energy(std::string("Exc"), D, Omega, weight);
     auto hnuc = make_nonel_function(std::string("hnuc"), dependencies);
-    auto E = SymEngine::add(SymEngine::vec_basic({
-        SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({h, D}))),
+    auto E = SymEngine::add({
+        SymEngine::trace(SymEngine::matrix_mul({h, D})),
         make_2el_energy(std::string("G"), D, D, dependencies),
         Exc,
         hnuc
-    }));
+    });
 
     auto evaluator = FunMockEvaluator(SymEngine::vec_basic({a, b}));
     std::cout << stringify(evaluator.apply(E)) << "\n";

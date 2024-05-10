@@ -8,6 +8,9 @@
    This file is the header file of keeping specific symbols while removing
    others.
 
+   2024-05-10, Bin Gao:
+   * add option to remove zero quantities in the function `keep_if`
+
    2023-10-19, Bin Gao:
    * moved from file Tinned/RemoveVisitor.hpp
 */
@@ -37,6 +40,7 @@
 #include <symengine/symengine_rcp.h>
 #include <symengine/visitor.h>
 
+#include "Tinned/ZerosRemover.hpp"
 #include "Tinned/RemoveVisitor.hpp"
 
 namespace Tinned
@@ -137,10 +141,13 @@ namespace Tinned
     // zero quantities in `x`.
     inline SymEngine::RCP<const SymEngine::Basic> keep_if(
         const SymEngine::RCP<const SymEngine::Basic>& x,
-        const SymEngine::set_basic& symbols
+        const SymEngine::set_basic& symbols,
+        const bool remove_zero_quantities = true
     )
     {
         KeepVisitor visitor(symbols);
-        return visitor.apply(x);
+        auto result = visitor.apply(x);
+        if (result.is_null()) return result;
+        return remove_zero_quantities ? remove_zeros(result) : result;
     }
 }

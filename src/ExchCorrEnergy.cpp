@@ -2,6 +2,7 @@
 #include <symengine/symengine_casts.h>
 
 #include "Tinned/ExchCorrEnergy.hpp"
+#include "Tinned/ZerosRemover.hpp"
 
 namespace Tinned
 {
@@ -21,7 +22,7 @@ namespace Tinned
         const ExchCorrEnergy& other,
         const SymEngine::RCP<const SymEngine::Symbol>& s
     ) : SymEngine::FunctionWrapper(other.get_name(), other.get_args()),
-        energy_(other.energy_->diff(s))
+        energy_(remove_zeros(other.energy_->diff(s)))
     {
         SYMENGINE_ASSIGN_TYPEID()
     }
@@ -33,7 +34,7 @@ namespace Tinned
         const SymEngine::RCP<const NonElecFunction>& weight,
         const SymEngine::RCP<const SymEngine::Basic>& energy
     ) : SymEngine::FunctionWrapper(name, SymEngine::vec_basic({weight, state, Omega})),
-        energy_(canonicalize_xc_energy(energy))
+        energy_(canonicalize_xc_energy(remove_zeros(energy)))
     {
         SYMENGINE_ASSIGN_TYPEID()
     }

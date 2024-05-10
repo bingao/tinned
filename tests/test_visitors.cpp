@@ -27,9 +27,9 @@ inline SymEngine::RCP<const SymEngine::Basic> make_ks_energy(
     const SymEngine::RCP<const NonElecFunction>& hnuc
 )
 {
-    return SymEngine::add(SymEngine::vec_basic({
-        SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({h, D}))),
-        SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({V, D}))),
+    return SymEngine::add({
+        SymEngine::trace(SymEngine::matrix_mul({h, D})),
+        SymEngine::trace(SymEngine::matrix_mul({V, D})),
         SymEngine::make_rcp<const TwoElecEnergy>(
             G->get_name(),
             G->get_state(),
@@ -39,7 +39,7 @@ inline SymEngine::RCP<const SymEngine::Basic> make_ks_energy(
         ),
         Exc,
         hnuc
-    }));
+    });
 }
 
 // Equation (229), J. Chem. Phys. 129, 214108 (2008)
@@ -52,13 +52,13 @@ inline SymEngine::RCP<const SymEngine::Basic> make_tdscf_equation(
     auto Dt = make_dt_operator(D);
     auto St = make_dt_operator(S);
     auto minus_one_half = SymEngine::div(SymEngine::minus_one, SymEngine::two);
-    return SymEngine::matrix_add(SymEngine::vec_basic({
-        SymEngine::matrix_mul(SymEngine::vec_basic({F, D, S})),
-        SymEngine::matrix_mul(SymEngine::vec_basic({SymEngine::minus_one, S, D, F})),
-        SymEngine::matrix_mul(SymEngine::vec_basic({SymEngine::minus_one, S, Dt, S})),
-        SymEngine::matrix_mul(SymEngine::vec_basic({minus_one_half, St, D, S})),
-        SymEngine::matrix_mul(SymEngine::vec_basic({minus_one_half, S, D, St}))
-    }));
+    return SymEngine::matrix_add({
+        SymEngine::matrix_mul({F, D, S}),
+        SymEngine::matrix_mul({SymEngine::minus_one, S, D, F}),
+        SymEngine::matrix_mul({SymEngine::minus_one, S, Dt, S}),
+        SymEngine::matrix_mul({minus_one_half, St, D, S}),
+        SymEngine::matrix_mul({minus_one_half, S, D, St})
+    });
 }
 
 TEST_CASE("Test KeepVisitor and keep_if()", "[KeepVisitor]")
@@ -77,27 +77,27 @@ TEST_CASE("Test KeepVisitor and keep_if()", "[KeepVisitor]")
     auto hnuc = make_nonel_function(std::string("hnuc"), dependencies);
     // Equation (80), J. Chem. Phys. 129, 214108 (2008)
     auto E = make_ks_energy(h, V, G, D, Exc, hnuc);
-    auto F = SymEngine::matrix_add(SymEngine::vec_basic({h, G, V, Fxc}));
+    auto F = SymEngine::matrix_add({h, G, V, Fxc});
 
     REQUIRE(SymEngine::eq(
         *keep_if(E, SymEngine::set_basic({h})),
-        *SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({h, D})))
+        *SymEngine::trace(SymEngine::matrix_mul({h, D}))
     ));
     REQUIRE(SymEngine::eq(
         *keep_if(E, SymEngine::set_basic({h, V})),
-        *SymEngine::add(SymEngine::vec_basic({
-            SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({h, D}))),
-            SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({V, D})))
-        }))
+        *SymEngine::add({
+            SymEngine::trace(SymEngine::matrix_mul({h, D})),
+            SymEngine::trace(SymEngine::matrix_mul({V, D}))
+        })
     ));
     REQUIRE(SymEngine::eq(
         *keep_if(E, SymEngine::set_basic({D})),
-        *SymEngine::add(SymEngine::vec_basic({
-            SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({h, D}))),
-            SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({V, D}))),
+        *SymEngine::add({
+            SymEngine::trace(SymEngine::matrix_mul({h, D})),
+            SymEngine::trace(SymEngine::matrix_mul({V, D})),
             make_2el_energy(G->get_name(), G),
             Exc
-        }))
+        })
     ));
 
     // The first order
@@ -118,22 +118,22 @@ TEST_CASE("Test KeepVisitor and keep_if()", "[KeepVisitor]")
         Exc->get_state(),
         Exc->get_overlap_distribution(),
         Exc->get_weight(),
-        SymEngine::mul(SymEngine::vec_basic({
+        SymEngine::mul({
             weight,
             make_exc_density(D, Omega, 1),
-            SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({Omega, D_a})))
-        }))
+            SymEngine::trace(SymEngine::matrix_mul({Omega, D_a}))
+        })
     );
     auto hnuc_a = SymEngine::rcp_dynamic_cast<const NonElecFunction>(hnuc->diff(a));
     auto Fxc_a = SymEngine::rcp_dynamic_cast<const ExchCorrPotential>(Fxc->diff(a));
     REQUIRE(keep_if(E_a, SymEngine::set_basic({hnuc})).is_null());
     REQUIRE(SymEngine::eq(
         *keep_if(E_a, SymEngine::set_basic({h})),
-        *SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({h, D_a})))
+        *SymEngine::trace(SymEngine::matrix_mul({h, D_a}))
     ));
     REQUIRE(SymEngine::eq(
         *keep_if(E_a, SymEngine::set_basic({h_a})),
-        *SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({h_a, D})))
+        *SymEngine::trace(SymEngine::matrix_mul({h_a, D}))
     ));
     // Unperturbed two-electron operator contracted with perturbed density matrix
     auto E2_Da = SymEngine::make_rcp<const TwoElecEnergy>(
@@ -158,30 +158,18 @@ TEST_CASE("Test KeepVisitor and keep_if()", "[KeepVisitor]")
     REQUIRE(SymEngine::eq(*keep_if(E_a, SymEngine::set_basic({E2a_D})), *E2a_D));
     REQUIRE(SymEngine::eq(
         *keep_if(E_a, SymEngine::set_basic({D})),
-        *SymEngine::add(SymEngine::vec_basic({
-            SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({h_a, D}))),
-            SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({V_a, D}))),
+        *SymEngine::add({
+            SymEngine::trace(SymEngine::matrix_mul({h_a, D})),
+            SymEngine::trace(SymEngine::matrix_mul({V_a, D})),
             make_2el_energy(G->get_name(), G)->diff(a),
-            //SymEngine::div(
-            //    SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({G, D_a}))),
-            //    SymEngine::two
-            //),
-            //SymEngine::div(
-            //    SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({G_Da, D}))),
-            //    SymEngine::two
-            //),
-            //SymEngine::div(
-            //    SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({Ga, D}))),
-            //    SymEngine::two
-            //),
             Exc_a
-        }))
+        })
     ));
     REQUIRE(SymEngine::eq(
         *keep_if(E_a, SymEngine::set_basic({D_a})),
-        *SymEngine::add(SymEngine::vec_basic({
-            SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({h, D_a}))),
-            SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({V, D_a}))),
+        *SymEngine::add({
+            SymEngine::trace(SymEngine::matrix_mul({h, D_a})),
+            SymEngine::trace(SymEngine::matrix_mul({V, D_a})),
             SymEngine::make_rcp<const TwoElecEnergy>(
                 G->get_name(),
                 G->get_state(),
@@ -197,7 +185,7 @@ TEST_CASE("Test KeepVisitor and keep_if()", "[KeepVisitor]")
                 G_Da->get_derivatives()
             ),
             Exc_Da
-        }))
+        })
     ));
     REQUIRE(SymEngine::eq(
         *E_a,
@@ -207,11 +195,11 @@ TEST_CASE("Test KeepVisitor and keep_if()", "[KeepVisitor]")
     REQUIRE(SymEngine::eq(*keep_if(F_a, SymEngine::set_basic({h_a})), *h_a));
     REQUIRE(SymEngine::eq(
         *keep_if(F_a, SymEngine::set_basic({D})),
-        *SymEngine::matrix_add(SymEngine::vec_basic({Ga, Fxc_a}))
+        *SymEngine::matrix_add({Ga, Fxc_a})
     ));
     REQUIRE(SymEngine::eq(
         *keep_if(F_a, SymEngine::set_basic({D_a})),
-        *SymEngine::matrix_add(SymEngine::vec_basic({
+        *SymEngine::matrix_add({
             G_Da,
             SymEngine::make_rcp<const ExchCorrPotential>(
                 Fxc->get_name(),
@@ -220,20 +208,20 @@ TEST_CASE("Test KeepVisitor and keep_if()", "[KeepVisitor]")
                 Fxc->get_weight(),
                 // The first term of Equation (57), J. Chem. Phys. 140, 034103
                 // (2014), but only keeping the second term of Equation (47)
-                SymEngine::matrix_mul(SymEngine::vec_basic({
-                    SymEngine::mul(SymEngine::vec_basic({
+                SymEngine::matrix_mul({
+                    SymEngine::mul({
                         weight,
                         make_exc_density(D, Omega, 2),
                         make_density_vector(D_a, Omega)
-                    })),
+                    }),
                     Omega
-                }))
+                })
             )
-        }))
+        })
     ));
     REQUIRE(SymEngine::eq(
         *keep_if(F_a, SymEngine::set_basic({D, D_a})),
-        *SymEngine::matrix_add(SymEngine::vec_basic({G->diff(a), Fxc_a}))
+        *SymEngine::matrix_add({G->diff(a), Fxc_a})
     ));
 
     // The second order
@@ -264,13 +252,13 @@ TEST_CASE("Test KeepVisitor and keep_if()", "[KeepVisitor]")
     auto Fxc_ab = SymEngine::rcp_dynamic_cast<const ExchCorrPotential>(Fxc_a->diff(b));
     REQUIRE(SymEngine::eq(
         *keep_if(E_ab, SymEngine::set_basic({h_a})),
-        *SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({h_a, D_b})))
+        *SymEngine::trace(SymEngine::matrix_mul({h_a, D_b}))
     ));
     REQUIRE(SymEngine::eq(
         *keep_if(E_ab, SymEngine::set_basic({D})),
-        *SymEngine::add(SymEngine::vec_basic({
-            SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({h_ab, D}))),
-            SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({V_ab, D}))),
+        *SymEngine::add({
+            SymEngine::trace(SymEngine::matrix_mul({h_ab, D})),
+            SymEngine::trace(SymEngine::matrix_mul({V_ab, D})),
             SymEngine::make_rcp<const TwoElecEnergy>(
                 Gb->get_name(),
                 Gb->get_state(),
@@ -321,59 +309,58 @@ TEST_CASE("Test KeepVisitor and keep_if()", "[KeepVisitor]")
                 Gab->get_derivatives()
             ),
             Exc_ab
-        }))
+        })
     ));
     REQUIRE(SymEngine::eq(
-        *keep_if(F_ab, SymEngine::set_basic({D})),
-        *SymEngine::matrix_add(SymEngine::vec_basic({Gab, Fxc_ab}))
+        *keep_if(F_ab, SymEngine::set_basic({D})), *SymEngine::matrix_add({Gab, Fxc_ab})
     ));
     REQUIRE(SymEngine::eq(
         *keep_if(F_ab, SymEngine::set_basic({D_a})),
-        *SymEngine::matrix_add(SymEngine::vec_basic({
+        *SymEngine::matrix_add({
             Gb_Da,
             SymEngine::make_rcp<const ExchCorrPotential>(
                 Fxc->get_name(),
                 Fxc->get_state(),
                 Fxc->get_overlap_distribution(),
                 Fxc->get_weight(),
-                SymEngine::matrix_add(SymEngine::vec_basic({
+                SymEngine::matrix_add({
                     // The first term of Equation (58), J. Chem. Phys. 140,
                     // 034103 (2014), but only keeping the second term of
                     // Equation (47) and the third term of Equation (48)
-                    SymEngine::matrix_mul(SymEngine::vec_basic({
+                    SymEngine::matrix_mul({
                         SymEngine::add(
-                            SymEngine::mul(SymEngine::vec_basic({
+                            SymEngine::mul({
                                 weight,
                                 make_exc_density(D, Omega, 3),
                                 make_density_vector(D_a, Omega),
                                 (make_density_vector(D, Omega))->diff(b)
-                            })),
-                            SymEngine::mul(SymEngine::vec_basic({
+                            }),
+                            SymEngine::mul({
                                 weight,
                                 make_exc_density(D, Omega, 2),
                                 make_density_vector(D_a, Omega_b)
-                            }))
+                            })
                         ),
                         Omega
-                    })),
+                    }),
                     // The second term of Equation (58), J. Chem. Phys. 140,
                     // 034103 (2014), but only keeping the second term of
                     // Equation (47)
-                    SymEngine::matrix_mul(SymEngine::vec_basic({
-                        SymEngine::mul(SymEngine::vec_basic({
+                    SymEngine::matrix_mul({
+                        SymEngine::mul({
                             weight,
                             make_exc_density(D, Omega, 2),
                             make_density_vector(D_a, Omega)
-                        })),
+                        }),
                         Omega_b
-                    }))
-                }))
+                    })
+                })
             )
-        }))
+        })
     ));
     REQUIRE(SymEngine::eq(
         *keep_if(F_ab, SymEngine::set_basic({D_ab})),
-        *SymEngine::matrix_add(SymEngine::vec_basic({
+        *SymEngine::matrix_add({
             G_Dab,
             SymEngine::make_rcp<const ExchCorrPotential>(
                 Fxc->get_name(),
@@ -382,20 +369,20 @@ TEST_CASE("Test KeepVisitor and keep_if()", "[KeepVisitor]")
                 Fxc->get_weight(),
                 // The first term of Equation (58), J. Chem. Phys. 140, 034103
                 // (2014), but only keeping the last term of Equation (48)
-                SymEngine::matrix_mul(SymEngine::vec_basic({
-                    SymEngine::mul(SymEngine::vec_basic({
+                SymEngine::matrix_mul({
+                    SymEngine::mul({
                         weight,
                         make_exc_density(D, Omega, 2),
                         make_density_vector(D_ab, Omega)
-                    })),
+                    }),
                     Omega
-                }))
+                })
             )
-        }))
+        })
     ));
     REQUIRE(SymEngine::eq(
         *keep_if(F_ab, SymEngine::set_basic({D_a, D_b})),
-        *SymEngine::matrix_add(SymEngine::vec_basic({
+        *SymEngine::matrix_add({
             Ga_Db,
             Gb_Da,
             SymEngine::make_rcp<const ExchCorrPotential>(
@@ -403,17 +390,17 @@ TEST_CASE("Test KeepVisitor and keep_if()", "[KeepVisitor]")
                 Fxc->get_state(),
                 Fxc->get_overlap_distribution(),
                 Fxc->get_weight(),
-                SymEngine::matrix_add(SymEngine::vec_basic({
+                SymEngine::matrix_add({
                     // The first term of Equation (58), J. Chem. Phys. 140,
                     // 034103 (2014), but removing the product of unperturbed
                     // density matrix of Equation (47) and keeping the second
                     // and the third terms of Equation (48)
-                    SymEngine::matrix_mul(SymEngine::vec_basic({
+                    SymEngine::matrix_mul({
                         SymEngine::add(
-                            SymEngine::mul(SymEngine::vec_basic({
+                            SymEngine::mul({
                                 weight,
                                 make_exc_density(D, Omega, 3),
-                                SymEngine::add(SymEngine::vec_basic({
+                                SymEngine::add({
                                     SymEngine::mul(
                                         make_density_vector(D, Omega_a),
                                         make_density_vector(D_b, Omega)
@@ -426,44 +413,44 @@ TEST_CASE("Test KeepVisitor and keep_if()", "[KeepVisitor]")
                                         make_density_vector(D_a, Omega),
                                         make_density_vector(D_b, Omega)
                                     )
-                                }))
-                            })),
-                            SymEngine::mul(SymEngine::vec_basic({
+                                })
+                            }),
+                            SymEngine::mul({
                                 weight,
                                 make_exc_density(D, Omega, 2),
                                 SymEngine::add(
                                     make_density_vector(D_a, Omega_b),
                                     make_density_vector(D_b, Omega_a)
                                 )
-                            }))
+                            })
                         ),
                         Omega
-                    })),
+                    }),
                     // The second term of Equation (58), J. Chem. Phys. 140,
                     // 034103 (2014), but only keeping the second term of
                     // Equation (47)
-                    SymEngine::matrix_mul(SymEngine::vec_basic({
-                        SymEngine::mul(SymEngine::vec_basic({
+                    SymEngine::matrix_mul({
+                        SymEngine::mul({
                             weight,
                             make_exc_density(D, Omega, 2),
                             make_density_vector(D_a, Omega)
-                        })),
+                        }),
                         Omega_b
-                    })),
+                    }),
                     // The third term of Equation (58), J. Chem. Phys. 140,
                     // 034103 (2014), but only keeping the second term of
                     // Equation (47)
-                    SymEngine::matrix_mul(SymEngine::vec_basic({
-                        SymEngine::mul(SymEngine::vec_basic({
+                    SymEngine::matrix_mul({
+                        SymEngine::mul({
                             weight,
                             make_exc_density(D, Omega, 2),
                             make_density_vector(D_b, Omega)
-                        })),
+                        }),
                         Omega_a
-                    }))
-                }))
+                    })
+                })
             )
-        }))
+        })
     ));
 }
 
@@ -497,11 +484,11 @@ TEST_CASE("Test RemoveVisitor and remove_if()", "[RemoveVisitor]")
         Exc->get_state(),
         Exc->get_overlap_distribution(),
         Exc->get_weight(),
-        SymEngine::mul(SymEngine::vec_basic({
+        SymEngine::mul({
             weight,
             make_exc_density(D, Omega, 1),
-            SymEngine::trace(SymEngine::matrix_mul(SymEngine::vec_basic({Omega_a, D})))
-        }))
+            SymEngine::trace(SymEngine::matrix_mul({Omega_a, D}))
+        })
     );
     auto hnuc_a = SymEngine::rcp_dynamic_cast<const NonElecFunction>(hnuc->diff(a));
     // Equation (81), J. Chem. Phys. 129, 214108 (2008)
@@ -531,29 +518,25 @@ TEST_CASE("Test RemoveVisitor and remove_if()", "[RemoveVisitor]")
         Exc->get_overlap_distribution(),
         Exc->get_weight(),
         SymEngine::add(
-            SymEngine::mul(SymEngine::vec_basic({
+            SymEngine::mul({
                 weight,
                 make_exc_density(D, Omega, 1),
                 SymEngine::trace(
-                    SymEngine::matrix_add(SymEngine::vec_basic({
-                        SymEngine::matrix_mul(SymEngine::vec_basic({Omega_ab, D})),
-                        SymEngine::matrix_mul(SymEngine::vec_basic({Omega_a, D_b}))
-                    }))
+                    SymEngine::matrix_add({
+                        SymEngine::matrix_mul({Omega_ab, D}),
+                        SymEngine::matrix_mul({Omega_a, D_b})
+                    })
                 )
-            })),
-            SymEngine::mul(SymEngine::vec_basic({
+            }),
+            SymEngine::mul({
                 weight,
                 make_exc_density(D, Omega, 2),
-                SymEngine::trace(
-                    SymEngine::matrix_mul(SymEngine::vec_basic({Omega_a, D}))
-                ),
-                SymEngine::trace(
-                    SymEngine::matrix_add(SymEngine::vec_basic({
-                        SymEngine::matrix_mul(SymEngine::vec_basic({Omega_b, D})),
-                        SymEngine::matrix_mul(SymEngine::vec_basic({Omega, D_b}))
-                    }))
-                )
-            }))
+                SymEngine::trace(SymEngine::matrix_mul({Omega_a, D})),
+                SymEngine::trace(SymEngine::matrix_add({
+                    SymEngine::matrix_mul({Omega_b, D}),
+                    SymEngine::matrix_mul({Omega, D_b})
+                }))
+            })
         )
     );
     auto hnuc_ab = SymEngine::rcp_dynamic_cast<const NonElecFunction>(hnuc_a->diff(b));
@@ -607,10 +590,10 @@ TEST_CASE("Test ReplaceVisitor and replace()", "[ReplaceVisitor]")
     auto weight = make_nonel_function(std::string("weight"));
     auto Omega = make_1el_operator(std::string("Omega"), dependencies);
     auto Fxc = make_xc_potential(std::string("Fxc"), D, Omega, weight);
-    auto F_ks = SymEngine::matrix_add(SymEngine::vec_basic({h, G, V, Fxc}));
+    auto F_ks = SymEngine::matrix_add({h, G, V, Fxc});
     auto T = make_t_matrix(dependencies);
     // Equation (94), J. Chem. Phys. 129, 214108 (2008)
-    auto F = SymEngine::matrix_add(SymEngine::vec_basic({h, G, V, Fxc, T}));
+    auto F = SymEngine::matrix_add({h, G, V, Fxc, T});
     auto S = make_1el_operator(std::string("S"), dependencies);
     // Equation (229), J. Chem. Phys. 129, 214108 (2008)
     auto Y = make_tdscf_equation(F, D, S);
@@ -645,23 +628,22 @@ TEST_CASE("Test ReplaceVisitor and replace()", "[ReplaceVisitor]")
             Fxc->get_state(),
             Fxc->get_overlap_distribution(),
             Fxc->get_weight(),
-            SymEngine::matrix_add(SymEngine::vec_basic({
-                SymEngine::matrix_mul(SymEngine::vec_basic({
-                    SymEngine::mul(SymEngine::vec_basic({
+            SymEngine::matrix_add({
+                SymEngine::matrix_mul({
+                    SymEngine::mul({
                         weight,
                         make_exc_density(D, Omega, 2),
                         SymEngine::add(
                             make_density_vector(D, Omega_b),
                             make_density_vector(DP_b, Omega)
                         )
-                    })),
+                    }),
                     Omega
-                })),
-                SymEngine::matrix_mul(SymEngine::vec_basic({
-                    SymEngine::mul(weight, make_exc_density(D, Omega, 1)),
-                    Omega_b
-                }))
-            }))
+                }),
+                SymEngine::matrix_mul({
+                    SymEngine::mul(weight, make_exc_density(D, Omega, 1)), Omega_b
+                })
+            })
         )
     ));
     auto T_b = T->diff(b);
@@ -669,30 +651,28 @@ TEST_CASE("Test ReplaceVisitor and replace()", "[ReplaceVisitor]")
     auto DPt = make_dt_operator(DP);
     auto DPt_b = DPt->diff(b);
     auto St_b = St->diff(b);
-    auto Fb = SymEngine::matrix_add(SymEngine::vec_basic({
-        h_b, V_b, Gb, G_DPb, Fxc_DPb, T_b
-    }));
+    auto Fb = SymEngine::matrix_add({h_b, V_b, Gb, G_DPb, Fxc_DPb, T_b});
     auto minus_one_half = SymEngine::div(SymEngine::minus_one, SymEngine::two);
     REQUIRE(SymEngine::eq(
         *M_b,
-        *SymEngine::matrix_add(SymEngine::vec_basic({
-            SymEngine::matrix_mul(SymEngine::vec_basic({Fb, D, S})),
-            SymEngine::matrix_mul(SymEngine::vec_basic({F_ks, DP_b, S})),
-            SymEngine::matrix_mul(SymEngine::vec_basic({F_ks, D, S_b})),
-            SymEngine::matrix_mul(SymEngine::vec_basic({SymEngine::minus_one, S, D, Fb})),
-            SymEngine::matrix_mul(SymEngine::vec_basic({SymEngine::minus_one, S, DP_b, F_ks})),
-            SymEngine::matrix_mul(SymEngine::vec_basic({SymEngine::minus_one, S_b, D, F_ks})),
-            SymEngine::matrix_mul(SymEngine::vec_basic({minus_one_half, S, DPt_b, S})),
-            SymEngine::matrix_mul(SymEngine::vec_basic({minus_one_half, S, D, St_b})),
-            SymEngine::matrix_mul(SymEngine::vec_basic({minus_one_half, S, DPt_b, S})),
-            SymEngine::matrix_mul(SymEngine::vec_basic({minus_one_half, St_b, D, S}))
-        }))
+        *SymEngine::matrix_add({
+            SymEngine::matrix_mul({Fb, D, S}),
+            SymEngine::matrix_mul({F_ks, DP_b, S}),
+            SymEngine::matrix_mul({F_ks, D, S_b}),
+            SymEngine::matrix_mul({SymEngine::minus_one, S, D, Fb}),
+            SymEngine::matrix_mul({SymEngine::minus_one, S, DP_b, F_ks}),
+            SymEngine::matrix_mul({SymEngine::minus_one, S_b, D, F_ks}),
+            SymEngine::matrix_mul({minus_one_half, S, DPt_b, S}),
+            SymEngine::matrix_mul({minus_one_half, S, D, St_b}),
+            SymEngine::matrix_mul({minus_one_half, S, DPt_b, S}),
+            SymEngine::matrix_mul({minus_one_half, St_b, D, S})
+        })
     ));
     // A simple test for replacing more than one symbols
     auto GP = make_2el_operator(G->get_name(), DP, dependencies);
     auto FP_xc = make_xc_potential(Fxc->get_name(), DP, Omega, weight);
-    auto FP_ks = SymEngine::matrix_add(SymEngine::vec_basic({h, GP, V, FP_xc}));
-    auto FP = SymEngine::matrix_add(SymEngine::vec_basic({h, GP, V, FP_xc, T}));
+    auto FP_ks = SymEngine::matrix_add({h, GP, V, FP_xc});
+    auto FP = SymEngine::matrix_add({h, GP, V, FP_xc, T});
     auto YP = make_tdscf_equation(FP, DP, S);
     REQUIRE(SymEngine::eq(
         *replace(
@@ -733,53 +713,53 @@ TEST_CASE("Test ReplaceVisitor and replace()", "[ReplaceVisitor]")
     auto DPt_bc = DPt_b->diff(c);
     auto St_c = St->diff(c);
     auto St_bc = St_b->diff(c);
-    auto Fbc = SymEngine::matrix_add(SymEngine::vec_basic({
+    auto Fbc = SymEngine::matrix_add({
         h_bc, V_bc, Gbc, Gb_Dc, Gc_Db, G_DPbc, Fxc_DPbc, T_bc
-    }));
+    });
     auto F_b = F->diff(b);
     auto F_c = F->diff(c);
     REQUIRE(SymEngine::eq(
         *M_bc,
-        *SymEngine::matrix_add(SymEngine::vec_basic({
-            SymEngine::matrix_mul(SymEngine::vec_basic({Fbc, D, S})),
-            SymEngine::matrix_mul(SymEngine::vec_basic({F_ks, DP_bc, S})),
-            SymEngine::matrix_mul(SymEngine::vec_basic({F_b, D_c, S})),
-            SymEngine::matrix_mul(SymEngine::vec_basic({F_b, D, S_c})),
-            SymEngine::matrix_mul(SymEngine::vec_basic({F_c, D_b, S})),
-            SymEngine::matrix_mul(SymEngine::vec_basic({F_c, D, S_b})),
-            SymEngine::matrix_mul(SymEngine::vec_basic({F_ks, D_b, S_c})),
-            SymEngine::matrix_mul(SymEngine::vec_basic({F_ks, D_c, S_b})),
-            SymEngine::matrix_mul(SymEngine::vec_basic({F_ks, D, S_bc})),
-            SymEngine::matrix_mul(SymEngine::vec_basic({SymEngine::minus_one, S, D, Fbc})),
-            SymEngine::matrix_mul(SymEngine::vec_basic({SymEngine::minus_one, S, DP_bc, F_ks})),
-            SymEngine::matrix_mul(SymEngine::vec_basic({SymEngine::minus_one, S_c, D, F_b})),
-            SymEngine::matrix_mul(SymEngine::vec_basic({SymEngine::minus_one, S, D_c, F_b})),
-            SymEngine::matrix_mul(SymEngine::vec_basic({SymEngine::minus_one, S_b, D, F_c})),
-            SymEngine::matrix_mul(SymEngine::vec_basic({SymEngine::minus_one, S, D_b, F_c})),
-            SymEngine::matrix_mul(SymEngine::vec_basic({SymEngine::minus_one, S_c, D_b, F_ks})),
-            SymEngine::matrix_mul(SymEngine::vec_basic({SymEngine::minus_one, S_b, D_c, F_ks})),
-            SymEngine::matrix_mul(SymEngine::vec_basic({SymEngine::minus_one, S_bc, D, F_ks})),
-            SymEngine::matrix_mul(SymEngine::vec_basic({minus_one_half, S_b, Dt_c, S})),
-            SymEngine::matrix_mul(SymEngine::vec_basic({minus_one_half, S_b, D, St_c})),
-            SymEngine::matrix_mul(SymEngine::vec_basic({minus_one_half, S_c, Dt_b, S})),
-            SymEngine::matrix_mul(SymEngine::vec_basic({minus_one_half, S_c, D, St_b})),
-            SymEngine::matrix_mul(SymEngine::vec_basic({minus_one_half, S, DPt_bc, S})),
-            SymEngine::matrix_mul(SymEngine::vec_basic({minus_one_half, S, Dt_b, S_c})),
-            SymEngine::matrix_mul(SymEngine::vec_basic({minus_one_half, S, D_b, St_c})),
-            SymEngine::matrix_mul(SymEngine::vec_basic({minus_one_half, S, D_c, St_b})),
-            SymEngine::matrix_mul(SymEngine::vec_basic({minus_one_half, S, Dt_c, S_b})),
-            SymEngine::matrix_mul(SymEngine::vec_basic({minus_one_half, S, D, St_bc})),
-            SymEngine::matrix_mul(SymEngine::vec_basic({minus_one_half, S, Dt_c, S_b})),
-            SymEngine::matrix_mul(SymEngine::vec_basic({minus_one_half, St_c, D, S_b})),
-            SymEngine::matrix_mul(SymEngine::vec_basic({minus_one_half, S, Dt_b, S_c})),
-            SymEngine::matrix_mul(SymEngine::vec_basic({minus_one_half, St_b, D, S_c})),
-            SymEngine::matrix_mul(SymEngine::vec_basic({minus_one_half, S, DPt_bc, S})),
-            SymEngine::matrix_mul(SymEngine::vec_basic({minus_one_half, S_c, Dt_b, S})),
-            SymEngine::matrix_mul(SymEngine::vec_basic({minus_one_half, St_c, D_b, S})),
-            SymEngine::matrix_mul(SymEngine::vec_basic({minus_one_half, St_b, D_c, S})),
-            SymEngine::matrix_mul(SymEngine::vec_basic({minus_one_half, S_b, Dt_c, S})),
-            SymEngine::matrix_mul(SymEngine::vec_basic({minus_one_half, St_bc, D, S}))
-        }))
+        *SymEngine::matrix_add({
+            SymEngine::matrix_mul({Fbc, D, S}),
+            SymEngine::matrix_mul({F_ks, DP_bc, S}),
+            SymEngine::matrix_mul({F_b, D_c, S}),
+            SymEngine::matrix_mul({F_b, D, S_c}),
+            SymEngine::matrix_mul({F_c, D_b, S}),
+            SymEngine::matrix_mul({F_c, D, S_b}),
+            SymEngine::matrix_mul({F_ks, D_b, S_c}),
+            SymEngine::matrix_mul({F_ks, D_c, S_b}),
+            SymEngine::matrix_mul({F_ks, D, S_bc}),
+            SymEngine::matrix_mul({SymEngine::minus_one, S, D, Fbc}),
+            SymEngine::matrix_mul({SymEngine::minus_one, S, DP_bc, F_ks}),
+            SymEngine::matrix_mul({SymEngine::minus_one, S_c, D, F_b}),
+            SymEngine::matrix_mul({SymEngine::minus_one, S, D_c, F_b}),
+            SymEngine::matrix_mul({SymEngine::minus_one, S_b, D, F_c}),
+            SymEngine::matrix_mul({SymEngine::minus_one, S, D_b, F_c}),
+            SymEngine::matrix_mul({SymEngine::minus_one, S_c, D_b, F_ks}),
+            SymEngine::matrix_mul({SymEngine::minus_one, S_b, D_c, F_ks}),
+            SymEngine::matrix_mul({SymEngine::minus_one, S_bc, D, F_ks}),
+            SymEngine::matrix_mul({minus_one_half, S_b, Dt_c, S}),
+            SymEngine::matrix_mul({minus_one_half, S_b, D, St_c}),
+            SymEngine::matrix_mul({minus_one_half, S_c, Dt_b, S}),
+            SymEngine::matrix_mul({minus_one_half, S_c, D, St_b}),
+            SymEngine::matrix_mul({minus_one_half, S, DPt_bc, S}),
+            SymEngine::matrix_mul({minus_one_half, S, Dt_b, S_c}),
+            SymEngine::matrix_mul({minus_one_half, S, D_b, St_c}),
+            SymEngine::matrix_mul({minus_one_half, S, D_c, St_b}),
+            SymEngine::matrix_mul({minus_one_half, S, Dt_c, S_b}),
+            SymEngine::matrix_mul({minus_one_half, S, D, St_bc}),
+            SymEngine::matrix_mul({minus_one_half, S, Dt_c, S_b}),
+            SymEngine::matrix_mul({minus_one_half, St_c, D, S_b}),
+            SymEngine::matrix_mul({minus_one_half, S, Dt_b, S_c}),
+            SymEngine::matrix_mul({minus_one_half, St_b, D, S_c}),
+            SymEngine::matrix_mul({minus_one_half, S, DPt_bc, S}),
+            SymEngine::matrix_mul({minus_one_half, S_c, Dt_b, S}),
+            SymEngine::matrix_mul({minus_one_half, St_c, D_b, S}),
+            SymEngine::matrix_mul({minus_one_half, St_b, D_c, S}),
+            SymEngine::matrix_mul({minus_one_half, S_b, Dt_c, S}),
+            SymEngine::matrix_mul({minus_one_half, St_bc, D, S})
+        })
     ));
 }
 
@@ -797,7 +777,7 @@ TEST_CASE("Test FindAllVisitor and find_all()", "[FindAllVisitor]")
     auto Fxc = make_xc_potential(std::string("Fxc"), D, Omega, weight);
     auto T = make_t_matrix(dependencies);
     // Equation (94), J. Chem. Phys. 129, 214108 (2008)
-    auto F = SymEngine::matrix_add(SymEngine::vec_basic({h, G, V, Fxc, T}));
+    auto F = SymEngine::matrix_add({h, G, V, Fxc, T});
     auto S = make_1el_operator(std::string("S"), dependencies);
     // Equation (229), J. Chem. Phys. 129, 214108 (2008)
     auto Y = make_tdscf_equation(F, D, S);

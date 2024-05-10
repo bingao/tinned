@@ -1325,5 +1325,5 @@ TEST_CASE("Test ExchCorrPotential and make_xc_potential()", "[ExchCorrPotential]
     // A more complicated case is to consider the derivatives of grid weights
 
     // Last example is when the generalized overlap distributions do not depend
-    // on all perturbations 
+    // on all perturbations
 }

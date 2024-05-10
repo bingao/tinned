@@ -46,8 +46,7 @@ TEST_CASE("Test TwoElecOperator and make_2el_operator()", "[TwoElecOperator]")
     ({
         {Df, false}, {Dfg, false}, {Dfb, false}, {Dfgb, false}
     });
-    auto args
-        = SymEngine::rcp_dynamic_cast<const SymEngine::MatrixAdd>(result)->get_args();
+    auto args = SymEngine::rcp_dynamic_cast<const SymEngine::MatrixAdd>(result)->get_args();
     for (auto& arg: args) {
         REQUIRE(SymEngine::is_a_sub<const TwoElecOperator>(*arg));
         auto Gp = SymEngine::rcp_dynamic_cast<const TwoElecOperator>(arg);

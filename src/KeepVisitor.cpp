@@ -413,14 +413,10 @@ namespace Tinned
                             // result after removal will be Ak*B*C*... . By saving
                             // Ar = A-Ak, the result can also be computed as
                             // A*B*C*... - Ar*B*C*... .
-                            factors.push_back(SymEngine::matrix_add(
-                                SymEngine::vec_basic({
-                                    arg,
-                                    SymEngine::matrix_mul(
-                                        SymEngine::vec_basic({SymEngine::minus_one, new_arg})
-                                    )
-                                })
-                            ));
+                            factors.push_back(SymEngine::matrix_add({
+                                arg,
+                                SymEngine::matrix_mul({SymEngine::minus_one, new_arg})
+                            }));
                         }
                         // `arg` is a scalar
                         else {
@@ -435,12 +431,9 @@ namespace Tinned
             // where Ar, Br, Cr, ... are parts that are removed, R, S, T, ...
             // are those without kept parts.
             if (factors_kept) {
-                result_ = SymEngine::matrix_add(
-                    SymEngine::vec_basic({
-                        x.rcp_from_this(),
-                        SymEngine::matrix_mul(factors)
-                    })
-                );
+                result_ = SymEngine::matrix_add({
+                    x.rcp_from_this(), SymEngine::matrix_mul(factors)
+                });
             }
             // `MatrixMul` will be removed since all its factors are null after
             // removal
