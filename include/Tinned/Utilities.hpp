@@ -19,6 +19,7 @@
 #include <symengine/basic.h>
 #include <symengine/constants.h>
 #include <symengine/dict.h>
+#include <symengine/matrices/matrix_expr.h>
 #include <symengine/matrices/matrix_mul.h>
 #include <symengine/symengine_exception.h>
 #include <symengine/symengine_rcp.h>
@@ -45,7 +46,18 @@ namespace Tinned
     {
         auto result = expr;
         for (const auto& p: perturbations) result = result->diff(p);
-        return remove_zeros(result);
+        result = remove_zeros(result);
+        if (result.is_null()) {
+            if (SymEngine::is_a_sub<const SymEngine::MatrixExpr>(*expr)) {
+                return make_zero_operator();
+            }
+            else {
+                return SymEngine::zero;
+            }
+        }
+        else {
+            return result;
+        }
     }
 
     // Map for the substitution of Tinned objects (type `T`) with SymEngine

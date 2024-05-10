@@ -20,61 +20,101 @@ first, which has implmented derivatives for different matrix expressions.
 Then clone Tinned library and build it by setting `SymEngine_DIR` to the
 SymEngine installation or build directory.
 
-## Try Tinned
+## Tinned APIs
 
-Tinned currently provides C++ interface and the following classes and functions
-for computational chemistry:
+Tinned currently provides C++ interface. Classes in Tinned that can be useful
+for computational chemistry include:
 
-* [`class Perturbation`](include/Tinned/Perturbation.hpp), perturbations;
-* [`class PertDependency`](include/Tinned/PertDependency.hpp), `std::set` for
+* Class [`Perturbation`](include/Tinned/Perturbation.hpp), perturbations.
+* Class [`PerturbationTuple`](include/Tinned/Perturbation.hpp), `std::multiset`
+  for perturbation tuples[^1].
+* Class [`PertDependency`](include/Tinned/PertDependency.hpp), `std::set` for
   perturbations that an operator depends on and their maximum orders that can
-  be differentiated;
-* [`class OneElecDensity`](include/Tinned/OneElecDensity.hpp), one-electron
+  be differentiated.
+* Class [`LagMultiplier`](include/Tinned/LagMultiplier.hpp), Lagrangian
+  multiplier vectors.
+* Class [`OneElecDensity`](include/Tinned/OneElecDensity.hpp), one-electron
   spin-orbital density matrix derived from the abstract electronic state
-  [`class ElectronicState`](include/Tinned/ElectronicState.hpp);
-* [`class OneElecOperator`](include/Tinned/OneElecOperator.hpp), one-electron
-  like operators;
-* [`class TwoElecOperator`](include/Tinned/TwoElecOperator.hpp), two-electron
-  like operators;
-* [`class ExchCorrEnergy`](include/Tinned/ExchCorrEnergy.hpp),
-  exchange-correlation energy like functionals;
-* [`class ExchCorrPotential`](include/Tinned/ExchCorrPotential.hpp),
-  exchange-correlation potential like operators;
-* [`class NonElecFunction`](include/Tinned/NonElecFunction.hpp), non-electron
-  like functions;
-* [`class TemporumOperator`](include/Tinned/TemporumOperator.hpp), for
+  class [`ElectronicState`](include/Tinned/ElectronicState.hpp).
+* Class [`OneElecOperator`](include/Tinned/OneElecOperator.hpp), one-electron
+  like operators.
+* Class [`TwoElecEnergy`](include/Tinned/TwoElecEnergy.hpp), two-electron like
+  energies.
+* Class [`TwoElecOperator`](include/Tinned/TwoElecOperator.hpp), two-electron
+  like operators.
+* Class [`ExchCorrEnergy`](include/Tinned/ExchCorrEnergy.hpp),
+  exchange-correlation energy like functionals.
+* Class [`ExchCorrPotential`](include/Tinned/ExchCorrPotential.hpp),
+  exchange-correlation potential like operators.
+* Class [`NonElecFunction`](include/Tinned/NonElecFunction.hpp), non-electron
+  like functions.
+* Class [`TemporumOperator`](include/Tinned/TemporumOperator.hpp), for
   operators $\langle\mathrm{i}\frac{\partial}{\partial t}\vert$ and
-  $\vert\mathrm{i}\frac{\partial}{\partial t}\rangle$;
-* [`class TemporumOverlap`](include/Tinned/TemporumOverlap.hpp), for the operator
+  $\vert\mathrm{i}\frac{\partial}{\partial t}\rangle$.
+* Class [`TemporumOverlap`](include/Tinned/TemporumOverlap.hpp), for the operator
   $-\frac{1}{2}(\langle\mathrm{i}\frac{\partial}{\partial t}\chi_{\kappa}\vert\chi_{\lambda}\rangle
-  +\langle\chi_{\kappa}\vert\mathrm{i}\frac{\partial}{\partial t}\chi_{\lambda}\rangle)$;
-* [`class StateVector`](include/Tinned/StateVector.hpp) for state vectors, such
-  as the coupled-cluster amplitude vector $\tilde{\boldsymbol{t}}$;
-* [`class LagMultiplier`](include/Tinned/LagMultiplier.hpp), Lagrangian
-  multiplier vectors;
-* [`class StateOperator`](include/Tinned/StateOperator.hpp) for state operators,
-  such as the coupled-cluster operator $\hat{T}$;
-* [`class AdjointMap`](include/Tinned/AdjointMap.hpp) represents an adjoint map
+  +\langle\chi_{\kappa}\vert\mathrm{i}\frac{\partial}{\partial t}\chi_{\lambda}\rangle)$.
+* Class [`StateVector`](include/Tinned/StateVector.hpp) for state vectors, such
+  as the coupled-cluster amplitude vector $\tilde{\boldsymbol{t}}$.
+* Class [`StateOperator`](include/Tinned/StateOperator.hpp) for state operators,
+  such as the coupled-cluster operator $\hat{T}$.
+* Class [`AdjointMap`](include/Tinned/AdjointMap.hpp) represents an adjoint map
   $\prod_{j}\left(\text{ad}_{\tilde{\mathbf{X}}_{j}}\right)(\tilde{\mathbf{Y}})$
-  where all $\tilde{\mathbf{X}}_{j}$'s and all their derivatives are commutative;
-* [`class ExpAdjointHamiltonian`](include/Tinned/ExpAdjointHamiltonian.hpp)
+  where all $\tilde{\mathbf{X}}_{j}$'s and all their derivatives are commutative.
+* Class [`ExpAdjointHamiltonian`](include/Tinned/ExpAdjointHamiltonian.hpp)
   represents an exponential map in the form of
   $\text{e}^{\text{ad}_{-\hat{T}}}(\hat{H}^{b_{P}})$ or
-  $\text{e}^{\text{ad}_{-\hat{T}}}\left(\prod_{j=1}^{j_{\max}} %
+  $\text{e}^{\text{ad}_{-\hat{T}}}\left(\prod_{j=1}^{j_{\max}}
     \left(\text{ad}_{\hat{T}^{b_{Q_{j}}}}\right)(\hat{H}^{b_{P}})\right)$ with
   $1\le j_{\max}\le3$.
-* function template [`find_all<T>(x, symbol)`](include/Tinned/FindAllVisitor.hpp)
-  finds a given `symbol` and all its differentiated ones in `x`. The template
-  parameter `T` is the data type of `symbol`;
-* function [`keep_if(x, symbols)`](include/Tinned/KeepVisitor.hpp) keeps given
-  `symbols` in `x` while removing others;
-* function [`remove_if(x, symbols)`](include/Tinned/RemoveVisitor.hpp) removes
-  given `symbols` from `x`;
-* function [`replace(x, subs_dict, cache)`](include/Tinned/ReplaceVisitor.hpp)
+
+To facilitate the development of response theory, the following functions are
+provided by Tinned:
+
+* Function [`remove_zeros(x)`](include/Tinned/ZerosRemover.hpp) removes zero
+  quantities from `x`.
+* Function [`remove_if(x, symbols)`](include/Tinned/RemoveVisitor.hpp) removes
+  given `symbols` from `x`.
+* Function [`keep_if(x, symbols, remove_zero_quantities)`](include/Tinned/KeepVisitor.hpp)
+  keeps given `symbols` in `x` while removing others, parameter
+  `remove_zero_quantities` indicates if zero quantities will be removed from the
+  output.
+* Function [`replace(x, subs_dict, cache)`](include/Tinned/ReplaceVisitor.hpp)
   replaces classes defined in Tinned library in addition to those in
   `SymEngine::msubs()`;
-* function [`stringify(x)`](include/Tinned/StringifyVisitor.hpp) stringifies
-  symbols from SymEngine and additional ones defined in Tinned library.
+* Function [`find_all(x, symbol)`](include/Tinned/FindAllVisitor.hpp)
+  finds a given `symbol` and all its differentiated ones in `x`;
+* Function [`eliminate(x, parameter, perturbations, min_order)`](include/Tinned/EliminationVisitor.hpp)
+  eliminates a given response `parameter`'s derivatives from `x`. Maximum order
+  of derivatives to be eliminated is the length of `perturbations`, and minimum
+  order is specified by `min_order`. For wave function parameters, it should be
+  greater than the floor function of the half length of `perturbations`, and for
+  multipliers, it should be greater than or equal to the ceiling function of the
+  half length of `perturbations` according to J. Chem. Phys. 129, 214103 (2008).
+* Function [`clean_temporum(x)`](include/Tinned/TemporumCleaner.hpp) cleans
+  `TemporumOperator` objects in `x`.
+* Function [`latexify(x)`](include/Tinned/LaTeXifyVisitor.hpp) latexifies an
+  expression `x`.
+* Function [`stringify(x)`](include/Tinned/StringifyVisitor.hpp) stringifies an
+  expression `x`.
+* Function [`differentiate(expr, perturbations)`](include/Tinned/Utilities.hpp)
+  can be used to do high-order differentiation, and to remove zero quantities.
+* Function template [`replace_all<T>(x,  subs_dict)`](include/Tinned/Utilities.hpp)
+  replaces Tinned objects and their derivatives with SymEngine `Basic` symbols
+  and corresponding derivatives. Template parameter `T` is the type of those
+  Tinned objects.
+
+**One should note that**:
+
+* Functions `remove_zeros`, `remove_if`, `keep_if` and `eliminate` may
+  return a null pointer `SymEngine::RCP<const SymEngine::Basic>()` when no
+  symbols left after the action. Users can call `is_null()` to check the output
+  of these functions.
+* Functions `clean_temporum` and `differentiate` may return a zero output of
+  type either `Tinned::ZeroOperator` or `SymEngine::zero`. Users can check if
+  the output is a zero quantity by calling the function `Tinned::is_zero_quantity`.
+
+## Examples
 
 The following snippet shows how to use Tinned library to create (i) electrical
 and geometrical perturbations with zero frequency, (ii) overlap $\mathbf{S}$
@@ -95,25 +135,17 @@ derivatives of $\mathbf{Z}$:
 int main()
 {
     // Create electrical and geometrical perturbations with zero frequency
-    auto el = SymEngine::make_rcp<const Tinned::Perturbation>(
-        std::string("EL")
-    );
-    auto geo = SymEngine::make_rcp<const Tinned::Perturbation>(
-        std::string("GEO")
-    );
+    auto el = Tinned::make_perturbation(std::string("EL"));
+    auto geo = Tinned::make_perturbation(std::string("GEO"));
 
     // Create overlap matrix which depends on geometrical perturbation
-    auto S = SymEngine::make_rcp<const Tinned::OneElecOperator>(
+    auto S = Tinned::make_1el_operator(
         std::string("S"),
-        Tinned::PertDependency({
-            std::make_pair(geo, 99)
-        })
+        Tinned::PertDependency({std::make_pair(geo, 99)})
     );
 
     // Create density matrix which depends on all perturbations
-    auto D = SymEngine::make_rcp<const Tinned::OneElecDensity>(
-        std::string("D")
-    );
+    auto D = Tinned::make_1el_density(std::string("D"));
 
     // Creat the idempotency constraint Z = DSD - D
     auto Z = SymEngine::matrix_add({
@@ -122,12 +154,26 @@ int main()
     });
 
     // Take the second order derivatives of the idempotency constraint
-    auto K = (Z->diff(geo))->diff(el);
+    auto K = Tinned::differentiate(Z, Tinned::PerturbationTuple({el, geo}));
     std::cout << "Second order derivatives of the idempotency constraint: "
-              << Tinned::stringify(*K) << "\n";
+              << Tinned::stringify(K) << "\n";
 
     return 0;
 }
 ```
 
 More examples can be found in Tinned tests in the directory `tests`.
+
+## TODO
+
+* Support coupled-cluster classes in all visitor classes.
+* Test newly added coupled-cluster classes and visitors `EliminationVisitor`,
+  `TemporumCleaner`, `ZerosRemover`.
+* More tests on `ExchCorrPotential::get_potential_map`.
+* Add tests for functions `ExchCorrEnergy::get_energy_terms` and
+  `ExchCorrPotential::get_potential_terms`.
+
+## References
+
+[^1]: Bin Gao, "Tinned: A Symbolic Library for Response Theory and High-Order
+      Derivatives", J. Comput. Chem., DOI: 10.1002/jcc.27437.

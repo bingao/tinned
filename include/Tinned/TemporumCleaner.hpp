@@ -20,6 +20,7 @@
 #include <symengine/constants.h>
 #include <symengine/dict.h>
 #include <symengine/mul.h>
+#include <symengine/matrices/matrix_expr.h>
 #include <symengine/matrices/conjugate_matrix.h>
 #include <symengine/matrices/matrix_add.h>
 #include <symengine/matrices/matrix_derivative.h>
@@ -30,6 +31,7 @@
 #include <symengine/symengine_rcp.h>
 #include <symengine/visitor.h>
 
+#include "Tinned/ZeroOperator.hpp"
 #include "Tinned/ZerosRemover.hpp"
 
 namespace Tinned
@@ -103,6 +105,17 @@ namespace Tinned
     {
         TemporumCleaner visitor;
         // Remove zero quantities
-        return remove_zeros(visitor.apply(x));
+        auto result = remove_zeros(visitor.apply(x));
+        if (result.is_null()) {
+            if (SymEngine::is_a_sub<const SymEngine::MatrixExpr>(*x)) {
+                return make_zero_operator();
+            }
+            else {
+                return SymEngine::zero;
+            }
+        }
+        else {
+            return result;
+        }
     }
 }
