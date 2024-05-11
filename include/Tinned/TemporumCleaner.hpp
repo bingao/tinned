@@ -38,7 +38,8 @@ namespace Tinned
 {
     // `TemporumCleaner` replaces `TemporumOperator` objects with their targets
     // multiplied by sums of perturbation frequencies. Undifferentiated targets
-    // and targets with zero sums or will be set as zero quantities.
+    // and targets with zero sums, and undifferentiated `TemporumOverlap`
+    // objects will be set as zero quantities.
     class TemporumCleaner: public SymEngine::BaseVisitor<TemporumCleaner>
     {
         protected:
@@ -98,7 +99,8 @@ namespace Tinned
             void bvisit(const SymEngine::MatrixDerivative& x);
     };
 
-    // Helper function to clean `TemporumOperator` objects in `x`
+    // Helper function to clean `TemporumOperator` and unperturbed
+    // `TemporumOverlap` objects in `x`
     inline SymEngine::RCP<const SymEngine::Basic> clean_temporum(
         const SymEngine::RCP<const SymEngine::Basic>& x
     )

@@ -4,6 +4,7 @@
 #include <symengine/symengine_assert.h>
 
 #include "Tinned/TemporumOperator.hpp"
+#include "Tinned/TemporumOverlap.hpp"
 
 #include "Tinned/TemporumCleaner.hpp"
 
@@ -48,7 +49,7 @@ namespace Tinned
                 result_ = SymEngine::zero;
                 return;
             }
-            // Exponent cannot be a `TemporumOperator` object
+            // Exponent cannot be a `TemporumOperator` or `TemporumOverlap` object
             SymEngine::Mul::dict_add_term_new(
                 SymEngine::outArg(coef), d, p.second, new_key
             );
@@ -73,6 +74,15 @@ namespace Tinned
             }
             else {
                 result_ = SymEngine::matrix_mul({frequency, op.get_target()});
+            }
+        }
+        else if (SymEngine::is_a_sub<const TemporumOverlap>(x)) {
+            auto& op = SymEngine::down_cast<const TemporumOverlap&>(x);
+            if (op.get_derivatives().empty()) {
+                result_ = make_zero_operator();
+            }
+            else {
+                result_ = x.rcp_from_this();
             }
         }
         else {
@@ -162,10 +172,11 @@ namespace Tinned
     void TemporumCleaner::bvisit(const SymEngine::MatrixDerivative& x)
     {
         // Although it is not forbidden, it is not a good idea to use a
-        // `TemporumOperator` object as the argument of
+        // `TemporumOperator` or `TemporumOverlap` object as the argument of
         // `SymEngine::MatrixDerivative`
         SymEngine::RCP<const SymEngine::Basic> arg = x.get_arg();
-        if (SymEngine::is_a_sub<const TemporumOperator>(*arg)) {
+        if (SymEngine::is_a_sub<const TemporumOperator>(*arg) ||
+            SymEngine::is_a_sub<const TemporumOverlap>(*arg)) {
             for (const auto& p: x.get_symbols()) {
                 //FIXME: change stored `derivatives_` to the type
                 //std::multiset<SymEngine::RCP<const SymEngine::Symbol> ?
@@ -173,20 +184,9 @@ namespace Tinned
                 auto s = SymEngine::rcp_dynamic_cast<const SymEngine::Symbol>(p);
                 arg = arg->diff(s);
             }
-            // Differentiated result is either `TemporumOperator` object or zero
-            if (is_zero_quantity(*arg)) {
-                result_ = arg;
-            }
-            else {
-                auto op = SymEngine::rcp_dynamic_cast<const TemporumOperator>(arg);
-                auto frequency = op->get_frequency();
-                if (frequency->is_zero()) {
-                    result_ = make_zero_operator();
-                }
-                else {
-                    result_ = SymEngine::matrix_mul({frequency, op->get_target()});
-                }
-            }
+            // Differentiated result is either an object of `TemporumOperator`
+            // or `TemporumOverlap`, or zero
+            result_ = apply(arg);
         }
         else {
             result_ = x.rcp_from_this();

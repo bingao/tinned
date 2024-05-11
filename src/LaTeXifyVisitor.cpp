@@ -196,39 +196,18 @@ namespace Tinned
         }
         else if (SymEngine::is_a_sub<const TemporumOperator>(x)) {
             auto& op = SymEngine::down_cast<const TemporumOperator&>(x);
-            auto derivatives = op.get_derivatives();
-            if (derivatives.empty()) {
-                zero_factor_ = true;
-            }
-            else {
-                std::string str_freq;
-                if (op.get_type()==TemporumType::Bra) str_freq += "-";
-                auto var = derivatives.begin();
-                for (std::size_t ivar=1; ivar<=derivatives.size(); ++ivar,++var) {
-                    newline_allowed_ = false;
-                    if (ivar==1) {
-                        if (derivatives.size()>1) str_freq += "(";
-                        str_freq += "\\omega_{" + apply(*var) + "}";
-                    }
-                    else {
-                        str_freq += "+\\omega_{" + apply(*var) + "}";
-                        if (derivatives.size()>1 && ivar==derivatives.size())
-                            str_freq += ")";
-                    }
-                    newline_allowed_ = true;
-                    update_num_symbols(1, str_freq);
-                }
-                // Add a multiplication symbol if `target` will be in a new line
-                if (find_trailing_newline(str_freq)!=std::string::npos)
-                    str_freq += "\\times ";
-                str_ = str_freq + apply(op.get_target());
-            }
+            std::ostringstream o;
+            if (op.get_type()==TemporumType::Bra) o << "-";
+            o << "\\text{i}\\frac{\\partial}{\\partial t}" << apply(op.get_target());
+            str_ = o.str();
         }
         else if (SymEngine::is_a_sub<const TemporumOverlap>(x)) {
             auto& op = SymEngine::down_cast<const TemporumOverlap&>(x);
             auto derivatives = op.get_derivatives();
             if (derivatives.empty()) {
-                zero_factor_ = true;
+                // Unperturbed T matrix is actually a zero operator
+                str_ = latexify_operator(std::string("T")) + "^{0}";
+                update_num_symbols(1, str_);
             }
             else {
                 str_ = latexify_operator(std::string("T"), derivatives);

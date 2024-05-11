@@ -152,7 +152,7 @@ namespace Tinned
             }
 
             // Get derivatives on the T matrix, currently used only for
-            // `EliminationVisitor` and `LaTeXifyVisitor`
+            // `TemporumCleaner` and `LaTeXifyVisitor`
             inline SymEngine::multiset_basic get_derivatives() const
             {
                 auto term = get_braket_product(0);

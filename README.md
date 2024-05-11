@@ -2,7 +2,13 @@
 
 Tinned contains a set of nonnumerical routines for computational chemistry, in
 which symbolic routines are built on top of
-[SymEngine library](https://github.com/symengine/symengine).
+[SymEngine library](https://github.com/symengine/symengine). Theoretical
+background can be found in reference [[1]](#1).
+
+Currently, the following project uses Tinned library:
+
+* [SymResponse](https://github.com/bingao/symresponse), a unified framework for
+  response theory.
 
 ## License
 
@@ -27,7 +33,7 @@ for computational chemistry include:
 
 * Class [`Perturbation`](include/Tinned/Perturbation.hpp), perturbations.
 * Class [`PerturbationTuple`](include/Tinned/Perturbation.hpp), `std::multiset`
-  for perturbation tuples[^1].
+  for perturbation tuples[[1]](#1).
 * Class [`PertDependency`](include/Tinned/PertDependency.hpp), `std::set` for
   perturbations that an operator depends on and their maximum orders that can
   be differentiated.
@@ -175,5 +181,6 @@ More examples can be found in Tinned tests in the directory `tests`.
 
 ## References
 
-[^1]: Bin Gao, "Tinned: A Symbolic Library for Response Theory and High-Order
-      Derivatives", J. Comput. Chem., DOI: 10.1002/jcc.27437.
+<a id="1">[1]</a>
+Bin Gao, "Tinned: A Symbolic Library for Response Theory and High-Order
+Derivatives", J. Comput. Chem., DOI: 10.1002/jcc.27437.
