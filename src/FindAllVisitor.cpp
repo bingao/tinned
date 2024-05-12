@@ -1,3 +1,5 @@
+#include <iostream>
+
 #include <symengine/pow.h>
 
 //#include "Tinned/Perturbation.hpp"
@@ -6,7 +8,6 @@
 #include "Tinned/OneElecDensity.hpp"
 #include "Tinned/OneElecOperator.hpp"
 #include "Tinned/TwoElecEnergy.hpp"
-#include "Tinned/TwoElecOperator.hpp"
 #include "Tinned/CompositeFunction.hpp"
 #include "Tinned/ExchCorrEnergy.hpp"
 #include "Tinned/ExchCorrPotential.hpp"
@@ -34,30 +35,30 @@ namespace Tinned
 
     void FindAllVisitor::bvisit(const SymEngine::Symbol& x)
     {
-        find_equivalence<const SymEngine::Symbol>(x);
+        find_equivalence(x);
     }
 
     void FindAllVisitor::bvisit(const SymEngine::Integer& x)
     {
-        find_equivalence<const SymEngine::Integer>(x);
+        find_equivalence(x);
     }
 
     void FindAllVisitor::bvisit(const SymEngine::Rational& x)
     {
-        find_equivalence<const SymEngine::Rational>(x);
+        find_equivalence(x);
     }
 
     void FindAllVisitor::bvisit(const SymEngine::Complex& x)
     {
-        find_equivalence<const SymEngine::Complex>(x);
+        find_equivalence(x);
     }
 
     void FindAllVisitor::bvisit(const SymEngine::Add& x)
     {
         // We first check if the whole `Add` is that we are looking for
-        if (!find_equivalence<const SymEngine::Add>(x)) {
+        if (!find_equivalence(x)) {
             // We skip all pairs if the coefficient is what we are looking for
-            if (!find_equivalence<const SymEngine::Number>(*x.get_coef())) {
+            if (!find_equivalence(*x.get_coef())) {
                 // Next we check each pair (`Basic` and `Number`) in the
                 // dictionary of `Add`
                 for (const auto& p: x.get_dict()) {
@@ -68,8 +69,7 @@ namespace Tinned
                         SymEngine::zero, {{p.first, p.second}}
                     ))) continue;
                     // Check if `Basic` matches
-                    auto result = apply(p.first);
-                    if (!result.empty()) result_.insert(result.begin(), result.end());
+                    apply_(p.first);
                 }
             }
         }
@@ -78,9 +78,9 @@ namespace Tinned
     void FindAllVisitor::bvisit(const SymEngine::Mul& x)
     {
         // We first check if the whole `Mul` is that we are looking for
-        if (!find_equivalence<const SymEngine::Mul>(x)) {
+        if (!find_equivalence(x)) {
             // We skip all pairs if the coefficient is what we are looking for
-            if (!find_equivalence<const SymEngine::Number>(*x.get_coef())) {
+            if (!find_equivalence(*x.get_coef())) {
                 // We check each pair (`Basic` and `Basic`) in the dictionary
                 // of `Mul`
                 for (const auto& p : x.get_dict()) {
@@ -88,12 +88,9 @@ namespace Tinned
                     if (find_equivalence(
                         *SymEngine::make_rcp<SymEngine::Pow>(p.first, p.second)
                     )) continue;
-                    // Check if the key matches
-                    auto result = apply(p.first);
-                    if (!result.empty()) result_.insert(result.begin(), result.end());
-                    // Check if the value matches
-                    result = apply(p.second);
-                    if (!result.empty()) result_.insert(result.begin(), result.end());
+                    // Check if the key and the value match
+                    apply_(p.first);
+                    apply_(p.second);
                 }
             }
         }
@@ -101,25 +98,35 @@ namespace Tinned
 
     void FindAllVisitor::bvisit(const SymEngine::Constant& x)
     {
-        find_equivalence<const SymEngine::Constant>(x);
+        find_equivalence(x);
     }
 
     void FindAllVisitor::bvisit(const SymEngine::FunctionSymbol& x)
     {
         if (SymEngine::is_a_sub<const NonElecFunction>(x)) {
-            find_with_dependencies<const NonElecFunction>(
-                SymEngine::down_cast<const NonElecFunction&>(x)
-            );
+            find_with_dependencies(SymEngine::down_cast<const NonElecFunction&>(x));
         }
         else if (SymEngine::is_a_sub<const TwoElecEnergy>(x)) {
             auto& op = SymEngine::down_cast<const TwoElecEnergy&>(x);
-            // For `TwoElecEnergy`, we actually check its two-electron
-            // integrals using `find_with_dependencies`
-            if (!find_with_dependencies<const TwoElecEnergy>(op)) {
-                auto result = apply(op.get_inner_state());
-                if (!result.empty()) result_.insert(result.begin(), result.end());
-                result = apply(op.get_outer_state());
-                if (!result.empty()) result_.insert(result.begin(), result.end());
+            auto G = op.get_2el_operator();
+            if (!find_2el_operator(*G)) {
+                auto inner = G->get_state();
+                auto outer = op.get_outer_state();
+                // We need to find all different states
+                if (find_only_name(*inner)) find_only_name(*outer);
+                // For `TwoElecEnergy`, we check its name, its two-electron
+                // operator's name and dependencies, and its inner and outer
+                // density matrices' names
+                else if (SymEngine::is_a_sub<const TwoElecEnergy>(*symbol_)) {
+                    auto s = SymEngine::rcp_dynamic_cast<const TwoElecEnergy>(symbol_);
+                    auto s_G = s->get_2el_operator();
+                    if (op.get_name()==s->get_name() &&
+                        G->get_name()==s_G->get_name() &&
+                        eq_dependency(G->get_dependencies(), s_G->get_dependencies()) &&
+                        inner->get_name()==s_G->get_state()->get_name() &&
+                        outer->get_name()==s->get_outer_state()->get_name())
+                        result_.insert(x.rcp_from_this());
+                }
             }
         }
         else if (SymEngine::is_a_sub<const CompositeFunction>(x)) {
@@ -129,16 +136,14 @@ namespace Tinned
             // by comparing its name and inner function
             if (SymEngine::is_a_sub<const CompositeFunction>(*symbol_)) {
                 auto s = SymEngine::rcp_dynamic_cast<const CompositeFunction>(symbol_);
-                if (op.get_name()==s->get_name()
-                    && inner->__eq__(*s->get_inner())) {
+                if (op.get_name()==s->get_name() && inner->__eq__(*s->get_inner()))
                     result_.insert(x.rcp_from_this());
-                    return;
-                }
             }
             // If the composite function is not we are looking for, we check
             // its inner function
-            auto result = apply(inner);
-            if (!result.empty()) result_.insert(result.begin(), result.end());
+            else {
+                apply_(inner);
+            }
         }
         else if (SymEngine::is_a_sub<const ExchCorrEnergy>(x)) {
             auto& op = SymEngine::down_cast<const ExchCorrEnergy&>(x);
@@ -146,16 +151,16 @@ namespace Tinned
             // comparing its name and arguments
             if (SymEngine::is_a_sub<const ExchCorrEnergy>(*symbol_)) {
                 auto s = SymEngine::rcp_dynamic_cast<const ExchCorrEnergy>(symbol_);
-                if (op.get_name()==s->get_name()
-                    && SymEngine::unified_eq(op.get_args(), s->get_args())) {
+                if (op.get_name()==s->get_name() &&
+                    SymEngine::unified_eq(op.get_args(), s->get_args())) {
                     result_.insert(x.rcp_from_this());
-                    return;
                 }
             }
             // If the `ExchCorrEnergy` is not we are looking for, we check
             // its XC energy or derivatives
-            auto result = apply(op.get_energy());
-            if (!result.empty()) result_.insert(result.begin(), result.end());
+            else {
+                apply_(op.get_energy());
+            }
         }
         else {
             throw SymEngine::NotImplementedError(
@@ -166,36 +171,25 @@ namespace Tinned
 
     void FindAllVisitor::bvisit(const SymEngine::ZeroMatrix& x)
     {
-        find_equivalence<const SymEngine::ZeroMatrix>(x);
+        find_equivalence(x);
     }
 
     void FindAllVisitor::bvisit(const SymEngine::MatrixSymbol& x)
     {
         // We check only the name for the Lagrangian multiplier
         if (SymEngine::is_a_sub<const LagMultiplier>(x)) {
-            find_only_name<const LagMultiplier>(
-                SymEngine::down_cast<const LagMultiplier&>(x)
-            );
+            find_only_name(SymEngine::down_cast<const LagMultiplier&>(x));
         }
         // We check only the name for one-electron spin-orbital density matrix
         else if (SymEngine::is_a_sub<const OneElecDensity>(x)) {
-            find_only_name<const OneElecDensity>(
-                SymEngine::down_cast<const OneElecDensity&>(x)
-            );
+            find_only_name(SymEngine::down_cast<const OneElecDensity&>(x));
         }
         else if (SymEngine::is_a_sub<const OneElecOperator>(x)) {
-            find_with_dependencies<const OneElecOperator>(
-                SymEngine::down_cast<const OneElecOperator&>(x)
-            );
+            find_with_dependencies(SymEngine::down_cast<const OneElecOperator&>(x));
         }
         else if (SymEngine::is_a_sub<const TwoElecOperator>(x)) {
             auto& op = SymEngine::down_cast<const TwoElecOperator&>(x);
-            // For `TwoElecOperator`, we actually check its two-electron
-            // integrals using `find_with_dependencies`
-            if (!find_with_dependencies<const TwoElecOperator>(op)) {
-                auto result = apply(op.get_state());
-                if (!result.empty()) result_.insert(result.begin(), result.end());
-            }
+            if (!find_2el_operator(op)) find_only_name(*op.get_state());
         }
         else if (SymEngine::is_a_sub<const ExchCorrPotential>(x)) {
             auto& op = SymEngine::down_cast<const ExchCorrPotential&>(x);
@@ -203,44 +197,33 @@ namespace Tinned
             // comparing its name and arguments
             if (SymEngine::is_a_sub<const ExchCorrPotential>(*symbol_)) {
                 auto s = SymEngine::rcp_dynamic_cast<const ExchCorrPotential>(symbol_);
-                if (op.get_name()==s->get_name()
-                    && SymEngine::unified_eq(op.get_args(), s->get_args())) {
+                if (op.get_name()==s->get_name() &&
+                    SymEngine::unified_eq(op.get_args(), s->get_args())) {
                     result_.insert(x.rcp_from_this());
-                    return;
                 }
             }
             // If the `ExchCorrPotential` is not we are looking for, we check
             // its XC potential operator or derivatives
-            auto result = apply(op.get_potential());
-            if (!result.empty()) result_.insert(result.begin(), result.end());
+            else {
+                apply_(op.get_potential());
+            }
         }
         else if (SymEngine::is_a_sub<const TemporumOperator>(x)) {
-            auto& op = SymEngine::down_cast<const TemporumOperator&>(x);
-            // If the symbol to find is also a `TemporumOperator` object, we
-            // compare their arguments according to the rules of
-            // `FindAllVisitor`
-            if (SymEngine::is_a_sub<const TemporumOperator>(*symbol_)) {
-                auto s = SymEngine::rcp_dynamic_cast<const TemporumOperator>(symbol_);
-                auto visitor = FindAllVisitor(s->get_target());
-                if (!visitor.apply(op.get_target()).empty())
-                    result_.insert(x.rcp_from_this());
-            }
-            // If the symbol to find is not a `TemporumOperator` object, we
-            // simply check the target of `x`
-            else {
-                auto result = apply(op.get_target());
-                if (!result.empty()) result_.insert(result.begin(), result.end());
-            }
+            auto& dt = SymEngine::down_cast<const TemporumOperator&>(x);
+            find_one_arg_f<const TemporumOperator, const SymEngine::Basic>(
+                dt,
+                dt.get_target(),
+                [&](const SymEngine::RCP<const TemporumOperator>& op) -> FindAllVisitor
+                {
+                    return FindAllVisitor(op->get_target());
+                }
+            );
         }
         else if (SymEngine::is_a_sub<const TemporumOverlap>(x)) {
-            find_with_dependencies<const TemporumOverlap>(
-                SymEngine::down_cast<const TemporumOverlap&>(x)
-            );
+            find_with_dependencies(SymEngine::down_cast<const TemporumOverlap&>(x));
         }
         else if (SymEngine::is_a_sub<const ZeroOperator>(x)) {
-            find_equivalence<const ZeroOperator>(
-                SymEngine::down_cast<const ZeroOperator&>(x)
-            );
+            find_equivalence(SymEngine::down_cast<const ZeroOperator&>(x));
         }
         else {
             throw SymEngine::NotImplementedError(
@@ -253,67 +236,57 @@ namespace Tinned
     // procedure as `TemporumOperator`
     void FindAllVisitor::bvisit(const SymEngine::Trace& x)
     {
-        if (SymEngine::is_a_sub<const SymEngine::Trace>(*symbol_)) {
-            auto s = SymEngine::rcp_dynamic_cast<const SymEngine::Trace>(symbol_);
-            auto visitor = FindAllVisitor(s->get_args()[0]);
-            if (!visitor.apply(x.get_args()[0]).empty())
-                result_.insert(x.rcp_from_this());
-        }
-        else {
-            auto result = apply(x.get_args()[0]);
-            if (!result.empty()) result_.insert(result.begin(), result.end());
-        }
+        find_one_arg_f<const SymEngine::Trace, const SymEngine::MatrixExpr>(
+            x,
+            SymEngine::rcp_dynamic_cast<const SymEngine::MatrixExpr>(x.get_args()[0]),
+            [&](const SymEngine::RCP<const SymEngine::Trace>& op) -> FindAllVisitor
+            {
+                return FindAllVisitor(op->get_args()[0]);
+            }
+        );
     }
 
     void FindAllVisitor::bvisit(const SymEngine::ConjugateMatrix& x)
     {
-        if (SymEngine::is_a_sub<const SymEngine::ConjugateMatrix>(*symbol_)) {
-            auto s = SymEngine::rcp_dynamic_cast<const SymEngine::ConjugateMatrix>(symbol_);
-            auto visitor = FindAllVisitor(s->get_arg());
-            if (!visitor.apply(x.get_arg()).empty())
-                result_.insert(x.rcp_from_this());
-        }
-        else {
-            auto result = apply(x.get_arg());
-            if (!result.empty()) result_.insert(result.begin(), result.end());
-        }
+        find_one_arg_f<const SymEngine::ConjugateMatrix, const SymEngine::MatrixExpr>(
+            x,
+            SymEngine::rcp_dynamic_cast<const SymEngine::MatrixExpr>(x.get_arg()),
+            [&](const SymEngine::RCP<const SymEngine::ConjugateMatrix>& op) -> FindAllVisitor
+            {
+                return FindAllVisitor(op->get_arg());
+            }
+        );
     }
 
     void FindAllVisitor::bvisit(const SymEngine::Transpose& x)
     {
-        if (SymEngine::is_a_sub<const SymEngine::Transpose>(*symbol_)) {
-            auto s = SymEngine::rcp_dynamic_cast<const SymEngine::Transpose>(symbol_);
-            auto visitor = FindAllVisitor(s->get_arg());
-            if (!visitor.apply(x.get_arg()).empty())
-                result_.insert(x.rcp_from_this());
-        }
-        else {
-            auto result = apply(x.get_arg());
-            if (!result.empty()) result_.insert(result.begin(), result.end());
-        }
+        find_one_arg_f<const SymEngine::Transpose, const SymEngine::MatrixExpr>(
+            x,
+            SymEngine::rcp_dynamic_cast<const SymEngine::MatrixExpr>(x.get_arg()),
+            [&](const SymEngine::RCP<const SymEngine::Transpose>& op) -> FindAllVisitor
+            {
+                return FindAllVisitor(op->get_arg());
+            }
+        );
     }
 
     void FindAllVisitor::bvisit(const SymEngine::MatrixAdd& x)
     {
         // We first check if the whole `MatrixAdd` is that we are looking for
-        if (!find_equivalence<const SymEngine::MatrixAdd>(x)) {
+        if (!find_equivalence(x)) {
             // Next we check each argument of `MatrixAdd`
-            for (auto arg: SymEngine::down_cast<const SymEngine::MatrixAdd&>(x).get_args()) {
-                auto result = apply(arg);
-                if (!result.empty()) result_.insert(result.begin(), result.end());
-            }
+            for (auto arg: SymEngine::down_cast<const SymEngine::MatrixAdd&>(x).get_args())
+                apply_(arg);
         }
     }
 
     void FindAllVisitor::bvisit(const SymEngine::MatrixMul& x)
     {
         // We first check if the whole `MatrixMul` is that we are looking for
-        if (!find_equivalence<const SymEngine::MatrixMul>(x)) {
+        if (!find_equivalence(x)) {
             // Next we check each argument of `MatrixMul`
-            for (auto arg: SymEngine::down_cast<const SymEngine::MatrixMul&>(x).get_args()) {
-                auto result = apply(arg);
-                if (!result.empty()) result_.insert(result.begin(), result.end());
-            }
+            for (auto arg: SymEngine::down_cast<const SymEngine::MatrixMul&>(x).get_args())
+                apply_(arg);
         }
     }
 

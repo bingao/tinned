@@ -30,70 +30,56 @@ namespace Tinned
         if (SymEngine::is_a_sub<const NonElecFunction>(x)) {
             // We allow only replacement of `NonElecFunction` as a whole, not
             // its arguments
-            replace_whole<const NonElecFunction>(
-                SymEngine::down_cast<const NonElecFunction&>(x)
-            );
+            replace_a_whole(SymEngine::down_cast<const NonElecFunction&>(x));
         }
         else if (SymEngine::is_a_sub<const TwoElecEnergy>(x)) {
             auto& op = SymEngine::down_cast<const TwoElecEnergy&>(x);
-            auto inner_state = op.get_inner_state();
-            auto outer_state = op.get_outer_state();
-            auto new_inner = apply(inner_state);
-            auto new_outer = apply(outer_state);
-            if (SymEngine::eq(*inner_state, *new_inner)
-                && SymEngine::eq(*outer_state, *new_outer)) {
-                replace_whole<const TwoElecEnergy>(op);
-            }
-            else {
-                auto new_op = SymEngine::make_rcp<const TwoElecEnergy>(
-                    op.get_name(),
-                    SymEngine::rcp_dynamic_cast<const ElectronicState>(new_inner),
-                    SymEngine::rcp_dynamic_cast<const ElectronicState>(new_outer),
-                    op.get_dependencies(),
-                    op.get_derivatives()
-                );
-                replace_whole<const TwoElecEnergy>(
-                    SymEngine::down_cast<const TwoElecEnergy&>(*new_op)
-                );
-            }
+            replace_a_function(
+                op,
+                [&](const SymEngine::vec_basic& args) -> SymEngine::RCP<const SymEngine::Basic>
+                {
+                    return SymEngine::make_rcp<const TwoElecEnergy>(
+                        SymEngine::rcp_dynamic_cast<const TwoElecOperator>(args[0]),
+                        SymEngine::rcp_dynamic_cast<const ElectronicState>(args[1])
+                    );
+                },
+                op.get_2el_operator(),
+                op.get_outer_state()
+            );
         }
         else if (SymEngine::is_a_sub<const CompositeFunction>(x)) {
             auto& op = SymEngine::down_cast<const CompositeFunction&>(x);
-            replace_one_arg_f<const CompositeFunction, const SymEngine::Basic>(
+            replace_a_function(
                 op,
-                op.get_inner(),
-                [&](const SymEngine::RCP<const SymEngine::Basic>& inner)
-                    -> SymEngine::RCP<const SymEngine::Basic>
+                [&](const SymEngine::vec_basic& args) -> SymEngine::RCP<const SymEngine::Basic>
                 {
                     return SymEngine::make_rcp<const CompositeFunction>(
-                        op.get_name(),
-                        inner,
-                        op.get_order()
+                        op.get_name(), args[0], op.get_order()
                     );
-                }
+                },
+                op.get_inner()
             );
         }
         else if (SymEngine::is_a_sub<const ExchCorrEnergy>(x)) {
             auto& op = SymEngine::down_cast<const ExchCorrEnergy&>(x);
             // We also need to check the replacement of grid weight, state,
             // generalized overlap distribution
-            auto new_weight = apply(op.get_weight());
-            auto new_state = apply(op.get_state());
-            auto new_Omega = apply(op.get_overlap_distribution());
-            replace_one_arg_f<const ExchCorrEnergy, const SymEngine::Basic>(
+            replace_a_function(
                 op,
-                op.get_energy(),
-                [&](const SymEngine::RCP<const SymEngine::Basic>& energy)
-                    -> SymEngine::RCP<const SymEngine::Basic>
+                [&](const SymEngine::vec_basic& args) -> SymEngine::RCP<const SymEngine::Basic>
                 {
                     return SymEngine::make_rcp<const ExchCorrEnergy>(
                         op.get_name(),
-                        SymEngine::rcp_dynamic_cast<const ElectronicState>(new_state),
-                        SymEngine::rcp_dynamic_cast<const OneElecOperator>(new_Omega),
-                        SymEngine::rcp_dynamic_cast<const NonElecFunction>(new_weight),
-                        energy
+                        SymEngine::rcp_dynamic_cast<const ElectronicState>(args[0]),
+                        SymEngine::rcp_dynamic_cast<const OneElecOperator>(args[1]),
+                        SymEngine::rcp_dynamic_cast<const NonElecFunction>(args[2]),
+                        args[3]
                     );
-                }
+                },
+                op.get_state(),
+                op.get_overlap_distribution(),
+                op.get_weight(),
+                op.get_energy()
             );
         }
         else {
@@ -103,89 +89,76 @@ namespace Tinned
 
     void ReplaceVisitor::bvisit(const SymEngine::ZeroMatrix& x)
     {
-        replace_whole<const SymEngine::ZeroMatrix>(x);
+        replace_a_whole(x);
     }
 
     void ReplaceVisitor::bvisit(const SymEngine::MatrixSymbol& x)
     {
         if (SymEngine::is_a_sub<const LagMultiplier>(x)) {
-            replace_whole<const LagMultiplier>(
-                SymEngine::down_cast<const LagMultiplier&>(x)
-            );
+            replace_a_whole(SymEngine::down_cast<const LagMultiplier&>(x));
         }
         else if (SymEngine::is_a_sub<const OneElecDensity>(x)) {
-            replace_whole<const OneElecDensity>(
-                SymEngine::down_cast<const OneElecDensity&>(x)
-            );
+            replace_a_whole(SymEngine::down_cast<const OneElecDensity&>(x));
         }
         else if (SymEngine::is_a_sub<const OneElecOperator>(x)) {
-            replace_whole<const OneElecOperator>(
-                SymEngine::down_cast<const OneElecOperator&>(x)
-            );
+            replace_a_whole(SymEngine::down_cast<const OneElecOperator&>(x));
         }
         else if (SymEngine::is_a_sub<const TwoElecOperator>(x)) {
             auto& op = SymEngine::down_cast<const TwoElecOperator&>(x);
-            replace_one_arg_f<const TwoElecOperator, const ElectronicState>(
+            replace_a_function(
                 op,
-                op.get_state(),
-                [&](const SymEngine::RCP<const ElectronicState>& state)
-                    -> SymEngine::RCP<const SymEngine::Basic>
+                [&](const SymEngine::vec_basic& args) -> SymEngine::RCP<const SymEngine::Basic>
                 {
                     return SymEngine::make_rcp<const TwoElecOperator>(
                         op.get_name(),
-                        state,
+                        SymEngine::rcp_dynamic_cast<const ElectronicState>(args[0]),
                         op.get_dependencies(),
                         op.get_derivatives()
                     );
-                }
+                },
+                op.get_state()
             );
         }
         else if (SymEngine::is_a_sub<const ExchCorrPotential>(x)) {
             auto& op = SymEngine::down_cast<const ExchCorrPotential&>(x);
             // We also need to check the replacement of grid weight, state,
             // generalized overlap distribution
-            auto new_weight = apply(op.get_weight());
-            auto new_state = apply(op.get_state());
-            auto new_Omega = apply(op.get_overlap_distribution());
-            replace_one_arg_f<const ExchCorrPotential, const SymEngine::MatrixExpr>(
+            replace_a_function(
                 op,
-                op.get_potential(),
-                [&](const SymEngine::RCP<const SymEngine::MatrixExpr>& potential)
-                    -> SymEngine::RCP<const SymEngine::Basic>
+                [&](const SymEngine::vec_basic& args) -> SymEngine::RCP<const SymEngine::Basic>
                 {
                     return SymEngine::make_rcp<const ExchCorrPotential>(
                         op.get_name(),
-                        SymEngine::rcp_dynamic_cast<const ElectronicState>(new_state),
-                        SymEngine::rcp_dynamic_cast<const OneElecOperator>(new_Omega),
-                        SymEngine::rcp_dynamic_cast<const NonElecFunction>(new_weight),
-                        potential
+                        SymEngine::rcp_dynamic_cast<const ElectronicState>(args[0]),
+                        SymEngine::rcp_dynamic_cast<const OneElecOperator>(args[1]),
+                        SymEngine::rcp_dynamic_cast<const NonElecFunction>(args[2]),
+                        SymEngine::rcp_dynamic_cast<const SymEngine::MatrixExpr>(args[3])
                     );
-                }
+                },
+                op.get_state(),
+                op.get_overlap_distribution(),
+                op.get_weight(),
+                op.get_potential()
             );
         }
         else if (SymEngine::is_a_sub<const TemporumOperator>(x)) {
             auto& op = SymEngine::down_cast<const TemporumOperator&>(x);
-            replace_one_arg_f<const TemporumOperator, const SymEngine::Basic>(
+            replace_a_function(
                 op,
-                op.get_target(),
-                [&](const SymEngine::RCP<const SymEngine::Basic>& target)
-                    -> SymEngine::RCP<const SymEngine::Basic>
+                [&](const SymEngine::vec_basic& args) -> SymEngine::RCP<const SymEngine::Basic>
                 {
                     return SymEngine::make_rcp<const TemporumOperator>(
-                        target, op.get_type()
+                        args[0], op.get_type()
                     );
-                }
+                },
+                op.get_target()
             );
         }
         else if (SymEngine::is_a_sub<const TemporumOverlap>(x)) {
-            replace_whole<const TemporumOverlap>(
-                SymEngine::down_cast<const TemporumOverlap&>(x)
-            );
+            replace_a_whole(SymEngine::down_cast<const TemporumOverlap&>(x));
         }
         else if (SymEngine::is_a_sub<const ZeroOperator>(x)) {
-            replace_whole<const ZeroOperator>(
-                SymEngine::down_cast<const ZeroOperator&>(x)
-            );
+            replace_a_whole(SymEngine::down_cast<const ZeroOperator&>(x));
         }
         else {
             SymEngine::MSubsVisitor::bvisit(x);
@@ -194,40 +167,43 @@ namespace Tinned
 
     void ReplaceVisitor::bvisit(const SymEngine::Trace& x)
     {
-        replace_one_arg_f<const SymEngine::Trace, const SymEngine::MatrixExpr>(
+        replace_a_function(
             x,
-            SymEngine::rcp_dynamic_cast<const SymEngine::MatrixExpr>(x.get_args()[0]),
-            [&](const SymEngine::RCP<const SymEngine::MatrixExpr>& arg)
-                -> SymEngine::RCP<const SymEngine::Basic>
+            [&](const SymEngine::vec_basic& args) -> SymEngine::RCP<const SymEngine::Basic>
             {
-                return SymEngine::trace(arg);
-            }
+                return SymEngine::trace(
+                    SymEngine::rcp_dynamic_cast<const SymEngine::MatrixExpr>(args[0])
+                );
+            },
+            SymEngine::rcp_dynamic_cast<const SymEngine::MatrixExpr>(x.get_args()[0])
         );
     }
 
     void ReplaceVisitor::bvisit(const SymEngine::ConjugateMatrix& x)
     {
-        replace_one_arg_f<const SymEngine::ConjugateMatrix, const SymEngine::MatrixExpr>(
+        replace_a_function(
             x,
-            x.get_arg(),
-            [&](const SymEngine::RCP<const SymEngine::MatrixExpr>& arg)
-                -> SymEngine::RCP<const SymEngine::Basic>
+            [&](const SymEngine::vec_basic& args) -> SymEngine::RCP<const SymEngine::Basic>
             {
-                return SymEngine::conjugate_matrix(arg);
-            }
+                return SymEngine::conjugate_matrix(
+                    SymEngine::rcp_dynamic_cast<const SymEngine::MatrixExpr>(args[0])
+                );
+            },
+            x.get_arg()
         );
     }
 
     void ReplaceVisitor::bvisit(const SymEngine::Transpose& x)
     {
-        replace_one_arg_f<const SymEngine::Transpose, const SymEngine::MatrixExpr>(
+        replace_a_function(
             x,
-            x.get_arg(),
-            [&](const SymEngine::RCP<const SymEngine::MatrixExpr>& arg)
-                -> SymEngine::RCP<const SymEngine::Basic>
+            [&](const SymEngine::vec_basic& args) -> SymEngine::RCP<const SymEngine::Basic>
             {
-                return SymEngine::transpose(arg);
-            }
+                return SymEngine::transpose(
+                    SymEngine::rcp_dynamic_cast<const SymEngine::MatrixExpr>(args[0])
+                );
+            },
+            x.get_arg()
         );
     }
 
@@ -249,9 +225,7 @@ namespace Tinned
             new_add = x.rcp_from_this();
         }
         // Next we check if the "new" `MatrixAdd` will be replaced as a whole
-        replace_whole<const SymEngine::MatrixAdd>(
-            SymEngine::down_cast<const SymEngine::MatrixAdd&>(*new_add)
-        );
+        replace_a_whole(SymEngine::down_cast<const SymEngine::MatrixAdd&>(*new_add));
     }
 
     void ReplaceVisitor::bvisit(const SymEngine::MatrixMul& x)
@@ -272,9 +246,7 @@ namespace Tinned
             new_mul = x.rcp_from_this();
         }
         // Next we check if the "new" `MatrixMul` will be replaced as a whole
-        replace_whole<const SymEngine::MatrixMul>(
-            SymEngine::down_cast<const SymEngine::MatrixMul&>(*new_mul)
-        );
+        replace_a_whole(SymEngine::down_cast<const SymEngine::MatrixMul&>(*new_mul));
     }
 
     void ReplaceVisitor::bvisit(const SymEngine::MatrixDerivative& x)
@@ -282,6 +254,6 @@ namespace Tinned
         // `MatrixDerivative` represents derivatives of a `MatrixSymbol`
         // object, so we need only check if `MatrixDerivative` will be replaced
         // as a whole instead of replacing the `MatrixSymbol` object
-        replace_whole<const SymEngine::MatrixDerivative>(x);
+        replace_a_whole(x);
     }
 }

@@ -50,9 +50,10 @@ namespace Tinned
 
     // Helper function to make a one-electron spin-orbital density matrix
     inline SymEngine::RCP<const OneElecDensity> make_1el_density(
-        const std::string& name
+        const std::string& name,
+        const SymEngine::multiset_basic& derivatives = {}
     )
     {
-        return SymEngine::make_rcp<const OneElecDensity>(name);
+        return SymEngine::make_rcp<const OneElecDensity>(name, derivatives);
     }
 }

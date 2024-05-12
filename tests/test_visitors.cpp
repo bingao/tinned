@@ -30,13 +30,7 @@ inline SymEngine::RCP<const SymEngine::Basic> make_ks_energy(
     return SymEngine::add({
         SymEngine::trace(SymEngine::matrix_mul({h, D})),
         SymEngine::trace(SymEngine::matrix_mul({V, D})),
-        SymEngine::make_rcp<const TwoElecEnergy>(
-            G->get_name(),
-            G->get_state(),
-            G->get_state(),
-            G->get_dependencies(),
-            G->get_derivatives()
-        ),
+        make_2el_energy(G),
         Exc,
         hnuc
     });
@@ -95,7 +89,7 @@ TEST_CASE("Test KeepVisitor and keep_if()", "[KeepVisitor]")
         *SymEngine::add({
             SymEngine::trace(SymEngine::matrix_mul({h, D})),
             SymEngine::trace(SymEngine::matrix_mul({V, D})),
-            make_2el_energy(G->get_name(), G),
+            make_2el_energy(G),
             Exc
         })
     ));
@@ -106,6 +100,8 @@ TEST_CASE("Test KeepVisitor and keep_if()", "[KeepVisitor]")
     auto D_a = SymEngine::rcp_dynamic_cast<const ElectronicState>(D->diff(a));
     auto h_a = SymEngine::rcp_dynamic_cast<const OneElecOperator>(h->diff(a));
     auto V_a = SymEngine::rcp_dynamic_cast<const OneElecOperator>(V->diff(a));
+    //FIXME: The following construction of `Ga` is not recommended because
+    // `derivatives` are not checked against `dependencies`
     auto Ga = SymEngine::make_rcp<const TwoElecOperator>(
         G->get_name(), D, dependencies, SymEngine::multiset_basic({a})
     );
@@ -136,32 +132,22 @@ TEST_CASE("Test KeepVisitor and keep_if()", "[KeepVisitor]")
         *SymEngine::trace(SymEngine::matrix_mul({h_a, D}))
     ));
     // Unperturbed two-electron operator contracted with perturbed density matrix
-    auto E2_Da = SymEngine::make_rcp<const TwoElecEnergy>(
-        G->get_name(),
-        G->get_state(),
-        D_a,
-        G->get_dependencies(),
-        G->get_derivatives()
-    );
+    auto E2_Da = make_2el_energy(G, D_a);
     REQUIRE(SymEngine::eq(
-        *keep_if(E_a, SymEngine::set_basic({E2_Da})),
+        *keep_if(E_a, SymEngine::set_basic({G})),
         *SymEngine::mul(SymEngine::two, E2_Da)
     ));
     // Perturbed two-electron operator contracted with unperturbed density matrix
-    auto E2a_D = SymEngine::make_rcp<const TwoElecEnergy>(
-        Ga->get_name(),
-        Ga->get_state(),
-        D,
-        Ga->get_dependencies(),
-        Ga->get_derivatives()
-    );
-    REQUIRE(SymEngine::eq(*keep_if(E_a, SymEngine::set_basic({E2a_D})), *E2a_D));
+    REQUIRE(SymEngine::eq(
+        *keep_if(E_a, SymEngine::set_basic({Ga})),
+        *make_2el_energy(Ga, D)
+    ));
     REQUIRE(SymEngine::eq(
         *keep_if(E_a, SymEngine::set_basic({D})),
         *SymEngine::add({
             SymEngine::trace(SymEngine::matrix_mul({h_a, D})),
             SymEngine::trace(SymEngine::matrix_mul({V_a, D})),
-            make_2el_energy(G->get_name(), G)->diff(a),
+            make_2el_energy(G)->diff(a),
             Exc_a
         })
     ));
@@ -170,20 +156,8 @@ TEST_CASE("Test KeepVisitor and keep_if()", "[KeepVisitor]")
         *SymEngine::add({
             SymEngine::trace(SymEngine::matrix_mul({h, D_a})),
             SymEngine::trace(SymEngine::matrix_mul({V, D_a})),
-            SymEngine::make_rcp<const TwoElecEnergy>(
-                G->get_name(),
-                G->get_state(),
-                D_a,
-                G->get_dependencies(),
-                G->get_derivatives()
-            ),
-            SymEngine::make_rcp<const TwoElecEnergy>(
-                G_Da->get_name(),
-                G_Da->get_state(),
-                D,
-                G_Da->get_dependencies(),
-                G_Da->get_derivatives()
-            ),
+            E2_Da,
+            make_2el_energy(G_Da, D),
             Exc_Da
         })
     ));
@@ -259,55 +233,13 @@ TEST_CASE("Test KeepVisitor and keep_if()", "[KeepVisitor]")
         *SymEngine::add({
             SymEngine::trace(SymEngine::matrix_mul({h_ab, D})),
             SymEngine::trace(SymEngine::matrix_mul({V_ab, D})),
-            SymEngine::make_rcp<const TwoElecEnergy>(
-                Gb->get_name(),
-                Gb->get_state(),
-                D_a,
-                Gb->get_dependencies(),
-                Gb->get_derivatives()
-            ),
-            SymEngine::make_rcp<const TwoElecEnergy>(
-                G->get_name(),
-                G->get_state(),
-                D_ab,
-                G->get_dependencies(),
-                G->get_derivatives()
-            ),
-            SymEngine::make_rcp<const TwoElecEnergy>(
-                Gb_Da->get_name(),
-                Gb_Da->get_state(),
-                D,
-                Gb_Da->get_dependencies(),
-                Gb_Da->get_derivatives()
-            ),
-            SymEngine::make_rcp<const TwoElecEnergy>(
-                G_Dab->get_name(),
-                G_Dab->get_state(),
-                D,
-                G_Dab->get_dependencies(),
-                G_Dab->get_derivatives()
-            ),
-            SymEngine::make_rcp<const TwoElecEnergy>(
-                Ga_Db->get_name(),
-                Ga_Db->get_state(),
-                D,
-                Ga_Db->get_dependencies(),
-                Ga_Db->get_derivatives()
-            ),
-            SymEngine::make_rcp<const TwoElecEnergy>(
-                Ga->get_name(),
-                Ga->get_state(),
-                D_b,
-                Ga->get_dependencies(),
-                Ga->get_derivatives()
-            ),
-            SymEngine::make_rcp<const TwoElecEnergy>(
-                Gab->get_name(),
-                Gab->get_state(),
-                D,
-                Gab->get_dependencies(),
-                Gab->get_derivatives()
-            ),
+            make_2el_energy(Gb, D_a),
+            make_2el_energy(G, D_ab),
+            make_2el_energy(Gb_Da, D),
+            make_2el_energy(G_Dab, D),
+            make_2el_energy(Ga_Db, D),
+            make_2el_energy(Ga, D_b),
+            make_2el_energy(Gab, D),
             Exc_ab
         })
     ));
@@ -551,27 +483,9 @@ TEST_CASE("Test RemoveVisitor and remove_if()", "[RemoveVisitor]")
             SymEngine::trace(SymEngine::matrix_mul({V_ab, D})),
             // `TwoElecEnergy` considers trace(G(N)*M) = trace(G(M)*N),
             // Equation (210), J. Chem. Phys. 129, 214108 (2008)
-            SymEngine::make_rcp<const TwoElecEnergy>(
-                Ga->get_name(),
-                Ga->get_state(),
-                D_b,
-                Ga->get_dependencies(),
-                Ga->get_derivatives()
-            ),
-            SymEngine::make_rcp<const TwoElecEnergy>(
-                Gab->get_name(),
-                Gab->get_state(),
-                D,
-                Gab->get_dependencies(),
-                Gab->get_derivatives()
-            ),
-            SymEngine::make_rcp<const TwoElecEnergy>(
-                Ga_Db->get_name(),
-                Ga_Db->get_state(),
-                D,
-                Ga_Db->get_dependencies(),
-                Ga_Db->get_derivatives()
-            ),
+            make_2el_energy(Ga, D_b),
+            make_2el_energy(Gab, D),
+            make_2el_energy(Ga_Db, D),
             Exc_ab_D,
             hnuc_ab
         })

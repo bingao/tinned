@@ -39,8 +39,6 @@ namespace Tinned
             unsigned int max_num_symbols_;
             // Current number of functions/operators per line
             unsigned int curr_num_symbols_;
-            // If the newline is allowed or not
-            bool newline_allowed_;
             // Indicates if zero factor(s) exists in a multiplication
             bool zero_factor_;
 
@@ -73,7 +71,7 @@ namespace Tinned
             )
             {
                 curr_num_symbols_ += num_symbols;
-                if (newline_allowed_ && curr_num_symbols_>=max_num_symbols_) {
+                if (curr_num_symbols_>=max_num_symbols_) {
                     expr += str_newline_;
                     curr_num_symbols_ = 0;
                 }
@@ -129,7 +127,6 @@ namespace Tinned
               : str_newline_("\\\\\n&"),
                 max_num_symbols_(max_num_symbols),
                 curr_num_symbols_(0),
-                newline_allowed_(true),
                 zero_factor_(false) {}
 
             using SymEngine::LatexPrinter::bvisit;

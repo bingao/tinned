@@ -7,6 +7,10 @@
 
    This file is the header file of two-electron like energies.
 
+   2024-05-11, Bin Gao:
+   * store SymEngine::RCP<const TwoElecOperator> `G_(inner_)` and
+     SymEngine::RCP<const ElectronicState> `outer_` as member variables
+
    2024-05-09, Bin Gao:
    * sort states according to their `compare` function
 
@@ -34,36 +38,14 @@ namespace Tinned
     class TwoElecEnergy: public SymEngine::FunctionWrapper
     {
         protected:
-//FIXME: store SymEngine::RCP<const TwoElecOperator> and SymEngine::RCP<const ElectronicState> outer_
-            // Electron states (may contain derivatives) that the two-electron
-            // energy is represented as Tr[G(`inner_`)*`outer_`]
-            SymEngine::RCP<const ElectronicState> inner_;
+            // Two-electron energy is represented as tr[\frac{1}{2}*`G(inner_)`*`outer_`]
+            SymEngine::RCP<const TwoElecOperator> G_;
             SymEngine::RCP<const ElectronicState> outer_;
-            // dependencies_ stores perturbations that the operator depends on
-            // and their maximum orders that can be differentiated
-            PertDependency dependencies_;
-            // derivatives_ holds derivatives with respect to perturbations
-            SymEngine::multiset_basic derivatives_;
-
-            // Sort `inner_` and `outer_` according to their `compare` function
-            // For `SymEngine::FunctionWrapper` constructor, see
-            // https://stackoverflow.com/a/32702783
-            inline SymEngine::vec_basic sort_states(
-                const SymEngine::RCP<const ElectronicState>& inner,
-                const SymEngine::RCP<const ElectronicState>& outer
-            ) const
-            {
-                if (inner->compare(*outer)<=0) {
-                    return SymEngine::vec_basic({inner, outer});
-                }
-                else {
-                    return SymEngine::vec_basic({outer, inner});
-                }
-            }
 
         public:
-            //! Constructor
-            // `derivatives` may be used only for `diff_impl()`
+            //! Constructor for given density matrices, the two-electron
+            //  operator will be constructed from `name`, `inner`,
+            //  `dependencies` and `derivatives`
             explicit TwoElecEnergy(
                 const std::string& name,
                 const SymEngine::RCP<const ElectronicState>& inner,
@@ -72,10 +54,17 @@ namespace Tinned
                 const SymEngine::multiset_basic& derivatives = {}
             );
 
+            //! Constructor for a given two-electron operator and an outer
+            //  density matrix
+            explicit TwoElecEnergy(
+                const SymEngine::RCP<const TwoElecOperator>& G,
+                const SymEngine::RCP<const ElectronicState>& outer
+            );
+
             SymEngine::hash_t __hash__() const override;
             bool __eq__(const SymEngine::Basic& o) const override;
             int compare(const SymEngine::Basic& o) const override;
-            //SymEngine::vec_basic get_args() const override;
+            SymEngine::vec_basic get_args() const override;
 
             SymEngine::RCP<const SymEngine::Basic> create(
                 const SymEngine::vec_basic &v
@@ -85,10 +74,16 @@ namespace Tinned
                 const SymEngine::RCP<const SymEngine::Symbol> &s
             ) const override;
 
+            // Get two-electron operator
+            inline SymEngine::RCP<const TwoElecOperator> get_2el_operator() const
+            {
+                return G_;
+            }
+
             // Get inner electronic state
             inline SymEngine::RCP<const ElectronicState> get_inner_state() const
             {
-                return inner_;
+                return G_->get_state();
             }
 
             // Get outer electronic state
@@ -100,13 +95,13 @@ namespace Tinned
             // Get dependencies
             inline PertDependency get_dependencies() const
             {
-                return dependencies_;
+                return G_->get_dependencies();
             }
 
             // Get derivatives
             inline SymEngine::multiset_basic get_derivatives() const
             {
-                return derivatives_;
+                return G_->get_derivatives();
             }
     };
 
@@ -127,12 +122,12 @@ namespace Tinned
     // Helper function to make a two-electron like energy from
     // `TwoElecOperator`
     inline SymEngine::RCP<const TwoElecEnergy> make_2el_energy(
-        const std::string& name,
-        const SymEngine::RCP<const TwoElecOperator>& G
+        const SymEngine::RCP<const TwoElecOperator>& G,
+        const SymEngine::RCP<const ElectronicState>& outer = SymEngine::RCP<const ElectronicState>()
     )
     {
-        return SymEngine::make_rcp<const TwoElecEnergy>(
-            name, G->get_state(), G->get_state(), G->get_dependencies()
-        );
+        return outer.is_null()
+            ? SymEngine::make_rcp<const TwoElecEnergy>(G, G->get_state())
+            : SymEngine::make_rcp<const TwoElecEnergy>(G, outer);
     }
 }

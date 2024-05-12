@@ -41,6 +41,7 @@
 #include <symengine/visitor.h>
 
 #include "Tinned/PertDependency.hpp"
+#include "Tinned/TwoElecOperator.hpp"
 
 namespace Tinned
 {
@@ -49,15 +50,6 @@ namespace Tinned
         protected:
             SymEngine::set_basic result_;
             SymEngine::RCP<const SymEngine::Basic> symbol_;
-
-            // Template method for objects that compares only the names
-            template<typename T> inline void find_only_name(T& x)
-            {
-                if (SymEngine::is_a_sub<T>(*symbol_)) {
-                    auto s = SymEngine::rcp_dynamic_cast<T>(symbol_);
-                    if (x.get_name()==s->get_name()) result_.insert(x.rcp_from_this());
-                }
-            }
 
             // Template method for objects that requires equivalence comparison
             template<typename T> inline bool find_equivalence(T& x)
@@ -69,19 +61,74 @@ namespace Tinned
                 return false;
             }
 
+            // Template method for objects that compares only the names
+            template<typename T> inline bool find_only_name(T& x)
+            {
+                if (SymEngine::is_a_sub<T>(*symbol_)) {
+                    auto s = SymEngine::rcp_dynamic_cast<T>(symbol_);
+                    if (x.get_name()==s->get_name()) {
+                        result_.insert(x.rcp_from_this());
+                        return true;
+                    }
+                }
+                return false;
+            }
+
             // Template method for objects without arguments, we compare only
             // their names and dependencies
-            template<typename T> inline bool find_with_dependencies(T& x)
+            template<typename T> inline void find_with_dependencies(T& x)
             {
                 if (SymEngine::is_a_sub<T>(*symbol_)) {
                     auto s = SymEngine::rcp_dynamic_cast<T>(symbol_);
                     if (x.get_name()==s->get_name() &&
                         eq_dependency(x.get_dependencies(), s->get_dependencies())) {
                         result_.insert(x.rcp_from_this());
+                    }
+                }
+            }
+
+            // Template method for one argument function like classes and the
+            // name of the function does not matter
+            template<typename Fun, typename Arg>
+            inline void find_one_arg_f(
+                Fun& x,
+                const SymEngine::RCP<Arg>& arg,
+                std::function<FindAllVisitor(const SymEngine::RCP<Fun>&)> make_visitor
+            )
+            {
+                // If the type of `symbol_` to find is `Fun`, we make a new
+                // `FindAllVisitor` to compare their arguments instead of
+                // comparing them directly!
+                if (SymEngine::is_a_sub<Fun>(*symbol_)) {
+                    auto v = make_visitor(SymEngine::rcp_dynamic_cast<Fun>(symbol_));
+                    if (!v.apply(arg).empty()) result_.insert(x.rcp_from_this());
+                }
+                // If the type of `symbol_` is not `Fun`, we then check if its
+                // argument is what we try to find
+                else {
+                    apply_(arg);
+                }
+            }
+
+            // If a `TwoElecOperator` object is what we need to find
+            inline bool find_2el_operator(const TwoElecOperator& x)
+            {
+                if (SymEngine::is_a_sub<const TwoElecOperator>(*symbol_)) {
+                    auto s = SymEngine::rcp_dynamic_cast<const TwoElecOperator>(symbol_);
+                    if (x.get_name()==s->get_name() &&
+                        eq_dependency(x.get_dependencies(), s->get_dependencies()) &&
+                        x.get_state()->get_name()==s->get_state()->get_name()) {
+                        result_.insert(x.rcp_from_this());
                         return true;
                     }
                 }
                 return false;
+            }
+
+            // Method called by objects to prcess their argument(s)
+            inline void apply_(const SymEngine::RCP<const SymEngine::Basic>& x)
+            {
+                x->accept(*this);
             }
 
         public:

@@ -50,25 +50,22 @@ namespace Tinned
         }
         else if (SymEngine::is_a_sub<const TwoElecEnergy>(x)) {
             auto& op = SymEngine::down_cast<const TwoElecEnergy&>(x);
-            auto str_op = latexify_operator(op.get_name(), op.get_derivatives());
-            newline_allowed_ = false;
-            auto str_inner = latexify_state(op.get_inner_state());
-            auto str_outer = latexify_state(op.get_outer_state());
-            str_ = "\\mathrm{tr}[\\tfrac{1}{2}" + str_op
-                 + parenthesize(str_inner) + str_outer + "]";
-            newline_allowed_ = true;
-            update_num_symbols(1, str_);
+            std::ostringstream o;
+            // `print_mul` is necessary, in particular if `apply` ends with a newline
+            o << "\\tfrac{1}{2}"
+              << apply(op.get_2el_operator())
+              << print_mul()
+              << latexify_state(op.get_outer_state());
+            str_ = latexify_operator(op.get_name(), {}, OperFontStyle::Regular)
+                 + parenthesize(o.str());
         }
         else if (SymEngine::is_a_sub<const CompositeFunction>(x)) {
             auto& op = SymEngine::down_cast<const CompositeFunction&>(x);
+            std::ostringstream o;
+            o << op.get_name();
             auto order = op.get_order();
-            auto str_op = order>0
-                ? op.get_name() + "^{" + parenthesize(std::to_string(order)) + "}"
-                : op.get_name();
-            newline_allowed_ = false;
-            str_ = str_op + parenthesize(apply(op.get_inner()));
-            newline_allowed_ = true;
-            update_num_symbols(1, str_);
+            if (order>0) o << "^{" << parenthesize(std::to_string(order)) << "}";
+            str_ = o.str() + parenthesize(apply(op.get_inner()));
         }
         else if (SymEngine::is_a_sub<const ExchCorrEnergy>(x)) {
             auto& op = SymEngine::down_cast<const ExchCorrEnergy&>(x);
@@ -182,11 +179,8 @@ namespace Tinned
         }
         else if (SymEngine::is_a_sub<const TwoElecOperator>(x)) {
             auto& op = SymEngine::down_cast<const TwoElecOperator&>(x);
-            auto str_op = latexify_operator(op.get_name(), op.get_derivatives());
-            newline_allowed_ = false;
-            auto str_state = latexify_state(op.get_state());
-            str_ = str_op + parenthesize(str_state);
-            newline_allowed_ = true;
+            str_ = latexify_operator(op.get_name(), op.get_derivatives())
+                 + parenthesize(latexify_state(op.get_state()));
             update_num_symbols(1, str_);
         }
         else if (SymEngine::is_a_sub<const ExchCorrPotential>(x)) {

@@ -67,22 +67,18 @@ namespace Tinned
         }
         else if (SymEngine::is_a_sub<const TwoElecEnergy>(x)) {
             auto& op = SymEngine::down_cast<const TwoElecEnergy&>(x);
-            auto str_eri = stringify_operator(
-                std::string("ERI"), op.get_derivatives(), op.get_dependencies()
-            );
-            auto str_inner = stringify_state(op.get_inner_state());
-            auto str_outer = stringify_state(op.get_outer_state());
-            str_ = "tr" + square_bracket(
-                "1/2*"+op.get_name()+parenthesize(str_eri+", "+str_inner)+"*"+str_outer
-            );
+            std::ostringstream o;
+            o << "1/2*" << apply(op.get_2el_operator())
+              << "*" << stringify_state(op.get_outer_state());
+            str_ = op.get_name() + square_bracket(o.str());
         }
         else if (SymEngine::is_a_sub<const CompositeFunction>(x)) {
             auto& op = SymEngine::down_cast<const CompositeFunction&>(x);
+            std::ostringstream o;
+            o << op.get_name();
             auto order = op.get_order();
-            auto str_op = order>0
-                        ? op.get_name() + "^" + parenthesize(std::to_string(order))
-                        : op.get_name();
-            str_ = str_op + parenthesize(apply(op.get_inner()));
+            if (order>0) o << "^" << parenthesize(std::to_string(order));
+            str_ = o.str() + parenthesize(apply(op.get_inner()));
         }
         else if (SymEngine::is_a_sub<const ExchCorrEnergy>(x)) {
             auto& op = SymEngine::down_cast<const ExchCorrEnergy&>(x);
@@ -111,11 +107,11 @@ namespace Tinned
         }
         else if (SymEngine::is_a_sub<const TwoElecOperator>(x)) {
             auto& op = SymEngine::down_cast<const TwoElecOperator&>(x);
-            auto str_eri = stringify_operator(
-                std::string("ERI"), op.get_derivatives(), op.get_dependencies()
-            );
-            auto str_state = stringify_state(op.get_state());
-            str_ = op.get_name() + parenthesize(str_eri+", "+str_state);
+            std::ostringstream o;
+            o << stringify_operator(std::string("ERI"), op.get_derivatives(), op.get_dependencies())
+              << ", "
+              << stringify_state(op.get_state());
+            str_ = op.get_name() + parenthesize(o.str());
         }
         else if (SymEngine::is_a_sub<const ExchCorrPotential>(x)) {
             auto& op = SymEngine::down_cast<const ExchCorrPotential&>(x);

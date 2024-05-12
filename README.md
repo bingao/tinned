@@ -74,6 +74,12 @@ for computational chemistry include:
     \left(\text{ad}_{\hat{T}^{b_{Q_{j}}}}\right)(\hat{H}^{b_{P}})\right)$ with
   $1\le j_{\max}\le3$.
 
+**It is recommended that one uses helper functions in Tinned library to create
+objects of any above classes.** These helper functions are defined and
+implemented in the corresponding [header files](include/Tinned), and are named
+as `make_...()`. Users can refer to comments in these header files for the use
+of helper functions.
+
 To facilitate the development of response theory, the following functions are
 provided by Tinned:
 
@@ -110,7 +116,7 @@ provided by Tinned:
   and corresponding derivatives. Template parameter `T` is the type of those
   Tinned objects.
 
-**One should note that**:
+**One should note that:**
 
 * Functions `remove_zeros`, `remove_if`, `keep_if` and `eliminate` may
   return a null pointer `SymEngine::RCP<const SymEngine::Basic>()` when no
@@ -173,8 +179,10 @@ More examples can be found in Tinned tests in the directory `tests`.
 ## TODO
 
 * Support coupled-cluster classes in all visitor classes.
-* Test newly added coupled-cluster classes and visitors `EliminationVisitor`,
-  `TemporumCleaner`, `ZerosRemover`.
+* Test newly added `TwoElecEnergy` and coupled-cluster classes, and visitors
+  `EliminationVisitor`, `TemporumCleaner`, `ZerosRemover`.
+* Should we verify dependencies and derivatives for some operator classes'
+  constructors when the derivatives are not empty?
 * More tests on `ExchCorrPotential::get_potential_map`.
 * Add tests for functions `ExchCorrEnergy::get_energy_terms` and
   `ExchCorrPotential::get_potential_terms`.

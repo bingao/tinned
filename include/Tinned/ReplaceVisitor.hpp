@@ -7,6 +7,10 @@
 
    This file is the header file of symbolic replacement.
 
+   2024-05-12, Bin Gao:
+   * implement function templates `replace_a_function` and `replace_arguments`
+     for the replacement of a function like object with one or more arguments
+
    2023-09-24, Bin Gao:
    * first version
 */
@@ -35,49 +39,79 @@ namespace Tinned
     {
         protected:
             // Template method that replaces `x` as a whole
-            template<typename T> inline void replace_whole(T& x)
+            template<typename T> inline bool replace_a_whole(T& x)
             {
                 for (const auto& p: subs_dict_) {
                     if (SymEngine::eq(x, *p.first)) {
                         result_ = p.second;
-                        return;
+                        return true;
                     }
                 }
                 result_ = x.rcp_from_this();
+                return false;
             }
 
-            // Template method for one argument function like classes
-            template<typename Fun, typename Arg>
-            inline void replace_one_arg_f(
-                Fun& x,
-                const SymEngine::RCP<Arg>& arg,
-                std::function<SymEngine::RCP<const SymEngine::Basic>(
-                    const SymEngine::RCP<Arg>&
-                )> constructor
+            // Template method for replacing one argument.
+            template<typename Arg> inline void replace_arguments(
+                SymEngine::vec_basic& f_args,
+                bool& has_arg_replaced,
+                const Arg& arg
             )
             {
-                // We first check if the argument will be replaced
                 auto new_arg = apply(arg);
-                SymEngine::RCP<const SymEngine::Basic> new_fun;
-                if (SymEngine::eq(*arg, *new_arg)) {
-                    new_fun = x.rcp_from_this();
+                f_args.push_back(new_arg);
+                if (SymEngine::neq(*arg, *new_arg)) has_arg_replaced = true;
+            }
+
+            // Template method for replacing one or more arguments. `f_args`
+            // holds all arguments, either replaced or original ones.
+            // `has_arg_replaced` indicates if one or more arguments are
+            // replaced.
+            template<typename FirstArg, typename... Args>
+            inline void replace_arguments(
+                SymEngine::vec_basic& f_args,
+                bool& has_arg_replaced,
+                const FirstArg& first_arg, const Args&... args
+            )
+            {
+                replace_arguments(f_args, has_arg_replaced, first_arg);
+                replace_arguments(f_args, has_arg_replaced, args...);
+            }
+
+            // Template method for a function like object with one or more arguments
+            template<typename Fun, typename FirstArg, typename... Args>
+            inline void replace_a_function(
+                const Fun& x,
+                std::function<SymEngine::RCP<const SymEngine::Basic>(
+                    const SymEngine::vec_basic&
+                )> constructor,
+                const FirstArg& first_arg,
+                const Args&... args
+            )
+            {
+                // We first check if the function will be replaced as a whole
+                if (!replace_a_whole(x)) {
+                    // If the function is not replaced, we then perform the
+                    // replacement of its arguments
+                    auto f_args = SymEngine::vec_basic({});
+                    auto has_arg_replaced = false;
+                    replace_arguments(f_args, has_arg_replaced, first_arg, args...);
+                    if (has_arg_replaced) {
+                        result_ = constructor(f_args);
+                    }
+                    else {
+                        result_ = x.rcp_from_this();
+                    }
                 }
-                else {
-                    new_fun = constructor(SymEngine::rcp_dynamic_cast<Arg>(new_arg));
-                }
-                // Next we check if the "new" function will be replaced
-                replace_whole<Fun>(SymEngine::down_cast<const Fun&>(*new_fun));
             }
 
         public:
             explicit ReplaceVisitor(
                 const SymEngine::map_basic_basic& subs_dict_,
-                bool cache = true
+                bool cache = false
             ) : SymEngine::BaseVisitor<ReplaceVisitor, SymEngine::MSubsVisitor>(
                     subs_dict_, cache
-                )
-            {
-            }
+                ) {}
 
             using SymEngine::MSubsVisitor::bvisit;
             void bvisit(const SymEngine::FunctionSymbol& x);

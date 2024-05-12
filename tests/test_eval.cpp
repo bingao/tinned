@@ -467,7 +467,10 @@ class FunMockEvaluator: public FunctionEvaluator<SymEngine::RCP<const SymEngine:
                 x.get_outer_state()->get_derivatives()
             );
             return mock_2el_energy(
-                x.get_dependencies(), x.get_derivatives(), inner, outer
+                x.get_2el_operator()->get_dependencies(),
+                x.get_2el_operator()->get_derivatives(),
+                inner,
+                outer
             );
         }
 

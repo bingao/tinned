@@ -2,6 +2,7 @@
 #include <symengine/symengine_assert.h>
 #include <symengine/symengine_casts.h>
 #include <symengine/symengine_exception.h>
+#include <symengine/matrices/matrix_add.h>
 
 #include "Tinned/TwoElecEnergy.hpp"
 
@@ -13,32 +14,53 @@ namespace Tinned
         const SymEngine::RCP<const ElectronicState>& outer,
         const PertDependency& dependencies,
         const SymEngine::multiset_basic& derivatives
-    ) : SymEngine::FunctionWrapper(name, sort_states(inner, outer))
+    ) : SymEngine::FunctionWrapper(name, SymEngine::vec_basic({}))
     {
         // For numerical evaulation, one may put fewer density matrices in the
         // innermost loop. But we do not know the number of components of each
         // perturbation in Tinned, we also do not know the number of components
         // of high order differentiation with respect to a same perturbation.
         // So we simply rearrange inner_ and outer_ according to their
-        // `compare` function.
+        // `compare` function, which helps the collection of equal
+        // `TwoElecEnergy` objects.
         if (inner->compare(*outer)<=0) {
-            inner_ = inner;
+            G_ = SymEngine::make_rcp<const TwoElecOperator>(
+                name, inner, dependencies, derivatives
+            );
             outer_ = outer;
         }
         else {
-            inner_ = outer;
+            G_ = SymEngine::make_rcp<const TwoElecOperator>(
+                name, outer, dependencies, derivatives
+            );
             outer_ = inner;
         }
-        dependencies_ = dependencies;
-        derivatives_ = derivatives;
         SYMENGINE_ASSIGN_TYPEID()
+    }
+
+    TwoElecEnergy::TwoElecEnergy(
+        const SymEngine::RCP<const TwoElecOperator>& G,
+        const SymEngine::RCP<const ElectronicState>& outer
+    ) : SymEngine::FunctionWrapper(G->get_name(), SymEngine::vec_basic({}))
+    {
+        auto inner = G->get_state();
+        if (inner->compare(*outer)<=0) {
+            G_ = G;
+            outer_ = outer;
+        }
+        else {
+            G_ = SymEngine::make_rcp<const TwoElecOperator>(
+                G->get_name(), outer, G->get_dependencies(), G->get_derivatives()
+            );
+            outer_ = inner;
+        }
     }
 
     SymEngine::hash_t TwoElecEnergy::__hash__() const
     {
         SymEngine::hash_t seed = SymEngine::FunctionWrapper::__hash__();
-        hash_dependency(seed, dependencies_);
-        for (auto& p: derivatives_) SymEngine::hash_combine(seed, *p);
+        SymEngine::hash_combine(seed, *G_);
+        SymEngine::hash_combine(seed, *outer_);
         return seed;
     }
 
@@ -47,9 +69,7 @@ namespace Tinned
         if (SymEngine::is_a_sub<const TwoElecEnergy>(o)) {
             auto& op = SymEngine::down_cast<const TwoElecEnergy&>(o);
             return get_name()==op.get_name()
-                && SymEngine::unified_eq(get_vec(), op.get_vec())
-                && SymEngine::unified_eq(derivatives_, op.derivatives_)
-                && eq_dependency(dependencies_, op.dependencies_);
+                && G_->__eq__(*op.G_) && outer_->__eq__(*op.outer_);
         }
         return false;
     }
@@ -59,28 +79,18 @@ namespace Tinned
         SYMENGINE_ASSERT(SymEngine::is_a_sub<const TwoElecEnergy>(o))
         auto& op = SymEngine::down_cast<const TwoElecEnergy&>(o);
         if (get_name()==op.get_name()) {
-            int result = SymEngine::unified_compare(get_vec(), op.get_vec());
-            if (result==0) {
-                result = SymEngine::unified_compare(derivatives_, op.derivatives_);
-                return result==0
-                    ? SymEngine::ordered_compare(dependencies_, op.dependencies_)
-                    : result;
-            }
-            else {
-                return result;
-            }
+            int result = G_->compare(*op.G_);
+            return result==0 ? outer_->compare(*op.outer_) : result;
         }
         else {
             return get_name()<op.get_name() ? -1 : 1;
         }
     }
 
-    //SymEngine::vec_basic TwoElecEnergy::get_args() const
-    //{
-    //    SymEngine::vec_basic args = dependency_to_vector(dependencies_);
-    //    args.insert(args.end(), derivatives_.begin(), derivatives_.end());
-    //    return args;
-    //}
+    SymEngine::vec_basic TwoElecEnergy::get_args() const
+    {
+        return SymEngine::vec_basic({G_, outer_});
+    }
 
     SymEngine::RCP<const SymEngine::Basic> TwoElecEnergy::create(
         const SymEngine::vec_basic &v
@@ -98,45 +108,31 @@ namespace Tinned
         const SymEngine::RCP<const SymEngine::Symbol>& s
     ) const
     {
-        // tr(contr(g, inner_->diff(s)), outer_)
-        auto diff_inner = SymEngine::rcp_dynamic_cast<const ElectronicState>(
-            inner_->diff(s)
-        );
-        auto op_diff_inner = SymEngine::make_rcp<const TwoElecEnergy>(
-            get_name(), diff_inner, outer_, dependencies_, derivatives_
-        );
-        // tr(contr(g, inner_), outer_->diff(s))
-        auto diff_outer = SymEngine::rcp_dynamic_cast<const ElectronicState>(
-            outer_->diff(s)
-        );
-        auto op_diff_outer = SymEngine::make_rcp<const TwoElecEnergy>(
-            get_name(), inner_, diff_outer, dependencies_, derivatives_
-        );
-        auto max_order = find_dependency(dependencies_, s);
-        if (max_order>0) {
-            auto order = derivatives_.count(s) + 1;
-            if (order<=max_order) {
-                auto derivatives = derivatives_;
-                derivatives.insert(s);
-                return SymEngine::add({
-                    // tr(contr(g->diff(s), inner_), outer_)
-                    SymEngine::make_rcp<const TwoElecEnergy>(
-                        get_name(),
-                        inner_,
-                        outer_,
-                        dependencies_,
-                        derivatives
-                    ),
-                    op_diff_inner,
-                    op_diff_outer
-                });
-            }
-            else {
-                return SymEngine::add(op_diff_inner, op_diff_outer);
-            }
+        // tr(contr(g_, inner_), outer_->diff(s))
+        auto terms = SymEngine::vec_basic({
+            SymEngine::make_rcp<const TwoElecEnergy>(
+                G_, SymEngine::rcp_dynamic_cast<const ElectronicState>(outer_->diff(s))
+            )
+        });
+        // tr(contr(g_, inner_)->diff(s), outer_), where contr(g_, inner_)->diff(s)
+        // is either `TwoElecOperator` or `SymEngine::MatrixAdd`, see
+        // `src/TwoElecOperator.cpp`
+        auto diff_G = G_->diff(s);
+        if (SymEngine::is_a_sub<const TwoElecOperator>(*diff_G)) {
+            terms.push_back(SymEngine::make_rcp<const TwoElecEnergy>(
+                SymEngine::rcp_dynamic_cast<const TwoElecOperator>(diff_G), outer_
+            ));
         }
         else {
-            return SymEngine::add(op_diff_inner, op_diff_outer);
+            SYMENGINE_ASSERT(SymEngine::is_a_sub<const SymEngine::MatrixAdd>(*diff_G))
+            auto op = SymEngine::rcp_dynamic_cast<const SymEngine::MatrixAdd>(diff_G);
+            for (const auto& arg: op->get_args()) {
+                SYMENGINE_ASSERT(SymEngine::is_a_sub<const TwoElecOperator>(*arg))
+                terms.push_back(SymEngine::make_rcp<const TwoElecEnergy>(
+                    SymEngine::rcp_dynamic_cast<const TwoElecOperator>(arg), outer_
+                ));
+            }
         }
+        return SymEngine::add(terms);
     }
 }

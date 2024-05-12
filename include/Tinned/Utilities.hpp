@@ -107,7 +107,6 @@ namespace Tinned
             }
         }
         if (diff_subs_dict.empty()) return x;
-        ReplaceVisitor visitor(diff_subs_dict, false);
-        return visitor.apply(x);
+        return replace(x, diff_subs_dict);
     }
 }

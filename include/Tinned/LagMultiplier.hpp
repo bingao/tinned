@@ -67,9 +67,10 @@ namespace Tinned
 
     // Helper function to make a vector Lagrangian multipliers
     inline SymEngine::RCP<const LagMultiplier> make_lagrangian_multiplier(
-        const std::string& name
+        const std::string& name,
+        const SymEngine::multiset_basic& derivatives = {}
     )
     {
-        return SymEngine::make_rcp<const LagMultiplier>(name);
+        return SymEngine::make_rcp<const LagMultiplier>(name, derivatives);
     }
 }

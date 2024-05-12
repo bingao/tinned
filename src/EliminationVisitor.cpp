@@ -170,14 +170,10 @@ namespace Tinned
     void EliminationVisitor::bvisit(const SymEngine::MatrixSymbol& x)
     {
         if (SymEngine::is_a_sub<const LagMultiplier>(x)) {
-            eliminate_parameter<const LagMultiplier>(
-                SymEngine::down_cast<const LagMultiplier&>(x)
-            );
+            eliminate_parameter(SymEngine::down_cast<const LagMultiplier&>(x));
         }
         else if (SymEngine::is_a_sub<const OneElecDensity>(x)) {
-            eliminate_parameter<const OneElecDensity>(
-                SymEngine::down_cast<const OneElecDensity&>(x)
-            );
+            eliminate_parameter(SymEngine::down_cast<const OneElecDensity&>(x));
         }
         else if (SymEngine::is_a_sub<const OneElecOperator>(x)) {
             result_ = x.rcp_from_this();
