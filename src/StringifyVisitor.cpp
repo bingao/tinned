@@ -70,7 +70,7 @@ namespace Tinned
             std::ostringstream o;
             o << "1/2*" << apply(op.get_2el_operator())
               << "*" << stringify_state(op.get_outer_state());
-            str_ = op.get_name() + square_bracket(o.str());
+            str_ = "tr" + square_bracket(o.str());
         }
         else if (SymEngine::is_a_sub<const CompositeFunction>(x)) {
             auto& op = SymEngine::down_cast<const CompositeFunction&>(x);

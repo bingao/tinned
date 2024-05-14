@@ -688,11 +688,29 @@ TEST_CASE("Test FindAllVisitor and find_all()", "[FindAllVisitor]")
     auto G = make_2el_operator(std::string("G"), D, dependencies);
     auto weight = make_nonel_function(std::string("weight"));
     auto Omega = make_1el_operator(std::string("Omega"), dependencies);
+    auto Exc = make_xc_energy(std::string("Exc"), D, Omega, weight);
     auto Fxc = make_xc_potential(std::string("Fxc"), D, Omega, weight);
     auto T = make_t_matrix(dependencies);
+    auto hnuc = make_nonel_function(std::string("hnuc"), dependencies);
+    auto E = make_ks_energy(h, V, G, D, Exc, hnuc);
     // Equation (94), J. Chem. Phys. 129, 214108 (2008)
     auto F = SymEngine::matrix_add({h, G, V, Fxc, T});
     auto S = make_1el_operator(std::string("S"), dependencies);
+
+    // Test finding `TwoElecOperator` and `TwoElecEnergy` objects
+    REQUIRE(SymEngine::unified_eq(
+        find_all(E, G), SymEngine::set_basic({G})
+    ));
+    REQUIRE(SymEngine::unified_eq(
+        find_all(E, make_2el_energy(G)), SymEngine::set_basic({make_2el_energy(G)})
+    ));
+    auto Gb = SymEngine::make_rcp<const TwoElecOperator>(
+        G->get_name(), D, dependencies, SymEngine::multiset_basic({b})
+    );
+    REQUIRE(SymEngine::unified_eq(
+        find_all(E->diff(b), G), SymEngine::set_basic({G, Gb})
+    ));
+
     // Equation (229), J. Chem. Phys. 129, 214108 (2008)
     auto Y = make_tdscf_equation(F, D, S);
     // (1) The first order
@@ -703,12 +721,9 @@ TEST_CASE("Test FindAllVisitor and find_all()", "[FindAllVisitor]")
     REQUIRE(SymEngine::unified_eq(find_all(Y_b, h), SymEngine::set_basic({h, h_b})));
     auto V_b = SymEngine::rcp_dynamic_cast<const OneElecOperator>(V->diff(b));
     REQUIRE(SymEngine::unified_eq(find_all(Y_b, V), SymEngine::set_basic({V, V_b})));
-    auto G_b = SymEngine::make_rcp<const TwoElecOperator>(
-        G->get_name(), D, dependencies, SymEngine::multiset_basic({b})
-    );
     auto G_Db = make_2el_operator(G->get_name(), D_b, dependencies);
     REQUIRE(SymEngine::unified_eq(
-        find_all(Y_b, G), SymEngine::set_basic({G, G_b, G_Db})
+        find_all(Y_b, G), SymEngine::set_basic({G, Gb, G_Db})
     ));
     REQUIRE(SymEngine::unified_eq(
         find_all(Y_b, weight), SymEngine::set_basic({weight})
@@ -742,7 +757,7 @@ TEST_CASE("Test FindAllVisitor and find_all()", "[FindAllVisitor]")
     REQUIRE(SymEngine::unified_eq(
         find_all(Y_bc, V), SymEngine::set_basic({V, V_b, V_c, V_bc})
     ));
-    auto G_c = SymEngine::make_rcp<const TwoElecOperator>(
+    auto Gc = SymEngine::make_rcp<const TwoElecOperator>(
         G->get_name(), D, dependencies, SymEngine::multiset_basic({c})
     );
     auto G_Dc = make_2el_operator(G->get_name(), D_c, dependencies);
@@ -752,13 +767,13 @@ TEST_CASE("Test FindAllVisitor and find_all()", "[FindAllVisitor]")
     auto Gc_Db = SymEngine::make_rcp<const TwoElecOperator>(
         G->get_name(), D_b, dependencies, SymEngine::multiset_basic({c})
     );
-    auto G_bc = SymEngine::make_rcp<const TwoElecOperator>(
+    auto Gbc = SymEngine::make_rcp<const TwoElecOperator>(
         G->get_name(), D, dependencies, SymEngine::multiset_basic({b, c})
     );
     auto G_Dbc = make_2el_operator(G->get_name(), D_bc, dependencies);
     REQUIRE(SymEngine::unified_eq(
         find_all(Y_bc, G),
-        SymEngine::set_basic({G, G_b, G_Db, G_c, G_Dc, Gb_Dc, Gc_Db, G_bc, G_Dbc})
+        SymEngine::set_basic({G, Gb, G_Db, Gc, G_Dc, Gb_Dc, Gc_Db, Gbc, G_Dbc})
     ));
     REQUIRE(SymEngine::unified_eq(
         find_all(Y_bc, weight), SymEngine::set_basic({weight})

@@ -275,7 +275,7 @@ namespace Tinned
     {
         // We check each argument of `MatrixAdd`
         SymEngine::vec_basic terms;
-        for (auto arg: SymEngine::down_cast<const SymEngine::MatrixAdd&>(x).get_args()) {
+        for (auto arg: x.get_args()) {
             auto new_arg = apply(arg);
             if (!new_arg.is_null()) terms.push_back(new_arg);
         }
@@ -291,7 +291,7 @@ namespace Tinned
     {
         // We check each argument of `MatrixMul`
         SymEngine::vec_basic factors;
-        for (auto arg: SymEngine::down_cast<const SymEngine::MatrixMul&>(x).get_args()) {
+        for (auto arg: x.get_args()) {
             auto new_arg = apply(arg);
             if (new_arg.is_null()) {
                 result_ = SymEngine::RCP<const SymEngine::Basic>();

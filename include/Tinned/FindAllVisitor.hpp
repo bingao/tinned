@@ -51,7 +51,25 @@ namespace Tinned
             SymEngine::set_basic result_;
             SymEngine::RCP<const SymEngine::Basic> symbol_;
 
-            // Template method for objects that requires equivalence comparison
+            // Function template to check if `x` is the symbol we want to find
+            // according to a given comparision condition, and update `result_`
+            // when `x` is the symbol to be found
+            template<typename T> inline bool find_with_condition(
+                T& x,
+                const std::function<bool(T&, T&)>& condition
+            )
+            {
+                if (SymEngine::is_a_sub<T>(*symbol_)) {
+                    auto& s = SymEngine::down_cast<T&>(*symbol_);
+                    if (condition(x, s)) {
+                        result_.insert(x.rcp_from_this());
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            // Function template for objects that requires equivalence comparison
             template<typename T> inline bool find_equivalence(T& x)
             {
                 if (symbol_->__eq__(x)) {
@@ -61,68 +79,49 @@ namespace Tinned
                 return false;
             }
 
-            // Template method for objects that compares only the names
+            // Function template for objects that compares only the names
             template<typename T> inline bool find_only_name(T& x)
             {
-                if (SymEngine::is_a_sub<T>(*symbol_)) {
-                    auto s = SymEngine::rcp_dynamic_cast<T>(symbol_);
-                    if (x.get_name()==s->get_name()) {
-                        result_.insert(x.rcp_from_this());
-                        return true;
-                    }
-                }
-                return false;
+                return find_with_condition<T>(
+                    x,
+                    [&](T& op1, T& op2) -> bool { return op1.get_name()==op2.get_name(); }
+                );
             }
 
-            // Template method for objects without arguments, we compare only
+            // Function template for objects without arguments, we compare only
             // their names and dependencies
             template<typename T> inline void find_with_dependencies(T& x)
             {
-                if (SymEngine::is_a_sub<T>(*symbol_)) {
-                    auto s = SymEngine::rcp_dynamic_cast<T>(symbol_);
-                    if (x.get_name()==s->get_name() &&
-                        eq_dependency(x.get_dependencies(), s->get_dependencies())) {
-                        result_.insert(x.rcp_from_this());
+                find_with_condition<T>(
+                    x,
+                    [&](T& op1, T& op2) -> bool {
+                        return op1.get_name()==op2.get_name() &&
+                            eq_dependency(op1.get_dependencies(), op2.get_dependencies());
                     }
-                }
+                );
             }
 
-            // Template method for one argument function like classes and the
+            // Function template for one argument function like classes and the
             // name of the function does not matter
             template<typename Fun, typename Arg>
             inline void find_one_arg_f(
                 Fun& x,
-                const SymEngine::RCP<Arg>& arg,
-                std::function<FindAllVisitor(const SymEngine::RCP<Fun>&)> make_visitor
+                const std::function<bool(Fun&, Fun&)>& condition,
+                const SymEngine::RCP<Arg>& arg
             )
             {
-                // If the type of `symbol_` to find is `Fun`, we make a new
-                // `FindAllVisitor` to compare their arguments instead of
-                // comparing them directly!
-                if (SymEngine::is_a_sub<Fun>(*symbol_)) {
-                    auto v = make_visitor(SymEngine::rcp_dynamic_cast<Fun>(symbol_));
-                    if (!v.apply(arg).empty()) result_.insert(x.rcp_from_this());
-                }
-                // If the type of `symbol_` is not `Fun`, we then check if its
-                // argument is what we try to find
-                else {
-                    apply_(arg);
-                }
+                if (!find_with_condition<Fun>(x, condition)) apply_(arg);
             }
 
-            // If a `TwoElecOperator` object is what we need to find
-            inline bool find_2el_operator(const TwoElecOperator& x)
+            // Function to check the name and dependencies of `TwoElecOperator`
+            // objects and the name of their denisty matrices
+            inline bool comp_2el_operator(
+                const TwoElecOperator& op1, const TwoElecOperator& op2
+            ) const
             {
-                if (SymEngine::is_a_sub<const TwoElecOperator>(*symbol_)) {
-                    auto s = SymEngine::rcp_dynamic_cast<const TwoElecOperator>(symbol_);
-                    if (x.get_name()==s->get_name() &&
-                        eq_dependency(x.get_dependencies(), s->get_dependencies()) &&
-                        x.get_state()->get_name()==s->get_state()->get_name()) {
-                        result_.insert(x.rcp_from_this());
-                        return true;
-                    }
-                }
-                return false;
+                return op1.get_name()==op2.get_name()
+                    && eq_dependency(op1.get_dependencies(), op2.get_dependencies())
+                    && op1.get_state()->get_name()==op2.get_state()->get_name();
             }
 
             // Method called by objects to prcess their argument(s)

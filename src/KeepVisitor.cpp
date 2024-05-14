@@ -169,9 +169,7 @@ namespace Tinned
         // if the `NonElecFunction` (or its derivatives) will be removed as a
         // whole
         if (SymEngine::is_a_sub<const NonElecFunction>(x)) {
-            remove_if_symbol_like<const NonElecFunction>(
-                SymEngine::down_cast<const NonElecFunction&>(x)
-            );
+            remove_if_symbol_like(SymEngine::down_cast<const NonElecFunction&>(x));
         }
         else if (SymEngine::is_a_sub<const TwoElecEnergy>(x)) {
             auto& op = SymEngine::down_cast<const TwoElecEnergy&>(x);
@@ -236,19 +234,13 @@ namespace Tinned
     void KeepVisitor::bvisit(const SymEngine::MatrixSymbol& x)
     {
         if (SymEngine::is_a_sub<const LagMultiplier>(x)) {
-            remove_if_symbol_like<const LagMultiplier>(
-                SymEngine::down_cast<const LagMultiplier&>(x)
-            );
+            remove_if_symbol_like(SymEngine::down_cast<const LagMultiplier&>(x));
         }
         else if (SymEngine::is_a_sub<const OneElecDensity>(x)) {
-            remove_if_symbol_like<const OneElecDensity>(
-                SymEngine::down_cast<const OneElecDensity&>(x)
-            );
+            remove_if_symbol_like(SymEngine::down_cast<const OneElecDensity&>(x));
         }
         else if (SymEngine::is_a_sub<const OneElecOperator>(x)) {
-            remove_if_symbol_like<const OneElecOperator>(
-                SymEngine::down_cast<const OneElecOperator&>(x)
-            );
+            remove_if_symbol_like(SymEngine::down_cast<const OneElecOperator&>(x));
         }
         else if (SymEngine::is_a_sub<const TwoElecOperator>(x)) {
             auto& op = SymEngine::down_cast<const TwoElecOperator&>(x);
@@ -300,14 +292,10 @@ namespace Tinned
             );
         }
         else if (SymEngine::is_a_sub<const TemporumOverlap>(x)) {
-            remove_if_symbol_like<const TemporumOverlap>(
-                SymEngine::down_cast<const TemporumOverlap&>(x)
-            );
+            remove_if_symbol_like(SymEngine::down_cast<const TemporumOverlap&>(x));
         }
         else if (SymEngine::is_a_sub<const ZeroOperator>(x)) {
-            remove_if_symbol_like<const ZeroOperator>(
-                SymEngine::down_cast<const ZeroOperator&>(x)
-            );
+            remove_if_symbol_like(SymEngine::down_cast<const ZeroOperator&>(x));
         }
         else {
             throw SymEngine::NotImplementedError(
@@ -361,7 +349,7 @@ namespace Tinned
         // arguments will be kept
         if (condition_(x)) {
             SymEngine::vec_basic terms;
-            for (auto& arg: SymEngine::down_cast<const SymEngine::MatrixAdd&>(x).get_args()) {
+            for (auto& arg: x.get_args()) {
                 auto new_arg = apply(arg);
                 if (!new_arg.is_null()) terms.push_back(new_arg);
             }
@@ -389,7 +377,7 @@ namespace Tinned
             auto factors = SymEngine::vec_basic({SymEngine::minus_one});
             // Indicates if there is factor(s) kept
             bool factors_kept = false;
-            for (auto& arg: SymEngine::down_cast<const SymEngine::MatrixMul&>(x).get_args()) {
+            for (auto& arg: x.get_args()) {
                 auto new_arg = apply(arg);
                 if (new_arg.is_null()) {
                     // This factor does not match any given symbols, but we

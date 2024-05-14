@@ -56,14 +56,14 @@ namespace Tinned
         protected:
             SymEngine::RCP<const SymEngine::Basic> result_;
 
-            // Template method for one argument function like classes
+            // Function template for one argument function like classes
             template<typename Fun, typename Arg>
             inline void remove_one_arg_f(
                 Fun& x,
                 const SymEngine::RCP<Arg>& arg,
-                std::function<SymEngine::RCP<const SymEngine::Basic>(
+                const std::function<SymEngine::RCP<const SymEngine::Basic>(
                     const SymEngine::RCP<Arg>&
-                )> constructor
+                )>& constructor
             )
             {
                 auto new_arg = apply(arg);

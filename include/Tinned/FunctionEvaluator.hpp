@@ -73,8 +73,7 @@ namespace Tinned
 
             void bvisit(const SymEngine::Add& x)
             {
-                auto& op = SymEngine::down_cast<const SymEngine::Add&>(x);
-                auto args = op.get_args();
+                auto args = x.get_args();
                 result_ = apply(args[0]);
                 for (std::size_t i=1; i<args.size(); ++i)
                     eval_fun_addition(result_, apply(args[i]));
@@ -82,10 +81,9 @@ namespace Tinned
 
             void bvisit(const SymEngine::Mul& x)
             {
-                auto& op = SymEngine::down_cast<const SymEngine::Mul&>(x);
                 SymEngine::RCP<const SymEngine::Number> scalar = SymEngine::one;
                 unsigned int num_non_numbers = 0;
-                for (auto const& arg: op.get_args()) {
+                for (auto const& arg: x.get_args()) {
                     if (SymEngine::is_a_Number(*arg)) {
                         scalar = SymEngine::mulnum(
                             scalar,
@@ -143,8 +141,7 @@ namespace Tinned
 
             void bvisit(const SymEngine::Trace& x)
             {
-                auto& op = SymEngine::down_cast<const SymEngine::Trace&>(x);
-                auto arg = op.get_args()[0];
+                auto arg = x.get_args()[0];
                 if (SymEngine::is_a_sub<const SymEngine::MatrixMul>(*arg)) {
                     auto p = SymEngine::rcp_dynamic_cast<const SymEngine::MatrixMul>(arg);
                     result_ = eval_trace(p->get_scalar(), p->get_factors());

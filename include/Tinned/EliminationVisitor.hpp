@@ -98,21 +98,21 @@ namespace Tinned
                 }
             }
 
-            // Template method to eliminate a (response) parameter
+            // Function template to eliminate a (response) parameter
             template<typename T> inline void eliminate_parameter(T& x)
             {
                 result_ = is_parameter_eliminable(x)
                     ? SymEngine::RCP<const SymEngine::Basic>() : x.rcp_from_this();
             }
 
-            // Template method for one argument function like classes
+            // Function template for one argument function like classes
             template<typename Fun, typename Arg>
             inline void eliminate_one_arg_f(
                 Fun& x,
                 const SymEngine::RCP<Arg>& arg,
-                std::function<SymEngine::RCP<const SymEngine::Basic>(
+                const std::function<SymEngine::RCP<const SymEngine::Basic>(
                     const SymEngine::RCP<Arg>&
-                )> constructor
+                )>& constructor
             )
             {
                 // We check only if the argument will be eliminated

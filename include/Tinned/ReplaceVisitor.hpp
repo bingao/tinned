@@ -38,7 +38,7 @@ namespace Tinned
     class ReplaceVisitor: public SymEngine::BaseVisitor<ReplaceVisitor, SymEngine::MSubsVisitor>
     {
         protected:
-            // Template method that replaces `x` as a whole
+            // Function template that replaces `x` as a whole
             template<typename T> inline bool replace_a_whole(T& x)
             {
                 for (const auto& p: subs_dict_) {
@@ -51,7 +51,7 @@ namespace Tinned
                 return false;
             }
 
-            // Template method for replacing one argument.
+            // Function template for replacing one argument.
             template<typename Arg> inline void replace_arguments(
                 SymEngine::vec_basic& f_args,
                 bool& has_arg_replaced,
@@ -63,7 +63,7 @@ namespace Tinned
                 if (SymEngine::neq(*arg, *new_arg)) has_arg_replaced = true;
             }
 
-            // Template method for replacing one or more arguments. `f_args`
+            // Function template for replacing one or more arguments. `f_args`
             // holds all arguments, either replaced or original ones.
             // `has_arg_replaced` indicates if one or more arguments are
             // replaced.
@@ -78,13 +78,13 @@ namespace Tinned
                 replace_arguments(f_args, has_arg_replaced, args...);
             }
 
-            // Template method for a function like object with one or more arguments
+            // Function template for a function like object with one or more arguments
             template<typename Fun, typename FirstArg, typename... Args>
             inline void replace_a_function(
                 const Fun& x,
-                std::function<SymEngine::RCP<const SymEngine::Basic>(
+                const std::function<SymEngine::RCP<const SymEngine::Basic>(
                     const SymEngine::vec_basic&
-                )> constructor,
+                )>& constructor,
                 const FirstArg& first_arg,
                 const Args&... args
             )
@@ -111,7 +111,8 @@ namespace Tinned
                 bool cache = false
             ) : SymEngine::BaseVisitor<ReplaceVisitor, SymEngine::MSubsVisitor>(
                     subs_dict_, cache
-                ) {}
+                )
+            {}
 
             using SymEngine::MSubsVisitor::bvisit;
             void bvisit(const SymEngine::FunctionSymbol& x);

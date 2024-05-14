@@ -209,44 +209,44 @@ namespace Tinned
 
     void ReplaceVisitor::bvisit(const SymEngine::MatrixAdd& x)
     {
-        // We first check each argument for replacement
-        bool new_terms = false;
-        SymEngine::vec_basic terms;
-        for (auto& arg: SymEngine::down_cast<const SymEngine::MatrixAdd&>(x).get_args()) {
-            auto new_arg = apply(arg);
-            if (SymEngine::neq(*arg, *new_arg)) new_terms = true;
-            terms.push_back(new_arg);
+        // First we check if `x` will be replaced as a whole
+        if (!replace_a_whole(x)) {
+            // We next check each argument for replacement
+            bool new_terms = false;
+            SymEngine::vec_basic terms;
+            for (auto& arg: x.get_args()) {
+                auto new_arg = apply(arg);
+                if (SymEngine::neq(*arg, *new_arg)) new_terms = true;
+                terms.push_back(new_arg);
+            }
+            if (new_terms) {
+                result_ = SymEngine::matrix_add(terms);
+            }
+            else {
+                result_ = x.rcp_from_this();
+            }
         }
-        SymEngine::RCP<const SymEngine::Basic> new_add;
-        if (new_terms) {
-            new_add = SymEngine::matrix_add(terms);
-        }
-        else {
-            new_add = x.rcp_from_this();
-        }
-        // Next we check if the "new" `MatrixAdd` will be replaced as a whole
-        replace_a_whole(SymEngine::down_cast<const SymEngine::MatrixAdd&>(*new_add));
     }
 
     void ReplaceVisitor::bvisit(const SymEngine::MatrixMul& x)
     {
-        // We first check each argument for replacement
-        bool new_factors = false;
-        SymEngine::vec_basic factors;
-        for (auto& arg: SymEngine::down_cast<const SymEngine::MatrixMul&>(x).get_args()) {
-            auto new_arg = apply(arg);
-            if (SymEngine::neq(*arg, *new_arg)) new_factors = true;
-            factors.push_back(new_arg);
+        // First we check if `x` will be replaced as a whole
+        if (!replace_a_whole(x)) {
+            // Next, we check each argument for replacement
+            bool new_factors = false;
+            SymEngine::vec_basic factors;
+            for (auto& arg: x.get_args()) {
+                auto new_arg = apply(arg);
+                if (SymEngine::neq(*arg, *new_arg)) new_factors = true;
+                factors.push_back(new_arg);
+            }
+            if (new_factors) {
+                result_ = SymEngine::matrix_mul(factors);
+            }
+            else {
+                result_ = x.rcp_from_this();
+            }
         }
-        SymEngine::RCP<const SymEngine::Basic> new_mul;
-        if (new_factors) {
-            new_mul = SymEngine::matrix_mul(factors);
-        }
-        else {
-            new_mul = x.rcp_from_this();
-        }
-        // Next we check if the "new" `MatrixMul` will be replaced as a whole
-        replace_a_whole(SymEngine::down_cast<const SymEngine::MatrixMul&>(*new_mul));
     }
 
     void ReplaceVisitor::bvisit(const SymEngine::MatrixDerivative& x)

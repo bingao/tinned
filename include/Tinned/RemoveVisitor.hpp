@@ -84,7 +84,7 @@ namespace Tinned
                 return false;
             }
 
-            // Template method for `Symbol` like classes which do not have any
+            // Function template for `Symbol` like classes which do not have any
             // argument
             template<typename T> inline void remove_if_symbol_like(T& x)
             {
@@ -92,14 +92,14 @@ namespace Tinned
                     ? SymEngine::RCP<const SymEngine::Basic>() : x.rcp_from_this();
             }
 
-            // Template method for one argument function like classes
+            // Function template for one argument function like classes
             template<typename Fun, typename Arg>
             inline void remove_if_one_arg_f(
                 Fun& x,
                 const SymEngine::RCP<Arg>& arg,
-                std::function<SymEngine::RCP<const SymEngine::Basic>(
+                const std::function<SymEngine::RCP<const SymEngine::Basic>(
                     const SymEngine::RCP<Arg>&
-                )> constructor
+                )>& constructor
             )
             {
                 // We first check if the function will be removed
@@ -128,14 +128,14 @@ namespace Tinned
         public:
             explicit RemoveVisitor(
                 const SymEngine::set_basic& symbols,
-                std::function<bool(const SymEngine::Basic&)> condition = {}
+                const std::function<bool(const SymEngine::Basic&)>& condition = {}
             ) : symbols_(symbols)
             {
                 if (condition) {
                     condition_ = condition;
                 }
                 else {
-                    condition_ = [=](const SymEngine::Basic& x) -> bool
+                    condition_ = [&](const SymEngine::Basic& x) -> bool
                     {
                         return this->is_equal(x);
                     };

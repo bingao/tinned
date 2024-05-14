@@ -58,14 +58,14 @@ namespace Tinned
                 return true;
             }
 
-            // Template method for one argument function like classes
+            // Function template for one argument function like classes
             template<typename Fun, typename Arg>
             inline void keep_if_one_arg_f(
                 Fun& x,
                 const SymEngine::RCP<Arg>& arg,
-                std::function<SymEngine::RCP<const SymEngine::Basic>(
+                const std::function<SymEngine::RCP<const SymEngine::Basic>(
                     const SymEngine::RCP<Arg>&
-                )> constructor
+                )>& constructor
             )
             {
                 // If the function will not be kept as whole, we then check if
@@ -97,7 +97,7 @@ namespace Tinned
                 const SymEngine::set_basic& symbols
             ) : SymEngine::BaseVisitor<KeepVisitor, RemoveVisitor>(
                     symbols,
-                    [=](const SymEngine::Basic& x) -> bool
+                    [&](const SymEngine::Basic& x) -> bool
                     {
                         return this->is_not_equal(x);
                     }

@@ -56,7 +56,7 @@ namespace Tinned
               << apply(op.get_2el_operator())
               << print_mul()
               << latexify_state(op.get_outer_state());
-            str_ = latexify_operator(op.get_name(), {}, OperFontStyle::Regular)
+            str_ = latexify_operator("\\mathrm{tr}", {}, OperFontStyle::Regular)
                  + parenthesize(o.str());
         }
         else if (SymEngine::is_a_sub<const CompositeFunction>(x)) {

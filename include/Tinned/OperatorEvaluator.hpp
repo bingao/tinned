@@ -124,32 +124,29 @@ namespace Tinned
 
             void bvisit(const SymEngine::ConjugateMatrix& x)
             {
-                auto& op = SymEngine::down_cast<const SymEngine::ConjugateMatrix&>(x);
                 if (in_place_conjugate_) {
-                    result_ = apply(op.get_arg());
+                    result_ = apply(x.get_arg());
                     eval_conjugate_matrix(result_, result_);
                 }
                 else {
-                    eval_conjugate_matrix(apply(op.get_arg()), result_);
+                    eval_conjugate_matrix(apply(x.get_arg()), result_);
                 }
             }
 
             void bvisit(const SymEngine::Transpose& x)
             {
-                auto& op = SymEngine::down_cast<const SymEngine::Transpose&>(x);
                 if (in_place_transpose_) {
-                    result_ = apply(op.get_arg());
+                    result_ = apply(x.get_arg());
                     eval_transpose(result_, result_);
                 }
                 else {
-                    eval_transpose(apply(op.get_arg()), result_);
+                    eval_transpose(apply(x.get_arg()), result_);
                 }
             }
 
             void bvisit(const SymEngine::MatrixAdd& x)
             {
-                auto& op = SymEngine::down_cast<const SymEngine::MatrixAdd&>(x);
-                auto args = op.get_args();
+                auto args = x.get_args();
                 result_ = apply(args[0]);
                 for (std::size_t i=1; i<args.size(); ++i)
                     eval_oper_addition(result_, apply(args[i]));
@@ -157,12 +154,11 @@ namespace Tinned
 
             void bvisit(const SymEngine::MatrixMul& x)
             {
-                auto& op = SymEngine::down_cast<const SymEngine::MatrixMul&>(x);
-                auto factors = op.get_factors();
+                auto factors = x.get_factors();
                 result_ = apply(factors[0]);
                 for (std::size_t i=1; i<factors.size(); ++i)
                     eval_oper_multiplication(result_, apply(factors[i]));
-                auto scalar = op.get_scalar();
+                auto scalar = x.get_scalar();
                 if (SymEngine::neq(*scalar, *SymEngine::one)) {
                     if (SymEngine::is_a_Number(*scalar)) {
                         eval_oper_scale(

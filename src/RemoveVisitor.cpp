@@ -34,28 +34,28 @@ namespace Tinned
     void RemoveVisitor::bvisit(const SymEngine::Basic& x)
     {
         throw SymEngine::NotImplementedError(
-            "RemoveVisitor::bvisit() not implemented for " + x.__str__()
+            "RemoveVisitor::bvisit() not implemented for "+x.__str__()
         );
     }
 
     void RemoveVisitor::bvisit(const SymEngine::Symbol& x)
     {
-        remove_if_symbol_like<const SymEngine::Symbol>(x);
+        remove_if_symbol_like(x);
     }
 
     void RemoveVisitor::bvisit(const SymEngine::Integer& x)
     {
-        remove_if_symbol_like<const SymEngine::Integer>(x);
+        remove_if_symbol_like(x);
     }
 
     void RemoveVisitor::bvisit(const SymEngine::Rational& x)
     {
-        remove_if_symbol_like<const SymEngine::Rational>(x);
+        remove_if_symbol_like(x);
     }
 
     void RemoveVisitor::bvisit(const SymEngine::Complex& x)
     {
-        remove_if_symbol_like<const SymEngine::Complex>(x);
+        remove_if_symbol_like(x);
     }
 
     void RemoveVisitor::bvisit(const SymEngine::Add& x)
@@ -166,7 +166,7 @@ namespace Tinned
 
     void RemoveVisitor::bvisit(const SymEngine::Constant& x)
     {
-        remove_if_symbol_like<const SymEngine::Constant>(x);
+        remove_if_symbol_like(x);
     }
 
     void RemoveVisitor::bvisit(const SymEngine::FunctionSymbol& x)
@@ -175,9 +175,7 @@ namespace Tinned
         // if the `NonElecFunction` (or its derivatives) will be removed as a
         // whole
         if (SymEngine::is_a_sub<const NonElecFunction>(x)) {
-            remove_if_symbol_like<const NonElecFunction>(
-                SymEngine::down_cast<const NonElecFunction&>(x)
-            );
+            remove_if_symbol_like(SymEngine::down_cast<const NonElecFunction&>(x));
         }
         else if (SymEngine::is_a_sub<const TwoElecEnergy>(x)) {
             auto& op = SymEngine::down_cast<const TwoElecEnergy&>(x);
@@ -233,32 +231,26 @@ namespace Tinned
         }
         else {
             throw SymEngine::NotImplementedError(
-                "RemoveVisitor::bvisit() not implemented for FunctionSymbol " + x.__str__()
+                "RemoveVisitor::bvisit() not implemented for FunctionSymbol "+x.__str__()
             );
         }
     }
 
     void RemoveVisitor::bvisit(const SymEngine::ZeroMatrix& x)
     {
-        remove_if_symbol_like<const SymEngine::ZeroMatrix>(x);
+        remove_if_symbol_like(x);
     }
 
     void RemoveVisitor::bvisit(const SymEngine::MatrixSymbol& x)
     {
         if (SymEngine::is_a_sub<const LagMultiplier>(x)) {
-            remove_if_symbol_like<const LagMultiplier>(
-                SymEngine::down_cast<const LagMultiplier&>(x)
-            );
+            remove_if_symbol_like(SymEngine::down_cast<const LagMultiplier&>(x));
         }
         else if (SymEngine::is_a_sub<const OneElecDensity>(x)) {
-            remove_if_symbol_like<const OneElecDensity>(
-                SymEngine::down_cast<const OneElecDensity&>(x)
-            );
+            remove_if_symbol_like(SymEngine::down_cast<const OneElecDensity&>(x));
         }
         else if (SymEngine::is_a_sub<const OneElecOperator>(x)) {
-            remove_if_symbol_like<const OneElecOperator>(
-                SymEngine::down_cast<const OneElecOperator&>(x)
-            );
+            remove_if_symbol_like(SymEngine::down_cast<const OneElecOperator&>(x));
         }
         else if (SymEngine::is_a_sub<const TwoElecOperator>(x)) {
             auto& op = SymEngine::down_cast<const TwoElecOperator&>(x);
@@ -310,18 +302,14 @@ namespace Tinned
             );
         }
         else if (SymEngine::is_a_sub<const TemporumOverlap>(x)) {
-            remove_if_symbol_like<const TemporumOverlap>(
-                SymEngine::down_cast<const TemporumOverlap&>(x)
-            );
+            remove_if_symbol_like(SymEngine::down_cast<const TemporumOverlap&>(x));
         }
         else if (SymEngine::is_a_sub<const ZeroOperator>(x)) {
-            remove_if_symbol_like<const ZeroOperator>(
-                SymEngine::down_cast<const ZeroOperator&>(x)
-            );
+            remove_if_symbol_like(SymEngine::down_cast<const ZeroOperator&>(x));
         }
         else {
             throw SymEngine::NotImplementedError(
-                "RemoveVisitor::bvisit() not implemented for MatrixSymbol " + x.__str__()
+                "RemoveVisitor::bvisit() not implemented for MatrixSymbol "+x.__str__()
             );
         }
     }
@@ -376,7 +364,7 @@ namespace Tinned
             bool kept = true;
             // Next we check each argument of `MatrixAdd`
             SymEngine::vec_basic terms;
-            for (auto& arg: SymEngine::down_cast<const SymEngine::MatrixAdd&>(x).get_args()) {
+            for (auto& arg: x.get_args()) {
                 auto new_arg = apply(arg);
                 if (new_arg.is_null()) {
                     kept = false;
@@ -411,7 +399,7 @@ namespace Tinned
             bool kept = true;
             // Next we check each argument of `MatrixMul`
             SymEngine::vec_basic factors;
-            for (auto& arg: SymEngine::down_cast<const SymEngine::MatrixMul&>(x).get_args()) {
+            for (auto& arg: x.get_args()) {
                 auto new_arg = apply(arg);
                 if (new_arg.is_null()) {
                     result_ = SymEngine::RCP<const SymEngine::Basic>();
@@ -444,6 +432,6 @@ namespace Tinned
         // object, so according to rule "(3) Symbols and their derivatives are
         // different for the removal procedure", we need only check if
         // `MatrixDerivative` will be removed as a whole
-        remove_if_symbol_like<const SymEngine::MatrixDerivative>(x);
+        remove_if_symbol_like(x);
     }
 }
