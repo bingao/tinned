@@ -1,3 +1,4 @@
+#include <cstddef>
 #include <utility>
 
 #include <symengine/number.h>
@@ -78,12 +79,15 @@ namespace Tinned
         }
         else if (SymEngine::is_a_sub<const TemporumOverlap>(x)) {
             auto& op = SymEngine::down_cast<const TemporumOverlap&>(x);
-            if (op.get_derivatives().empty()) {
-                result_ = make_zero_operator();
+            // `TemporumOverlap` will disappear if it is unperturbed or all
+            // perturbations have zero frequencies
+            for (std::size_t i=0; i<op.size(); ++i) {
+                if (!op.get_frequency(i)->is_zero()) {
+                    result_ = x.rcp_from_this();
+                    return;
+                }
             }
-            else {
-                result_ = x.rcp_from_this();
-            }
+            result_ = make_zero_operator();
         }
         else {
             result_ = x.rcp_from_this();
