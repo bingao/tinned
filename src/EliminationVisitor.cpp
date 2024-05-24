@@ -35,17 +35,7 @@ namespace Tinned
         result_ = x.rcp_from_this();
     }
 
-    void EliminationVisitor::bvisit(const SymEngine::Integer& x)
-    {
-        result_ = x.rcp_from_this();
-    }
-
-    void EliminationVisitor::bvisit(const SymEngine::Rational& x)
-    {
-        result_ = x.rcp_from_this();
-    }
-
-    void EliminationVisitor::bvisit(const SymEngine::Complex& x)
+    void EliminationVisitor::bvisit(const SymEngine::Number& x)
     {
         result_ = x.rcp_from_this();
     }

@@ -1,6 +1,5 @@
 #include <utility>
 
-#include <symengine/number.h>
 #include <symengine/pow.h>
 #include <symengine/symengine_exception.h>
 
@@ -43,17 +42,7 @@ namespace Tinned
         remove_if_symbol_like(x);
     }
 
-    void RemoveVisitor::bvisit(const SymEngine::Integer& x)
-    {
-        remove_if_symbol_like(x);
-    }
-
-    void RemoveVisitor::bvisit(const SymEngine::Rational& x)
-    {
-        remove_if_symbol_like(x);
-    }
-
-    void RemoveVisitor::bvisit(const SymEngine::Complex& x)
+    void RemoveVisitor::bvisit(const SymEngine::Number& x)
     {
         remove_if_symbol_like(x);
     }

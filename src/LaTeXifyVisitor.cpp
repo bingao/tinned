@@ -1,7 +1,6 @@
 #include <regex>
 
 #include <symengine/constants.h>
-#include <symengine/number.h>
 
 #include "Tinned/Perturbation.hpp"
 #include "Tinned/LagMultiplier.hpp"

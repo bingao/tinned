@@ -21,22 +21,15 @@
 
 #include <symengine/basic.h>
 #include <symengine/add.h>
-#include <symengine/complex.h>
-#include <symengine/constants.h>
 #include <symengine/dict.h>
 #include <symengine/functions.h>
-#include <symengine/integer.h>
 #include <symengine/mul.h>
-#include <symengine/rational.h>
-#include <symengine/symbol.h>
 #include <symengine/matrices/conjugate_matrix.h>
 #include <symengine/matrices/matrix_add.h>
-#include <symengine/matrices/matrix_derivative.h>
 #include <symengine/matrices/matrix_mul.h>
 #include <symengine/matrices/matrix_symbol.h>
 #include <symengine/matrices/trace.h>
 #include <symengine/matrices/transpose.h>
-#include <symengine/matrices/zero_matrix.h>
 #include <symengine/symengine_rcp.h>
 #include <symengine/visitor.h>
 

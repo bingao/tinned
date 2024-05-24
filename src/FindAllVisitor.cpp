@@ -36,17 +36,7 @@ namespace Tinned
         find_equivalence(x);
     }
 
-    void FindAllVisitor::bvisit(const SymEngine::Integer& x)
-    {
-        find_equivalence(x);
-    }
-
-    void FindAllVisitor::bvisit(const SymEngine::Rational& x)
-    {
-        find_equivalence(x);
-    }
-
-    void FindAllVisitor::bvisit(const SymEngine::Complex& x)
+    void FindAllVisitor::bvisit(const SymEngine::Number& x)
     {
         find_equivalence(x);
     }

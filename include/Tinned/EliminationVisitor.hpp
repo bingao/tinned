@@ -25,13 +25,11 @@
 
 #include <symengine/basic.h>
 #include <symengine/add.h>
-#include <symengine/complex.h>
 #include <symengine/constants.h>
 #include <symengine/dict.h>
 #include <symengine/functions.h>
-#include <symengine/integer.h>
+#include <symengine/number.h>
 #include <symengine/mul.h>
-#include <symengine/rational.h>
 #include <symengine/symbol.h>
 #include <symengine/matrices/conjugate_matrix.h>
 #include <symengine/matrices/matrix_add.h>
@@ -150,9 +148,7 @@ namespace Tinned
 
             void bvisit(const SymEngine::Basic& x);
             void bvisit(const SymEngine::Symbol& x);
-            void bvisit(const SymEngine::Integer& x);
-            void bvisit(const SymEngine::Rational& x);
-            void bvisit(const SymEngine::Complex& x);
+            void bvisit(const SymEngine::Number& x);
             void bvisit(const SymEngine::Add& x);
             void bvisit(const SymEngine::Mul& x);
             void bvisit(const SymEngine::Constant& x);
