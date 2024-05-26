@@ -38,7 +38,7 @@ namespace Tinned
     class TwoElecEnergy: public SymEngine::FunctionWrapper
     {
         protected:
-            // Two-electron energy is represented as tr[\frac{1}{2}*`G(inner_)`*`outer_`]
+            // Two-electron energy is represented as tr[\frac{1}{2}*`G_(inner_)`*`outer_`]
             SymEngine::RCP<const TwoElecOperator> G_;
             SymEngine::RCP<const ElectronicState> outer_;
 

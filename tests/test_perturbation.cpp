@@ -91,9 +91,14 @@ TEST_CASE("Test Perturbation, make_perturbation() and PertDependency", "[Perturb
     REQUIRE(!eq_dependency(el_pert, el_geo_pert));
 
     auto s = SymEngine::symbol("s");
-    REQUIRE(find_dependency(el_geo_pert, s) == 0);
-    REQUIRE(find_dependency(el_geo_pert, el0) == 0);
-    REQUIRE(find_dependency(el_geo_pert, el1) == 1);
-    REQUIRE(find_dependency(el_geo_pert, el3) == 3);
-    REQUIRE(find_dependency(el_geo_pert, geo0) == 99);
+    REQUIRE(get_diff_order(s, el_geo_pert) == 0);
+    REQUIRE(get_diff_order(el0, el_geo_pert) == 0);
+    REQUIRE(get_diff_order(el1, el_geo_pert) == 1);
+    REQUIRE(get_diff_order(el3, el_geo_pert) == 3);
+    REQUIRE(get_diff_order(geo0, el_geo_pert) == 99);
+
+    REQUIRE(!is_zero_derivative(SymEngine::multiset_basic({}), el_pert));
+    REQUIRE(is_zero_derivative(SymEngine::multiset_basic({geo0}), el_pert));
+    REQUIRE(is_zero_derivative(SymEngine::multiset_basic({el1, el1}), el_pert));
+    REQUIRE(!is_zero_derivative(SymEngine::multiset_basic({el1, el3, el4}), el_pert));
 }

@@ -178,11 +178,14 @@ More examples can be found in Tinned tests in the directory `tests`.
 
 ## TODO
 
+* Add Boolean input for `differentiate` function to indicate if
+  call `clean_temporum` after differentiation;
+* Introduce `CoefficientMO` inherited from `ElectronicState`;
+<!---* Introduce `PerturbedOperator` replacing `LagMultiplier` and `StateVector`,
+  this class will depend on all perturbations if `dependencies` is not given-->
 * Support coupled-cluster classes in all visitor classes.
 * Test newly added `TwoElecEnergy` and coupled-cluster classes, and visitors
   `EliminationVisitor`, `TemporumCleaner`, `ZerosRemover`.
-* Should we verify dependencies and derivatives for some operator classes'
-  constructors when the derivatives are not empty?
 * More tests on `ExchCorrPotential::get_potential_map`.
 * Add tests for functions `ExchCorrEnergy::get_energy_terms` and
   `ExchCorrPotential::get_potential_terms`.
@@ -192,3 +195,10 @@ More examples can be found in Tinned tests in the directory `tests`.
 <a id="1">[1]</a>
 Bin Gao, "Tinned: A Symbolic Library for Response Theory and High-Order
 Derivatives", J. Comput. Chem., DOI: 10.1002/jcc.27437.
+
+**NOTE** the following changes have been made comparing to reference [[1]](#1):
+
+* Function `find_dependency` is renamed `get_diff_order`;
+* Class `TwoElecEnergy` stores a `TwoElecOperator` object `G_(inner_)` instead
+  the density matrix `inner_`;
+<!---* `PerturbedOperator`--->

@@ -8,12 +8,17 @@
    This file contains common definitions and functions for derivatives with
    respect to perturbations.
 
+   2024-05-26, Bin Gao:
+   * function `find_dependency` is renamed `get_diff_order`, add function
+     `is_zero_derivative`
+
    2023-09-18, Bin Gao:
    * first version
 */
 
 #pragma once
 
+#include <cstddef>
 #include <map>
 #include <utility>
 
@@ -61,11 +66,11 @@ namespace Tinned
         return true;
     }
 
-    // Find a perturbation in the dependencies and return its maximum order of
-    // differentiation
-    inline unsigned int find_dependency(
-        const PertDependency& dependencies,
-        const SymEngine::RCP<const SymEngine::Symbol>& s
+    // Check if a perturbation `s` exists in the given `dependencies` and
+    // return its maximum order of differentiation
+    inline unsigned int get_diff_order(
+        const SymEngine::RCP<const SymEngine::Symbol>& s,
+        const PertDependency& dependencies
     )
     {
         if (SymEngine::is_a_sub<const Perturbation>(*s)) {
@@ -78,6 +83,21 @@ namespace Tinned
         else {
             return 0;
         }
+    }
+
+    // Check if `derivatives` are zero according to the given `dependencies`
+    inline bool is_zero_derivative(
+        const SymEngine::multiset_basic& derivatives,
+        const PertDependency& dependencies
+    )
+    {
+        std::size_t total_order = 0;
+        for (const auto& p: dependencies) {
+            auto order = derivatives.count(p.first);
+            if (order>p.second) return true;
+            total_order += order;
+        }
+        return total_order<derivatives.size() ? true : false;
     }
 
     // Convert the dependencies into vec_basic

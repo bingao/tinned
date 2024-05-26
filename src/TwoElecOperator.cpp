@@ -16,6 +16,7 @@ namespace Tinned
         dependencies_(dependencies),
         derivatives_(derivatives)
     {
+        SYMENGINE_ASSERT(!is_zero_derivative(derivatives, dependencies))
         SYMENGINE_ASSIGN_TYPEID()
     }
 
@@ -85,7 +86,7 @@ namespace Tinned
             dependencies_,
             derivatives_
         );
-        auto max_order = find_dependency(dependencies_, s);
+        auto max_order = get_diff_order(s, dependencies_);
         if (max_order>0) {
             auto order = derivatives_.count(s) + 1;
             if (order<=max_order) {
