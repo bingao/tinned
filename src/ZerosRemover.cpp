@@ -6,7 +6,7 @@ namespace Tinned
 {
     void ZerosRemover::bvisit(const SymEngine::Basic& x)
     {
-        if (is_zero_quantity(x)) {
+        if (is_zero_quantity(x.rcp_from_this(), threshold_)) {
             result_ = SymEngine::RCP<const SymEngine::Basic>();
         }
         else {
@@ -27,7 +27,7 @@ namespace Tinned
                 SymEngine::outArg(coef), d, p.second, new_key
             );
         }
-        if (coef->is_zero() && d.empty()) {
+        if (is_zero_number(coef, threshold_) && d.empty()) {
             result_ = SymEngine::RCP<const SymEngine::Basic>();
         }
         else {
@@ -38,7 +38,7 @@ namespace Tinned
     void ZerosRemover::bvisit(const SymEngine::Mul& x)
     {
         SymEngine::RCP<const SymEngine::Number> coef = x.get_coef();
-        if (coef->is_zero()) {
+        if (is_zero_number(coef, threshold_)) {
             result_ = SymEngine::RCP<const SymEngine::Basic>();
             return;
         }

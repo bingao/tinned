@@ -14,12 +14,15 @@
 #pragma once
 
 #include <functional>
+#include <limits>
 
 #include <symengine/basic.h>
 #include <symengine/add.h>
 #include <symengine/dict.h>
 #include <symengine/mul.h>
 #include <symengine/number.h>
+#include <symengine/real_double.h>
+#include <symengine/functions.h>
 #include <symengine/matrices/conjugate_matrix.h>
 #include <symengine/matrices/matrix_add.h>
 #include <symengine/matrices/matrix_derivative.h>
@@ -34,16 +37,34 @@
 
 namespace Tinned
 {
-    // Helper function to check if a quantity is the type `ZeroOperator` or a
-    // number equal to zero
-    inline bool is_zero_quantity(const SymEngine::Basic& x)
+    // Helper function to check if a number is exact or close to zero
+    inline bool is_zero_number(
+        const SymEngine::RCP<const SymEngine::Number>& x,
+        const SymEngine::RCP<const SymEngine::Number>&
+            threshold = SymEngine::real_double(std::numeric_limits<double>::epsilon())
+    )
     {
-        if (SymEngine::is_a_sub<const ZeroOperator>(x) ||
-            SymEngine::is_a_sub<const SymEngine::ZeroMatrix>(x)) {
+        if (x->is_exact()) return x->is_zero();
+        return SymEngine::abs(x)->compare(*threshold)<1;
+    }
+
+    // Helper function to check if a quantity is the type `ZeroOperator` or a
+    // number equal to or close to zero
+    inline bool is_zero_quantity(
+        const SymEngine::RCP<const SymEngine::Basic>& x,
+        const SymEngine::RCP<const SymEngine::Number>&
+            threshold = SymEngine::real_double(std::numeric_limits<double>::epsilon())
+    )
+    {
+        if (SymEngine::is_a_sub<const ZeroOperator>(*x) ||
+            SymEngine::is_a_sub<const SymEngine::ZeroMatrix>(*x)) {
             return true;
         }
         else {
-            return SymEngine::is_number_and_zero(x);
+            if (SymEngine::is_a_Number(*x)) return is_zero_number(
+                SymEngine::rcp_dynamic_cast<const SymEngine::Number>(x), threshold
+            );
+            return false;
         }
     }
 
@@ -54,6 +75,7 @@ namespace Tinned
     class ZerosRemover: public SymEngine::BaseVisitor<ZerosRemover>
     {
         protected:
+            SymEngine::RCP<const SymEngine::Number> threshold_;
             SymEngine::RCP<const SymEngine::Basic> result_;
 
             // Function template for one argument function like classes
@@ -83,7 +105,10 @@ namespace Tinned
             }
 
         public:
-            explicit ZerosRemover() noexcept = default;
+            explicit ZerosRemover(
+                const SymEngine::RCP<const SymEngine::Number>&
+                    threshold = SymEngine::real_double(std::numeric_limits<double>::epsilon())
+            ) noexcept: threshold_(threshold) {}
 
             inline SymEngine::RCP<const SymEngine::Basic> apply(
                 const SymEngine::RCP<const SymEngine::Basic>& x

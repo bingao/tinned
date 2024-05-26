@@ -43,6 +43,7 @@ namespace Tinned
     class TemporumCleaner: public SymEngine::BaseVisitor<TemporumCleaner>
     {
         protected:
+            SymEngine::RCP<const SymEngine::Number> threshold_;
             SymEngine::RCP<const SymEngine::Basic> result_;
 
             // Function template for one argument function like classes
@@ -58,7 +59,7 @@ namespace Tinned
             {
                 // We check only if the argument is/has `TemporumOperator` object
                 auto new_arg = apply(arg);
-                if (is_zero_quantity(*new_arg)) {
+                if (is_zero_quantity(new_arg, threshold_)) {
                     if (is_operator) {
                         result_ = make_zero_operator();
                     }
@@ -77,7 +78,10 @@ namespace Tinned
             }
 
         public:
-            explicit TemporumCleaner() noexcept = default;
+            explicit TemporumCleaner(
+                const SymEngine::RCP<const SymEngine::Number>&
+                    threshold = SymEngine::real_double(std::numeric_limits<double>::epsilon())
+            ) noexcept: threshold_(threshold) {}
 
             inline SymEngine::RCP<const SymEngine::Basic> apply(
                 const SymEngine::RCP<const SymEngine::Basic>& x

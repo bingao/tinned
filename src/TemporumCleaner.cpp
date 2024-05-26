@@ -25,9 +25,10 @@ namespace Tinned
         for (const auto& p: x.get_dict()) {
             // Skip this pair if `Basic` becomes a zero quantity
             auto new_key = apply(p.first);
-            if (!is_zero_quantity(*new_key)) SymEngine::Add::coef_dict_add_term(
-                SymEngine::outArg(coef), d, p.second, new_key
-            );
+            if (!is_zero_quantity(new_key, threshold_))
+                SymEngine::Add::coef_dict_add_term(
+                    SymEngine::outArg(coef), d, p.second, new_key
+                );
         }
         if (d.empty()) {
             result_ = SymEngine::zero;
@@ -46,7 +47,7 @@ namespace Tinned
         for (const auto& p: x.get_dict()) {
             // Set the whole `Mul` as zero if the key is zero quantity
             auto new_key = apply(p.first);
-            if (is_zero_quantity(*new_key)) {
+            if (is_zero_quantity(new_key, threshold_)) {
                 result_ = SymEngine::zero;
                 return;
             }
@@ -70,7 +71,7 @@ namespace Tinned
             // For unperturbed `TemporumOperator` objects, the function
             // `get_frequency()` will return zero frequency
             auto frequency = op.get_frequency();
-            if (frequency->is_zero()) {
+            if (is_zero_number(frequency, threshold_)) {
                 result_ = make_zero_operator();
             }
             else {
@@ -82,7 +83,7 @@ namespace Tinned
             // `TemporumOverlap` will disappear if it is unperturbed or all
             // perturbations have zero frequencies
             for (std::size_t i=0; i<op.size(); ++i) {
-                if (!op.get_frequency(i)->is_zero()) {
+                if (!is_zero_number(op.get_frequency(i), threshold_)) {
                     result_ = x.rcp_from_this();
                     return;
                 }
@@ -139,7 +140,7 @@ namespace Tinned
         SymEngine::vec_basic terms;
         for (auto arg: SymEngine::down_cast<const SymEngine::MatrixAdd&>(x).get_args()) {
             auto new_arg = apply(arg);
-            if (!is_zero_quantity(*new_arg)) terms.push_back(new_arg);
+            if (!is_zero_quantity(new_arg, threshold_)) terms.push_back(new_arg);
         }
         if (terms.empty()) {
             result_ = make_zero_operator();
@@ -155,7 +156,7 @@ namespace Tinned
         SymEngine::vec_basic factors;
         for (auto arg: SymEngine::down_cast<const SymEngine::MatrixMul&>(x).get_args()) {
             auto new_arg = apply(arg);
-            if (is_zero_quantity(*new_arg)) {
+            if (is_zero_quantity(new_arg, threshold_)) {
                 result_ = make_zero_operator();
                 return;
             }
