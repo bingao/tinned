@@ -3,7 +3,8 @@
 #include <symengine/constants.h>
 
 #include "Tinned/Perturbation.hpp"
-#include "Tinned/LagMultiplier.hpp"
+#include "Tinned/PerturbedParameter.hpp"
+#include "Tinned/ConjugateTranspose.hpp"
 
 #include "Tinned/OneElecDensity.hpp"
 #include "Tinned/OneElecOperator.hpp"
@@ -16,10 +17,8 @@
 #include "Tinned/TemporumOperator.hpp"
 #include "Tinned/TemporumOverlap.hpp"
 
-#include "Tinned/StateVector.hpp"
-#include "Tinned/StateOperator.hpp"
 #include "Tinned/AdjointMap.hpp"
-#include "Tinned/ExpAdjointHamiltonian.hpp"
+#include "Tinned/ClusterConjHamiltonian.hpp"
 
 #include "Tinned/ZeroOperator.hpp"
 
@@ -159,12 +158,28 @@ namespace Tinned
         }
     }
 
+    void LaTeXifyVisitor::bvisit(const SymEngine::ZeroMatrix& x)
+    {
+        if (SymEngine::is_a_sub<const ZeroOperator>(x)) {
+            auto& op = SymEngine::down_cast<const ZeroOperator&>(x);
+            str_ = latexify_operator(op.get_name());
+        }
+        else {
+            SymEngine::LatexPrinter::bvisit(x);
+        }
+        update_num_symbols(1, str_);
+    }
+
     void LaTeXifyVisitor::bvisit(const SymEngine::MatrixSymbol& x)
     {
-        if (SymEngine::is_a_sub<const LagMultiplier>(x)) {
-            auto& op = SymEngine::down_cast<const LagMultiplier&>(x);
+        if (SymEngine::is_a_sub<const PerturbedParameter>(x)) {
+            auto& op = SymEngine::down_cast<const PerturbedParameter&>(x);
             str_ = latexify_operator(op.get_name(), op.get_derivatives());
             update_num_symbols(1, str_);
+        }
+        else if (SymEngine::is_a_sub<const ConjugateTranspose>(x)) {
+            auto& op = SymEngine::down_cast<const ConjugateTranspose&>(x);
+            str_ = add_suffix(parenthesize(apply(op.get_arg())), "^{\\dagger}");
         }
         else if (SymEngine::is_a_sub<const OneElecDensity>(x)) {
             auto& op = SymEngine::down_cast<const OneElecDensity&>(x);
@@ -207,10 +222,11 @@ namespace Tinned
                 update_num_symbols(1, str_);
             }
         }
-        else if (SymEngine::is_a_sub<const ZeroOperator>(x)) {
-            auto& op = SymEngine::down_cast<const ZeroOperator&>(x);
-            str_ = latexify_operator(op.get_name());
-            update_num_symbols(1, str_);
+        else if (SymEngine::is_a_sub<const AdjointMap>(x)) {
+
+        }
+        else if (SymEngine::is_a_sub<const ClusterConjHamiltonian>(x)) {
+
         }
         else {
             SymEngine::LatexPrinter::bvisit(x);

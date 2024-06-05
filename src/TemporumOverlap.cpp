@@ -2,7 +2,6 @@
 
 #include <symengine/constants.h>
 
-#include "Tinned/NonElecFunction.hpp"
 #include "Tinned/TemporumOverlap.hpp"
 #include "Tinned/ZeroOperator.hpp"
 
@@ -11,13 +10,16 @@ namespace Tinned
     TemporumOverlap::TemporumOverlap(const PertDependency& dependencies)
         : SymEngine::MatrixSymbol(std::string("T"))
     {
-        // We use NonElecFunction to represent basis functions on bra and ket
         auto bra = SymEngine::make_rcp<const TemporumOperator>(
-            SymEngine::make_rcp<const NonElecFunction>("<bra|", dependencies),
+            SymEngine::make_rcp<const OneElecOperator>(
+                std::string("<bra|"), dependencies
+            ),
             TemporumType::Bra
         );
         auto ket = SymEngine::make_rcp<const TemporumOperator>(
-            SymEngine::make_rcp<const NonElecFunction>("|ket>", dependencies),
+            SymEngine::make_rcp<const OneElecOperator>(
+                std::string("|ket>"), dependencies
+            ),
             TemporumType::Ket
         );
         braket_ = SymEngine::matrix_mul({bra, ket});
@@ -49,21 +51,23 @@ namespace Tinned
     {
         if (SymEngine::is_a_sub<const TemporumOverlap>(o)) {
             auto& op = SymEngine::down_cast<const TemporumOverlap&>(o);
-            return get_name()==op.get_name() && braket_->__eq__(*op.braket_);
+            return braket_->__eq__(*op.braket_);
+            //return get_name()==op.get_name() && braket_->__eq__(*op.braket_);
         }
         return false;
     }
 
-    int TemporumOverlap::compare(const SymEngine::Basic &o) const
+    int TemporumOverlap::compare(const SymEngine::Basic& o) const
     {
         SYMENGINE_ASSERT(SymEngine::is_a_sub<const TemporumOverlap>(o))
         auto& op = SymEngine::down_cast<const TemporumOverlap&>(o);
-        if (get_name()==op.get_name()) {
-            return braket_->compare(*op.braket_);
-        }
-        else {
-            return get_name()<op.get_name() ? -1 : 1;
-        }
+        return braket_->compare(*op.braket_);
+        //if (get_name()==op.get_name()) {
+        //    return braket_->compare(*op.braket_);
+        //}
+        //else {
+        //    return get_name()<op.get_name() ? -1 : 1;
+        //}
     }
 
     //SymEngine::vec_basic TemporumOverlap::get_args() const
@@ -76,8 +80,7 @@ namespace Tinned
     ) const
     {
         auto result = braket_->diff(s);
-        // `NonElecFunction` should return `SymEngine::zero`
-        if (result->__eq__(*make_zero_operator()) || result->__eq__(*SymEngine::zero)) {
+        if (result->__eq__(*make_zero_operator())) {
             return make_zero_operator();
         }
         else {

@@ -27,6 +27,7 @@
 #include <symengine/matrices/matrix_add.h>
 #include <symengine/matrices/matrix_derivative.h>
 #include <symengine/matrices/matrix_mul.h>
+#include <symengine/matrices/matrix_symbol.h>
 #include <symengine/matrices/trace.h>
 #include <symengine/matrices/transpose.h>
 #include <symengine/matrices/zero_matrix.h>
@@ -121,6 +122,7 @@ namespace Tinned
             void bvisit(const SymEngine::Basic& x);
             void bvisit(const SymEngine::Add& x);
             void bvisit(const SymEngine::Mul& x);
+            void bvisit(const SymEngine::MatrixSymbol& x);
             void bvisit(const SymEngine::Trace& x);
             void bvisit(const SymEngine::ConjugateMatrix& x);
             void bvisit(const SymEngine::Transpose& x);

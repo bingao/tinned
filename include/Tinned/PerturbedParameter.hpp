@@ -5,9 +5,10 @@
    License, v. 2.0. If a copy of the MPL was not distributed with this
    file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-   This file is the header file of Lagrangian multipliers.
+   This file is the header file of (perturbed) response parameters that depend
+   on all different perturbations at arbitrary order.
 
-   2024-04-17, Bin Gao:
+   2024-06-04, Bin Gao:
    * first version
 */
 
@@ -23,7 +24,7 @@
 
 namespace Tinned
 {
-    class LagMultiplier: public SymEngine::MatrixSymbol
+    class PerturbedParameter: public SymEngine::MatrixSymbol
     {
         protected:
             // derivatives_ holds derivatives with respect to perturbations
@@ -32,7 +33,7 @@ namespace Tinned
         public:
             //! Constructor
             // `derivatives` may be used only for `diff_impl()`
-            explicit LagMultiplier(
+            explicit PerturbedParameter(
                 const std::string& name,
                 const SymEngine::multiset_basic& derivatives = {}
             );
@@ -57,20 +58,20 @@ namespace Tinned
                 const SymEngine::RCP<const SymEngine::Basic>& x
             ) const
             {
-                if (SymEngine::is_a_sub<const LagMultiplier>(*x)) {
-                    auto op = SymEngine::rcp_dynamic_cast<const LagMultiplier>(x);
+                if (SymEngine::is_a_sub<const PerturbedParameter>(*x)) {
+                    auto op = SymEngine::rcp_dynamic_cast<const PerturbedParameter>(x);
                     return get_name()==op->get_name() ? true : false;
                 }
                 return false;
             }
     };
 
-    // Helper function to make a vector Lagrangian multipliers
-    inline SymEngine::RCP<const LagMultiplier> make_lagrangian_multiplier(
+    // Helper function to make a (perturbed) response parameter
+    inline SymEngine::RCP<const PerturbedParameter> make_perturbed_parameter(
         const std::string& name,
         const SymEngine::multiset_basic& derivatives = {}
     )
     {
-        return SymEngine::make_rcp<const LagMultiplier>(name, derivatives);
+        return SymEngine::make_rcp<const PerturbedParameter>(name, derivatives);
     }
 }

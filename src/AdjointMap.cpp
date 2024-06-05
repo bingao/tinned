@@ -1,5 +1,6 @@
 #include <cstddef>
 #include <algorithm>
+#include <string>
 
 #include <symengine/add.h>
 #include <symengine/symengine_assert.h>
@@ -11,10 +12,9 @@
 namespace Tinned
 {
     AdjointMap::AdjointMap(
-        const std::string& name,
         const SymEngine::vec_basic& x,
         const SymEngine::RCP<const SymEngine::Basic>& y
-    ) : SymEngine::MatrixSymbol(name)
+    ) : SymEngine::MatrixSymbol(std::string("ad"))
     {
         x_ = x;
         if (x_.size()>1) std::sort(x_.begin(), x_.end(), SymEngine::RCPBasicKeyLess());
@@ -53,7 +53,7 @@ namespace Tinned
         return false;
     }
 
-    int AdjointMap::compare(const SymEngine::Basic &o) const
+    int AdjointMap::compare(const SymEngine::Basic& o) const
     {
         SYMENGINE_ASSERT(SymEngine::is_a_sub<const AdjointMap>(o))
         auto& op = SymEngine::down_cast<const AdjointMap&>(o);
@@ -87,16 +87,12 @@ namespace Tinned
             // Sort X's
             if (diff_x.size()>1)
                 std::sort(diff_x.begin(), diff_x.end(), SymEngine::RCPBasicKeyLess());
-            terms.push_back(SymEngine::make_rcp<const AdjointMap>(
-                get_name(), diff_x, y_
-            ));
+            terms.push_back(SymEngine::make_rcp<const AdjointMap>(diff_x, y_));
         }
         // Differentiate Y
         auto diff_y = y_->diff(s);
         if (!diff_y->__eq__(*make_zero_operator())) {
-            terms.push_back(SymEngine::make_rcp<const AdjointMap>(
-                get_name(), x_, diff_y
-            ));
+            terms.push_back(SymEngine::make_rcp<const AdjointMap>(x_, diff_y));
         }
         if (terms.empty()) {
             return make_zero_operator();

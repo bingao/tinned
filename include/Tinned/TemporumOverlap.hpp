@@ -7,6 +7,9 @@
 
    This file is the header file of T matrix.
 
+   2024-06-04, Bin Gao:
+   * use `OneElecOperator` to represent basis functions on bra and ket
+
    2024-04-28, Bin Gao:
    * add a member function `get_derivatives()` for elimination
 
@@ -36,6 +39,7 @@
 #include <symengine/matrices/matrix_symbol.h>
 
 #include "Tinned/PertDependency.hpp"
+#include "Tinned/OneElecOperator.hpp"
 #include "Tinned/TemporumOperator.hpp"
 
 namespace Tinned
@@ -66,7 +70,7 @@ namespace Tinned
             // Get dependencies
             inline PertDependency get_dependencies() const
             {
-                auto target = SymEngine::rcp_dynamic_cast<const NonElecFunction>(
+                auto target = SymEngine::rcp_dynamic_cast<const OneElecOperator>(
                     std::get<1>(get_braket_product(0))->get_target()
                 );
                 return target->get_dependencies();

@@ -27,8 +27,9 @@
 
 #include "Tinned/Perturbation.hpp"
 #include "Tinned/PertDependency.hpp"
-#include "Tinned/LagMultiplier.hpp"
+#include "Tinned/PerturbedParameter.hpp"
 #include "Tinned/ZeroOperator.hpp"
+#include "Tinned/ConjugateTranspose.hpp"
 
 #include "Tinned/OneElecDensity.hpp"
 #include "Tinned/OneElecOperator.hpp"
@@ -41,10 +42,8 @@
 #include "Tinned/TemporumOperator.hpp"
 #include "Tinned/TemporumOverlap.hpp"
 
-#include "Tinned/StateVector.hpp"
-#include "Tinned/StateOperator.hpp"
 #include "Tinned/AdjointMap.hpp"
-#include "Tinned/ExpAdjointHamiltonian.hpp"
+#include "Tinned/ClusterConjHamiltonian.hpp"
 
 #include "Tinned/ZerosRemover.hpp"
 #include "Tinned/RemoveVisitor.hpp"

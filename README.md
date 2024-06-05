@@ -67,9 +67,9 @@ for computational chemistry include:
 * Class [`AdjointMap`](include/Tinned/AdjointMap.hpp) represents an adjoint map
   $\prod_{j}\left(\text{ad}_{\tilde{\mathbf{X}}_{j}}\right)(\tilde{\mathbf{Y}})$
   where all $\tilde{\mathbf{X}}_{j}$'s and all their derivatives are commutative.
-* Class [`ExpAdjointHamiltonian`](include/Tinned/ExpAdjointHamiltonian.hpp)
-  represents an exponential map in the form of
-  $\text{e}^{\text{ad}_{-\hat{T}}}(\hat{H}^{b_{P}})$ or
+* Class [`ClusterConjHamiltonian`](include/Tinned/ClusterConjHamiltonian.hpp)
+  is used for coupled-cluster theory and represents an exponential map in the
+  form of $\text{e}^{\text{ad}_{-\hat{T}}}(\hat{H}^{b_{P}})$ or
   $\text{e}^{\text{ad}_{-\hat{T}}}\left(\prod_{j=1}^{j_{\max}}
     \left(\text{ad}_{\hat{T}^{b_{Q_{j}}}}\right)(\hat{H}^{b_{P}})\right)$ with
   $1\le j_{\max}\le3$.
@@ -111,7 +111,7 @@ provided by Tinned:
   expression `x`.
 * Function [`differentiate(expr, perturbations)`](include/Tinned/Utilities.hpp)
   can be used to do high-order differentiation, and to remove zero quantities.
-* Function template [`replace_all<T>(x,  subs_dict)`](include/Tinned/Utilities.hpp)
+* Function template [`replace_all<T>(x, subs_dict)`](include/Tinned/Utilities.hpp)
   replaces Tinned objects and their derivatives with SymEngine `Basic` symbols
   and corresponding derivatives. Template parameter `T` is the type of those
   Tinned objects.
@@ -181,8 +181,6 @@ More examples can be found in Tinned tests in the directory `tests`.
 * Add Boolean input for `differentiate` function to indicate if
   call `clean_temporum` after differentiation;
 * Introduce `CoefficientMO` inherited from `ElectronicState`;
-<!---* Introduce `PerturbedOperator` replacing `LagMultiplier` and `StateVector`,
-  this class will depend on all perturbations if `dependencies` is not given-->
 * Support coupled-cluster classes in all visitor classes.
 * Test newly added `TwoElecEnergy` and coupled-cluster classes, and visitors
   `EliminationVisitor`, `TemporumCleaner`, `ZerosRemover`.
@@ -201,4 +199,16 @@ Derivatives", J. Comput. Chem., DOI: 10.1002/jcc.27437.
 * Function `find_dependency` is renamed `get_diff_order`;
 * Class `TwoElecEnergy` stores a `TwoElecOperator` object `G_(inner_)` instead
   the density matrix `inner_`;
-<!---* `PerturbedOperator`--->
+* Class `OneElecOperator` is used to represent basis functions on bra and ket
+  in class `TemporumOverlap`;
+* Class `TemporumOperator` does not support objects of class `NonElecFunction`
+  as its target;
+* Introduce class `PerturbedParameter` that replaces classes `LagMultiplier`
+  and `StateVector`;
+* Classes `AdjointMap` and `ExpAdjointHamiltonian` do not use `name` as their
+  member variable, and class `ExpAdjointHamiltonian` is renamed
+  `ClusterConjHamiltonian`;
+* Add class `ConjugateTranspose`;
+* Remove class `StateOperator`, such that the coupled-cluster operator is
+  represented by the matrix multiplication of coupled-cluster amplitudes and
+  the transpose of excitation operators.

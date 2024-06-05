@@ -1,6 +1,5 @@
 #include <string>
 
-#include <symengine/constants.h>
 //#include <symengine/integer.h>
 #include <symengine/symengine_assert.h>
 #include <symengine/symengine_casts.h>
@@ -11,7 +10,7 @@
 namespace Tinned
 {
     TemporumOperator::TemporumOperator(
-        const SymEngine::RCP<const SymEngine::Basic>& target,
+        const SymEngine::RCP<const SymEngine::MatrixExpr>& target,
         const TemporumType type
     ) : SymEngine::MatrixSymbol(
             type==TemporumType::Ket ? std::string("i*dt") : std::string("-i*dt")
@@ -24,8 +23,7 @@ namespace Tinned
         // time differentiation operator acts on
         SYMENGINE_ASSERT(
             SymEngine::is_a_sub<const ElectronicState>(*target) ||
-            SymEngine::is_a_sub<const OneElecOperator>(*target) ||
-            SymEngine::is_a_sub<const NonElecFunction>(*target)
+            SymEngine::is_a_sub<const OneElecOperator>(*target)
         )
     }
 
@@ -48,7 +46,7 @@ namespace Tinned
         return false;
     }
 
-    int TemporumOperator::compare(const SymEngine::Basic &o) const
+    int TemporumOperator::compare(const SymEngine::Basic& o) const
     {
         SYMENGINE_ASSERT(SymEngine::is_a_sub<const TemporumOperator>(o))
         auto& op = SymEngine::down_cast<const TemporumOperator&>(o);
@@ -80,11 +78,10 @@ namespace Tinned
         if (result->__eq__(*make_zero_operator())) {
             return make_zero_operator();
         }
-        else if (result->__eq__(*SymEngine::zero)) {
-            return SymEngine::zero;
-        }
         else {
-            return SymEngine::make_rcp<const TemporumOperator>(result, type_);
+            return SymEngine::make_rcp<const TemporumOperator>(
+                SymEngine::rcp_dynamic_cast<const SymEngine::MatrixExpr>(result), type_
+            );
         }
     }
 }

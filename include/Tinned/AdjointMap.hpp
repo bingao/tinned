@@ -14,8 +14,6 @@
 
 #pragma once
 
-#include <string>
-
 #include <symengine/basic.h>
 #include <symengine/dict.h>
 #include <symengine/symbol.h>
@@ -33,12 +31,11 @@ namespace Tinned
         public:
             // One can use nested `AdjointMap`'s if X's are non-commutative
             explicit AdjointMap(
-                const std::string& name,
                 const SymEngine::vec_basic& x,
                 const SymEngine::RCP<const SymEngine::Basic>& y
             );
 
-            // Constructor for `diff_impl()` of `ExpAdjointHamiltonian`, where
+            // Constructor for `diff_impl()` of `ClusterConjHamiltonian`, where
             // `x` and its derivatives commute with X's and their derivatives
             // in `other`
             explicit AdjointMap(
@@ -77,11 +74,10 @@ namespace Tinned
 
     // Helper function to make an adjoint map
     inline SymEngine::RCP<const AdjointMap> make_adjoint_map(
-        const std::string& name,
         const SymEngine::vec_basic& x,
         const SymEngine::RCP<const SymEngine::Basic>& y
     )
     {
-        return SymEngine::make_rcp<const AdjointMap>(name, x, y);
+        return SymEngine::make_rcp<const AdjointMap>(x, y);
     }
 }

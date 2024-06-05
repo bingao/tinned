@@ -22,7 +22,11 @@
 
 #include <symengine/basic.h>
 #include <symengine/dict.h>
-//#include <symengine/symengine_rcp.h>
+#include <symengine/symbol.h>
+#include <symengine/functions.h>
+#include <symengine/matrices/matrix_symbol.h>
+#include <symengine/matrices/zero_matrix.h>
+#include <symengine/symengine_rcp.h>
 #include <symengine/visitor.h>
 #include <symengine/printers/strprinter.h>
 
@@ -95,6 +99,7 @@ namespace Tinned
             using SymEngine::StrPrinter::bvisit;
             void bvisit(const SymEngine::Symbol& x);
             void bvisit(const SymEngine::FunctionSymbol& x);
+            void bvisit(const SymEngine::ZeroMatrix& x);
             void bvisit(const SymEngine::MatrixSymbol& x);
 
             // Convert `x` into a string

@@ -7,6 +7,10 @@
 
    This file is the header file of zero operator, usually from differentiation.
 
+   2024-06-05, Bin Gao:
+   * inherits from `SymEngine::ZeroMatrix` so that `ZeroOperator` can be
+     "recognized" by SymEngine
+
    2024-05-07, Bin Gao:
    * first version
 */
@@ -16,19 +20,26 @@
 #include <string>
 
 #include <symengine/basic.h>
+#include <symengine/constants.h>
 #include <symengine/symbol.h>
 #include <symengine/symengine_rcp.h>
-#include <symengine/matrices/matrix_symbol.h>
+#include <symengine/matrices/zero_matrix.h>
 
 //#include "Tinned/PertDependency.hpp"
 
 namespace Tinned
 {
-    class ZeroOperator: public SymEngine::MatrixSymbol
+    class ZeroOperator: public SymEngine::ZeroMatrix
     {
+        protected:
+            std::string name_;
+
         public:
             //! Constructor
-            explicit ZeroOperator(): SymEngine::MatrixSymbol(std::string("0"))
+            explicit ZeroOperator():
+                // Dimensions are meaningless here
+                SymEngine::ZeroMatrix(SymEngine::one, SymEngine::one),
+                name_(std::string("0"))
             {
                 SYMENGINE_ASSIGN_TYPEID()
             }
@@ -37,16 +48,8 @@ namespace Tinned
             bool __eq__(const SymEngine::Basic& o) const override;
             int compare(const SymEngine::Basic& o) const override;
 
-            // Override the defaut behaviour for diff
-            SymEngine::RCP<const SymEngine::Basic> diff_impl(
-                const SymEngine::RCP<const SymEngine::Symbol>& s
-            ) const override;
-
-            //// Get dependencies
-            //inline PertDependency get_dependencies() const { return {}; }
-
-            //// Get derivatives
-            //inline SymEngine::multiset_basic get_derivatives() const { return {}; }
+            // Get name
+            inline std::string get_name() const { return name_; }
     };
 
     // Helper function to make a zero operator

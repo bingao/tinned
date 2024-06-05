@@ -3,6 +3,8 @@
 #include <symengine/number.h>
 #include <symengine/symengine_exception.h>
 
+#include "Tinned/ConjugateTranspose.hpp"
+
 #include "Tinned/OneElecOperator.hpp"
 #include "Tinned/TwoElecEnergy.hpp"
 #include "Tinned/TwoElecOperator.hpp"
@@ -13,11 +15,8 @@
 #include "Tinned/TemporumOperator.hpp"
 #include "Tinned/TemporumOverlap.hpp"
 
-#include "Tinned/StateOperator.hpp"
 #include "Tinned/AdjointMap.hpp"
-#include "Tinned/ExpAdjointHamiltonian.hpp"
-
-#include "Tinned/ZeroOperator.hpp"
+#include "Tinned/ClusterConjHamiltonian.hpp"
 
 #include "Tinned/EliminationVisitor.hpp"
 
@@ -113,36 +112,30 @@ namespace Tinned
         }
         else if (SymEngine::is_a_sub<const CompositeFunction>(x)) {
             auto& op = SymEngine::down_cast<const CompositeFunction&>(x);
-            eliminate_one_arg_f<const CompositeFunction, const SymEngine::Basic>(
+            eliminate_a_function(
                 op,
-                op.get_inner(),
-                [&](const SymEngine::RCP<const SymEngine::Basic>& inner)
-                    -> SymEngine::RCP<const SymEngine::Basic>
-                {
-                    return SymEngine::make_rcp<const CompositeFunction>(
-                        op.get_name(),
-                        inner,
-                        op.get_order()
-                    );
-                }
+                std::bind(
+                    &construct_composite_function,
+                    std::placeholders::_1,
+                    op.get_name(),
+                    op.get_order()
+                ),
+                op.get_inner()
             );
         }
         else if (SymEngine::is_a_sub<const ExchCorrEnergy>(x)) {
             auto& op = SymEngine::down_cast<const ExchCorrEnergy&>(x);
-            eliminate_one_arg_f<const ExchCorrEnergy, const SymEngine::Basic>(
+            eliminate_a_function(
                 op,
-                op.get_energy(),
-                [&](const SymEngine::RCP<const SymEngine::Basic>& energy)
-                    -> SymEngine::RCP<const SymEngine::Basic>
-                {
-                    return SymEngine::make_rcp<const ExchCorrEnergy>(
-                        op.get_name(),
-                        op.get_state(),
-                        op.get_overlap_distribution(),
-                        op.get_weight(),
-                        energy
-                    );
-                }
+                std::bind(
+                    &construct_xc_energy,
+                    std::placeholders::_1,
+                    op.get_name(),
+                    op.get_state(),
+                    op.get_overlap_distribution(),
+                    op.get_weight()
+                ),
+                op.get_energy()
             );
         }
         else {
@@ -159,8 +152,16 @@ namespace Tinned
 
     void EliminationVisitor::bvisit(const SymEngine::MatrixSymbol& x)
     {
-        if (SymEngine::is_a_sub<const LagMultiplier>(x)) {
-            eliminate_parameter(SymEngine::down_cast<const LagMultiplier&>(x));
+        if (SymEngine::is_a_sub<const PerturbedParameter>(x)) {
+            eliminate_parameter(SymEngine::down_cast<const PerturbedParameter&>(x));
+        }
+        else if (SymEngine::is_a_sub<const ConjugateTranspose>(x)) {
+            auto& op = SymEngine::down_cast<const ConjugateTranspose&>(x);
+            eliminate_a_function(
+                op,
+                std::bind(&construct_conjugate_transpose, std::placeholders::_1),
+                op.get_arg()
+            );
         }
         else if (SymEngine::is_a_sub<const OneElecDensity>(x)) {
             eliminate_parameter(SymEngine::down_cast<const OneElecDensity&>(x));
@@ -179,41 +180,35 @@ namespace Tinned
         }
         else if (SymEngine::is_a_sub<const ExchCorrPotential>(x)) {
             auto& op = SymEngine::down_cast<const ExchCorrPotential&>(x);
-            eliminate_one_arg_f<const ExchCorrPotential, const SymEngine::MatrixExpr>(
+            eliminate_a_function(
                 op,
-                op.get_potential(),
-                [&](const SymEngine::RCP<const SymEngine::MatrixExpr>& potential)
-                    -> SymEngine::RCP<const SymEngine::Basic>
-                {
-                    return SymEngine::make_rcp<const ExchCorrPotential>(
-                        op.get_name(),
-                        op.get_state(),
-                        op.get_overlap_distribution(),
-                        op.get_weight(),
-                        potential
-                    );
-                }
+                std::bind(
+                    &construct_xc_potential,
+                    std::placeholders::_1,
+                    op.get_name(),
+                    op.get_state(),
+                    op.get_overlap_distribution(),
+                    op.get_weight()
+                ),
+                op.get_potential()
             );
         }
         else if (SymEngine::is_a_sub<const TemporumOperator>(x)) {
             auto& op = SymEngine::down_cast<const TemporumOperator&>(x);
-            eliminate_one_arg_f<const TemporumOperator, const SymEngine::Basic>(
+            eliminate_a_function(
                 op,
-                op.get_target(),
-                [&](const SymEngine::RCP<const SymEngine::Basic>& target)
-                    -> SymEngine::RCP<const SymEngine::Basic>
-                {
-                    return SymEngine::make_rcp<const TemporumOperator>(
-                        target, op.get_type()
-                    );
-                }
+                std::bind(&construct_dt_operator, std::placeholders::_1, op.get_type()),
+                op.get_target()
             );
         }
         else if (SymEngine::is_a_sub<const TemporumOverlap>(x)) {
             result_ = x.rcp_from_this();
         }
-        else if (SymEngine::is_a_sub<const ZeroOperator>(x)) {
-            result_ = x.rcp_from_this();
+        else if (SymEngine::is_a_sub<const AdjointMap>(x)) {
+
+        }
+        else if (SymEngine::is_a_sub<const ClusterConjHamiltonian>(x)) {
+
         }
         else {
             throw SymEngine::NotImplementedError(
@@ -224,40 +219,28 @@ namespace Tinned
 
     void EliminationVisitor::bvisit(const SymEngine::Trace& x)
     {
-        eliminate_one_arg_f<const SymEngine::Trace, const SymEngine::MatrixExpr>(
+        eliminate_a_function(
             x,
-            SymEngine::rcp_dynamic_cast<const SymEngine::MatrixExpr>(x.get_args()[0]),
-            [&](const SymEngine::RCP<const SymEngine::MatrixExpr>& arg)
-                -> SymEngine::RCP<const SymEngine::Basic>
-            {
-                return SymEngine::trace(arg);
-            }
+            std::bind(&construct_trace, std::placeholders::_1),
+            x.get_args()[0]
         );
     }
 
     void EliminationVisitor::bvisit(const SymEngine::ConjugateMatrix& x)
     {
-        eliminate_one_arg_f<const SymEngine::ConjugateMatrix, const SymEngine::MatrixExpr>(
+        eliminate_a_function(
             x,
-            x.get_arg(),
-            [&](const SymEngine::RCP<const SymEngine::MatrixExpr>& arg)
-                -> SymEngine::RCP<const SymEngine::Basic>
-            {
-                return SymEngine::conjugate_matrix(arg);
-            }
+            std::bind(&construct_conjugate_matrix, std::placeholders::_1),
+            x.get_arg()
         );
     }
 
     void EliminationVisitor::bvisit(const SymEngine::Transpose& x)
     {
-        eliminate_one_arg_f<const SymEngine::Transpose, const SymEngine::MatrixExpr>(
+        eliminate_a_function(
             x,
-            x.get_arg(),
-            [&](const SymEngine::RCP<const SymEngine::MatrixExpr>& arg)
-                -> SymEngine::RCP<const SymEngine::Basic>
-            {
-                return SymEngine::transpose(arg);
-            }
+            std::bind(&construct_transpose, std::placeholders::_1),
+            x.get_arg()
         );
     }
 

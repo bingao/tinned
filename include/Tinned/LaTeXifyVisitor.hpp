@@ -19,7 +19,19 @@
 
 #include <symengine/basic.h>
 #include <symengine/dict.h>
-//#include <symengine/symengine_rcp.h>
+#include <symengine/symbol.h>
+#include <symengine/functions.h>
+#include <symengine/add.h>
+#include <symengine/mul.h>
+#include <symengine/matrices/conjugate_matrix.h>
+#include <symengine/matrices/matrix_add.h>
+#include <symengine/matrices/matrix_derivative.h>
+#include <symengine/matrices/matrix_mul.h>
+#include <symengine/matrices/matrix_symbol.h>
+#include <symengine/matrices/trace.h>
+#include <symengine/matrices/transpose.h>
+#include <symengine/matrices/zero_matrix.h>
+#include <symengine/symengine_rcp.h>
 #include <symengine/visitor.h>
 #include <symengine/printers/latex.h>
 
@@ -134,6 +146,7 @@ namespace Tinned
             void bvisit(const SymEngine::FunctionSymbol& x);
             void bvisit(const SymEngine::Add& x);
             void bvisit(const SymEngine::Mul& x);
+            void bvisit(const SymEngine::ZeroMatrix& x);
             void bvisit(const SymEngine::MatrixSymbol& x);
             void bvisit(const SymEngine::MatrixAdd& x);
             void bvisit(const SymEngine::MatrixMul& x);

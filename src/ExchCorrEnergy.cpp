@@ -63,7 +63,7 @@ namespace Tinned
         return false;
     }
 
-    int ExchCorrEnergy::compare(const SymEngine::Basic &o) const
+    int ExchCorrEnergy::compare(const SymEngine::Basic& o) const
     {
         SYMENGINE_ASSERT(SymEngine::is_a_sub<const ExchCorrEnergy>(o))
         auto& op = SymEngine::down_cast<const ExchCorrEnergy&>(o);

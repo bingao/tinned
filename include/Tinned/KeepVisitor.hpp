@@ -35,6 +35,7 @@
 
 #include "Tinned/ZerosRemover.hpp"
 #include "Tinned/RemoveVisitor.hpp"
+#include "Tinned/VisitorUtilities.hpp"
 
 namespace Tinned
 {
@@ -51,32 +52,72 @@ namespace Tinned
                 return true;
             }
 
-            // Function template for one argument function like classes
-            template<typename Fun, typename Arg>
-            inline void keep_if_one_arg_f(
-                Fun& x,
-                const SymEngine::RCP<Arg>& arg,
+            // Function template for only one argument.
+            template<typename Arg> inline void keep_if_arguments(
+                SymEngine::vec_basic& f_args,
+                bool& has_arg_kept,
+                bool& has_arg_affected,
+                const Arg& arg
+            )
+            {
+                auto new_arg = apply(arg);
+                // If there exists an argument being kept, all other arguments
+                // and the function will be kept. So we save all arguments to
+                // be removed for later use.
+                if (new_arg.is_null()) {
+                    f_args.push_back(arg);
+                }
+                else {
+                    f_args.push_back(new_arg);
+                    has_arg_kept = true;
+                    if (SymEngine::neq(*arg, *new_arg)) has_arg_affected = true;
+                }
+            }
+
+            // Function template for one or more arguments. `f_args` holds all
+            // arguments, either affected or unaffected after removal.
+            // `has_arg_kept` indicates if one or more arguments are kept.
+            // `has_arg_affected` indicates if one or more arguments are
+            // affected due to removal.
+            template<typename FirstArg, typename... Args>
+            inline void keep_if_arguments(
+                SymEngine::vec_basic& f_args,
+                bool& has_arg_kept,
+                bool& has_arg_affected,
+                const FirstArg& first_arg, const Args&... args
+            )
+            {
+                keep_if_arguments(f_args, has_arg_kept, has_arg_affected, first_arg);
+                keep_if_arguments(f_args, has_arg_kept, has_arg_affected, args...);
+            }
+
+            // Function template for a function like object with one or more arguments
+            template<typename Fun, typename FirstArg, typename... Args>
+            inline void keep_if_a_function(
+                const Fun& x,
                 const std::function<SymEngine::RCP<const SymEngine::Basic>(
-                    const SymEngine::RCP<Arg>&
-                )>& constructor
+                    const SymEngine::vec_basic&
+                )>& constructor,
+                const FirstArg& first_arg,
+                const Args&... args
             )
             {
                 // If the function will not be kept as whole, we then check if
-                // its argument will be kept
+                // any of its argument will be kept
                 if (condition_(x)) {
-                    auto new_arg = apply(arg);
-                    if (new_arg.is_null()) {
-                        result_ = SymEngine::RCP<const SymEngine::Basic>();
+                    auto f_args = SymEngine::vec_basic({});
+                    auto has_arg_kept = false;
+                    auto has_arg_affected = false;
+                    keep_if_arguments(
+                        f_args, has_arg_kept, has_arg_affected, first_arg, args...
+                    );
+                    if (has_arg_kept) {
+                        result_ = has_arg_affected
+                                ? constructor(f_args) : x.rcp_from_this();
                     }
+                    // `result_` will be null only if all arguments are removed
                     else {
-                        if (SymEngine::eq(*arg, *new_arg)) {
-                            result_ = x.rcp_from_this();
-                        }
-                        else {
-                            result_ = constructor(
-                                SymEngine::rcp_dynamic_cast<Arg>(new_arg)
-                            );
-                        }
+                        result_ = SymEngine::RCP<const SymEngine::Basic>();
                     }
                 }
                 // The function will be kept as a whole

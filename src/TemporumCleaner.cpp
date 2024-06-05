@@ -4,6 +4,7 @@
 #include <symengine/number.h>
 #include <symengine/symengine_assert.h>
 
+#include "Tinned/ConjugateTranspose.hpp"
 #include "Tinned/TemporumOperator.hpp"
 #include "Tinned/TemporumOverlap.hpp"
 
@@ -66,7 +67,19 @@ namespace Tinned
 
     void TemporumCleaner::bvisit(const SymEngine::MatrixSymbol& x)
     {
-        if (SymEngine::is_a_sub<const TemporumOperator>(x)) {
+        if (SymEngine::is_a_sub<const ConjugateTranspose>(x)) {
+            auto& op = SymEngine::down_cast<const ConjugateTranspose&>(x);
+            clean_one_arg_f<const ConjugateTranspose, const SymEngine::MatrixExpr>(
+                op,
+                op.get_arg(),
+                [&](const SymEngine::RCP<const SymEngine::MatrixExpr>& arg)
+                    -> SymEngine::RCP<const SymEngine::Basic>
+                {
+                    return make_conjugate_transpose(arg);
+                }
+            );
+        }
+        else if (SymEngine::is_a_sub<const TemporumOperator>(x)) {
             auto& op = SymEngine::down_cast<const TemporumOperator&>(x);
             // For unperturbed `TemporumOperator` objects, the function
             // `get_frequency()` will return zero frequency

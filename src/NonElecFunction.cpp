@@ -39,7 +39,7 @@ namespace Tinned
         return false;
     }
 
-    int NonElecFunction::compare(const SymEngine::Basic &o) const
+    int NonElecFunction::compare(const SymEngine::Basic& o) const
     {
         SYMENGINE_ASSERT(SymEngine::is_a_sub<const NonElecFunction>(o))
         auto& op = SymEngine::down_cast<const NonElecFunction&>(o);

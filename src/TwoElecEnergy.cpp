@@ -74,7 +74,7 @@ namespace Tinned
         return false;
     }
 
-    int TwoElecEnergy::compare(const SymEngine::Basic &o) const
+    int TwoElecEnergy::compare(const SymEngine::Basic& o) const
     {
         SYMENGINE_ASSERT(SymEngine::is_a_sub<const TwoElecEnergy>(o))
         auto& op = SymEngine::down_cast<const TwoElecEnergy&>(o);

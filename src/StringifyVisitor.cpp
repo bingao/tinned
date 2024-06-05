@@ -1,5 +1,6 @@
 #include "Tinned/Perturbation.hpp"
-#include "Tinned/LagMultiplier.hpp"
+#include "Tinned/PerturbedParameter.hpp"
+#include "Tinned/ConjugateTranspose.hpp"
 
 #include "Tinned/OneElecDensity.hpp"
 #include "Tinned/OneElecOperator.hpp"
@@ -12,10 +13,8 @@
 #include "Tinned/TemporumOperator.hpp"
 #include "Tinned/TemporumOverlap.hpp"
 
-#include "Tinned/StateVector.hpp"
-#include "Tinned/StateOperator.hpp"
 #include "Tinned/AdjointMap.hpp"
-#include "Tinned/ExpAdjointHamiltonian.hpp"
+#include "Tinned/ClusterConjHamiltonian.hpp"
 
 #include "Tinned/ZeroOperator.hpp"
 
@@ -89,11 +88,26 @@ namespace Tinned
         }
     }
 
+    void StringifyVisitor::bvisit(const SymEngine::ZeroMatrix& x)
+    {
+        if (SymEngine::is_a_sub<const ZeroOperator>(x)) {
+            auto& op = SymEngine::down_cast<const ZeroOperator&>(x);
+            str_ = stringify_operator(op.get_name());
+        }
+        else {
+            SymEngine::StrPrinter::bvisit(x);
+        }
+    }
+
     void StringifyVisitor::bvisit(const SymEngine::MatrixSymbol& x)
     {
-        if (SymEngine::is_a_sub<const LagMultiplier>(x)) {
-            auto& op = SymEngine::down_cast<const LagMultiplier&>(x);
+        if (SymEngine::is_a_sub<const PerturbedParameter>(x)) {
+            auto& op = SymEngine::down_cast<const PerturbedParameter&>(x);
             str_ = stringify_operator(op.get_name(), op.get_derivatives());
+        }
+        else if (SymEngine::is_a_sub<const ConjugateTranspose>(x)) {
+            auto& op = SymEngine::down_cast<const ConjugateTranspose&>(x);
+            str_ = op.get_name() + parenthesize(apply(op.get_arg()));
         }
         else if (SymEngine::is_a_sub<const OneElecDensity>(x)) {
             auto& op = SymEngine::down_cast<const OneElecDensity&>(x);
@@ -125,9 +139,11 @@ namespace Tinned
             auto& op = SymEngine::down_cast<const TemporumOverlap&>(x);
             str_ = op.get_name() + parenthesize(apply(op.get_braket()));
         }
-        else if (SymEngine::is_a_sub<const ZeroOperator>(x)) {
-            auto& op = SymEngine::down_cast<const ZeroOperator&>(x);
-            str_ = stringify_operator(op.get_name());
+        else if (SymEngine::is_a_sub<const AdjointMap>(x)) {
+
+        }
+        else if (SymEngine::is_a_sub<const ClusterConjHamiltonian>(x)) {
+
         }
         else {
             SymEngine::StrPrinter::bvisit(x);

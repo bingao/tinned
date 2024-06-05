@@ -86,7 +86,7 @@ namespace Tinned
         return false;
     }
 
-    int ExchCorrPotential::compare(const SymEngine::Basic &o) const
+    int ExchCorrPotential::compare(const SymEngine::Basic& o) const
     {
         SYMENGINE_ASSERT(SymEngine::is_a_sub<const ExchCorrPotential>(o))
         auto& op = SymEngine::down_cast<const ExchCorrPotential&>(o);

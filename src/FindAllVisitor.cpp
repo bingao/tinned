@@ -1,7 +1,8 @@
 #include <symengine/pow.h>
 
 //#include "Tinned/Perturbation.hpp"
-#include "Tinned/LagMultiplier.hpp"
+#include "Tinned/PerturbedParameter.hpp"
+#include "Tinned/ConjugateTranspose.hpp"
 
 #include "Tinned/OneElecDensity.hpp"
 #include "Tinned/OneElecOperator.hpp"
@@ -13,12 +14,8 @@
 #include "Tinned/TemporumOperator.hpp"
 #include "Tinned/TemporumOverlap.hpp"
 
-#include "Tinned/StateVector.hpp"
-#include "Tinned/StateOperator.hpp"
 #include "Tinned/AdjointMap.hpp"
-#include "Tinned/ExpAdjointHamiltonian.hpp"
-
-#include "Tinned/ZeroOperator.hpp"
+#include "Tinned/ClusterConjHamiltonian.hpp"
 
 #include "Tinned/FindAllVisitor.hpp"
 
@@ -109,8 +106,11 @@ namespace Tinned
                     op,
                     [&](const TwoElecEnergy& op1, const TwoElecEnergy& op2) -> bool {
                         return op1.get_name()==op2.get_name()
-                            && this->comp_2el_operator(*op1.get_2el_operator(), *op2.get_2el_operator())
-                            && op1.get_outer_state()->get_name()==op2.get_outer_state()->get_name();
+                            && this->comp_2el_operator(
+                                   *op1.get_2el_operator(), *op2.get_2el_operator()
+                               )
+                            && op1.get_outer_state()->get_name()
+                               == op2.get_outer_state()->get_name();
                     },
                     G
                 );
@@ -152,9 +152,21 @@ namespace Tinned
 
     void FindAllVisitor::bvisit(const SymEngine::MatrixSymbol& x)
     {
-        // We check only the name for the Lagrangian multiplier
-        if (SymEngine::is_a_sub<const LagMultiplier>(x)) {
-            find_only_name(SymEngine::down_cast<const LagMultiplier&>(x));
+        // We check only the name for the (perturbed) response parameter
+        if (SymEngine::is_a_sub<const PerturbedParameter>(x)) {
+            find_only_name(SymEngine::down_cast<const PerturbedParameter&>(x));
+        }
+        else if (SymEngine::is_a_sub<const ConjugateTranspose>(x)) {
+            auto& op = SymEngine::down_cast<const ConjugateTranspose&>(x);
+            find_one_arg_f<const ConjugateTranspose, const SymEngine::MatrixExpr>(
+                op,
+                [&](const ConjugateTranspose& op1, const ConjugateTranspose& op2) -> bool
+                {
+                    FindAllVisitor v(op2.get_arg());
+                    return !v.apply(op1.get_arg()).empty();
+                },
+                op.get_arg()
+            );
         }
         // We check only the name for one-electron spin-orbital density matrix
         else if (SymEngine::is_a_sub<const OneElecDensity>(x)) {
@@ -185,7 +197,7 @@ namespace Tinned
         }
         else if (SymEngine::is_a_sub<const TemporumOperator>(x)) {
             auto& dt = SymEngine::down_cast<const TemporumOperator&>(x);
-            find_one_arg_f<const TemporumOperator, const SymEngine::Basic>(
+            find_one_arg_f<const TemporumOperator, const SymEngine::MatrixExpr>(
                 dt,
                 // The strategy of comparing two `TemporumOperator` objects is
                 // to make a `FindAllVisitor` with the target of the second
@@ -201,8 +213,11 @@ namespace Tinned
         else if (SymEngine::is_a_sub<const TemporumOverlap>(x)) {
             find_with_dependencies(SymEngine::down_cast<const TemporumOverlap&>(x));
         }
-        else if (SymEngine::is_a_sub<const ZeroOperator>(x)) {
-            find_equivalence(SymEngine::down_cast<const ZeroOperator&>(x));
+        else if (SymEngine::is_a_sub<const AdjointMap>(x)) {
+
+        }
+        else if (SymEngine::is_a_sub<const ClusterConjHamiltonian>(x)) {
+
         }
         else {
             throw SymEngine::NotImplementedError(
@@ -215,13 +230,13 @@ namespace Tinned
     // procedure as `TemporumOperator`
     void FindAllVisitor::bvisit(const SymEngine::Trace& x)
     {
-        find_one_arg_f<const SymEngine::Trace, const SymEngine::MatrixExpr>(
+        find_one_arg_f<const SymEngine::Trace, const SymEngine::Basic>(
             x,
             [&](const SymEngine::Trace& op1, const SymEngine::Trace& op2) -> bool {
                 FindAllVisitor v(op2.get_args()[0]);
                 return !v.apply(op1.get_args()[0]).empty();
             },
-            SymEngine::rcp_dynamic_cast<const SymEngine::MatrixExpr>(x.get_args()[0])
+            x.get_args()[0]
         );
     }
 
@@ -229,11 +244,12 @@ namespace Tinned
     {
         find_one_arg_f<const SymEngine::ConjugateMatrix, const SymEngine::MatrixExpr>(
             x,
-            [&](const SymEngine::ConjugateMatrix& op1, const SymEngine::ConjugateMatrix& op2) -> bool {
+            [&](const SymEngine::ConjugateMatrix& op1,
+                const SymEngine::ConjugateMatrix& op2) -> bool {
                 FindAllVisitor v(op2.get_arg());
                 return !v.apply(op1.get_arg()).empty();
             },
-            SymEngine::rcp_dynamic_cast<const SymEngine::MatrixExpr>(x.get_arg())
+            x.get_arg()
         );
     }
 
@@ -241,11 +257,12 @@ namespace Tinned
     {
         find_one_arg_f<const SymEngine::Transpose, const SymEngine::MatrixExpr>(
             x,
-            [&](const SymEngine::Transpose& op1, const SymEngine::Transpose& op2) -> bool {
+            [&](const SymEngine::Transpose& op1, const SymEngine::Transpose& op2) -> bool
+            {
                 FindAllVisitor v(op2.get_arg());
                 return !v.apply(op1.get_arg()).empty();
             },
-            SymEngine::rcp_dynamic_cast<const SymEngine::MatrixExpr>(x.get_arg())
+            x.get_arg()
         );
     }
 

@@ -8,6 +8,9 @@
    This file is the header file of time differentiation operator
    i\frac{\partial}{\partial t}.
 
+   2024-06-04, Bin Gao:
+   * remove the support for `NonElecFunction`
+
    2023-10-01, Bin Gao:
    * first version
 */
@@ -21,12 +24,12 @@
 #include <symengine/symbol.h>
 #include <symengine/symengine_rcp.h>
 #include <symengine/symengine_exception.h>
+#include <symengine/matrices/matrix_expr.h>
 #include <symengine/matrices/matrix_symbol.h>
 
 #include "Tinned/Perturbation.hpp"
 #include "Tinned/ElectronicState.hpp"
 #include "Tinned/OneElecOperator.hpp"
-#include "Tinned/NonElecFunction.hpp"
 
 namespace Tinned
 {
@@ -37,13 +40,13 @@ namespace Tinned
     {
         protected:
             // Target that the time differentiation operator acts on
-            SymEngine::RCP<const SymEngine::Basic> target_;
+            SymEngine::RCP<const SymEngine::MatrixExpr> target_;
             // Type of the time differentiation operator
             TemporumType type_;
 
         public:
             explicit TemporumOperator(
-                const SymEngine::RCP<const SymEngine::Basic>& target,
+                const SymEngine::RCP<const SymEngine::MatrixExpr>& target,
                 const TemporumType type
             );
 
@@ -58,7 +61,7 @@ namespace Tinned
             ) const override;
 
             // Get target
-            inline SymEngine::RCP<const SymEngine::Basic> get_target() const
+            inline SymEngine::RCP<const SymEngine::MatrixExpr> get_target() const
             {
                 return target_;
             }
@@ -93,10 +96,6 @@ namespace Tinned
                     auto target = SymEngine::rcp_dynamic_cast<const OneElecOperator>(target_);
                     return target->get_derivatives();
                 }
-                else if (SymEngine::is_a_sub<const NonElecFunction>(*target_)) {
-                    auto target = SymEngine::rcp_dynamic_cast<const NonElecFunction>(target_);
-                    return target->get_derivatives();
-                }
                 else {
                     throw SymEngine::SymEngineException(
                         "Invalid type from the time differentiated target."
@@ -107,7 +106,7 @@ namespace Tinned
 
     // Helper function to make a time differentiation operator
     inline SymEngine::RCP<const TemporumOperator> make_dt_operator(
-        const SymEngine::RCP<const SymEngine::Basic>& target,
+        const SymEngine::RCP<const SymEngine::MatrixExpr>& target,
         const TemporumType type = TemporumType::Ket
     )
     {

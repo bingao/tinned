@@ -66,16 +66,6 @@ TEST_CASE("Test TemporumOperator and make_dt_operator()", "[TemporumOperator]")
         Sp->get_derivatives(), SymEngine::multiset_basic({geo, mag})
     ));
     REQUIRE(SymEngine::eq(*Sp->diff(el), *make_zero_operator()));
-
-    auto h = make_nonel_function(std::string("hnuc"), dependencies);
-    auto ht = make_dt_operator(h);
-    auto hp = SymEngine::rcp_dynamic_cast<const TemporumOperator>(
-        (ht->diff(geo))->diff(mag)
-    );
-    REQUIRE(SymEngine::unified_eq(
-        hp->get_derivatives(), SymEngine::multiset_basic({geo, mag})
-    ));
-    REQUIRE(SymEngine::eq(*hp->diff(el), *SymEngine::zero));
 }
 
 TEST_CASE("Test TemporumOverlap and make_t_matrix()", "[TemporumOverlap]")

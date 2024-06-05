@@ -1,5 +1,7 @@
 #include <utility>
 
+#include "Tinned/ConjugateTranspose.hpp"
+
 #include "Tinned/ZerosRemover.hpp"
 
 namespace Tinned
@@ -60,6 +62,30 @@ namespace Tinned
         }
         // `SymEngine::Mul::from_dict` will take care of empty `d`
         result_ = SymEngine::Mul::from_dict(coef, std::move(d));
+    }
+
+    void ZerosRemover::bvisit(const SymEngine::MatrixSymbol& x)
+    {
+        if (SymEngine::is_a_sub<const ConjugateTranspose>(x)) {
+            auto& op = SymEngine::down_cast<const ConjugateTranspose&>(x);
+            remove_one_arg_f<const ConjugateTranspose, const SymEngine::MatrixExpr>(
+                op,
+                op.get_arg(),
+                [&](const SymEngine::RCP<const SymEngine::MatrixExpr>& arg)
+                    -> SymEngine::RCP<const SymEngine::Basic>
+                {
+                    return make_conjugate_transpose(arg);
+                }
+            );
+        }
+        else {
+            if (is_zero_quantity(x.rcp_from_this(), threshold_)) {
+                result_ = SymEngine::RCP<const SymEngine::Basic>();
+            }
+            else {
+                result_ = x.rcp_from_this();
+            }
+        }
     }
 
     void ZerosRemover::bvisit(const SymEngine::Trace& x)

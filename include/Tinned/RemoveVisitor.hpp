@@ -41,6 +41,8 @@
 #include <symengine/symengine_rcp.h>
 #include <symengine/visitor.h>
 
+#include "Tinned/VisitorUtilities.hpp"
+
 namespace Tinned
 {
     // Removing symbols if they match any given ones
@@ -90,35 +92,34 @@ namespace Tinned
                     ? SymEngine::RCP<const SymEngine::Basic>() : x.rcp_from_this();
             }
 
-            // Function template for one argument function like classes
-            template<typename Fun, typename Arg>
-            inline void remove_if_one_arg_f(
-                Fun& x,
-                const SymEngine::RCP<Arg>& arg,
+            // Function template for a function like object with one or more arguments
+            template<typename Fun, typename FirstArg, typename... Args>
+            inline void remove_if_a_function(
+                const Fun& x,
                 const std::function<SymEngine::RCP<const SymEngine::Basic>(
-                    const SymEngine::RCP<Arg>&
-                )>& constructor
+                    const SymEngine::vec_basic&
+                )>& constructor,
+                const FirstArg& first_arg,
+                const Args&... args
             )
             {
                 // We first check if the function will be removed
                 if (condition_(x)) {
                     result_ = SymEngine::RCP<const SymEngine::Basic>();
                 }
-                // Next we check if its argument will be removed
+                // Next we check if its arguments will be removed
                 else {
-                    auto new_arg = apply(arg);
-                    if (new_arg.is_null()) {
+                    auto f_args = SymEngine::vec_basic({});
+                    auto has_arg_affected = false;
+                    // `result_` will be null if any argument is removed completely
+                    if (visit_arguments(
+                        *this, f_args, has_arg_affected, first_arg, args...
+                    )) {
                         result_ = SymEngine::RCP<const SymEngine::Basic>();
                     }
                     else {
-                        if (SymEngine::eq(*arg, *new_arg)) {
-                            result_ = x.rcp_from_this();
-                        }
-                        else {
-                            result_ = constructor(
-                                SymEngine::rcp_dynamic_cast<Arg>(new_arg)
-                            );
-                        }
+                        result_ = has_arg_affected
+                                ? constructor(f_args) : x.rcp_from_this();
                     }
                 }
             }

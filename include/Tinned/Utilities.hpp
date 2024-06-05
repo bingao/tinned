@@ -20,19 +20,15 @@
 #include <symengine/constants.h>
 #include <symengine/dict.h>
 #include <symengine/matrices/matrix_expr.h>
-#include <symengine/matrices/matrix_mul.h>
 #include <symengine/symengine_exception.h>
 #include <symengine/symengine_rcp.h>
 
 #include "Tinned/Perturbation.hpp"
-#include "Tinned/TemporumOperator.hpp"
 #include "Tinned/ZeroOperator.hpp"
 
 #include "Tinned/FindAllVisitor.hpp"
-#include "Tinned/RemoveVisitor.hpp"
 #include "Tinned/ZerosRemover.hpp"
 #include "Tinned/ReplaceVisitor.hpp"
-#include "Tinned/TemporumCleaner.hpp"
 #include "Tinned/StringifyVisitor.hpp"
 
 namespace Tinned

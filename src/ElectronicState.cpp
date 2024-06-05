@@ -31,7 +31,7 @@ namespace Tinned
         return false;
     }
 
-    int ElectronicState::compare(const SymEngine::Basic &o) const
+    int ElectronicState::compare(const SymEngine::Basic& o) const
     {
         SYMENGINE_ASSERT(SymEngine::is_a_sub<const ElectronicState>(o))
         auto& state = SymEngine::down_cast<const ElectronicState&>(o);

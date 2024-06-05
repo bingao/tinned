@@ -37,7 +37,7 @@ namespace Tinned
         return false;
     }
 
-    int OneElecOperator::compare(const SymEngine::Basic &o) const
+    int OneElecOperator::compare(const SymEngine::Basic& o) const
     {
         SYMENGINE_ASSERT(SymEngine::is_a_sub<const OneElecOperator>(o))
         auto& op = SymEngine::down_cast<const OneElecOperator&>(o);

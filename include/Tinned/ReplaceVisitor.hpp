@@ -19,6 +19,7 @@
 
 #include <symengine/basic.h>
 #include <symengine/dict.h>
+#include <symengine/functions.h>
 #include <symengine/matrices/conjugate_matrix.h>
 #include <symengine/matrices/matrix_add.h>
 #include <symengine/matrices/matrix_derivative.h>
@@ -32,6 +33,8 @@
 #include <symengine/symengine_rcp.h>
 #include <symengine/visitor.h>
 #include <symengine/subs.h>
+
+#include "Tinned/VisitorUtilities.hpp"
 
 namespace Tinned
 {

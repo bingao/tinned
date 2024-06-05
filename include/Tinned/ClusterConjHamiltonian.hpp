@@ -5,7 +5,8 @@
    License, v. 2.0. If a copy of the MPL was not distributed with this
    file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-   This file is the header file of exponential maps.
+   This file is the header file of similarity-transformed Hamiltonian in
+   coupled-cluster theory.
 
    2024-04-17, Bin Gao:
    * first version
@@ -13,30 +14,28 @@
 
 #pragma once
 
-#include <string>
-
 #include <symengine/basic.h>
 #include <symengine/dict.h>
 #include <symengine/symbol.h>
 #include <symengine/symengine_rcp.h>
+#include <symengine/matrices/matrix_expr.h>
 #include <symengine/matrices/matrix_symbol.h>
-
-#include "Tinned/StateOperator.hpp"
 
 namespace Tinned
 {
-    class ExpAdjointHamiltonian: public SymEngine::MatrixSymbol
+    // The similarity-transformed Hamiltonian can also be called the
+    // conjugation of Hamiltonian
+    class ClusterConjHamiltonian: public SymEngine::MatrixSymbol
     {
         protected:
             // State operator
-            SymEngine::RCP<const StateOperator> state_operator_;
+            SymEngine::RCP<const SymEngine::MatrixExpr> cluster_operator_;
             // Hamiltonian
             SymEngine::RCP<const SymEngine::Basic> hamiltonian_;
 
         public:
-            explicit ExpAdjointHamiltonian(
-                const std::string& name,
-                const SymEngine::RCP<const StateOperator>& state_operator,
+            explicit ClusterConjHamiltonian(
+                const SymEngine::RCP<const SymEngine::MatrixExpr>& cluster_operator,
                 const SymEngine::RCP<const SymEngine::Basic>& hamiltonian
             );
 
@@ -50,10 +49,10 @@ namespace Tinned
                 const SymEngine::RCP<const SymEngine::Symbol>& s
             ) const override;
 
-            // Get the state operator
-            inline SymEngine::RCP<const StateOperator> get_state_operator() const
+            // Get the cluster operator
+            inline SymEngine::RCP<const SymEngine::MatrixExpr> get_cluster_operator() const
             {
-                return state_operator_;
+                return cluster_operator_;
             }
 
             // Get the Hamiltonian
@@ -63,15 +62,14 @@ namespace Tinned
             }
     };
 
-    // Helper function to make an exponential map
-    inline SymEngine::RCP<const ExpAdjointHamiltonian> make_eadj_hamiltonian(
-        const std::string& name,
-        const SymEngine::RCP<const StateOperator>& state_operator,
+    // Helper function to make a conjugation of Hamiltonian in coupled-cluster theory
+    inline SymEngine::RCP<const ClusterConjHamiltonian> make_cc_hamiltonian(
+        const SymEngine::RCP<const SymEngine::MatrixExpr>& cluster_operator,
         const SymEngine::RCP<const SymEngine::Basic>& hamiltonian
     )
     {
-        return SymEngine::make_rcp<const ExpAdjointHamiltonian>(
-            name, state_operator, hamiltonian
+        return SymEngine::make_rcp<const ClusterConjHamiltonian>(
+            cluster_operator, hamiltonian
         );
     }
 }

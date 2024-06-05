@@ -7,7 +7,8 @@
 #include "Tinned/Perturbation.hpp"
 #include "Tinned/PertDependency.hpp"
 #include "Tinned/ElectronicState.hpp"
-#include "Tinned/LagMultiplier.hpp"
+#include "Tinned/PerturbedParameter.hpp"
+#include "Tinned/ConjugateTranspose.hpp"
 
 #include "Tinned/OneElecDensity.hpp"
 #include "Tinned/OneElecOperator.hpp"
@@ -20,12 +21,8 @@
 #include "Tinned/TemporumOperator.hpp"
 #include "Tinned/TemporumOverlap.hpp"
 
-#include "Tinned/StateVector.hpp"
-#include "Tinned/StateOperator.hpp"
 #include "Tinned/AdjointMap.hpp"
-#include "Tinned/ExpAdjointHamiltonian.hpp"
-
-#include "Tinned/ZeroOperator.hpp"
+#include "Tinned/ClusterConjHamiltonian.hpp"
 
 #include "Tinned/KeepVisitor.hpp"
 
@@ -173,55 +170,39 @@ namespace Tinned
         }
         else if (SymEngine::is_a_sub<const TwoElecEnergy>(x)) {
             auto& op = SymEngine::down_cast<const TwoElecEnergy&>(x);
-            auto outer = op.get_outer_state();
-            if (condition_(*outer)) {
-                keep_if_one_arg_f<const TwoElecEnergy, const TwoElecOperator>(
-                    op,
-                    op.get_2el_operator(),
-                    [&](const SymEngine::RCP<const TwoElecOperator>& G)
-                        -> SymEngine::RCP<const SymEngine::Basic>
-                    {
-                        return SymEngine::make_rcp<const TwoElecEnergy>(G, outer);
-                    }
-                );
-            }
-            // Density matrix `outer` will be kept, so `x` will be kept as a whole
-            else {
-                result_ = x.rcp_from_this();
-            }
+            keep_if_a_function(
+                op,
+                std::bind(&construct_2el_energy, std::placeholders::_1),
+                op.get_2el_operator(),
+                op.get_outer_state()
+            );
         }
         else if (SymEngine::is_a_sub<const CompositeFunction>(x)) {
             auto& op = SymEngine::down_cast<const CompositeFunction&>(x);
-            keep_if_one_arg_f<const CompositeFunction, const SymEngine::Basic>(
+            keep_if_a_function(
                 op,
-                op.get_inner(),
-                [&](const SymEngine::RCP<const SymEngine::Basic>& inner)
-                    -> SymEngine::RCP<const SymEngine::Basic>
-                {
-                    return SymEngine::make_rcp<const CompositeFunction>(
-                        op.get_name(),
-                        inner,
-                        op.get_order()
-                    );
-                }
+                std::bind(
+                    &construct_composite_function,
+                    std::placeholders::_1,
+                    op.get_name(),
+                    op.get_order()
+                ),
+                op.get_inner()
             );
         }
         else if (SymEngine::is_a_sub<const ExchCorrEnergy>(x)) {
             auto& op = SymEngine::down_cast<const ExchCorrEnergy&>(x);
-            keep_if_one_arg_f<const ExchCorrEnergy, const SymEngine::Basic>(
+            keep_if_a_function(
                 op,
-                op.get_energy(),
-                [&](const SymEngine::RCP<const SymEngine::Basic>& energy)
-                    -> SymEngine::RCP<const SymEngine::Basic>
-                {
-                    return SymEngine::make_rcp<const ExchCorrEnergy>(
-                        op.get_name(),
-                        op.get_state(),
-                        op.get_overlap_distribution(),
-                        op.get_weight(),
-                        energy
-                    );
-                }
+                std::bind(
+                    &construct_xc_energy,
+                    std::placeholders::_1,
+                    op.get_name(),
+                    op.get_state(),
+                    op.get_overlap_distribution(),
+                    op.get_weight()
+                ),
+                op.get_energy()
             );
         }
         else {
@@ -233,8 +214,16 @@ namespace Tinned
 
     void KeepVisitor::bvisit(const SymEngine::MatrixSymbol& x)
     {
-        if (SymEngine::is_a_sub<const LagMultiplier>(x)) {
-            remove_if_symbol_like(SymEngine::down_cast<const LagMultiplier&>(x));
+        if (SymEngine::is_a_sub<const PerturbedParameter>(x)) {
+            remove_if_symbol_like(SymEngine::down_cast<const PerturbedParameter&>(x));
+        }
+        else if (SymEngine::is_a_sub<const ConjugateTranspose>(x)) {
+            auto& op = SymEngine::down_cast<const ConjugateTranspose&>(x);
+            keep_if_a_function(
+                op,
+                std::bind(&construct_conjugate_transpose, std::placeholders::_1),
+                op.get_arg()
+            );
         }
         else if (SymEngine::is_a_sub<const OneElecDensity>(x)) {
             remove_if_symbol_like(SymEngine::down_cast<const OneElecDensity&>(x));
@@ -244,58 +233,49 @@ namespace Tinned
         }
         else if (SymEngine::is_a_sub<const TwoElecOperator>(x)) {
             auto& op = SymEngine::down_cast<const TwoElecOperator&>(x);
-            keep_if_one_arg_f<const TwoElecOperator, const ElectronicState>(
+            keep_if_a_function(
                 op,
-                op.get_state(),
-                [&](const SymEngine::RCP<const ElectronicState>& state)
-                    -> SymEngine::RCP<const SymEngine::Basic>
-                {
-                    return SymEngine::make_rcp<const TwoElecOperator>(
-                        op.get_name(),
-                        state,
-                        op.get_dependencies(),
-                        op.get_derivatives()
-                    );
-                }
+                std::bind(
+                    &construct_2el_operator,
+                    std::placeholders::_1,
+                    op.get_name(),
+                    op.get_dependencies(),
+                    op.get_derivatives()
+                ),
+                op.get_state()
             );
         }
         else if (SymEngine::is_a_sub<const ExchCorrPotential>(x)) {
             auto& op = SymEngine::down_cast<const ExchCorrPotential&>(x);
-            keep_if_one_arg_f<const ExchCorrPotential, const SymEngine::MatrixExpr>(
+            keep_if_a_function(
                 op,
-                op.get_potential(),
-                [&](const SymEngine::RCP<const SymEngine::MatrixExpr>& potential)
-                    -> SymEngine::RCP<const SymEngine::Basic>
-                {
-                    return SymEngine::make_rcp<const ExchCorrPotential>(
-                        op.get_name(),
-                        op.get_state(),
-                        op.get_overlap_distribution(),
-                        op.get_weight(),
-                        potential
-                    );
-                }
+                std::bind(
+                    &construct_xc_potential,
+                    std::placeholders::_1,
+                    op.get_name(),
+                    op.get_state(),
+                    op.get_overlap_distribution(),
+                    op.get_weight()
+                ),
+                op.get_potential()
             );
         }
         else if (SymEngine::is_a_sub<const TemporumOperator>(x)) {
             auto& op = SymEngine::down_cast<const TemporumOperator&>(x);
-            keep_if_one_arg_f<const TemporumOperator, const SymEngine::Basic>(
+            keep_if_a_function(
                 op,
-                op.get_target(),
-                [&](const SymEngine::RCP<const SymEngine::Basic>& target)
-                    -> SymEngine::RCP<const SymEngine::Basic>
-                {
-                    return SymEngine::make_rcp<const TemporumOperator>(
-                        target, op.get_type()
-                    );
-                }
+                std::bind(&construct_dt_operator, std::placeholders::_1, op.get_type()),
+                op.get_target()
             );
         }
         else if (SymEngine::is_a_sub<const TemporumOverlap>(x)) {
             remove_if_symbol_like(SymEngine::down_cast<const TemporumOverlap&>(x));
         }
-        else if (SymEngine::is_a_sub<const ZeroOperator>(x)) {
-            remove_if_symbol_like(SymEngine::down_cast<const ZeroOperator&>(x));
+        else if (SymEngine::is_a_sub<const AdjointMap>(x)) {
+
+        }
+        else if (SymEngine::is_a_sub<const ClusterConjHamiltonian>(x)) {
+
         }
         else {
             throw SymEngine::NotImplementedError(
@@ -306,40 +286,28 @@ namespace Tinned
 
     void KeepVisitor::bvisit(const SymEngine::Trace& x)
     {
-        keep_if_one_arg_f<const SymEngine::Trace, const SymEngine::MatrixExpr>(
+        keep_if_a_function(
             x,
-            SymEngine::rcp_dynamic_cast<const SymEngine::MatrixExpr>(x.get_args()[0]),
-            [&](const SymEngine::RCP<const SymEngine::MatrixExpr>& arg)
-                -> SymEngine::RCP<const SymEngine::Basic>
-            {
-                return SymEngine::trace(arg);
-            }
+            std::bind(&construct_trace, std::placeholders::_1),
+            x.get_args()[0]
         );
     }
 
     void KeepVisitor::bvisit(const SymEngine::ConjugateMatrix& x)
     {
-        keep_if_one_arg_f<const SymEngine::ConjugateMatrix, const SymEngine::MatrixExpr>(
+        keep_if_a_function(
             x,
-            x.get_arg(),
-            [&](const SymEngine::RCP<const SymEngine::MatrixExpr>& arg)
-                -> SymEngine::RCP<const SymEngine::Basic>
-            {
-                return SymEngine::conjugate_matrix(arg);
-            }
+            std::bind(&construct_conjugate_matrix, std::placeholders::_1),
+            x.get_arg()
         );
     }
 
     void KeepVisitor::bvisit(const SymEngine::Transpose& x)
     {
-        keep_if_one_arg_f<const SymEngine::Transpose, const SymEngine::MatrixExpr>(
+        keep_if_a_function(
             x,
-            x.get_arg(),
-            [&](const SymEngine::RCP<const SymEngine::MatrixExpr>& arg)
-                -> SymEngine::RCP<const SymEngine::Basic>
-            {
-                return SymEngine::transpose(arg);
-            }
+            std::bind(&construct_transpose, std::placeholders::_1),
+            x.get_arg()
         );
     }
 

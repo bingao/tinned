@@ -45,7 +45,7 @@ namespace Tinned
         return false;
     }
 
-    int CompositeFunction::compare(const SymEngine::Basic &o) const
+    int CompositeFunction::compare(const SymEngine::Basic& o) const
     {
         SYMENGINE_ASSERT(SymEngine::is_a_sub<const CompositeFunction>(o))
         auto& op = SymEngine::down_cast<const CompositeFunction&>(o);

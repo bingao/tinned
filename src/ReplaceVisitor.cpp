@@ -1,7 +1,8 @@
 #include "Tinned/Perturbation.hpp"
 #include "Tinned/PertDependency.hpp"
 #include "Tinned/ElectronicState.hpp"
-#include "Tinned/LagMultiplier.hpp"
+#include "Tinned/PerturbedParameter.hpp"
+#include "Tinned/ConjugateTranspose.hpp"
 
 #include "Tinned/OneElecDensity.hpp"
 #include "Tinned/OneElecOperator.hpp"
@@ -14,14 +15,11 @@
 #include "Tinned/TemporumOperator.hpp"
 #include "Tinned/TemporumOverlap.hpp"
 
-#include "Tinned/StateVector.hpp"
-#include "Tinned/StateOperator.hpp"
 #include "Tinned/AdjointMap.hpp"
-#include "Tinned/ExpAdjointHamiltonian.hpp"
-
-#include "Tinned/ZeroOperator.hpp"
+#include "Tinned/ClusterConjHamiltonian.hpp"
 
 #include "Tinned/ReplaceVisitor.hpp"
+#include "Tinned/VisitorUtilities.hpp"
 
 namespace Tinned
 {
@@ -36,13 +34,7 @@ namespace Tinned
             auto& op = SymEngine::down_cast<const TwoElecEnergy&>(x);
             replace_a_function(
                 op,
-                [&](const SymEngine::vec_basic& args) -> SymEngine::RCP<const SymEngine::Basic>
-                {
-                    return SymEngine::make_rcp<const TwoElecEnergy>(
-                        SymEngine::rcp_dynamic_cast<const TwoElecOperator>(args[0]),
-                        SymEngine::rcp_dynamic_cast<const ElectronicState>(args[1])
-                    );
-                },
+                std::bind(&construct_2el_energy, std::placeholders::_1),
                 op.get_2el_operator(),
                 op.get_outer_state()
             );
@@ -51,12 +43,12 @@ namespace Tinned
             auto& op = SymEngine::down_cast<const CompositeFunction&>(x);
             replace_a_function(
                 op,
-                [&](const SymEngine::vec_basic& args) -> SymEngine::RCP<const SymEngine::Basic>
-                {
-                    return SymEngine::make_rcp<const CompositeFunction>(
-                        op.get_name(), args[0], op.get_order()
-                    );
-                },
+                std::bind(
+                    &construct_composite_function,
+                    std::placeholders::_1,
+                    op.get_name(),
+                    op.get_order()
+                ),
                 op.get_inner()
             );
         }
@@ -66,7 +58,8 @@ namespace Tinned
             // generalized overlap distribution
             replace_a_function(
                 op,
-                [&](const SymEngine::vec_basic& args) -> SymEngine::RCP<const SymEngine::Basic>
+                [&](const SymEngine::vec_basic& args)
+                    -> SymEngine::RCP<const SymEngine::Basic>
                 {
                     return SymEngine::make_rcp<const ExchCorrEnergy>(
                         op.get_name(),
@@ -94,8 +87,16 @@ namespace Tinned
 
     void ReplaceVisitor::bvisit(const SymEngine::MatrixSymbol& x)
     {
-        if (SymEngine::is_a_sub<const LagMultiplier>(x)) {
-            replace_a_whole(SymEngine::down_cast<const LagMultiplier&>(x));
+        if (SymEngine::is_a_sub<const PerturbedParameter>(x)) {
+            replace_a_whole(SymEngine::down_cast<const PerturbedParameter&>(x));
+        }
+        else if (SymEngine::is_a_sub<const ConjugateTranspose>(x)) {
+            auto& op = SymEngine::down_cast<const ConjugateTranspose&>(x);
+            replace_a_function(
+                op,
+                std::bind(&construct_conjugate_transpose, std::placeholders::_1),
+                op.get_arg()
+            );
         }
         else if (SymEngine::is_a_sub<const OneElecDensity>(x)) {
             replace_a_whole(SymEngine::down_cast<const OneElecDensity&>(x));
@@ -107,15 +108,13 @@ namespace Tinned
             auto& op = SymEngine::down_cast<const TwoElecOperator&>(x);
             replace_a_function(
                 op,
-                [&](const SymEngine::vec_basic& args) -> SymEngine::RCP<const SymEngine::Basic>
-                {
-                    return SymEngine::make_rcp<const TwoElecOperator>(
-                        op.get_name(),
-                        SymEngine::rcp_dynamic_cast<const ElectronicState>(args[0]),
-                        op.get_dependencies(),
-                        op.get_derivatives()
-                    );
-                },
+                std::bind(
+                    &construct_2el_operator,
+                    std::placeholders::_1,
+                    op.get_name(),
+                    op.get_dependencies(),
+                    op.get_derivatives()
+                ),
                 op.get_state()
             );
         }
@@ -125,7 +124,8 @@ namespace Tinned
             // generalized overlap distribution
             replace_a_function(
                 op,
-                [&](const SymEngine::vec_basic& args) -> SymEngine::RCP<const SymEngine::Basic>
+                [&](const SymEngine::vec_basic& args)
+                    -> SymEngine::RCP<const SymEngine::Basic>
                 {
                     return SymEngine::make_rcp<const ExchCorrPotential>(
                         op.get_name(),
@@ -145,20 +145,18 @@ namespace Tinned
             auto& op = SymEngine::down_cast<const TemporumOperator&>(x);
             replace_a_function(
                 op,
-                [&](const SymEngine::vec_basic& args) -> SymEngine::RCP<const SymEngine::Basic>
-                {
-                    return SymEngine::make_rcp<const TemporumOperator>(
-                        args[0], op.get_type()
-                    );
-                },
+                std::bind(&construct_dt_operator, std::placeholders::_1, op.get_type()),
                 op.get_target()
             );
         }
         else if (SymEngine::is_a_sub<const TemporumOverlap>(x)) {
             replace_a_whole(SymEngine::down_cast<const TemporumOverlap&>(x));
         }
-        else if (SymEngine::is_a_sub<const ZeroOperator>(x)) {
-            replace_a_whole(SymEngine::down_cast<const ZeroOperator&>(x));
+        else if (SymEngine::is_a_sub<const AdjointMap>(x)) {
+
+        }
+        else if (SymEngine::is_a_sub<const ClusterConjHamiltonian>(x)) {
+
         }
         else {
             SymEngine::MSubsVisitor::bvisit(x);
@@ -169,13 +167,8 @@ namespace Tinned
     {
         replace_a_function(
             x,
-            [&](const SymEngine::vec_basic& args) -> SymEngine::RCP<const SymEngine::Basic>
-            {
-                return SymEngine::trace(
-                    SymEngine::rcp_dynamic_cast<const SymEngine::MatrixExpr>(args[0])
-                );
-            },
-            SymEngine::rcp_dynamic_cast<const SymEngine::MatrixExpr>(x.get_args()[0])
+            std::bind(&construct_trace, std::placeholders::_1),
+            x.get_args()[0]
         );
     }
 
@@ -183,12 +176,7 @@ namespace Tinned
     {
         replace_a_function(
             x,
-            [&](const SymEngine::vec_basic& args) -> SymEngine::RCP<const SymEngine::Basic>
-            {
-                return SymEngine::conjugate_matrix(
-                    SymEngine::rcp_dynamic_cast<const SymEngine::MatrixExpr>(args[0])
-                );
-            },
+            std::bind(&construct_conjugate_matrix, std::placeholders::_1),
             x.get_arg()
         );
     }
@@ -197,12 +185,7 @@ namespace Tinned
     {
         replace_a_function(
             x,
-            [&](const SymEngine::vec_basic& args) -> SymEngine::RCP<const SymEngine::Basic>
-            {
-                return SymEngine::transpose(
-                    SymEngine::rcp_dynamic_cast<const SymEngine::MatrixExpr>(args[0])
-                );
-            },
+            std::bind(&construct_transpose, std::placeholders::_1),
             x.get_arg()
         );
     }
