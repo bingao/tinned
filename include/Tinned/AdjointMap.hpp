@@ -25,6 +25,7 @@ namespace Tinned
     class AdjointMap: public SymEngine::MatrixSymbol
     {
         protected:
+            //FIXME: types of x_ and y_ should be `SymEngine::MatrixExpr`
             SymEngine::vec_basic x_;
             SymEngine::RCP<const SymEngine::Basic> y_;
 
@@ -53,7 +54,7 @@ namespace Tinned
                 const SymEngine::RCP<const SymEngine::Symbol>& s
             ) const override;
 
-            // Get the vector of (state) operators X's
+            // Get the vector of operators X's
             inline SymEngine::vec_basic get_x() const
             {
                 return x_;

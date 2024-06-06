@@ -35,10 +35,15 @@
 #include "Tinned/ExchCorrPotential.hpp"
 #include "Tinned/TemporumOperator.hpp"
 
+#include "Tinned/AdjointMap.hpp"
+#include "Tinned/ClusterConjHamiltonian.hpp"
+
 namespace Tinned
 {
     // Function template to visit only one argument.
-    template<typename Visitor, typename Arg> inline bool visit_arguments(
+    template<typename Visitor, typename Arg,
+             typename std::enable_if<!std::is_same<Arg, SymEngine::vec_basic>::value, int>::type = 0>
+    inline bool visit_arguments(
         Visitor& v,
         SymEngine::vec_basic& f_args,
         bool& has_arg_affected,
@@ -49,6 +54,21 @@ namespace Tinned
         if (new_arg.is_null()) return true;
         f_args.push_back(new_arg);
         if (SymEngine::neq(*arg, *new_arg)) has_arg_affected = true;
+        return false;
+    }
+
+    // Function template to visit only one argument of type `SymEngine::vec_basic`.
+    template<typename Visitor, typename Arg,
+             typename std::enable_if<std::is_same<Arg, SymEngine::vec_basic>::value, int>::type = 0>
+    inline bool visit_arguments(
+        Visitor& v,
+        SymEngine::vec_basic& f_args,
+        bool& has_arg_affected,
+        const Arg& arg
+    )
+    {
+        for (const auto& term: arg)
+            if (visit_arguments(v, f_args, has_arg_affected, term)) return true;
         return false;
     }
 
@@ -182,6 +202,24 @@ namespace Tinned
         return SymEngine::make_rcp<const TemporumOperator>(
             SymEngine::rcp_dynamic_cast<const SymEngine::MatrixExpr>(args[0]),
             type
+        );
+    }
+
+    inline SymEngine::RCP<const SymEngine::Basic> construct_adjoint_map(
+        const SymEngine::vec_basic& args
+    )
+    {
+        return SymEngine::make_rcp<const AdjointMap>(
+            SymEngine::vec_basic(args.begin(), args.end()-1), args.back()
+        );
+    }
+
+    inline SymEngine::RCP<const SymEngine::Basic> construct_cc_hamiltonian(
+        const SymEngine::vec_basic& args
+    )
+    {
+        return SymEngine::make_rcp<const ClusterConjHamiltonian>(
+            SymEngine::rcp_dynamic_cast<const SymEngine::MatrixExpr>(args[0]), args[1]
         );
     }
 }

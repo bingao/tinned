@@ -214,10 +214,20 @@ namespace Tinned
             find_with_dependencies(SymEngine::down_cast<const TemporumOverlap&>(x));
         }
         else if (SymEngine::is_a_sub<const AdjointMap>(x)) {
-
+            // We treat `AdjointMap` as an operation, similar to `MatrixAdd`
+            auto& op = SymEngine::down_cast<const AdjointMap&>(x);
+            if (!find_equivalence(op)) {
+                for (auto arg: op.get_x()) apply_(arg);
+                apply_(op.get_y());
+            }
         }
         else if (SymEngine::is_a_sub<const ClusterConjHamiltonian>(x)) {
-
+            // We treat `ClusterConjHamiltonian` as an operation, similar to `MatrixAdd`
+            auto& op = SymEngine::down_cast<const ClusterConjHamiltonian&>(x);
+            if (!find_equivalence(op)) {
+                apply_(op.get_cluster_operator());
+                apply_(op.get_hamiltonian());
+            }
         }
         else {
             throw SymEngine::NotImplementedError(

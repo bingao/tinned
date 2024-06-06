@@ -1,5 +1,3 @@
-#include <regex>
-
 #include <symengine/constants.h>
 
 #include "Tinned/Perturbation.hpp"
@@ -53,9 +51,8 @@ namespace Tinned
             o << "\\tfrac{1}{2}"
               << apply(op.get_2el_operator())
               << print_mul()
-              << latexify_state(op.get_outer_state());
-            str_ = latexify_operator("\\mathrm{tr}", {}, OperFontStyle::Regular)
-                 + parenthesize(o.str());
+              << apply(op.get_outer_state());
+            str_ = "\\mathrm{tr}" + parenthesize(o.str());
         }
         else if (SymEngine::is_a_sub<const CompositeFunction>(x)) {
             auto& op = SymEngine::down_cast<const CompositeFunction&>(x);
@@ -193,9 +190,9 @@ namespace Tinned
         }
         else if (SymEngine::is_a_sub<const TwoElecOperator>(x)) {
             auto& op = SymEngine::down_cast<const TwoElecOperator&>(x);
-            str_ = latexify_operator(op.get_name(), op.get_derivatives())
-                 + parenthesize(latexify_state(op.get_state()));
+            str_ = latexify_operator(op.get_name(), op.get_derivatives()) + "(";
             update_num_symbols(1, str_);
+            str_ += add_suffix(apply(op.get_state()), ")");
         }
         else if (SymEngine::is_a_sub<const ExchCorrPotential>(x)) {
             auto& op = SymEngine::down_cast<const ExchCorrPotential&>(x);
@@ -214,19 +211,39 @@ namespace Tinned
             auto derivatives = op.get_derivatives();
             if (derivatives.empty()) {
                 // Unperturbed T matrix is actually a zero operator
-                str_ = latexify_operator(std::string("T")) + "^{0}";
+                str_ = latexify_operator(op.get_name()) + "^{0}";
                 update_num_symbols(1, str_);
             }
             else {
-                str_ = latexify_operator(std::string("T"), derivatives);
+                str_ = latexify_operator(op.get_name(), derivatives);
                 update_num_symbols(1, str_);
             }
         }
         else if (SymEngine::is_a_sub<const AdjointMap>(x)) {
-
+            auto& op = SymEngine::down_cast<const AdjointMap&>(x);
+            LaTeXifyVisitor visitor;
+            auto terms = op.get_x();
+            str_.clear();
+            for (std::size_t i=0; i<terms.size(); ++i) {
+                if (i>0) str_ += print_mul();
+                str_ += "(\\mathrm{" + op.get_name() + "}_{"
+                      + remove_newline(visitor.apply(terms[i])) + "})";
+                if (i==terms.size()-1) str_ += "(";
+                update_num_symbols(1, str_);
+            }
+            str_ += add_suffix(apply(op.get_y()), ")");
         }
         else if (SymEngine::is_a_sub<const ClusterConjHamiltonian>(x)) {
-
+            auto& op = SymEngine::down_cast<const ClusterConjHamiltonian&>(x);
+            // Subscripts and superscripts should not change the number of
+            // symbols, so we use a new visitor
+            LaTeXifyVisitor visitor;
+            str_ = "\\mathrm{" + op.get_name() + "}_{"
+                 + remove_newline(visitor.apply(SymEngine::matrix_mul({
+                       SymEngine::minus_one, op.get_cluster_operator()
+                   }))) + "}(";
+            update_num_symbols(2, str_);
+            str_ += add_suffix(apply(op.get_hamiltonian()), ")");
         }
         else {
             SymEngine::LatexPrinter::bvisit(x);

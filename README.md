@@ -37,8 +37,8 @@ for computational chemistry include:
 * Class [`PertDependency`](include/Tinned/PertDependency.hpp), `std::set` for
   perturbations that an operator depends on and their maximum orders that can
   be differentiated.
-* Class [`LagMultiplier`](include/Tinned/LagMultiplier.hpp), Lagrangian
-  multiplier vectors.
+* Class [`PerturbedParameter`](include/Tinned/PerturbedParameter.hpp),
+  (perturbed) response parameter.
 * Class [`OneElecDensity`](include/Tinned/OneElecDensity.hpp), one-electron
   spin-orbital density matrix derived from the abstract electronic state
   class [`ElectronicState`](include/Tinned/ElectronicState.hpp).
@@ -60,10 +60,6 @@ for computational chemistry include:
 * Class [`TemporumOverlap`](include/Tinned/TemporumOverlap.hpp), for the operator
   $-\frac{1}{2}(\langle\mathrm{i}\frac{\partial}{\partial t}\chi_{\kappa}\vert\chi_{\lambda}\rangle
   +\langle\chi_{\kappa}\vert\mathrm{i}\frac{\partial}{\partial t}\chi_{\lambda}\rangle)$.
-* Class [`StateVector`](include/Tinned/StateVector.hpp) for state vectors, such
-  as the coupled-cluster amplitude vector $\tilde{\boldsymbol{t}}$.
-* Class [`StateOperator`](include/Tinned/StateOperator.hpp) for state operators,
-  such as the coupled-cluster operator $\hat{T}$.
 * Class [`AdjointMap`](include/Tinned/AdjointMap.hpp) represents an adjoint map
   $\prod_{j}\left(\text{ad}_{\tilde{\mathbf{X}}_{j}}\right)(\tilde{\mathbf{Y}})$
   where all $\tilde{\mathbf{X}}_{j}$'s and all their derivatives are commutative.
@@ -181,7 +177,6 @@ More examples can be found in Tinned tests in the directory `tests`.
 * Add Boolean input for `differentiate` function to indicate if
   call `clean_temporum` after differentiation;
 * Introduce `CoefficientMO` inherited from `ElectronicState`;
-* Support coupled-cluster classes in all visitor classes.
 * Test newly added `TwoElecEnergy` and coupled-cluster classes, and visitors
   `EliminationVisitor`, `TemporumCleaner`, `ZerosRemover`.
 * More tests on `ExchCorrPotential::get_potential_map`.

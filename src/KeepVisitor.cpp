@@ -25,6 +25,7 @@
 #include "Tinned/ClusterConjHamiltonian.hpp"
 
 #include "Tinned/KeepVisitor.hpp"
+#include "Tinned/VisitorUtilities.hpp"
 
 namespace Tinned
 {
@@ -272,10 +273,22 @@ namespace Tinned
             remove_if_symbol_like(SymEngine::down_cast<const TemporumOverlap&>(x));
         }
         else if (SymEngine::is_a_sub<const AdjointMap>(x)) {
-
+            auto& op = SymEngine::down_cast<const AdjointMap&>(x);
+            keep_if_a_function(
+                op,
+                std::bind(&construct_adjoint_map, std::placeholders::_1),
+                op.get_x(),
+                op.get_y()
+            );
         }
         else if (SymEngine::is_a_sub<const ClusterConjHamiltonian>(x)) {
-
+            auto& op = SymEngine::down_cast<const ClusterConjHamiltonian&>(x);
+            keep_if_a_function(
+                op,
+                std::bind(&construct_cc_hamiltonian, std::placeholders::_1),
+                op.get_cluster_operator(),
+                op.get_hamiltonian()
+            );
         }
         else {
             throw SymEngine::NotImplementedError(

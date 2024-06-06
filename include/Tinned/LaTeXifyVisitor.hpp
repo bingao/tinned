@@ -15,6 +15,7 @@
 
 #include <cstddef>
 #include <ostream>
+#include <regex>
 #include <string>
 
 #include <symengine/basic.h>
@@ -53,6 +54,12 @@ namespace Tinned
             unsigned int curr_num_symbols_;
             // Indicates if zero factor(s) exists in a multiplication
             bool zero_factor_;
+
+            // Remove newline from `expr`
+            inline std::string remove_newline(const std::string& expr) const
+            {
+                return std::regex_replace(expr, std::regex(str_newline_.data()), R"()");
+            }
 
             // Find the position of trailing newline in `expr`
             inline std::size_t find_trailing_newline(const std::string& expr) const
@@ -94,13 +101,17 @@ namespace Tinned
                 const SymEngine::multiset_basic& derivatives
             )
             {
+                // Important to use a new visitor to convert `derivatives`
+                // because we don't want to change the number of symbols when
+                // invoking `apply` method
+                LaTeXifyVisitor visitor;
                 std::ostringstream o;
                 auto var = derivatives.begin();
-                o << "^{" << apply(*var);
+                o << "^{" << visitor.apply(*var);
                 ++var;
-                for (; var!=derivatives.end(); ++var) o << "," << apply(*var);
+                for (; var!=derivatives.end(); ++var) o << "," << visitor.apply(*var);
                 o << "}";
-                return o.str();
+                return remove_newline(o.str());
             }
 
             // LaTeXify an operator with/without derivatives
@@ -119,15 +130,6 @@ namespace Tinned
                 }
                 if (!derivatives.empty()) o << latexify_derivatives(derivatives);
                 return o.str();
-            }
-
-            // LaTeXify the electronic state
-            inline std::string latexify_state(
-                const SymEngine::RCP<const ElectronicState>& state
-            )
-            {
-                bvisit(*state);
-                return str_;
             }
 
             std::string parenthesize(const std::string& expr) override;

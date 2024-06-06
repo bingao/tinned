@@ -2,7 +2,7 @@
 #include <algorithm>
 #include <string>
 
-#include <symengine/add.h>
+#include <symengine/matrices/matrix_add.h>
 #include <symengine/symengine_assert.h>
 #include <symengine/symengine_casts.h>
 
@@ -98,7 +98,12 @@ namespace Tinned
             return make_zero_operator();
         }
         else {
-            return terms.size()==1 ? terms[0] : SymEngine::add(terms);
+            if (terms.size()==1) {
+                return terms[0];
+            }
+            else {
+                return SymEngine::matrix_add(terms);
+            }
         }
     }
 }

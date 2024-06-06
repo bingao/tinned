@@ -1,7 +1,7 @@
 #include <string>
 
-#include <symengine/add.h>
 #include <symengine/constants.h>
+#include <symengine/matrices/matrix_add.h>
 #include <symengine/matrices/matrix_mul.h>
 #include <symengine/symengine_assert.h>
 #include <symengine/symengine_casts.h>
@@ -17,7 +17,7 @@ namespace Tinned
     ClusterConjHamiltonian::ClusterConjHamiltonian(
         const SymEngine::RCP<const SymEngine::MatrixExpr>& cluster_operator,
         const SymEngine::RCP<const SymEngine::Basic>& hamiltonian
-    ) : SymEngine::MatrixSymbol(std::string("e^{ad}")),
+    ) : SymEngine::MatrixSymbol(std::string("ead")),
         cluster_operator_(cluster_operator)
     {
         if (SymEngine::is_a_sub<const AdjointMap>(*hamiltonian)) {
@@ -80,12 +80,25 @@ namespace Tinned
     ) const
     {
         SymEngine::vec_basic terms;
-        // Differentiate the Hamiltonian
+        // Differentiate the Hamiltonian, which is either an operator or an
+        // `AdjointMap`. So its derivative ``diff_hamiltonian is either an
+        // operator, an `AdjointMap`, or a `MatrixAdd` of `AdjointMap`'s
         auto diff_hamiltonian = hamiltonian_->diff(s);
         if (!diff_hamiltonian->__eq__(*make_zero_operator())) {
-            terms.push_back(SymEngine::make_rcp<const ClusterConjHamiltonian>(
-                cluster_operator_, diff_hamiltonian
-            ));
+            if (SymEngine::is_a_sub<const SymEngine::MatrixAdd>(*diff_hamiltonian)) {
+                auto op = SymEngine::rcp_dynamic_cast<const SymEngine::MatrixAdd>(
+                    diff_hamiltonian
+                );
+                for (const auto& ad_hamiltonain: op->get_terms())
+                    terms.push_back(SymEngine::make_rcp<const ClusterConjHamiltonian>(
+                        cluster_operator_, ad_hamiltonain
+                    ));
+            }
+            else {
+                terms.push_back(SymEngine::make_rcp<const ClusterConjHamiltonian>(
+                    cluster_operator_, diff_hamiltonian
+                ));
+            }
         }
         // Differentiate the cluster operator
         auto diff_oper = cluster_operator_->diff(s);
@@ -129,7 +142,12 @@ namespace Tinned
             return make_zero_operator();
         }
         else {
-            return terms.size()==1 ? terms[0] : SymEngine::add(terms);
+            if (terms.size()==1) {
+                return terms[0];
+            }
+            else {
+                return SymEngine::matrix_add(terms);
+            }
         }
     }
 }

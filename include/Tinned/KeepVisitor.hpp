@@ -35,7 +35,6 @@
 
 #include "Tinned/ZerosRemover.hpp"
 #include "Tinned/RemoveVisitor.hpp"
-#include "Tinned/VisitorUtilities.hpp"
 
 namespace Tinned
 {
@@ -72,6 +71,18 @@ namespace Tinned
                     has_arg_kept = true;
                     if (SymEngine::neq(*arg, *new_arg)) has_arg_affected = true;
                 }
+            }
+
+            // Function template for only one argument of type `SymEngine::vec_basic`.
+            template<> inline void keep_if_arguments<SymEngine::vec_basic>(
+                SymEngine::vec_basic& f_args,
+                bool& has_arg_kept,
+                bool& has_arg_affected,
+                const SymEngine::vec_basic& arg
+            )
+            {
+                for (const auto& term: arg)
+                    keep_if_arguments(f_args, has_arg_kept, has_arg_affected, term);
             }
 
             // Function template for one or more arguments. `f_args` holds all

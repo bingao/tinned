@@ -140,10 +140,16 @@ namespace Tinned
             str_ = op.get_name() + parenthesize(apply(op.get_braket()));
         }
         else if (SymEngine::is_a_sub<const AdjointMap>(x)) {
-
+            auto& op = SymEngine::down_cast<const AdjointMap&>(x);
+            std::ostringstream o;
+            for (const auto& term: op.get_x()) o << apply(term) + ", ";
+            str_ = op.get_name() + parenthesize(o.str()+apply(op.get_y()));
         }
         else if (SymEngine::is_a_sub<const ClusterConjHamiltonian>(x)) {
-
+            auto& op = SymEngine::down_cast<const ClusterConjHamiltonian&>(x);
+            std::ostringstream o;
+            o << apply(op.get_cluster_operator()) << ", " << apply(op.get_hamiltonian());
+            str_ = op.get_name() + parenthesize(o.str());
         }
         else {
             SymEngine::StrPrinter::bvisit(x);

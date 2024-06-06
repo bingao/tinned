@@ -34,8 +34,6 @@
 #include <symengine/visitor.h>
 #include <symengine/subs.h>
 
-#include "Tinned/VisitorUtilities.hpp"
-
 namespace Tinned
 {
     class ReplaceVisitor: public SymEngine::BaseVisitor<ReplaceVisitor, SymEngine::MSubsVisitor>
@@ -64,6 +62,17 @@ namespace Tinned
                 auto new_arg = apply(arg);
                 f_args.push_back(new_arg);
                 if (SymEngine::neq(*arg, *new_arg)) has_arg_replaced = true;
+            }
+
+            // Function template for only one argument of type `SymEngine::vec_basic`.
+            template<> inline void replace_arguments<SymEngine::vec_basic>(
+                SymEngine::vec_basic& f_args,
+                bool& has_arg_replaced,
+                const SymEngine::vec_basic& arg
+            )
+            {
+                for (const auto& term: arg)
+                    replace_arguments(f_args, has_arg_replaced, term);
             }
 
             // Function template for replacing one or more arguments. `f_args`
