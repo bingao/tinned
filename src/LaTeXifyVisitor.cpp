@@ -190,9 +190,9 @@ namespace Tinned
         }
         else if (SymEngine::is_a_sub<const TwoElecOperator>(x)) {
             auto& op = SymEngine::down_cast<const TwoElecOperator&>(x);
-            str_ = latexify_operator(op.get_name(), op.get_derivatives()) + "(";
-            update_num_symbols(1, str_);
-            str_ += add_suffix(apply(op.get_state()), ")");
+            auto str_op = latexify_operator(op.get_name(), op.get_derivatives()) + "(";
+            update_num_symbols(1, str_op);
+            str_ = str_op + add_suffix(apply(op.get_state()), ")");
         }
         else if (SymEngine::is_a_sub<const ExchCorrPotential>(x)) {
             auto& op = SymEngine::down_cast<const ExchCorrPotential&>(x);
@@ -238,12 +238,12 @@ namespace Tinned
             // Subscripts and superscripts should not change the number of
             // symbols, so we use a new visitor
             LaTeXifyVisitor visitor;
-            str_ = "\\mathrm{" + op.get_name() + "}_{"
-                 + remove_newline(visitor.apply(SymEngine::matrix_mul({
-                       SymEngine::minus_one, op.get_cluster_operator()
-                   }))) + "}(";
-            update_num_symbols(2, str_);
-            str_ += add_suffix(apply(op.get_hamiltonian()), ")");
+            auto str_op = "\\mathrm{" + op.get_name() + "}_{"
+                        + remove_newline(visitor.apply(SymEngine::matrix_mul({
+                              SymEngine::minus_one, op.get_cluster_operator()
+                          }))) + "}(";
+            update_num_symbols(2, str_op);
+            str_ = str_op + add_suffix(apply(op.get_hamiltonian()), ")");
         }
         else {
             SymEngine::LatexPrinter::bvisit(x);
