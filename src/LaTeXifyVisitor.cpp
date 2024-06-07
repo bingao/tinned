@@ -223,15 +223,15 @@ namespace Tinned
             auto& op = SymEngine::down_cast<const AdjointMap&>(x);
             LaTeXifyVisitor visitor;
             auto terms = op.get_x();
-            str_.clear();
+            std::string str_x;
             for (std::size_t i=0; i<terms.size(); ++i) {
-                if (i>0) str_ += print_mul();
-                str_ += "(\\mathrm{" + op.get_name() + "}_{"
-                      + remove_newline(visitor.apply(terms[i])) + "})";
-                if (i==terms.size()-1) str_ += "(";
-                update_num_symbols(1, str_);
+                if (i>0) str_x += print_mul();
+                str_x += "(\\mathrm{" + op.get_name() + "}_{"
+                       + remove_newline(visitor.apply(terms[i])) + "})";
+                if (i==terms.size()-1) str_x += "(";
+                update_num_symbols(1, str_x);
             }
-            str_ += add_suffix(apply(op.get_y()), ")");
+            str_ = str_x + add_suffix(apply(op.get_y()), ")");
         }
         else if (SymEngine::is_a_sub<const ClusterConjHamiltonian>(x)) {
             auto& op = SymEngine::down_cast<const ClusterConjHamiltonian&>(x);
