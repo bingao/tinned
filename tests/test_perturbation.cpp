@@ -1,9 +1,12 @@
 #define CATCH_CONFIG_MAIN
 
+#include <iostream>
+
 #include <cstddef>
 #include <set>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include <catch2/catch.hpp>
 
@@ -101,4 +104,169 @@ TEST_CASE("Test Perturbation, make_perturbation() and PertDependency", "[Perturb
     REQUIRE(is_zero_derivative(SymEngine::multiset_basic({geo0}), el_pert));
     REQUIRE(is_zero_derivative(SymEngine::multiset_basic({el1, el1}), el_pert));
     REQUIRE(!is_zero_derivative(SymEngine::multiset_basic({el1, el3, el4}), el_pert));
+}
+
+TEST_CASE("Test PertPermutation", "[PertPermutation]")
+{
+    auto a = make_perturbation(std::string("a"));
+    auto b = make_perturbation(std::string("b"));
+    auto c = make_perturbation(std::string("c"));
+    unsigned int order = 3;
+    bool remaining = true;
+    auto pert_permutation = PertPermutation(order, SymEngine::set_basic({a}));
+    auto ref_tuple = std::vector<SymEngine::vec_basic>({
+        SymEngine::vec_basic({a, a, a})
+    });
+    auto iter_ref = ref_tuple.begin();
+    do {
+        auto pert_tuple = pert_permutation.get_pert_tuple(remaining);
+        REQUIRE(SymEngine::unified_eq(pert_tuple, *iter_ref));
+        ++iter_ref;
+    } while (remaining);
+    ref_tuple = std::vector<SymEngine::vec_basic>({
+        SymEngine::vec_basic({a, a, a}),
+        SymEngine::vec_basic({a, a, a}),
+        SymEngine::vec_basic({a, a, a}),
+        SymEngine::vec_basic({a, a, a}),
+        SymEngine::vec_basic({a, a, a}),
+        SymEngine::vec_basic({a, a, a})
+    });
+    iter_ref = ref_tuple.begin();
+    do {
+        auto derivatives = pert_permutation.get_derivatives(remaining);
+        REQUIRE(SymEngine::unified_eq(derivatives, *iter_ref));
+        ++iter_ref;
+    } while (remaining);
+    pert_permutation = PertPermutation(order, SymEngine::set_basic({a, b}));
+    ref_tuple = std::vector<SymEngine::vec_basic>({
+        SymEngine::vec_basic({a, a, a}),
+        SymEngine::vec_basic({a, a, b}),
+        SymEngine::vec_basic({a, b, b}),
+        SymEngine::vec_basic({b, b, b})
+    });
+    iter_ref = ref_tuple.begin();
+    do {
+        auto pert_tuple = pert_permutation.get_pert_tuple(remaining);
+        REQUIRE(SymEngine::unified_eq(pert_tuple, *iter_ref));
+        ++iter_ref;
+    } while (remaining);
+    ref_tuple = std::vector<SymEngine::vec_basic>({
+        SymEngine::vec_basic({a, a, a}),
+        SymEngine::vec_basic({a, a, a}),
+        SymEngine::vec_basic({a, a, a}),
+        SymEngine::vec_basic({a, a, a}),
+        SymEngine::vec_basic({a, a, a}),
+        SymEngine::vec_basic({a, a, a}),
+        SymEngine::vec_basic({a, a, b}),
+        SymEngine::vec_basic({a, b, a}),
+        SymEngine::vec_basic({a, a, b}),
+        SymEngine::vec_basic({a, b, a}),
+        SymEngine::vec_basic({b, a, a}),
+        SymEngine::vec_basic({b, a, a}),
+        SymEngine::vec_basic({a, b, b}),
+        SymEngine::vec_basic({a, b, b}),
+        SymEngine::vec_basic({b, a, b}),
+        SymEngine::vec_basic({b, b, a}),
+        SymEngine::vec_basic({b, a, b}),
+        SymEngine::vec_basic({b, b, a}),
+        SymEngine::vec_basic({b, b, b}),
+        SymEngine::vec_basic({b, b, b}),
+        SymEngine::vec_basic({b, b, b}),
+        SymEngine::vec_basic({b, b, b}),
+        SymEngine::vec_basic({b, b, b}),
+        SymEngine::vec_basic({b, b, b})
+    });
+    iter_ref = ref_tuple.begin();
+    do {
+        auto derivatives = pert_permutation.get_derivatives(remaining);
+        REQUIRE(SymEngine::unified_eq(derivatives, *iter_ref));
+        ++iter_ref;
+    } while (remaining);
+    pert_permutation = PertPermutation(order, SymEngine::set_basic({a, b, c}));
+    ref_tuple = std::vector<SymEngine::vec_basic>({
+        SymEngine::vec_basic({a, a, a}),
+        SymEngine::vec_basic({a, a, b}),
+        SymEngine::vec_basic({a, a, c}),
+        SymEngine::vec_basic({a, b, b}),
+        SymEngine::vec_basic({a, b, c}),
+        SymEngine::vec_basic({a, c, c}),
+        SymEngine::vec_basic({b, b, b}),
+        SymEngine::vec_basic({b, b, c}),
+        SymEngine::vec_basic({b, c, c}),
+        SymEngine::vec_basic({c, c, c})
+    });
+    iter_ref = ref_tuple.begin();
+    do {
+        auto pert_tuple = pert_permutation.get_pert_tuple(remaining);
+        REQUIRE(SymEngine::unified_eq(pert_tuple, *iter_ref));
+        ++iter_ref;
+    } while (remaining);
+    ref_tuple = std::vector<SymEngine::vec_basic>({
+        SymEngine::vec_basic({a, a, a}),
+        SymEngine::vec_basic({a, a, a}),
+        SymEngine::vec_basic({a, a, a}),
+        SymEngine::vec_basic({a, a, a}),
+        SymEngine::vec_basic({a, a, a}),
+        SymEngine::vec_basic({a, a, a}),
+        SymEngine::vec_basic({a, a, b}),
+        SymEngine::vec_basic({a, b, a}),
+        SymEngine::vec_basic({a, a, b}),
+        SymEngine::vec_basic({a, b, a}),
+        SymEngine::vec_basic({b, a, a}),
+        SymEngine::vec_basic({b, a, a}),
+        SymEngine::vec_basic({a, a, c}),
+        SymEngine::vec_basic({a, c, a}),
+        SymEngine::vec_basic({a, a, c}),
+        SymEngine::vec_basic({a, c, a}),
+        SymEngine::vec_basic({c, a, a}),
+        SymEngine::vec_basic({c, a, a}),
+        SymEngine::vec_basic({a, b, b}),
+        SymEngine::vec_basic({a, b, b}),
+        SymEngine::vec_basic({b, a, b}),
+        SymEngine::vec_basic({b, b, a}),
+        SymEngine::vec_basic({b, a, b}),
+        SymEngine::vec_basic({b, b, a}),
+        SymEngine::vec_basic({a, b, c}),
+        SymEngine::vec_basic({a, c, b}),
+        SymEngine::vec_basic({b, a, c}),
+        SymEngine::vec_basic({b, c, a}),
+        SymEngine::vec_basic({c, a, b}),
+        SymEngine::vec_basic({c, b, a}),
+        SymEngine::vec_basic({a, c, c}),
+        SymEngine::vec_basic({a, c, c}),
+        SymEngine::vec_basic({c, a, c}),
+        SymEngine::vec_basic({c, c, a}),
+        SymEngine::vec_basic({c, a, c}),
+        SymEngine::vec_basic({c, c, a}),
+        SymEngine::vec_basic({b, b, b}),
+        SymEngine::vec_basic({b, b, b}),
+        SymEngine::vec_basic({b, b, b}),
+        SymEngine::vec_basic({b, b, b}),
+        SymEngine::vec_basic({b, b, b}),
+        SymEngine::vec_basic({b, b, b}),
+        SymEngine::vec_basic({b, b, c}),
+        SymEngine::vec_basic({b, c, b}),
+        SymEngine::vec_basic({b, b, c}),
+        SymEngine::vec_basic({b, c, b}),
+        SymEngine::vec_basic({c, b, b}),
+        SymEngine::vec_basic({c, b, b}),
+        SymEngine::vec_basic({b, c, c}),
+        SymEngine::vec_basic({b, c, c}),
+        SymEngine::vec_basic({c, b, c}),
+        SymEngine::vec_basic({c, c, b}),
+        SymEngine::vec_basic({c, b, c}),
+        SymEngine::vec_basic({c, c, b}),
+        SymEngine::vec_basic({c, c, c}),
+        SymEngine::vec_basic({c, c, c}),
+        SymEngine::vec_basic({c, c, c}),
+        SymEngine::vec_basic({c, c, c}),
+        SymEngine::vec_basic({c, c, c}),
+        SymEngine::vec_basic({c, c, c})
+    });
+    iter_ref = ref_tuple.begin();
+    do {
+        auto derivatives = pert_permutation.get_derivatives(remaining);
+        REQUIRE(SymEngine::unified_eq(derivatives, *iter_ref));
+        ++iter_ref;
+    } while (remaining);
 }

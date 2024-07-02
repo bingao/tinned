@@ -14,6 +14,7 @@
 #pragma once
 
 #include <string>
+#include <type_traits>
 
 #include <symengine/basic.h>
 #include <symengine/dict.h>

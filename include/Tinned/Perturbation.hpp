@@ -7,9 +7,6 @@
 
    This file is the header file of perturbations.
 
-   2024-04-30, Bin Gao:
-   * add type `PerturbationTuple`, currently used only for `EliminationVisitor`
-
    2023-10-09, Bin Gao:
    * change Perturbation's frequency to class
      SymEngine::RCP<const SymEngine::Number>. Users can use any derived class
@@ -66,10 +63,6 @@ namespace Tinned
                 return components_;
             }
     };
-
-    // Type for perturbation tuple -- an ordered list of the perturbation strengths
-    typedef std::multiset<SymEngine::RCP<const Perturbation>, SymEngine::RCPBasicKeyLess>
-        PerturbationTuple;
 
     // Helper function to make a perturbation
     inline SymEngine::RCP<const Perturbation> make_perturbation(

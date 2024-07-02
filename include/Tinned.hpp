@@ -27,6 +27,7 @@
 
 #include "Tinned/Perturbation.hpp"
 #include "Tinned/PertDependency.hpp"
+#include "Tinned/PertTuple.hpp"
 #include "Tinned/PerturbedParameter.hpp"
 #include "Tinned/ZeroOperator.hpp"
 #include "Tinned/ConjugateTranspose.hpp"
@@ -54,4 +55,3 @@
 #include "Tinned/TemporumCleaner.hpp"
 #include "Tinned/LaTeXifyVisitor.hpp"
 #include "Tinned/StringifyVisitor.hpp"
-#include "Tinned/Utilities.hpp"

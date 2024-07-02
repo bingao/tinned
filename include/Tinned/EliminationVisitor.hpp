@@ -44,6 +44,7 @@
 #include <symengine/visitor.h>
 
 #include "Tinned/Perturbation.hpp"
+#include "Tinned/PertTuple.hpp"
 #include "Tinned/OneElecDensity.hpp"
 #include "Tinned/PerturbedParameter.hpp"
 
@@ -131,7 +132,7 @@ namespace Tinned
         public:
             explicit EliminationVisitor(
                 const SymEngine::RCP<const SymEngine::Basic>& parameter,
-                const PerturbationTuple& perturbations,
+                const PertTuple& perturbations,
                 const unsigned int min_order
             ) : parameter_(parameter),
                 perturbations_(SymEngine::set_basic(perturbations.begin(), perturbations.end())),
@@ -173,7 +174,7 @@ namespace Tinned
     inline SymEngine::RCP<const SymEngine::Basic> eliminate(
         const SymEngine::RCP<const SymEngine::Basic>& x,
         const SymEngine::RCP<const SymEngine::Basic>& parameter,
-        const PerturbationTuple& perturbations,
+        const PertTuple& perturbations,
         const unsigned int min_order
     )
     {

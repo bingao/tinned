@@ -130,7 +130,8 @@ namespace Tinned
                 return find_all(potential_, get_state());
             }
 
-            // Get derivatives, currently used only for `LaTeXifyVisitor`
+            // Get derivatives, currently used only for `LaTeXifyVisitor` and
+            // `OperatorEvaluator`
             inline SymEngine::multiset_basic get_derivatives() const
             {
                 auto states = get_states();

@@ -32,8 +32,8 @@ Tinned currently provides C++ interface. Classes in Tinned that can be useful
 for computational chemistry include:
 
 * Class [`Perturbation`](include/Tinned/Perturbation.hpp), perturbations.
-* Class [`PerturbationTuple`](include/Tinned/Perturbation.hpp), `std::multiset`
-  for perturbation tuples[[1]](#1).
+* Class [`PertTuple`](include/Tinned/PertTuple.hpp), `std::multiset` for
+  perturbation tuples[[1]](#1).
 * Class [`PertDependency`](include/Tinned/PertDependency.hpp), `std::set` for
   perturbations that an operator depends on and their maximum orders that can
   be differentiated.
@@ -162,7 +162,7 @@ int main()
     });
 
     // Take the second order derivatives of the idempotency constraint
-    auto K = Tinned::differentiate(Z, Tinned::PerturbationTuple({el, geo}));
+    auto K = Tinned::differentiate(Z, Tinned::PertTuple({el, geo}));
     std::cout << "Second order derivatives of the idempotency constraint: "
               << Tinned::stringify(K) << "\n";
 

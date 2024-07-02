@@ -7,6 +7,9 @@
 
    This file is the header file of symbolic replacement.
 
+   2024-06-13, Bin Gao:
+   * move helper function template `replace_all` here
+
    2024-05-12, Bin Gao:
    * implement function templates `replace_a_function` and `replace_arguments`
      for the replacement of a function like object with one or more arguments
@@ -16,6 +19,8 @@
 */
 
 #pragma once
+
+#include <map>
 
 #include <symengine/basic.h>
 #include <symengine/dict.h>
@@ -28,11 +33,13 @@
 #include <symengine/matrices/trace.h>
 #include <symengine/matrices/transpose.h>
 #include <symengine/matrices/zero_matrix.h>
+#include <symengine/symengine_assert.h>
 #include <symengine/symengine_casts.h>
-#include <symengine/symengine_exception.h>
 #include <symengine/symengine_rcp.h>
 #include <symengine/visitor.h>
 #include <symengine/subs.h>
+
+#include "Tinned/FindAllVisitor.hpp"
 
 namespace Tinned
 {
@@ -149,5 +156,43 @@ namespace Tinned
         //ReplaceVisitor visitor(subs_dict, cache);
         ReplaceVisitor visitor(subs_dict, false);
         return visitor.apply(x);
+    }
+
+    // Map for the substitution of Tinned objects (type `T`) with SymEngine
+    // `Basic` symbols as well as their derivatives. The derivatives can be got
+    // from the function `get_derivatives()` of those Tinned objects.
+    template<typename T>
+    using TinnedBasicMap = std::map<SymEngine::RCP<const T>,
+                                    SymEngine::RCP<const SymEngine::Basic>,
+                                    SymEngine::RCPBasicKeyLess>;
+
+    // Helper function to replace Tinned objects and their derivatives with
+    // SymEngine `Basic` symbols and corresponding derivatives
+    template<typename T>
+    inline SymEngine::RCP<const SymEngine::Basic> replace_all(
+        const SymEngine::RCP<const SymEngine::Basic>& x,
+        const TinnedBasicMap<T>& subs_dict
+    )
+    {
+        SymEngine::map_basic_basic diff_subs_dict;
+        // For each Tinned object `obj`, find all its derivatives in `x` and
+        // that will be replaced with the corresponding symbol and its
+        // derivatives
+        for (const auto& d: subs_dict) {
+            for (const auto& obj: find_all(x, d.first)) {
+                auto diff_symbol = d.second;
+                //FIXME: should `get_derivatives` return perturbations of type SymEngine::RCP<const Perturbation>?
+                SYMENGINE_ASSERT(SymEngine::is_a_sub<const T>(*obj))
+                auto op = SymEngine::rcp_dynamic_cast<const T>(obj);
+                for (const auto& p: op->get_derivatives()) {
+                    SYMENGINE_ASSERT(SymEngine::is_a_sub<const SymEngine::Symbol>(*p))
+                    auto s = SymEngine::rcp_dynamic_cast<const SymEngine::Symbol>(p);
+                    diff_symbol = diff_symbol->diff(s);
+                }
+                diff_subs_dict.insert({obj, diff_symbol});
+            }
+        }
+        if (diff_subs_dict.empty()) return x;
+        return replace(x, diff_subs_dict);
     }
 }
