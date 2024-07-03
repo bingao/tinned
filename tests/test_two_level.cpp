@@ -57,7 +57,7 @@ inline SymEngine::RCP<const SymEngine::MatrixExpr> make_unperturbed_hamiltonian(
 }
 
 // Evaluator for different operators
-class TwoLevelOperator: public OperatorEvaluator<SymEngine::vec_basic>
+class TwoLevelOperator: public OperatorEvaluator<SymEngine::RCP<const SymEngine::MatrixExpr>>
 {
     protected:
         // Maximum allowed order
@@ -78,7 +78,8 @@ class TwoLevelOperator: public OperatorEvaluator<SymEngine::vec_basic>
         // Cached derivatives of density matrix <order, <perturbations, derivatives>>
         //FIXME: not optimal for identical perturbations
         std::map<unsigned int,
-                 std::vector<std::pair<SymEngine::vec_basic, SymEngine::vec_basic>>>
+                 std::vector<std::pair<SymEngine::vec_basic,
+                                       SymEngine::RCP<const SymEngine::MatrixExpr>>>>
             rho_derivatives_;
 
         SymEngine::vec_basic eval_pert_parameter(const PerturbedParameter& x) override
@@ -88,23 +89,19 @@ class TwoLevelOperator: public OperatorEvaluator<SymEngine::vec_basic>
             );
         }
 
-        void SymEngine::vec_basic eval_hermitian_transpose(const SymEngine::vec_basic& A) override
+        SymEngine::RCP<const SymEngine::MatrixExpr>
+        eval_hermitian_transpose(const SymEngine::RCP<const SymEngine::MatrixExpr>& A) override
         {
-            SymEngine::vec_basic result;
-            for (const auto& term: A) {
-                auto op = SymEngine::rcp_dynamic_cast<const SymEngine::ImmutableDenseMatrix>(term);
-                SymEngine::vec_basic values;
-                for (std::size_t j=0; j<op->ncols(); ++j)
-                    for (std::size_t i=0; i<op->nrows(); ++i)
-                        values.push_back(op->get(i, j)->conjugate());
-                result.push_back(SymEngine::immutable_dense_matrix(
-                    op->ncols(), op->nrows(), values
-                ));
-            }
-            return result;
+            auto op = SymEngine::rcp_dynamic_cast<const SymEngine::ImmutableDenseMatrix>(A);
+            SymEngine::vec_basic values;
+            for (std::size_t j=0; j<op->ncols(); ++j)
+                for (std::size_t i=0; i<op->nrows(); ++i)
+                    values.push_back(op->get(i, j)->conjugate());
+            return SymEngine::immutable_dense_matrix(op->ncols(), op->nrows(), values);
         }
 
-        SymEngine::vec_basic eval_1el_density(const OneElecDensity& x)
+        SymEngine::RCP<const SymEngine::MatrixExpr>
+        eval_1el_density(const OneElecDensity& x) override
         {
             auto derivatives = x.get_derivatives();
             if (derivatives.size()>max_order_) SymEngine::SymEngineException(
@@ -112,15 +109,40 @@ class TwoLevelOperator: public OperatorEvaluator<SymEngine::vec_basic>
             );
             switch (derivatives.size()) {
                 case 0:
-                    return SymEngine::vec_basic({rho_.second});
+                    return rho_.second;
                 default:
                     if (derivatives.size()>rho_derivatives_.size()) {
                         for (unsigned int order=rho_derivatives_.size(); order<derivatives.size(); ++order) {
-                            std::vector<std::pair<SymEngine::vec_basic, SymEngine::vec_basic>> derivative;
+                            std::vector<std::pair<SymEngine::vec_basic,
+                                                  SymEngine::RCP<const SymEngine::MatrixExpr>>>
+                                rho_curr_derivatives;
+                            auto pert_permutation = PertPermutation(order+1, perturbations_);
+                            bool remaining = true;
+                            do {
+                                auto permut_derivative = pert_permutation.get_derivatives(remaining);
+                                auto freq_sum = get_frequency_sum(permut_derivative);
+                                // The last perturbation is the one for the external field
+                                auto pert_field = permut_derivative.back();
+                                // Find the lower order derivative of density matrix
+                                for (const auto& derivative: rho_derivatives_[order]) {
+                                    bool lower_found = true;
+                                    for (std::size_t i=0; i<derivative.first.size(); ++i)
+                                        if (SymEngine::neq(permut_derivative[i], derivative.first[i])) {
+                                            lower_found = false;
+                                            break;
+                                        }
+                                    if (lower_found) {
+                                        auto val_rho = SymEngine::matrix_add({
+                                            derivative.second
+                                        });
+                                        rho_curr_derivatives.push_back(permut_derivative, val_rho);
+                                        break;
+                                    }
+                                }
+                                if () throw
+                            } while (remaining);
 
-                            auto = PertPermutation(order+1, perturbations_);
-
-                            rho_derivatives_[order+1] = derivative;
+                            rho_derivatives_[order+1] = rho_curr_derivatives;
                         }
                     }
                     for (const auto& derivative: rho_derivatives_[derivatives.size()]) {
@@ -133,110 +155,95 @@ class TwoLevelOperator: public OperatorEvaluator<SymEngine::vec_basic>
             }
         }
 
-        SymEngine::vec_basic eval_1el_operator(const OneElecOperator& x) override
+        SymEngine::RCP<const SymEngine::MatrixExpr>
+        eval_1el_operator(const OneElecOperator& x) override
         {
             if (x.get_name())
         }
 
-        SymEngine::vec_basic eval_2el_operator(const TwoElecOperator& x) override
+        SymEngine::RCP<const SymEngine::MatrixExpr>
+        eval_2el_operator(const TwoElecOperator& x) override
         {
             throw SymEngine::SymEngineException(
                 "TwoElecOperator is not allowed: "+stringify(x)
             );
         }
 
-        SymEngine::vec_basic eval_temporum_operator(const TemporumOperator& x) override
+        SymEngine::RCP<const SymEngine::MatrixExpr>
+        eval_temporum_operator(const TemporumOperator& x) override
         {
             result_ = apply(x.get_target());
             eval_oper_scale(x.get_frequency(), result_);
         }
 
-        SymEngine::vec_basic eval_temporum_overlap(const TemporumOverlap& x) override
+        SymEngine::RCP<const SymEngine::MatrixExpr>
+        eval_temporum_overlap(const TemporumOverlap& x) override
         {
             throw SymEngine::SymEngineException(
                 "TemporumOverlap is not allowed: "+stringify(x)
             );
         }
 
-        void SymEngine::vec_basic eval_conjugate_matrix(const SymEngine::vec_basic& A) override
+        SymEngine::RCP<const SymEngine::MatrixExpr>
+        eval_conjugate_matrix(const SymEngine::RCP<const SymEngine::MatrixExpr>& A) override
         {
-            SymEngine::vec_basic result;
-            for (const auto& term: A) {
-                auto op = SymEngine::rcp_dynamic_cast<const SymEngine::ImmutableDenseMatrix>(term);
-                SymEngine::vec_basic values;
-                for (std::size_t i=0; i<op->nrows(); ++i)
-                    for (std::size_t j=0; j<op->ncols(); ++j)
-                        values.push_back(op->get(i, j)->conjugate());
-                result.push_back(SymEngine::immutable_dense_matrix(
-                    op->nrows(), op->ncols(), values
-                ));
-            }
-            return result;
-        }
-
-        void SymEngine::vec_basic eval_transpose(const SymEngine::vec_basic& A) override
-        {
-            SymEngine::vec_basic result;
-            for (const auto& term: A) {
-                auto op = SymEngine::rcp_dynamic_cast<const SymEngine::ImmutableDenseMatrix>(term);
-                SymEngine::vec_basic values;
+            auto op = SymEngine::rcp_dynamic_cast<const SymEngine::ImmutableDenseMatrix>(A);
+            SymEngine::vec_basic values;
+            for (std::size_t i=0; i<op->nrows(); ++i)
                 for (std::size_t j=0; j<op->ncols(); ++j)
-                    for (std::size_t i=0; i<op->nrows(); ++i)
-                        values.push_back(op->get(i, j));
-                result.push_back(SymEngine::immutable_dense_matrix(
-                    op->ncols(), op->nrows(), values
-                ));
-            }
-            return result;
+                    values.push_back(op->get(i, j)->conjugate());
+            return SymEngine::immutable_dense_matrix(op->nrows(), op->ncols(), values);
         }
 
-        void eval_oper_addition(SymEngine::vec_basic& A, const SymEngine::vec_basic& B) override
+        SymEngine::RCP<const SymEngine::MatrixExpr>
+        eval_transpose(const SymEngine::RCP<const SymEngine::MatrixExpr>& A) override
         {
-            SYMENGINE_ASSERT(A.size()==B.size())
-            for (std::size_t n=0; n<A.size(); ++n) {
-                auto op_A = SymEngine::rcp_dynamic_cast<const SymEngine::ImmutableDenseMatrix>(A[n]);
-                auto op_B = SymEngine::rcp_dynamic_cast<const SymEngine::ImmutableDenseMatrix>(B[n]);
-                SYMENGINE_ASSERT(
-                    op_A->nrows()==op_B->nrows() && op_A->ncols()==op_B->ncols()
-                )
-                SymEngine::vec_basic values;
-                for (std::size_t i=0; i<op_A->nrows(); ++i)
-                    for (std::size_t j=0; j<op_A->ncols(); ++j)
-                        values.push_back(
-                            SymEngine::add(op_A->get(i, j), op_B->get(i, j))
-                        );
-                A[n] = SymEngine::immutable_dense_matrix(
-                    op_A->nrows(), op_A->ncols(), values
-                );
-            }
+            auto op = SymEngine::rcp_dynamic_cast<const SymEngine::ImmutableDenseMatrix>(A);
+            SymEngine::vec_basic values;
+            for (std::size_t j=0; j<op->ncols(); ++j)
+                for (std::size_t i=0; i<op->nrows(); ++i)
+                    values.push_back(op->get(i, j));
+            return SymEngine::immutable_dense_matrix(op->ncols(), op->nrows(), values);
         }
 
-        SymEngine::vec_basic eval_oper_multiplication(
-            const SymEngine::vec_basic& A, const SymEngine::vec_basic& B
+        void eval_oper_addition(
+            SymEngine::RCP<const SymEngine::MatrixExpr>& A,
+            const SymEngine::RCP<const SymEngine::MatrixExpr>& B
         ) override
         {
-            SymEngine::vec_basic result;
-            for (std::size_t m=0; m<A.size(); ++m)
-                for (std::size_t n=0; n<B.size(); ++n)
-                    result.push_back(SymEngine::matrix_mul({A[m], B[n]}));
-            return result;
+            auto op_A = SymEngine::rcp_dynamic_cast<const SymEngine::ImmutableDenseMatrix>(A);
+            auto op_B = SymEngine::rcp_dynamic_cast<const SymEngine::ImmutableDenseMatrix>(B);
+            SYMENGINE_ASSERT(
+                op_A->nrows()==op_B->nrows() && op_A->ncols()==op_B->ncols()
+            )
+            SymEngine::vec_basic values;
+            for (std::size_t i=0; i<op_A->nrows(); ++i)
+                for (std::size_t j=0; j<op_A->ncols(); ++j)
+                    values.push_back(
+                        SymEngine::add(op_A->get(i, j), op_B->get(i, j))
+                    );
+            A = SymEngine::immutable_dense_matrix(op_A->nrows(), op_A->ncols(), values);
+        }
+
+        SymEngine::RCP<const SymEngine::MatrixExpr> eval_oper_multiplication(
+            const SymEngine::RCP<const SymEngine::MatrixExpr>& A,
+            const SymEngine::RCP<const SymEngine::MatrixExpr>& B
+        ) override
+        {
+            return SymEngine::matrix_mul({A, B});
         }
 
         void eval_oper_scale(
             const SymEngine::RCP<const SymEngine::Number>& scalar,
-            SymEngine::vec_basic& A
+            SymEngine::RCP<const SymEngine::MatrixExpr>& A
         ) override
         {
-            for (std::size_t n=0; n<A.size(); ++n) {
-                auto op = SymEngine::rcp_dynamic_cast<const SymEngine::ImmutableDenseMatrix>(A[n]);
-                SymEngine::vec_basic values;
-                for (std::size_t i=0; i<op->nrows(); ++i)
-                    for (std::size_t j=0; j<op->ncols(); ++j)
-                        values.push_back(SymEngine::mul(scalar, op->get(i, j)));
-                A[n] = SymEngine::immutable_dense_matrix(
-                    op->nrows(), op->ncols(), values
-                );
-            }
+            auto op = SymEngine::rcp_dynamic_cast<const SymEngine::ImmutableDenseMatrix>(A);
+            SymEngine::vec_basic values;
+            for (std::size_t i=0; i<op->nrows(); ++i)
+                for (std::size_t j=0; j<op->ncols(); ++j)
+                    values.push_back(SymEngine::mul(scalar, op->get(i, j)));
+            A = SymEngine::immutable_dense_matrix(op->nrows(), op->ncols(), values);
         }
 
     public:
@@ -330,13 +337,13 @@ TEST_CASE("Test two-level system", "[FunctionEvaluator] and [OperatorEvaluator]"
     auto D = make_1el_density(std::string("D"));
     auto H0 = make_1el_operator(std::string("H0"));
     auto Va = make_1el_operator(
-        std::string("Va"), PertDependency({std::make_pair(a, 9)})
+        std::string("Va"), PertDependency({std::make_pair(a, 1)})
     );
     auto Vb = make_1el_operator(
-        std::string("Vb"), PertDependency({std::make_pair(b, 9)})
+        std::string("Vb"), PertDependency({std::make_pair(b, 1)})
     );
     auto Vc = make_1el_operator(
-        std::string("Vc"), PertDependency({std::make_pair(c, 9)})
+        std::string("Vc"), PertDependency({std::make_pair(c, 1)})
     );
     auto E = SymEngine::add({
         SymEngine::trace(SymEngine::matrix_mul({H0, D})),

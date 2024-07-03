@@ -54,7 +54,8 @@ namespace Tinned
     // quantities
     template<typename T,
              typename std::enable_if<std::is_same<T, PertTuple>::value ||
-                 std::is_same<T, SymEngine::multiset_basic>::value, int>::type = 0>
+                 std::is_same<T, SymEngine::multiset_basic>::value ||
+                 std::is_same<T, SymEngine::vec_basic>::value, int>::type = 0>
     inline SymEngine::RCP<const SymEngine::Basic> differentiate(
         const SymEngine::RCP<const SymEngine::Basic>& expr, const T& perturbations
     )
@@ -78,7 +79,8 @@ namespace Tinned
     // Compute the sum of perturbation frequencies
     template<typename T,
              typename std::enable_if<std::is_same<T, PertTuple>::value ||
-                 std::is_same<T, SymEngine::multiset_basic>::value, int>::type = 0>
+                 std::is_same<T, SymEngine::multiset_basic>::value ||
+                 std::is_same<T, SymEngine::vec_basic>::value, int>::type = 0>
     inline SymEngine::RCP<const SymEngine::Number> get_frequency_sum(
         const T& perturbations
     )
