@@ -44,7 +44,7 @@
 namespace Tinned
 {
     template<typename FunctionType, typename OperatorType>
-    class FunctionEvaluator: public SymEngine::BaseVisitor<FunctionEvaluator<FunctionType>>
+    class FunctionEvaluator: public SymEngine::BaseVisitor<FunctionEvaluator<FunctionType, OperatorType>>
     {
         protected:
             // Each symbol adds its derivative to the end of the vector, and
@@ -54,18 +54,53 @@ namespace Tinned
             FunctionType result_;
             std::shared_ptr<OperatorEvaluator<OperatorType>> oper_evaluator_;
 
-            virtual FunctionType eval_nonel_function(const NonElecFunction& x) = 0;
-            virtual FunctionType eval_2el_energy(const TwoElecEnergy& x) = 0;
-            virtual FunctionType eval_xc_energy(const ExchCorrEnergy& x) = 0;
+            virtual FunctionType eval_nonel_function(const NonElecFunction& x)
+            {
+                throw SymEngine::NotImplementedError(
+                    "FunctionEvaluator::eval_nonel_function() is not implemented"
+                );
+            }
+
+            virtual FunctionType eval_2el_energy(const TwoElecEnergy& x)
+            {
+                throw SymEngine::NotImplementedError(
+                    "FunctionEvaluator::eval_2el_energy() is not implemented"
+                );
+            }
+
+            virtual FunctionType eval_xc_energy(const ExchCorrEnergy& x)
+            {
+                throw SymEngine::NotImplementedError(
+                    "FunctionEvaluator::eval_xc_energy() is not implemented"
+                );
+            }
+
             // return the trace of `A`
-            virtual FunctionType eval_trace(const OperatorType& A) = 0;
+            virtual FunctionType eval_trace(const OperatorType& A)
+            {
+                throw SymEngine::NotImplementedError(
+                    "FunctionEvaluator::eval_trace() is not implemented"
+                );
+            }
+
             // `f` = `f` + `g`
-            virtual void eval_fun_addition(FunctionType& f, const FunctionType& g) = 0;
+            virtual void eval_fun_addition(FunctionType& f, const FunctionType& g)
+            {
+                throw SymEngine::NotImplementedError(
+                    "FunctionEvaluator::eval_fun_addition() is not implemented"
+                );
+            }
+
             // `f` = `scalar` * `f`
             virtual void eval_fun_scale(
                 const SymEngine::RCP<const SymEngine::Number>& scalar,
                 FunctionType& f
-            ) = 0;
+            )
+            {
+                throw SymEngine::NotImplementedError(
+                    "FunctionEvaluator::eval_fun_scale() is not implemented"
+                );
+            }
 
         public:
             explicit FunctionEvaluator(
@@ -177,7 +212,10 @@ namespace Tinned
             void bvisit(const SymEngine::Trace& x)
             {
                 auto arg = oper_evaluator_->apply(x.get_args()[0]);
-                derivatives_.push_back(oper_evaluator_->get_derivatives());
+                auto oper_derivatives = oper_evaluator_->get_derivatives();
+                derivatives_.insert(
+                    derivatives_.end(), oper_derivatives.begin(), oper_derivatives.end()
+                );
                 result_ = eval_trace(arg);
             }
     };

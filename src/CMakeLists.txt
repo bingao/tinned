@@ -25,7 +25,8 @@ add_library(tinned
             ${LIB_TINNED_PATH}/src/EliminationVisitor.cpp
             ${LIB_TINNED_PATH}/src/TemporumCleaner.cpp
             ${LIB_TINNED_PATH}/src/LaTeXifyVisitor.cpp
-            ${LIB_TINNED_PATH}/src/StringifyVisitor.cpp)
+            ${LIB_TINNED_PATH}/src/StringifyVisitor.cpp
+            ${LIB_TINNED_PATH}/src/TwoLevelAtom.cpp)
 
 target_include_directories(tinned INTERFACE
     $<BUILD_INTERFACE:${TINNED_INCLUDE_DIRS}>

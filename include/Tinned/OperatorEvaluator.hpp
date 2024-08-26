@@ -60,29 +60,107 @@ namespace Tinned
             std::vector<SymEngine::multiset_basic> derivatives_;
             OperatorType result_;
 
-            virtual OperatorType eval_pert_parameter(const PerturbedParameter& x) = 0;
+            virtual OperatorType eval_pert_parameter(const PerturbedParameter& x)
+            {
+                throw SymEngine::NotImplementedError(
+                    "OperatorEvaluator::eval_pert_parameter() is not implemented"
+                );
+            }
+
             // return A^{\dagger}
-            virtual OperatorType eval_hermitian_transpose(const OperatorType& A) = 0;
-            virtual OperatorType eval_1el_density(const OneElecDensity& x) = 0;
-            virtual OperatorType eval_1el_operator(const OneElecOperator& x) = 0;
-            virtual OperatorType eval_2el_operator(const TwoElecOperator& x) = 0;
-            virtual OperatorType eval_temporum_operator(const TemporumOperator& x) = 0;
-            virtual OperatorType eval_temporum_overlap(const TemporumOverlap& x) = 0;
+            virtual OperatorType eval_hermitian_transpose(const OperatorType& A)
+            {
+                throw SymEngine::NotImplementedError(
+                    "OperatorEvaluator::eval_hermitian_transpose() is not implemented"
+                );
+            }
+
+            virtual OperatorType eval_1el_density(const OneElecDensity& x)
+            {
+                throw SymEngine::NotImplementedError(
+                    "OperatorEvaluator::eval_1el_density() is not implemented"
+                );
+            }
+
+            virtual OperatorType eval_1el_operator(const OneElecOperator& x)
+            {
+                throw SymEngine::NotImplementedError(
+                    "OperatorEvaluator::eval_1el_operator() is not implemented"
+                );
+            }
+
+            virtual OperatorType eval_2el_operator(const TwoElecOperator& x)
+            {
+                throw SymEngine::NotImplementedError(
+                    "OperatorEvaluator::eval_2el_operator() is not implemented"
+                );
+            }
+
+            virtual OperatorType eval_xc_potential(const ExchCorrPotential& x)
+            {
+                throw SymEngine::NotImplementedError(
+                    "OperatorEvaluator::eval_xc_potential() is not implemented"
+                );
+            }
+
+            virtual OperatorType eval_temporum_operator(const TemporumOperator& x)
+            {
+                throw SymEngine::NotImplementedError(
+                    "OperatorEvaluator::eval_temporum_operator() is not implemented"
+                );
+            }
+
+            virtual OperatorType eval_temporum_overlap(const TemporumOverlap& x)
+            {
+                throw SymEngine::NotImplementedError(
+                    "OperatorEvaluator::eval_temporum_overlap() is not implemented"
+                );
+            }
+
             // return A^{*}
-            virtual OperatorType eval_conjugate_matrix(const OperatorType& A) = 0;
+            virtual OperatorType eval_conjugate_matrix(const OperatorType& A)
+            {
+                throw SymEngine::NotImplementedError(
+                    "OperatorEvaluator::eval_conjugate_matrix() is not implemented"
+                );
+            }
+
             // return A^{T}
-            virtual OperatorType eval_transpose(const OperatorType& A) = 0;
+            virtual OperatorType eval_transpose(const OperatorType& A)
+            {
+                throw SymEngine::NotImplementedError(
+                    "OperatorEvaluator::eval_transpose() is not implemented"
+                );
+            }
+
             // A = A + B
-            virtual void eval_oper_addition(OperatorType& A, const OperatorType& B) = 0;
+            virtual void eval_oper_addition(OperatorType& A, const OperatorType& B)
+            {
+                throw SymEngine::NotImplementedError(
+                    "OperatorEvaluator::eval_oper_addition() is not implemented"
+                );
+            }
+
             // return A * B
             virtual OperatorType eval_oper_multiplication(
                 const OperatorType& A, const OperatorType& B
-            ) = 0;
+            )
+            {
+                throw SymEngine::NotImplementedError(
+                    "OperatorEvaluator::eval_oper_multiplication() is not implemented"
+                );
+            }
+
             // A = scalar * A
             virtual void eval_oper_scale(
                 const SymEngine::RCP<const SymEngine::Number>& scalar,
                 OperatorType& A
-            ) = 0;
+            )
+            {
+                throw SymEngine::NotImplementedError(
+                    "OperatorEvaluator::eval_oper_scale() is not implemented"
+                );
+            }
 
             // Update the derivative of a multiplication
             inline void update_mul_derivative() noexcept
@@ -208,16 +286,18 @@ namespace Tinned
             {
                 auto factors = x.get_factors();
                 switch (factors.size()) {
-                    case 1:
+                    case 1: {
                         result_ = apply(factors[0]);
                         break;
-                    case 2:
+                    }
+                    case 2: {
                         auto val0 = apply(factors[0]);
                         auto val1 = apply(factors[1]);
                         result_ = eval_oper_multiplication(val0, val1);
                         update_mul_derivative();
                         break;
-                    case 3:
+                    }
+                    case 3: {
                         auto val0 = apply(factors[0]);
                         result_ = apply(factors[1]);
                         auto val1 = eval_oper_multiplication(val0, result_);
@@ -226,7 +306,8 @@ namespace Tinned
                         result_ = eval_oper_multiplication(val1, val0);
                         update_mul_derivative();
                         break;
-                    default:
+                    }
+                    default: {
                         auto val0 = apply(factors[0]);
                         auto val = apply(factors[1]);
                         auto val1 = eval_oper_multiplication(val0, val);
@@ -250,6 +331,7 @@ namespace Tinned
                         }
                         update_mul_derivative();
                         break;
+                    }
                 }
                 auto scalar = x.get_scalar();
                 if (SymEngine::neq(*scalar, *SymEngine::one)) {
