@@ -84,8 +84,16 @@ namespace Tinned
             // For unperturbed `TemporumOperator` objects, the function
             // `get_frequency()` will return zero frequency
             auto frequency = op.get_frequency();
-            if (is_zero_number(frequency, threshold_)) {
-                result_ = make_zero_operator();
+            if (SymEngine::is_a_Number(*frequency)) {
+                if (is_zero_number(
+                    SymEngine::rcp_dynamic_cast<const SymEngine::Number>(frequency),
+                    threshold_
+                )) {
+                    result_ = make_zero_operator();
+                }
+                else {
+                    result_ = SymEngine::matrix_mul({frequency, op.get_target()});
+                }
             }
             else {
                 result_ = SymEngine::matrix_mul({frequency, op.get_target()});
@@ -96,7 +104,17 @@ namespace Tinned
             // `TemporumOverlap` will disappear if it is unperturbed or all
             // perturbations have zero frequencies
             for (std::size_t i=0; i<op.size(); ++i) {
-                if (!is_zero_number(op.get_frequency(i), threshold_)) {
+                auto frequency = op.get_frequency(i);
+                if (SymEngine::is_a_Number(*frequency)) {
+                    if (!is_zero_number(
+                        SymEngine::rcp_dynamic_cast<const SymEngine::Number>(frequency),
+                        threshold_
+                    )) {
+                        result_ = x.rcp_from_this();
+                        return;
+                    }
+                }
+                else {
                     result_ = x.rcp_from_this();
                     return;
                 }

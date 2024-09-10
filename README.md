@@ -207,3 +207,4 @@ Derivatives", J. Comput. Chem., DOI: 10.1002/jcc.27437.
 * Remove class `StateOperator`, such that the coupled-cluster operator is
   represented by the matrix multiplication of coupled-cluster amplitudes and
   the transpose of excitation operators.
+* Type of perturbation frequency is changed to `SymEngine::RCP<const SymEngine::Basic>`.

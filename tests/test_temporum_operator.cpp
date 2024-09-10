@@ -7,6 +7,8 @@
 
 #include <symengine/basic.h>
 #include <symengine/dict.h>
+#include <symengine/add.h>
+#include <symengine/mul.h>
 #include <symengine/constants.h>
 #include <symengine/real_double.h>
 #include <symengine/symengine_rcp.h>
@@ -35,13 +37,13 @@ TEST_CASE("Test TemporumOperator and make_dt_operator()", "[TemporumOperator]")
     auto Dp = SymEngine::rcp_dynamic_cast<const TemporumOperator>(
         ((Dbra->diff(el))->diff(geo))->diff(mag)
     );
-    auto sum_freq = SymEngine::addnum(
-        SymEngine::addnum(el->get_frequency(), geo->get_frequency()),
+    auto sum_freq = SymEngine::add(
+        SymEngine::add(el->get_frequency(), geo->get_frequency()),
         mag->get_frequency()
     );
     REQUIRE(SymEngine::eq(
         *Dp->get_frequency(),
-        *SymEngine::subnum(SymEngine::real_double(0), sum_freq)
+        *SymEngine::sub(SymEngine::real_double(0), sum_freq)
     ));
     REQUIRE(SymEngine::unified_eq(
         Dp->get_derivatives(), SymEngine::multiset_basic({el, geo, mag})
@@ -82,7 +84,7 @@ TEST_CASE("Test TemporumOverlap and make_t_matrix()", "[TemporumOverlap]")
     auto T = make_t_matrix(dependencies);
     REQUIRE(eq_dependency(dependencies, T->get_dependencies()));
     REQUIRE(T->size() == 1);
-    REQUIRE(T->get_frequency(0)->is_zero());
+    REQUIRE(SymEngine::eq(*T->get_frequency(0), *SymEngine::zero));
     auto derivatives = T->get_derivatives(0);
     REQUIRE(SymEngine::unified_eq(derivatives.first, SymEngine::multiset_basic({})));
     REQUIRE(SymEngine::unified_eq(derivatives.second, SymEngine::multiset_basic({})));
@@ -124,7 +126,7 @@ TEST_CASE("Test TemporumOverlap and make_t_matrix()", "[TemporumOverlap]")
                 SymEngine::multiset_basic({geo})
             )
         ) {
-            REQUIRE(Tgg->get_frequency(i)->is_zero());
+            REQUIRE(SymEngine::eq(*Tgg->get_frequency(i), *SymEngine::zero));
             found[std::string("g|g")] = true;
         }
         else if (
@@ -140,7 +142,7 @@ TEST_CASE("Test TemporumOverlap and make_t_matrix()", "[TemporumOverlap]")
         ) {
             REQUIRE(SymEngine::eq(
                 *Tgg->get_frequency(i),
-                *SymEngine::subnum(SymEngine::real_double(0.0), geo_freq)
+                *SymEngine::sub(SymEngine::real_double(0.0), geo_freq)
             ));
             found[std::string("0|gg")] = true;
         }
@@ -174,9 +176,9 @@ TEST_CASE("Test TemporumOverlap and make_t_matrix()", "[TemporumOverlap]")
         ) {
             REQUIRE(SymEngine::eq(
                 *Tggb->get_frequency(i),
-                *SymEngine::addnum(
+                *SymEngine::add(
                     geo_freq,
-                    SymEngine::mulnum(mag_freq, SymEngine::real_double(0.5))
+                    SymEngine::mul(mag_freq, SymEngine::real_double(0.5))
                 )
             ));
             found[std::string("ggb|0")] = true;
@@ -194,9 +196,9 @@ TEST_CASE("Test TemporumOverlap and make_t_matrix()", "[TemporumOverlap]")
         ) {
             REQUIRE(SymEngine::eq(
                 *Tggb->get_frequency(i),
-                *SymEngine::subnum(
+                *SymEngine::sub(
                     geo_freq,
-                    SymEngine::mulnum(mag_freq, SymEngine::real_double(0.5))
+                    SymEngine::mul(mag_freq, SymEngine::real_double(0.5))
                 )
             ));
             found[std::string("gg|b")] = true;
@@ -228,7 +230,7 @@ TEST_CASE("Test TemporumOverlap and make_t_matrix()", "[TemporumOverlap]")
         ) {
             REQUIRE(SymEngine::eq(
                 *Tggb->get_frequency(i),
-                *SymEngine::subnum(SymEngine::real_double(0.0), mag_freq)
+                *SymEngine::sub(SymEngine::real_double(0.0), mag_freq)
             ));
             found[std::string("g|gb")] = true;
         }
@@ -245,8 +247,8 @@ TEST_CASE("Test TemporumOverlap and make_t_matrix()", "[TemporumOverlap]")
         ) {
             REQUIRE(SymEngine::eq(
                 *Tggb->get_frequency(i),
-                *SymEngine::subnum(
-                    SymEngine::mulnum(mag_freq, SymEngine::real_double(0.5)),
+                *SymEngine::sub(
+                    SymEngine::mul(mag_freq, SymEngine::real_double(0.5)),
                     geo_freq
                 )
             ));
@@ -265,8 +267,8 @@ TEST_CASE("Test TemporumOverlap and make_t_matrix()", "[TemporumOverlap]")
         ) {
             REQUIRE(SymEngine::eq(
                 *Tggb->get_frequency(i),
-                *SymEngine::subnum(
-                    SymEngine::mulnum(mag_freq, SymEngine::real_double(-0.5)),
+                *SymEngine::sub(
+                    SymEngine::mul(mag_freq, SymEngine::real_double(-0.5)),
                     geo_freq
                 )
             ));

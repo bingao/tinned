@@ -19,7 +19,7 @@
 
 #include <symengine/basic.h>
 #include <symengine/dict.h>
-#include <symengine/number.h>
+#include <symengine/add.h>
 #include <symengine/constants.h>
 #include <symengine/symbol.h>
 #include <symengine/symengine_rcp.h>
@@ -73,16 +73,15 @@ namespace Tinned
             }
 
             // Get frequency factor +/-sum(w)
-            inline SymEngine::RCP<const SymEngine::Number> get_frequency() const
+            inline SymEngine::RCP<const SymEngine::Basic> get_frequency() const
             {
-                SymEngine::RCP<const SymEngine::Number> result = SymEngine::zero;
+                SymEngine::RCP<const SymEngine::Basic> result = SymEngine::zero;
                 for (const auto& var: get_derivatives()) {
                     auto pert = SymEngine::rcp_dynamic_cast<const Perturbation>(var);
-                    auto frequency = pert->get_frequency();
-                    result = SymEngine::addnum(result, frequency);
+                    result = SymEngine::add(result, pert->get_frequency());
                 }
                 return type_==TemporumType::Ket
-                    ? result : SymEngine::subnum(SymEngine::zero, result);
+                    ? result : SymEngine::sub(SymEngine::zero, result);
             }
 
             // Get derivatives

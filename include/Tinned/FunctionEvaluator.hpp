@@ -28,7 +28,6 @@
 #include <symengine/dict.h>
 #include <symengine/functions.h>
 #include <symengine/mul.h>
-#include <symengine/number.h>
 #include <symengine/matrices/trace.h>
 #include <symengine/symengine_casts.h>
 #include <symengine/symengine_exception.h>
@@ -93,7 +92,7 @@ namespace Tinned
 
             // `f` = `scalar` * `f`
             virtual void eval_fun_scale(
-                const SymEngine::RCP<const SymEngine::Number>& scalar,
+                const SymEngine::RCP<const SymEngine::Basic>& scalar,
                 FunctionType& f
             )
             {
@@ -124,14 +123,15 @@ namespace Tinned
             void bvisit(const SymEngine::Add& x)
             {
                 auto args = x.get_args();
-                result_ = apply(args[0]);
+                args[0]->accept(*this);
+                auto sum = result_;
                 for (std::size_t i=1; i<args.size(); ++i) {
-                    auto val = apply(args[i]);
+                    args[i]->accept(*this);
                     // Arguments of `Add` should have the same derivative
                     if (SymEngine::unified_eq(
                         derivatives_.back(), derivatives_[derivatives_.size()-2]
                     )) {
-                        eval_fun_addition(result_, val);
+                        eval_fun_addition(sum, result_);
                         // We keep only the derivative of the first argument,
                         // which represents the derivative of `Add`
                         derivatives_.pop_back();
@@ -143,22 +143,18 @@ namespace Tinned
                         );
                     }
                 }
+                result_ = sum;
             }
 
             void bvisit(const SymEngine::Mul& x)
             {
-                SymEngine::RCP<const SymEngine::Number> scalar = SymEngine::one;
-                unsigned int num_non_numbers = 0;
+                SymEngine::RCP<const SymEngine::Basic> scalar = SymEngine::one;
+                unsigned int num_functions = 0;
                 for (auto const& arg: x.get_args()) {
-                    if (SymEngine::is_a_Number(*arg)) {
-                        scalar = SymEngine::mulnum(
-                            scalar,
-                            SymEngine::rcp_dynamic_cast<const SymEngine::Number>(arg)
-                        );
-                    }
-                    else {
-                        ++num_non_numbers;
-                        if (num_non_numbers>1) {
+                    if (SymEngine::is_a_sub<const SymEngine::FunctionSymbol>(*arg) ||
+                        SymEngine::is_a_sub<const SymEngine::Trace>(*arg)) {
+                        ++num_functions;
+                        if (num_functions>1) {
                             throw SymEngine::NotImplementedError(
                                 "FunctionEvaluator::bvisit() not implemented for the argument "
                                 + stringify(arg)
@@ -167,8 +163,11 @@ namespace Tinned
                             );
                         }
                         else {
-                            result_ = apply(arg);
+                            arg->accept(*this);
                         }
+                    }
+                    else {
+                        scalar = SymEngine::mul(scalar, arg);
                     }
                 }
                 if (SymEngine::neq(*scalar, *SymEngine::one))
@@ -218,5 +217,7 @@ namespace Tinned
                 );
                 result_ = eval_trace(arg);
             }
+
+            virtual ~FunctionEvaluator() = default;
     };
 }

@@ -21,7 +21,7 @@ target_link_libraries(test_visitors
                       PRIVATE tinned ${SYMENGINE_LIBRARIES} Catch2::Catch2)
 add_test(NAME test_visitors COMMAND test_visitors)
 
-#add_executable(test_two_level test_two_level.cpp)
-#target_link_libraries(test_two_level
-#                      PRIVATE tinned ${SYMENGINE_LIBRARIES} Catch2::Catch2)
-#add_test(NAME test_two_level COMMAND test_two_level)
+add_executable(test_two_level test_two_level.cpp)
+target_link_libraries(test_two_level
+                      PRIVATE tinned ${SYMENGINE_LIBRARIES} Catch2::Catch2)
+add_test(NAME test_two_level COMMAND test_two_level)

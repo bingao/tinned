@@ -23,7 +23,6 @@
 
 #include <symengine/basic.h>
 #include <symengine/constants.h>
-#include <symengine/number.h>
 #include <symengine/matrices/conjugate_matrix.h>
 #include <symengine/matrices/matrix_add.h>
 #include <symengine/matrices/matrix_mul.h>
@@ -153,7 +152,7 @@ namespace Tinned
 
             // A = scalar * A
             virtual void eval_oper_scale(
-                const SymEngine::RCP<const SymEngine::Number>& scalar,
+                const SymEngine::RCP<const SymEngine::Basic>& scalar,
                 OperatorType& A
             )
             {
@@ -162,14 +161,16 @@ namespace Tinned
                 );
             }
 
-            // Update the derivative of a multiplication
+            // Update the derivative of a multiplication of two factors
             inline void update_mul_derivative() noexcept
             {
                 auto derivative = derivatives_.back();
                 derivatives_.pop_back();
                 // The derivative of a multiplication is the union of
-                // derivatives of all its factors
-                derivatives_.back().insert(derivative.begin(), derivative.end());
+                // derivatives of its factors
+                if (derivative.size()>0) derivatives_.back().insert(
+                    derivative.begin(), derivative.end()
+                );
             }
 
         public:
@@ -203,7 +204,8 @@ namespace Tinned
                 }
                 else if (SymEngine::is_a_sub<const ConjugateTranspose>(x)) {
                     auto& op = SymEngine::down_cast<const ConjugateTranspose&>(x);
-                    result_ = eval_hermitian_transpose(apply(op.get_arg()));
+                    op.get_arg()->accept(*this);
+                    result_ = eval_hermitian_transpose(result_);
                 }
                 else if (SymEngine::is_a_sub<const OneElecDensity>(x)) {
                     auto& op = SymEngine::down_cast<const OneElecDensity&>(x);
@@ -250,25 +252,28 @@ namespace Tinned
 
             void bvisit(const SymEngine::ConjugateMatrix& x)
             {
-                result_ = eval_conjugate_matrix(apply(x.get_arg()));
+                x.get_arg()->accept(*this);
+                result_ = eval_conjugate_matrix(result_);
             }
 
             void bvisit(const SymEngine::Transpose& x)
             {
-                result_ = eval_transpose(apply(x.get_arg()));
+                x.get_arg()->accept(*this);
+                result_ = eval_transpose(result_);
             }
 
             void bvisit(const SymEngine::MatrixAdd& x)
             {
                 auto args = x.get_args();
-                result_ = apply(args[0]);
+                args[0]->accept(*this);
+                auto sum = result_;
                 for (std::size_t i=1; i<args.size(); ++i) {
-                    auto val = apply(args[i]);
+                    args[i]->accept(*this);
                     // Arguments of `MatrixAdd` should have the same derivative
                     if (SymEngine::unified_eq(
                         derivatives_.back(), derivatives_[derivatives_.size()-2]
                     )) {
-                        eval_oper_addition(result_, val);
+                        eval_oper_addition(sum, result_);
                         // We keep only the derivative of the first argument,
                         // which represents the derivative of `MatrixAdd`
                         derivatives_.pop_back();
@@ -280,6 +285,7 @@ namespace Tinned
                         );
                     }
                 }
+                result_ = sum;
             }
 
             void bvisit(const SymEngine::MatrixMul& x)
@@ -287,67 +293,64 @@ namespace Tinned
                 auto factors = x.get_factors();
                 switch (factors.size()) {
                     case 1: {
-                        result_ = apply(factors[0]);
+                        factors[0]->accept(*this);
                         break;
                     }
                     case 2: {
-                        auto val0 = apply(factors[0]);
-                        auto val1 = apply(factors[1]);
+                        factors[0]->accept(*this);
+                        auto val0 = result_;
+                        factors[1]->accept(*this);
+                        auto val1 = result_;
                         result_ = eval_oper_multiplication(val0, val1);
                         update_mul_derivative();
                         break;
                     }
                     case 3: {
-                        auto val0 = apply(factors[0]);
-                        result_ = apply(factors[1]);
+                        factors[0]->accept(*this);
+                        auto val0 = result_;
+                        factors[1]->accept(*this);
                         auto val1 = eval_oper_multiplication(val0, result_);
                         update_mul_derivative();
-                        val0 = apply(factors[2]);
+                        factors[2]->accept(*this);
+                        val0 = result_;
                         result_ = eval_oper_multiplication(val1, val0);
                         update_mul_derivative();
                         break;
                     }
                     default: {
-                        auto val0 = apply(factors[0]);
-                        auto val = apply(factors[1]);
-                        auto val1 = eval_oper_multiplication(val0, val);
+                        factors[0]->accept(*this);
+                        auto val0 = result_;
+                        factors[1]->accept(*this);
+                        auto val1 = eval_oper_multiplication(val0, result_);
                         update_mul_derivative();
                         for (std::size_t i=2; i<factors.size()-1; ++i) {
-                            val = apply(factors[i]);
+                            factors[i]->accept(*this);
                             if (i%2==0) {
-                                val0 = eval_oper_multiplication(val1, val);
+                                val0 = eval_oper_multiplication(val1, result_);
                             }
                             else {
-                                val1 = eval_oper_multiplication(val0, val);
+                                val1 = eval_oper_multiplication(val0, result_);
                             }
                             update_mul_derivative();
                         }
-                        val = apply(factors.back());
+                        factors.back()->accept(*this);
                         if (factors.size()%2==0) {
-                            result_ = eval_oper_multiplication(val0, val);
+                            val1 = result_;
+                            result_ = eval_oper_multiplication(val0, val1);
                         }
                         else {
-                            result_ = eval_oper_multiplication(val1, val);
+                            val0 = result_;
+                            result_ = eval_oper_multiplication(val1, val0);
                         }
                         update_mul_derivative();
                         break;
                     }
                 }
                 auto scalar = x.get_scalar();
-                if (SymEngine::neq(*scalar, *SymEngine::one)) {
-                    if (SymEngine::is_a_Number(*scalar)) {
-                        eval_oper_scale(
-                            SymEngine::rcp_dynamic_cast<const SymEngine::Number>(scalar),
-                            result_
-                        );
-                    }
-                    else {
-                        throw SymEngine::NotImplementedError(
-                            "OperatorEvaluator::bvisit() not implemented for scalar "
-                            + stringify(scalar)
-                        );
-                    }
-                }
+                if (SymEngine::neq(*scalar, *SymEngine::one))
+                    eval_oper_scale(scalar, result_);
             }
+
+            virtual ~OperatorEvaluator() = default;
     };
 }

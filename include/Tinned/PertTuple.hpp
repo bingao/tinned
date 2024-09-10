@@ -23,7 +23,7 @@
 
 #include <symengine/basic.h>
 #include <symengine/dict.h>
-#include <symengine/number.h>
+#include <symengine/add.h>
 #include <symengine/constants.h>
 #include <symengine/symbol.h>
 #include <symengine/symengine_assert.h>
@@ -81,14 +81,14 @@ namespace Tinned
              typename std::enable_if<std::is_same<T, PertTuple>::value ||
                  std::is_same<T, SymEngine::multiset_basic>::value ||
                  std::is_same<T, SymEngine::vec_basic>::value, int>::type = 0>
-    inline SymEngine::RCP<const SymEngine::Number> get_frequency_sum(
+    inline SymEngine::RCP<const SymEngine::Basic> get_frequency_sum(
         const T& perturbations
     )
     {
-        SymEngine::RCP<const SymEngine::Number> result = SymEngine::zero;
+        SymEngine::RCP<const SymEngine::Basic> result = SymEngine::zero;
         for (const auto& p: perturbations) {
             SYMENGINE_ASSERT(SymEngine::is_a_sub<const Perturbation>(*p))
-            result = SymEngine::addnum(
+            result = SymEngine::add(
                 result,
                 SymEngine::rcp_dynamic_cast<const Perturbation>(p)->get_frequency()
             );

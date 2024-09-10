@@ -7,6 +7,11 @@
 
    This file is the header file of perturbations.
 
+   2024-09-05, Bin Gao:
+   * change Perturbation's frequency to class
+     SymEngine::RCP<const SymEngine::Basic> so that SymEngine::Number,
+     SymEngine::Symbol, SymEngine::Add, etc. can be used as the frequency
+
    2023-10-09, Bin Gao:
    * change Perturbation's frequency to class
      SymEngine::RCP<const SymEngine::Number>. Users can use any derived class
@@ -24,7 +29,6 @@
 
 #include <symengine/basic.h>
 #include <symengine/dict.h>
-#include <symengine/number.h>
 #include <symengine/constants.h>
 #include <symengine/symbol.h>
 #include <symengine/symengine_rcp.h>
@@ -35,7 +39,7 @@ namespace Tinned
     {
         protected:
             // Frequency
-            SymEngine::RCP<const SymEngine::Number> frequency_;
+            SymEngine::RCP<const SymEngine::Basic> frequency_;
             // Set of components
             std::set<std::size_t> components_;
 
@@ -43,7 +47,7 @@ namespace Tinned
             //! Constructor
             explicit Perturbation(
                 const std::string& name,
-                const SymEngine::RCP<const SymEngine::Number>& frequency,
+                const SymEngine::RCP<const SymEngine::Basic>& frequency,
                 const std::set<std::size_t>& components
             );
 
@@ -52,7 +56,7 @@ namespace Tinned
             int compare(const SymEngine::Basic& o) const override;
 
             //! Get the frequency of the perturbation
-            inline SymEngine::RCP<const SymEngine::Number> get_frequency() const
+            inline SymEngine::RCP<const SymEngine::Basic> get_frequency() const
             {
                 return frequency_;
             }
@@ -67,7 +71,7 @@ namespace Tinned
     // Helper function to make a perturbation
     inline SymEngine::RCP<const Perturbation> make_perturbation(
         const std::string& name,
-        const SymEngine::RCP<const SymEngine::Number>& frequency = SymEngine::zero,
+        const SymEngine::RCP<const SymEngine::Basic>& frequency = SymEngine::zero,
         const std::set<std::size_t>& components = std::set<std::size_t>()
     )
     {

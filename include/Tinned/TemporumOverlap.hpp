@@ -28,6 +28,8 @@
 
 #include <symengine/basic.h>
 #include <symengine/dict.h>
+#include <symengine/add.h>
+#include <symengine/mul.h>
 #include <symengine/number.h>
 #include <symengine/integer.h>
 #include <symengine/symbol.h>
@@ -128,13 +130,13 @@ namespace Tinned
             }
 
             // Get frequency factor [sum(w_bra)-sum(w_ket)]/2 of a product
-            inline SymEngine::RCP<const SymEngine::Number>
+            inline SymEngine::RCP<const SymEngine::Basic>
             get_frequency(const std::size_t index) const
             {
                 auto term = get_braket_product(index);
-                return SymEngine::divnum(
-                    SymEngine::mulnum(
-                        SymEngine::addnum(
+                return SymEngine::div(
+                    SymEngine::mul(
+                        SymEngine::add(
                             std::get<1>(term)->get_frequency(),
                             std::get<2>(term)->get_frequency()
                         ),

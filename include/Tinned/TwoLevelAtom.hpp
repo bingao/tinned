@@ -13,27 +13,13 @@
 
 #pragma once
 
-#include <cstddef>
 #include <map>
-#include <string>
 #include <utility>
 #include <vector>
 
 #include <symengine/basic.h>
 #include <symengine/dict.h>
-#include <symengine/number.h>
-#include <symengine/integer.h>
-#include <symengine/constants.h>
-#include <symengine/derivative.h>
-#include <symengine/add.h>
-#include <symengine/mul.h>
-#include <symengine/pow.h>
 #include <symengine/matrices/immutable_dense_matrix.h>
-#include <symengine/matrices/matrix_add.h>
-#include <symengine/matrices/matrix_mul.h>
-#include <symengine/matrices/trace.h>
-#include <symengine/symengine_assert.h>
-#include <symengine/symengine_exception.h>
 #include <symengine/symengine_rcp.h>
 
 #include "Tinned.hpp"
@@ -51,19 +37,21 @@ namespace Tinned
         protected:
             // Maximum allowed order
             unsigned int max_order_;
+            // Dimension of all operator matrices
+            unsigned int dim_operator_;
             // Unperturbed Hamiltonian and its value
             std::pair<SymEngine::RCP<const OneElecOperator>,
                       SymEngine::RCP<const SymEngine::MatrixExpr>> H0_;
             // Density matrix and the value of unperturbed one
-            std::pair<SymEngine::RCP<const OneElecOperator>,
+            std::pair<SymEngine::RCP<const OneElecDensity>,
                       SymEngine::RCP<const SymEngine::MatrixExpr>> rho0_;
             // External field's operators and their values, each operator
             // should depend only on one unique perturbation
             std::map<SymEngine::RCP<const OneElecOperator>,
                      SymEngine::RCP<const SymEngine::MatrixExpr>,
                      SymEngine::RCPBasicKeyLess> V_;
-            // Transition angular frequency matrix
-            SymEngine::RCP<const SymEngine::ImmutableDenseMatrix> omega_;
+            // Transition angular frequencies (row major)
+            SymEngine::vec_basic omega_;
             // All perturbations
             SymEngine::set_basic perturbations_;
             // Cached derivatives of density matrix <order, <perturbations, derivatives>>
@@ -73,16 +61,14 @@ namespace Tinned
                 DensityDerivative;
             std::map<unsigned int, DensityDerivative> rho_all_derivatives_;
 
-            // Make a 2x2 zero matrix
-            inline SymEngine::RCP<const SymEngine::MatrixExpr> make_zero_matrix()
-            {
-                return SymEngine::immutable_dense_matrix(
-                    2, 2, {SymEngine::zero, SymEngine::zero, SymEngine::zero, SymEngine::zero}
-                );
-            }
+            // Get values of an operator matrix
+            SymEngine::vec_basic get_values(
+                const SymEngine::RCP<const SymEngine::MatrixExpr>& A
+            ) const;
 
-            SymEngine::RCP<const SymEngine::MatrixExpr>
-            eval_hermitian_transpose(const SymEngine::RCP<const SymEngine::MatrixExpr>& A) override;
+            SymEngine::RCP<const SymEngine::MatrixExpr> eval_hermitian_transpose(
+                const SymEngine::RCP<const SymEngine::MatrixExpr>& A
+            ) override;
 
             SymEngine::RCP<const SymEngine::MatrixExpr>
             eval_1el_density(const OneElecDensity& x) override;
@@ -93,11 +79,13 @@ namespace Tinned
             SymEngine::RCP<const SymEngine::MatrixExpr>
             eval_temporum_operator(const TemporumOperator& x) override;
 
-            SymEngine::RCP<const SymEngine::MatrixExpr>
-            eval_conjugate_matrix(const SymEngine::RCP<const SymEngine::MatrixExpr>& A) override;
+            SymEngine::RCP<const SymEngine::MatrixExpr> eval_conjugate_matrix(
+                const SymEngine::RCP<const SymEngine::MatrixExpr>& A
+            ) override;
 
-            SymEngine::RCP<const SymEngine::MatrixExpr>
-            eval_transpose(const SymEngine::RCP<const SymEngine::MatrixExpr>& A) override;
+            SymEngine::RCP<const SymEngine::MatrixExpr> eval_transpose(
+                const SymEngine::RCP<const SymEngine::MatrixExpr>& A
+            ) override;
 
             void eval_oper_addition(
                 SymEngine::RCP<const SymEngine::MatrixExpr>& A,
@@ -110,7 +98,7 @@ namespace Tinned
             ) override;
 
             void eval_oper_scale(
-                const SymEngine::RCP<const SymEngine::Number>& scalar,
+                const SymEngine::RCP<const SymEngine::Basic>& scalar,
                 SymEngine::RCP<const SymEngine::MatrixExpr>& A
             ) override;
 
@@ -121,7 +109,7 @@ namespace Tinned
                 const std::map<SymEngine::RCP<const OneElecOperator>,
                                SymEngine::RCP<const SymEngine::MatrixExpr>,
                                SymEngine::RCPBasicKeyLess>& V,
-                const std::pair<SymEngine::RCP<const OneElecOperator>,
+                const std::pair<SymEngine::RCP<const OneElecDensity>,
                                 SymEngine::RCP<const SymEngine::MatrixExpr>>& rho0
             );
 
@@ -143,7 +131,7 @@ namespace Tinned
             ) override;
 
             void eval_fun_scale(
-                const SymEngine::RCP<const SymEngine::Number>& scalar,
+                const SymEngine::RCP<const SymEngine::Basic>& scalar,
                 SymEngine::RCP<const SymEngine::Basic>& f
             ) override;
 
@@ -154,7 +142,7 @@ namespace Tinned
                 const std::map<SymEngine::RCP<const OneElecOperator>,
                                SymEngine::RCP<const SymEngine::MatrixExpr>,
                                SymEngine::RCPBasicKeyLess>& V,
-                const std::pair<SymEngine::RCP<const OneElecOperator>,
+                const std::pair<SymEngine::RCP<const OneElecDensity>,
                                 SymEngine::RCP<const SymEngine::MatrixExpr>>& rho0
             );
 

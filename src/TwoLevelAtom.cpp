@@ -1,3 +1,22 @@
+#include <iostream>
+
+#include <cstddef>
+#include <string>
+
+#include <symengine/add.h>
+#include <symengine/mul.h>
+#include <symengine/constants.h>
+#include <symengine/matrices/zero_matrix.h>
+#include <symengine/matrices/identity_matrix.h>
+#include <symengine/matrices/diagonal_matrix.h>
+#include <symengine/matrices/matrix_add.h>
+#include <symengine/matrices/matrix_mul.h>
+#include <symengine/matrices/conjugate_matrix.h>
+#include <symengine/matrices/transpose.h>
+#include <symengine/matrices/trace.h>
+#include <symengine/symengine_assert.h>
+#include <symengine/symengine_exception.h>
+
 #include "Tinned/TwoLevelAtom.hpp"
 
 namespace Tinned
@@ -8,49 +27,46 @@ namespace Tinned
         const std::map<SymEngine::RCP<const OneElecOperator>,
                        SymEngine::RCP<const SymEngine::MatrixExpr>,
                        SymEngine::RCPBasicKeyLess>& V,
-        const std::pair<SymEngine::RCP<const OneElecOperator>,
+        const std::pair<SymEngine::RCP<const OneElecDensity>,
                         SymEngine::RCP<const SymEngine::MatrixExpr>>& rho0
     ) : max_order_(7), H0_(H0), V_(V)
     {
         // Density matrix should be idempotent and has purity one
-        auto Z = SymEngine::rcp_dynamic_cast<const SymEngine::ImmutableDenseMatrix>(
-            SymEngine::matrix_add({
-                SymEngine::matrix_mul({rho0.second, rho0.second}),
-                SymEngine::matrix_mul({SymEngine::minus_one, rho0.second})
-            })
-        );
-        for (const auto& val: Z->get_values())
-            if (!is_zero_quantity(val)) throw SymEngine::SymEngineException(
+        if (SymEngine::neq(
+            *rho0.second, *SymEngine::matrix_mul({rho0.second, rho0.second})
+        )) throw SymEngine::SymEngineException(
                 "Density matrix isn't idempotent: " + stringify(rho0.second)
             );
-        if (!is_zero_quantity(SymEngine::add(SymEngine::minus_one, SymEngine::trace(rho0.second))))
-            throw SymEngine::SymEngineException(
+        if (!is_zero_quantity(SymEngine::add(
+            SymEngine::minus_one, SymEngine::trace(rho0.second)
+        ))) throw SymEngine::SymEngineException(
                 "Density matrix doesn't have purity one: " + stringify(rho0.second)
             );
         rho0_ = rho0;
-        SymEngine::vec_basic values;
-        auto op = SymEngine::rcp_dynamic_cast<const SymEngine::ImmutableDenseMatrix>(H0.second);
-        for (std::size_t i=0; i<op->nrows(); ++i)
-            for (std::size_t j=0; j<op->ncols(); ++j) {
+        auto op = SymEngine::rcp_dynamic_cast<const SymEngine::DiagonalMatrix>(H0.second);
+        // Here, we do not check if all matrices should have the same dimension
+        dim_operator_ = op->get_container().size();
+        for (std::size_t i=0; i<dim_operator_; ++i) {
+            for (std::size_t j=0; j<dim_operator_; ++j) {
                 if (i==j) {
-                    values.push_back(SymEngine::zero);
+                    omega_.push_back(SymEngine::zero);
                 }
                 else {
-                    values.push_back(SymEngine::sub(op->get(i, i), op->get(j, j)));
+                    omega_.push_back(SymEngine::sub(op->get(i), op->get(j)));
                 }
             }
-        omega_ = SymEngine::rcp_dynamic_cast<const SymEngine::ImmutableDenseMatrix>(
-            SymEngine::immutable_dense_matrix(op->nrows(), op->ncols(), values)
-        );
-        values.clear();
+        }
+        SymEngine::vec_basic values;
         for (const auto& oper: V_) {
             auto dependencies = oper.first->get_dependencies();
             if (dependencies.size()!=1) throw SymEngine::SymEngineException(
-                "Each field operator should only depend on one perturbation: " + stringify(oper.first)
+                "Each field operator should only depend on one perturbation: "
+                + stringify(oper.first)
             );
             if (perturbations_.find(dependencies.begin()->first)!=perturbations_.end())
                 throw SymEngine::SymEngineException(
-                    "Field operators should depend on different perturbations: " + stringify(oper.first)
+                    "Field operators should depend on different perturbations: "
+                    + stringify(oper.first)
                 );
             perturbations_.insert(dependencies.begin()->first);
             values.push_back(oper.second);
@@ -58,32 +74,97 @@ namespace Tinned
         // All V's should commute
         for (std::size_t i=1; i<values.size(); ++i) {
             for (std::size_t j=0; j<i; ++j) {
-                auto commutator = SymEngine::rcp_dynamic_cast<const SymEngine::ImmutableDenseMatrix>(
-                    SymEngine::matrix_add({
-                        SymEngine::matrix_mul({values[i], values[j]}),
-                        SymEngine::matrix_mul({SymEngine::minus_one, values[j], values[i]})
-                    })
+                auto val_ij = SymEngine::matrix_mul({values[i], values[j]});
+                auto val_ji = SymEngine::matrix_mul({values[j], values[i]});
+                if (SymEngine::neq(*val_ij, *val_ji)) throw SymEngine::SymEngineException(
+                    "Field operators: " + stringify(values[i]) + " and "
+                    + stringify(values[j]) + " do not commute"
                 );
-                for (const auto& val: commutator->get_values())
-                    if (!is_zero_quantity(val)) throw SymEngine::SymEngineException(
-                        "Field operators: " + stringify(values[i]) + " and "
-                        + stringify(values[j]) + " do not commute"
-                    );
             }
+        }
+        // Store unperturbed density matrix
+        rho_all_derivatives_[0] = DensityDerivative({
+            std::make_pair(SymEngine::multiset_basic({}), rho0.second)
+        });
+    }
+
+    SymEngine::vec_basic TwoLevelOperator::get_values(
+        const SymEngine::RCP<const SymEngine::MatrixExpr>& A
+    ) const
+    {
+        if (SymEngine::is_a_sub<const SymEngine::ZeroMatrix>(*A)) {
+            auto op = SymEngine::rcp_dynamic_cast<const SymEngine::ZeroMatrix>(A);
+            if (SymEngine::neq(*op->nrows(), *SymEngine::integer(dim_operator_)) ||
+                SymEngine::neq(*op->ncols(), *SymEngine::integer(dim_operator_)))
+                throw SymEngine::SymEngineException(
+                    "Incorrect dimension (" + std::to_string(dim_operator_)
+                    + ") of matrix: " + stringify(A)
+                );
+            SymEngine::vec_basic values;
+            for (std::size_t i=0; i<dim_operator_*dim_operator_; ++i)
+                values.push_back(SymEngine::zero);
+            return values;
+        }
+        else if (SymEngine::is_a_sub<const SymEngine::IdentityMatrix>(*A)) {
+            auto op = SymEngine::rcp_dynamic_cast<const SymEngine::IdentityMatrix>(A);
+            if (SymEngine::neq(*op->size(), *SymEngine::integer(dim_operator_)))
+                throw SymEngine::SymEngineException(
+                    "Incorrect dimension (" + std::to_string(dim_operator_)
+                    + ") of matrix: " + stringify(A)
+                );
+            SymEngine::vec_basic values;
+            for (std::size_t i=0; i<dim_operator_; ++i) {
+                for (std::size_t j=0; j<dim_operator_; ++j) {
+                    if (i==j) {
+                        values.push_back(SymEngine::one);
+                    }
+                    else {
+                        values.push_back(SymEngine::zero);
+                    }
+                }
+            }
+            return values;
+        }
+        else if (SymEngine::is_a_sub<const SymEngine::DiagonalMatrix>(*A)) {
+            auto op = SymEngine::rcp_dynamic_cast<const SymEngine::DiagonalMatrix>(A);
+            auto container = op->get_container();
+            if (container.size()!=dim_operator_)
+                throw SymEngine::SymEngineException(
+                    "Incorrect dimension (" + std::to_string(dim_operator_)
+                    + ") of matrix: " + stringify(A)
+                );
+            SymEngine::vec_basic values;
+            for (std::size_t i=0; i<container.size(); ++i) {
+                for (std::size_t j=0; j<container.size(); ++j) {
+                    if (i==j) {
+                        values.push_back(container[i]);
+                    }
+                    else {
+                        values.push_back(SymEngine::zero);
+                    }
+                }
+            }
+            return values;
+        }
+        else if (SymEngine::is_a_sub<const SymEngine::ImmutableDenseMatrix>(*A)) {
+            auto op = SymEngine::rcp_dynamic_cast<const SymEngine::ImmutableDenseMatrix>(A);
+            if (op->nrows()!=dim_operator_ || op->ncols()!=dim_operator_)
+                throw SymEngine::SymEngineException(
+                    "Incorrect dimension (" + std::to_string(dim_operator_)
+                    + ") of matrix: " + stringify(A)
+                );
+            return op->get_values();
+        }
+        else {
+            throw SymEngine::SymEngineException("Unsupported matrix: "+stringify(A));
         }
     }
 
     SymEngine::RCP<const SymEngine::MatrixExpr>
     TwoLevelOperator::eval_hermitian_transpose(const SymEngine::RCP<const SymEngine::MatrixExpr>& A)
     {
-        auto op = SymEngine::rcp_dynamic_cast<const SymEngine::ImmutableDenseMatrix>(A);
-        SymEngine::vec_basic values;
-        for (std::size_t j=0; j<op->ncols(); ++j)
-            for (std::size_t i=0; i<op->nrows(); ++i)
-                values.push_back(
-                    SymEngine::rcp_dynamic_cast<const SymEngine::Number>(op->get(i, j))->conjugate()
-                );
-        return SymEngine::immutable_dense_matrix(op->ncols(), op->nrows(), values);
+        auto conj = SymEngine::conjugate_matrix(A);
+        return SymEngine::transpose(conj);
     }
 
     SymEngine::RCP<const SymEngine::MatrixExpr>
@@ -98,8 +179,8 @@ namespace Tinned
             case 0:
                 return rho0_.second;
             default:
-                if (derivatives.size()>rho_all_derivatives_.size()) {
-                    for (unsigned int order=rho_all_derivatives_.size();
+                if (derivatives.size()>rho_all_derivatives_.size()-1) {
+                    for (unsigned int order=rho_all_derivatives_.size()-1;
                          order<derivatives.size();
                          ++order) {
                         DensityDerivative rho_derivatives;
@@ -128,8 +209,8 @@ namespace Tinned
                                 "Invalid perturbation for the external field "
                                 + stringify(permut_derivatives.back())
                             );
-                            // Check if the higher order derivatives of density
-                            // matrix already computed partially
+                            // Check if the higher order derivatives of the
+                            // density matrix already computed partially
                             auto higher_derivatives = SymEngine::multiset_basic(
                                 permut_derivatives.begin(), permut_derivatives.end()
                             );
@@ -140,46 +221,37 @@ namespace Tinned
                                     break;
                                 }
                             // Try to find the matched lower order derivatives
-                            // of density matrix
+                            // of the density matrix
                             not_found = true;
                             auto lower_derivatives = SymEngine::multiset_basic(
                                 permut_derivatives.begin(), permut_derivatives.end()-1
                             );
+//FIXME: rho0, rho1?
                             for (const auto& rho_lower: rho_all_derivatives_[order]) {
                                 if (SymEngine::unified_eq(rho_lower.first, lower_derivatives)) {
-                                    auto rho_commutator
-                                        = SymEngine::rcp_dynamic_cast<const SymEngine::ImmutableDenseMatrix>(
-                                              SymEngine::matrix_add({
-                                                  SymEngine::matrix_mul({
-                                                      oper_field, rho_lower.second
-                                                  }),
-                                                  SymEngine::matrix_mul({
-                                                      SymEngine::minus_one,
-                                                      rho_lower.second,
-                                                      oper_field
-                                                  })
-                                              })
-                                          );
+                                    auto val_V_rho = get_values(SymEngine::matrix_mul({
+                                        oper_field, rho_lower.second
+                                    }));
+                                    auto val_rho_V = get_values(SymEngine::matrix_mul({
+                                        rho_lower.second, oper_field
+                                    }));
                                     SymEngine::vec_basic val_rho;
-                                    for (std::size_t i=0; i<omega_->nrows(); ++i)
-                                        for (std::size_t j=0; j<omega_->ncols(); ++j)
-                                            val_rho.push_back(
-                                                SymEngine::div(
-                                                    rho_commutator->get(i, j),
-                                                    SymEngine::sub(
-                                                        freq_sum,
-                                                        omega_->get(i, j)
-                                                    )
-                                                )
-                                            );
+                                    // Compute higher order derivatives of
+                                    // the density matrix
+                                    for (std::size_t i=0; i<omega_.size(); ++i) {
+                                        val_rho.push_back(
+                                            SymEngine::div(
+                                                SymEngine::sub(val_V_rho[i], val_rho_V[i]),
+                                                SymEngine::sub(freq_sum, omega_[i])
+                                            )
+                                        );
+                                    }
                                     if (idx_higher>=0) {
                                         rho_derivatives[idx_higher].second
                                             = SymEngine::matrix_add({
                                                   rho_derivatives[idx_higher].second,
                                                   SymEngine::immutable_dense_matrix(
-                                                      omega_->nrows(),
-                                                      omega_->ncols(),
-                                                      val_rho
+                                                      dim_operator_, dim_operator_, val_rho
                                                   )
                                               });
                                     }
@@ -188,9 +260,7 @@ namespace Tinned
                                             std::make_pair(
                                                 higher_derivatives,
                                                 SymEngine::immutable_dense_matrix(
-                                                    omega_->nrows(),
-                                                    omega_->ncols(),
-                                                    val_rho
+                                                    dim_operator_, dim_operator_, val_rho
                                                 )
                                             )
                                         );
@@ -206,7 +276,7 @@ namespace Tinned
                                 throw SymEngine::SymEngineException(
                                     "Invalid lower order derivatives: "
                                     + str_lower_derivatives
-                                    + " of density matrix: "
+                                    + " of the density matrix: "
                                     + stringify(x)
                                 );
                             }
@@ -232,7 +302,9 @@ namespace Tinned
                 return H0_.second;
             }
             else {
-                return make_zero_matrix();
+                return SymEngine::zero_matrix(
+                    SymEngine::integer(dim_operator_), SymEngine::integer(dim_operator_)
+                );
             }
         }
         else {
@@ -249,7 +321,10 @@ namespace Tinned
                         return oper.second;
                     }
                     else {
-                        return make_zero_matrix();
+                        return SymEngine::zero_matrix(
+                            SymEngine::integer(dim_operator_),
+                            SymEngine::integer(dim_operator_)
+                        );
                     }
                 }
             }
@@ -265,28 +340,17 @@ namespace Tinned
         return result_;
     }
 
-    SymEngine::RCP<const SymEngine::MatrixExpr>
-    TwoLevelOperator::eval_conjugate_matrix(const SymEngine::RCP<const SymEngine::MatrixExpr>& A)
+    SymEngine::RCP<const SymEngine::MatrixExpr> TwoLevelOperator::eval_conjugate_matrix(
+        const SymEngine::RCP<const SymEngine::MatrixExpr>& A
+    )
     {
-        auto op = SymEngine::rcp_dynamic_cast<const SymEngine::ImmutableDenseMatrix>(A);
-        SymEngine::vec_basic values;
-        for (std::size_t i=0; i<op->nrows(); ++i)
-            for (std::size_t j=0; j<op->ncols(); ++j)
-                values.push_back(
-                    SymEngine::rcp_dynamic_cast<const SymEngine::Number>(op->get(i, j))->conjugate()
-                );
-        return SymEngine::immutable_dense_matrix(op->nrows(), op->ncols(), values);
+        return SymEngine::conjugate_matrix(A);
     }
 
     SymEngine::RCP<const SymEngine::MatrixExpr>
     TwoLevelOperator::eval_transpose(const SymEngine::RCP<const SymEngine::MatrixExpr>& A)
     {
-        auto op = SymEngine::rcp_dynamic_cast<const SymEngine::ImmutableDenseMatrix>(A);
-        SymEngine::vec_basic values;
-        for (std::size_t j=0; j<op->ncols(); ++j)
-            for (std::size_t i=0; i<op->nrows(); ++i)
-                values.push_back(op->get(i, j));
-        return SymEngine::immutable_dense_matrix(op->ncols(), op->nrows(), values);
+        return SymEngine::transpose(A);
     }
 
     void TwoLevelOperator::eval_oper_addition(
@@ -294,18 +358,12 @@ namespace Tinned
         const SymEngine::RCP<const SymEngine::MatrixExpr>& B
     )
     {
-        auto op_A = SymEngine::rcp_dynamic_cast<const SymEngine::ImmutableDenseMatrix>(A);
-        auto op_B = SymEngine::rcp_dynamic_cast<const SymEngine::ImmutableDenseMatrix>(B);
-        SYMENGINE_ASSERT(
-            op_A->nrows()==op_B->nrows() && op_A->ncols()==op_B->ncols()
-        )
+        auto val_A = get_values(A);
+        auto val_B = get_values(B);
         SymEngine::vec_basic values;
-        for (std::size_t i=0; i<op_A->nrows(); ++i)
-            for (std::size_t j=0; j<op_A->ncols(); ++j)
-                values.push_back(
-                    SymEngine::add(op_A->get(i, j), op_B->get(i, j))
-                );
-        A = SymEngine::immutable_dense_matrix(op_A->nrows(), op_A->ncols(), values);
+        for (std::size_t i=0; i<val_A.size(); ++i)
+            values.push_back(SymEngine::add(val_A[i], val_B[i]));
+        A = SymEngine::immutable_dense_matrix(dim_operator_, dim_operator_, values);
     }
 
     SymEngine::RCP<const SymEngine::MatrixExpr> TwoLevelOperator::eval_oper_multiplication(
@@ -317,16 +375,15 @@ namespace Tinned
     }
 
     void TwoLevelOperator::eval_oper_scale(
-        const SymEngine::RCP<const SymEngine::Number>& scalar,
+        const SymEngine::RCP<const SymEngine::Basic>& scalar,
         SymEngine::RCP<const SymEngine::MatrixExpr>& A
     )
     {
-        auto op = SymEngine::rcp_dynamic_cast<const SymEngine::ImmutableDenseMatrix>(A);
+        auto val_A = get_values(A);
         SymEngine::vec_basic values;
-        for (std::size_t i=0; i<op->nrows(); ++i)
-            for (std::size_t j=0; j<op->ncols(); ++j)
-                values.push_back(SymEngine::mul(scalar, op->get(i, j)));
-        A = SymEngine::immutable_dense_matrix(op->nrows(), op->ncols(), values);
+        for (std::size_t i=0; i<val_A.size(); ++i)
+            values.push_back(SymEngine::mul(scalar, val_A[i]));
+        A = SymEngine::immutable_dense_matrix(dim_operator_, dim_operator_, values);
     }
 
     TwoLevelFunction::TwoLevelFunction(
@@ -335,7 +392,7 @@ namespace Tinned
         const std::map<SymEngine::RCP<const OneElecOperator>,
                        SymEngine::RCP<const SymEngine::MatrixExpr>,
                        SymEngine::RCPBasicKeyLess>& V,
-        const std::pair<SymEngine::RCP<const OneElecOperator>,
+        const std::pair<SymEngine::RCP<const OneElecDensity>,
                         SymEngine::RCP<const SymEngine::MatrixExpr>>& rho0
     ) : FunctionEvaluator<SymEngine::RCP<const SymEngine::Basic>,
                           SymEngine::RCP<const SymEngine::MatrixExpr>>(
@@ -358,7 +415,7 @@ namespace Tinned
     }
 
     void TwoLevelFunction::eval_fun_scale(
-        const SymEngine::RCP<const SymEngine::Number>& scalar,
+        const SymEngine::RCP<const SymEngine::Basic>& scalar,
         SymEngine::RCP<const SymEngine::Basic>& f
     )
     {
