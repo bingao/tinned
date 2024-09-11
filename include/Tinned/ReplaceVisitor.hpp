@@ -72,11 +72,10 @@ namespace Tinned
             }
 
             // Function template for only one argument of type `SymEngine::vec_basic`.
-            template<> inline void replace_arguments<SymEngine::vec_basic>(
-                SymEngine::vec_basic& f_args,
-                bool& has_arg_replaced,
-                const SymEngine::vec_basic& arg
-            )
+            inline void replace_arguments(
+                SymEngine::vec_basic &f_args,
+                bool &has_arg_replaced,
+                const SymEngine::vec_basic &arg)
             {
                 for (const auto& term: arg)
                     replace_arguments(f_args, has_arg_replaced, term);
