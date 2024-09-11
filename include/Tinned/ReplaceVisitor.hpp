@@ -64,7 +64,13 @@ namespace Tinned
             inline void replace_arguments(
                 SymEngine::vec_basic &f_args,
                 bool &has_arg_replaced,
-                const Arg &arg);
+                const Arg &arg)
+            {
+                auto new_arg = apply(arg);
+                f_args.push_back(new_arg);
+                if (SymEngine::neq(*arg, *new_arg))
+                    has_arg_replaced = true;
+            }
 
             // Function template for replacing one or more arguments. `f_args`
             // holds all arguments, either replaced or original ones.
@@ -178,19 +184,6 @@ namespace Tinned
         }
         if (diff_subs_dict.empty()) return x;
         return replace(x, diff_subs_dict);
-    }
-
-    // Function template for replacing one argument.
-    template <typename Arg>
-    inline void ReplaceVisitor::replace_arguments(
-        SymEngine::vec_basic &f_args,
-        bool &has_arg_replaced,
-        const Arg &arg)
-    {
-        auto new_arg = apply(arg);
-        f_args.push_back(new_arg);
-        if (SymEngine::neq(*arg, *new_arg))
-            has_arg_replaced = true;
     }
 
     // Function template for only one argument of type `SymEngine::vec_basic`.

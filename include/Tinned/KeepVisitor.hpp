@@ -57,7 +57,24 @@ namespace Tinned
                 SymEngine::vec_basic &f_args,
                 bool &has_arg_kept,
                 bool &has_arg_affected,
-                const Arg &arg);
+                const Arg &arg)
+            {
+                auto new_arg = apply(arg);
+                // If there exists an argument being kept, all other arguments
+                // and the function will be kept. So we save all arguments to
+                // be removed for later use.
+                if (new_arg.is_null())
+                {
+                    f_args.push_back(arg);
+                }
+                else
+                {
+                    f_args.push_back(new_arg);
+                    has_arg_kept = true;
+                    if (SymEngine::neq(*arg, *new_arg))
+                        has_arg_affected = true;
+                }
+            }
 
             // Function template for one or more arguments. `f_args` holds all
             // arguments, either affected or unaffected after removal.
@@ -167,30 +184,6 @@ namespace Tinned
         auto result = visitor.apply(x);
         if (result.is_null()) return result;
         return remove_zero_quantities ? remove_zeros(result) : result;
-    }
-    // Function template for only one argument.
-    template <typename Arg>
-    inline void KeepVisitor::keep_if_arguments(
-        SymEngine::vec_basic &f_args,
-        bool &has_arg_kept,
-        bool &has_arg_affected,
-        const Arg &arg)
-    {
-        auto new_arg = apply(arg);
-        // If there exists an argument being kept, all other arguments
-        // and the function will be kept. So we save all arguments to
-        // be removed for later use.
-        if (new_arg.is_null())
-        {
-            f_args.push_back(arg);
-        }
-        else
-        {
-            f_args.push_back(new_arg);
-            has_arg_kept = true;
-            if (SymEngine::neq(*arg, *new_arg))
-                has_arg_affected = true;
-        }
     }
 
     // Function template for only one argument of type `SymEngine::vec_basic`.
