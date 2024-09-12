@@ -52,37 +52,28 @@ namespace Tinned
             }
 
             // Function template for only one argument.
-            template<typename Arg> inline void keep_if_arguments(
-                SymEngine::vec_basic& f_args,
-                bool& has_arg_kept,
-                bool& has_arg_affected,
-                const Arg& arg
-            )
+            template <typename Arg>
+            inline void keep_if_arguments(
+                SymEngine::vec_basic &f_args,
+                bool &has_arg_kept,
+                bool &has_arg_affected,
+                const Arg &arg)
             {
                 auto new_arg = apply(arg);
                 // If there exists an argument being kept, all other arguments
                 // and the function will be kept. So we save all arguments to
                 // be removed for later use.
-                if (new_arg.is_null()) {
+                if (new_arg.is_null())
+                {
                     f_args.push_back(arg);
                 }
-                else {
+                else
+                {
                     f_args.push_back(new_arg);
                     has_arg_kept = true;
-                    if (SymEngine::neq(*arg, *new_arg)) has_arg_affected = true;
+                    if (SymEngine::neq(*arg, *new_arg))
+                        has_arg_affected = true;
                 }
-            }
-
-            // Function template for only one argument of type `SymEngine::vec_basic`.
-            template<> inline void keep_if_arguments<SymEngine::vec_basic>(
-                SymEngine::vec_basic& f_args,
-                bool& has_arg_kept,
-                bool& has_arg_affected,
-                const SymEngine::vec_basic& arg
-            )
-            {
-                for (const auto& term: arg)
-                    keep_if_arguments(f_args, has_arg_kept, has_arg_affected, term);
             }
 
             // Function template for one or more arguments. `f_args` holds all
@@ -90,13 +81,12 @@ namespace Tinned
             // `has_arg_kept` indicates if one or more arguments are kept.
             // `has_arg_affected` indicates if one or more arguments are
             // affected due to removal.
-            template<typename FirstArg, typename... Args>
+            template <typename FirstArg, typename... Args>
             inline void keep_if_arguments(
-                SymEngine::vec_basic& f_args,
-                bool& has_arg_kept,
-                bool& has_arg_affected,
-                const FirstArg& first_arg, const Args&... args
-            )
+                SymEngine::vec_basic &f_args,
+                bool &has_arg_kept,
+                bool &has_arg_affected,
+                const FirstArg &first_arg, const Args &...args)
             {
                 keep_if_arguments(f_args, has_arg_kept, has_arg_affected, first_arg);
                 keep_if_arguments(f_args, has_arg_kept, has_arg_affected, args...);
@@ -194,5 +184,17 @@ namespace Tinned
         auto result = visitor.apply(x);
         if (result.is_null()) return result;
         return remove_zero_quantities ? remove_zeros(result) : result;
+    }
+
+    // Function template for only one argument of type `SymEngine::vec_basic`.
+    template <>
+    inline void KeepVisitor::keep_if_arguments<SymEngine::vec_basic>(
+        SymEngine::vec_basic &f_args,
+        bool &has_arg_kept,
+        bool &has_arg_affected,
+        const SymEngine::vec_basic &arg)
+    {
+        for (const auto &term : arg)
+            keep_if_arguments(f_args, has_arg_kept, has_arg_affected, term);
     }
 }
