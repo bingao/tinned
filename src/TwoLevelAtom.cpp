@@ -31,16 +31,16 @@ namespace Tinned
                         SymEngine::RCP<const SymEngine::MatrixExpr>>& rho0
     ) : max_order_(7), H0_(H0), V_(V)
     {
-        // Density matrix should be idempotent and has purity one
+        // A density matrix is Hermitian and has a trace one
         if (SymEngine::neq(
-            *rho0.second, *SymEngine::matrix_mul({rho0.second, rho0.second})
+            *rho0.second, *SymEngine::conjugate_matrix(SymEngine::transpose(rho0.second))
         )) throw SymEngine::SymEngineException(
-                "Density matrix isn't idempotent: " + stringify(rho0.second)
+                "Density matrix must be Hermitian: " + stringify(rho0.second)
             );
         if (!is_zero_quantity(SymEngine::add(
             SymEngine::minus_one, SymEngine::trace(rho0.second)
         ))) throw SymEngine::SymEngineException(
-                "Density matrix doesn't have purity one: " + stringify(rho0.second)
+                "Density matrix must have a trace one: " + stringify(rho0.second)
             );
         rho0_ = rho0;
         auto op = SymEngine::rcp_dynamic_cast<const SymEngine::DiagonalMatrix>(H0.second);
@@ -60,7 +60,7 @@ namespace Tinned
         for (const auto& oper: V_) {
             auto dependencies = oper.first->get_dependencies();
             if (dependencies.size()!=1) throw SymEngine::SymEngineException(
-                "Each field operator should only depend on one perturbation: "
+                "Each field operator should depend only on one perturbation: "
                 + stringify(oper.first)
             );
             if (perturbations_.find(dependencies.begin()->first)!=perturbations_.end())
@@ -69,9 +69,17 @@ namespace Tinned
                     + stringify(oper.first)
                 );
             perturbations_.insert(dependencies.begin()->first);
+            //Elements of V's can be symbols that we cannot check the hermicity
+            //// All V's must be Hermitian
+            //if (SymEngine::neq(
+            //    *oper.second,
+            //    *SymEngine::conjugate_matrix(SymEngine::transpose(oper.second))
+            //)) throw SymEngine::SymEngineException(
+            //        "Each field operator must be Hermitian: " + stringify(oper.second)
+            //    );
             values.push_back(oper.second);
         }
-        // All V's should commute
+        // Each pair of V's must commute
         for (std::size_t i=1; i<values.size(); ++i) {
             for (std::size_t j=0; j<i; ++j) {
                 auto val_ij = SymEngine::matrix_mul({values[i], values[j]});
@@ -226,7 +234,6 @@ namespace Tinned
                             auto lower_derivatives = SymEngine::multiset_basic(
                                 permut_derivatives.begin(), permut_derivatives.end()-1
                             );
-//FIXME: rho0, rho1?
                             for (const auto& rho_lower: rho_all_derivatives_[order]) {
                                 if (SymEngine::unified_eq(rho_lower.first, lower_derivatives)) {
                                     auto val_V_rho = get_values(SymEngine::matrix_mul({
