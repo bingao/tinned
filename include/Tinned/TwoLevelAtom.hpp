@@ -14,6 +14,7 @@
 #pragma once
 
 #include <map>
+#include <memory>
 #include <utility>
 #include <vector>
 
@@ -121,6 +122,14 @@ namespace Tinned
                                                      SymEngine::RCP<const SymEngine::MatrixExpr>>
     {
         protected:
+            std::shared_ptr<TwoLevelOperator> oper_evaluator_;
+
+            std::shared_ptr<OperatorEvaluator<SymEngine::RCP<const SymEngine::MatrixExpr>>>
+            get_oper_evaluator() override
+            {
+                return oper_evaluator_;
+            }
+
             SymEngine::RCP<const SymEngine::Basic> eval_trace(
                 const SymEngine::RCP<const SymEngine::MatrixExpr>& A
             ) override;
@@ -144,7 +153,7 @@ namespace Tinned
                                SymEngine::RCPBasicKeyLess>& V,
                 const std::pair<SymEngine::RCP<const OneElecDensity>,
                                 SymEngine::RCP<const SymEngine::MatrixExpr>>& rho0
-            );
+            ) : oper_evaluator_(std::make_shared<TwoLevelOperator>(H0, V, rho0)) {}
 
             ~TwoLevelFunction() = default;
     };

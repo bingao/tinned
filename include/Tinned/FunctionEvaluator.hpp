@@ -51,7 +51,10 @@ namespace Tinned
             // when the child symbol has been evaluated.
             std::vector<SymEngine::multiset_basic> derivatives_;
             FunctionType result_;
-            std::shared_ptr<OperatorEvaluator<OperatorType>> oper_evaluator_;
+
+            // Get operator evaluator that derived class should implement, see
+            // https://stackoverflow.com/a/16774388
+            virtual std::shared_ptr<OperatorEvaluator<OperatorType>> get_oper_evaluator() = 0;
 
             virtual FunctionType eval_nonel_function(const NonElecFunction& x)
             {
@@ -102,9 +105,7 @@ namespace Tinned
             }
 
         public:
-            explicit FunctionEvaluator(
-                const std::shared_ptr<OperatorEvaluator<OperatorType>>& operEvaluator
-            ): oper_evaluator_(operEvaluator) {}
+            explicit FunctionEvaluator() = default;
 
             inline FunctionType apply(const SymEngine::RCP<const SymEngine::Basic>& x)
             {
@@ -210,8 +211,8 @@ namespace Tinned
 
             void bvisit(const SymEngine::Trace& x)
             {
-                auto arg = oper_evaluator_->apply(x.get_args()[0]);
-                auto oper_derivatives = oper_evaluator_->get_derivatives();
+                auto arg = get_oper_evaluator()->apply(x.get_args()[0]);
+                auto oper_derivatives = get_oper_evaluator()->get_derivatives();
                 derivatives_.insert(
                     derivatives_.end(), oper_derivatives.begin(), oper_derivatives.end()
                 );

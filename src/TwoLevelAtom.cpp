@@ -393,19 +393,6 @@ namespace Tinned
         A = SymEngine::immutable_dense_matrix(dim_operator_, dim_operator_, values);
     }
 
-    TwoLevelFunction::TwoLevelFunction(
-        const std::pair<SymEngine::RCP<const OneElecOperator>,
-                        SymEngine::RCP<const SymEngine::MatrixExpr>>& H0,
-        const std::map<SymEngine::RCP<const OneElecOperator>,
-                       SymEngine::RCP<const SymEngine::MatrixExpr>,
-                       SymEngine::RCPBasicKeyLess>& V,
-        const std::pair<SymEngine::RCP<const OneElecDensity>,
-                        SymEngine::RCP<const SymEngine::MatrixExpr>>& rho0
-    ) : FunctionEvaluator<SymEngine::RCP<const SymEngine::Basic>,
-                          SymEngine::RCP<const SymEngine::MatrixExpr>>(
-            std::make_shared<TwoLevelOperator>(H0, V, rho0)
-        ) {}
-
     SymEngine::RCP<const SymEngine::Basic> TwoLevelFunction::eval_trace(
         const SymEngine::RCP<const SymEngine::MatrixExpr>& A
     )
