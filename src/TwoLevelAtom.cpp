@@ -403,7 +403,7 @@ namespace Tinned
                         SymEngine::RCP<const SymEngine::MatrixExpr>>& rho0
     ) : FunctionEvaluator<SymEngine::RCP<const SymEngine::Basic>,
                           SymEngine::RCP<const SymEngine::MatrixExpr>>(
-            std::make_shared<TwoLevelOperator>(TwoLevelOperator(H0, V, rho0))
+            std::make_shared<TwoLevelOperator>(H0, V, rho0)
         ) {}
 
     SymEngine::RCP<const SymEngine::Basic> TwoLevelFunction::eval_trace(
