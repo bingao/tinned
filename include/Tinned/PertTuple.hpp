@@ -61,7 +61,10 @@ namespace Tinned
     )
     {
         auto result = expr;
-        for (const auto& p: perturbations) result = result->diff(p);
+        for (const auto& p: perturbations) {
+            SYMENGINE_ASSERT(SymEngine::is_a_sub<const Perturbation>(*p))
+            result = result->diff(SymEngine::rcp_dynamic_cast<const Perturbation>(p));
+        }
         result = remove_zeros(result);
         if (result.is_null()) {
             if (SymEngine::is_a_sub<const SymEngine::MatrixExpr>(*expr)) {
