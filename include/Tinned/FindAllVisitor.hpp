@@ -8,6 +8,9 @@
    This file is the header file of finding a given symbol and all its
    differentiated ones.
 
+   2024-09-18, Bin Gao:
+   * use `SymEngine::vec_basic` for return result
+
    2024-05-07, Bin Gao:
    * change `find_all` to a function that returns `SymEngine::set_basic`
 
@@ -18,6 +21,7 @@
 #pragma once
 
 #include <functional>
+#include <type_traits>
 
 #include <symengine/basic.h>
 #include <symengine/add.h>
@@ -39,15 +43,136 @@
 #include <symengine/visitor.h>
 
 #include "Tinned/PertDependency.hpp"
+
+#include "Tinned/PerturbedParameter.hpp"
+#include "Tinned/OneElecDensity.hpp"
+#include "Tinned/OneElecOperator.hpp"
+#include "Tinned/TwoElecEnergy.hpp"
 #include "Tinned/TwoElecOperator.hpp"
+#include "Tinned/NonElecFunction.hpp"
+#include "Tinned/TemporumOverlap.hpp"
 
 namespace Tinned
 {
+    // Forward declaration
+    class ExchCorrEnergy;
+    class ExchCorrPotential;
+
     class FindAllVisitor: public SymEngine::BaseVisitor<FindAllVisitor>
     {
         protected:
-            SymEngine::set_basic result_;
+            SymEngine::vec_basic result_;
             SymEngine::RCP<const SymEngine::Basic> symbol_;
+
+            // Symbols are sorted according to their derivatives and hash
+            template<typename T,
+                     typename std::enable_if<
+                         std::is_same<T, const SymEngine::MatrixDerivative>::value ||
+                         std::is_same<T, const SymEngine::Derivative>::value, int>::type = 0>
+            inline void insert_symbol(T& x)
+            {
+                if (result_.empty()) {
+                    result_.push_back(x.rcp_from_this());
+                }
+                else {
+                    auto order_x = x.get_symbols().size();
+                    auto hash_x = x.hash();
+                    auto iter = result_.begin();
+                    for (; iter!=result_.end(); ++iter) {
+                        auto s = SymEngine::rcp_dynamic_cast<const T>(*iter);
+                        auto order_s = s->get_symbols().size();
+                        if (order_x==order_s) {
+                            if (SymEngine::eq(x, *s)) return;
+                            auto hash_s = s->hash();
+                            if (hash_x<hash_s) {
+                                result_.insert(iter, x.rcp_from_this());
+                                return;
+                            }
+                        }
+                        else if (order_x<order_s) {
+                            result_.insert(iter, x.rcp_from_this());
+                            return;
+                        }
+                    }
+                    // Add `x` to the end
+                    result_.push_back(x.rcp_from_this());
+                }
+            }
+
+            template<typename T,
+                     typename std::enable_if<
+                         std::is_same<T, const PerturbedParameter>::value ||
+                         std::is_same<T, const OneElecDensity>::value ||
+                         std::is_same<T, const OneElecOperator>::value ||
+                         std::is_same<T, const TwoElecEnergy>::value ||
+                         std::is_same<T, const TwoElecOperator>::value ||
+                         std::is_same<T, const ExchCorrEnergy>::value ||
+                         std::is_same<T, const ExchCorrPotential>::value ||
+                         std::is_same<T, const NonElecFunction>::value ||
+                         std::is_same<T, const TemporumOverlap>::value, int>::type = 0>
+            inline void insert_symbol(T& x)
+            {
+                if (result_.empty()) {
+                    result_.push_back(x.rcp_from_this());
+                }
+                else {
+                    auto order_x = x.get_derivatives().size();
+                    auto hash_x = x.hash();
+                    auto iter = result_.begin();
+                    for (; iter!=result_.end(); ++iter) {
+                        auto s = SymEngine::rcp_dynamic_cast<const T>(*iter);
+                        auto order_s = s->get_derivatives().size();
+                        if (order_x==order_s) {
+                            if (SymEngine::eq(x, *s)) return;
+                            auto hash_s = s->hash();
+                            if (hash_x<hash_s) {
+                                result_.insert(iter, x.rcp_from_this());
+                                return;
+                            }
+                        }
+                        else if (order_x<order_s) {
+                            result_.insert(iter, x.rcp_from_this());
+                            return;
+                        }
+                    }
+                    result_.push_back(x.rcp_from_this());
+                }
+            }
+
+            template<typename T,
+                     typename std::enable_if<
+                         !(std::is_same<T, const SymEngine::MatrixDerivative>::value ||
+                         std::is_same<T, const SymEngine::Derivative>::value ||
+                         std::is_same<T, const PerturbedParameter>::value ||
+                         std::is_same<T, const OneElecDensity>::value ||
+                         std::is_same<T, const OneElecOperator>::value ||
+                         std::is_same<T, const TwoElecEnergy>::value ||
+                         std::is_same<T, const TwoElecOperator>::value ||
+                         std::is_same<T, const ExchCorrEnergy>::value ||
+                         std::is_same<T, const ExchCorrPotential>::value ||
+                         std::is_same<T, const NonElecFunction>::value ||
+                         std::is_same<T, const TemporumOverlap>::value), int>::type = 0>
+            inline void insert_symbol(T& x)
+            {
+                if (result_.empty()) {
+                    result_.push_back(x.rcp_from_this());
+                }
+                else {
+                    auto hash_x = x.hash();
+                    auto iter = result_.begin();
+                    for (; iter!=result_.end(); ++iter) {
+                        auto hash_s = (*iter)->hash();
+                        if (hash_x==hash_s) {
+                            if (SymEngine::eq(x, *(*iter))) return;
+                        }
+                        else if (hash_x<hash_s) {
+                            result_.insert(iter, x.rcp_from_this());
+                            return;
+                        }
+                    }
+                    result_.push_back(x.rcp_from_this());
+                }
+            }
 
             // Function template to check if `x` is the symbol we want to find
             // according to a given comparision condition, and update `result_`
@@ -60,7 +185,7 @@ namespace Tinned
                 if (SymEngine::is_a_sub<T>(*symbol_)) {
                     auto& s = SymEngine::down_cast<T&>(*symbol_);
                     if (condition(x, s)) {
-                        result_.insert(x.rcp_from_this());
+                        insert_symbol(x);
                         return true;
                     }
                 }
@@ -71,7 +196,7 @@ namespace Tinned
             template<typename T> inline bool find_equivalence(T& x)
             {
                 if (symbol_->__eq__(x)) {
-                    result_.insert(x.rcp_from_this());
+                    insert_symbol(x);
                     return true;
                 }
                 return false;
@@ -133,7 +258,7 @@ namespace Tinned
                 const SymEngine::RCP<const SymEngine::Basic>& symbol
             ) : symbol_(symbol) {}
 
-            inline SymEngine::set_basic apply(
+            inline SymEngine::vec_basic apply(
                 const SymEngine::RCP<const SymEngine::Basic>& x
             )
             {
@@ -159,7 +284,7 @@ namespace Tinned
     };
 
     // Helper function to find a given `symbol` and all its differentiated ones in `x`
-    inline SymEngine::set_basic find_all(
+    inline SymEngine::vec_basic find_all(
         const SymEngine::RCP<const SymEngine::Basic>& x,
         const SymEngine::RCP<const SymEngine::Basic>& symbol
     )

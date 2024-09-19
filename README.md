@@ -208,3 +208,5 @@ Derivatives", J. Comput. Chem., DOI: 10.1002/jcc.27437.
   represented by the matrix multiplication of coupled-cluster amplitudes and
   the transpose of excitation operators.
 * Type of perturbation frequency is changed to `SymEngine::RCP<const SymEngine::Basic>`.
+* Function `find_all(x, symbol)` returns a vector of symbols that are sorted
+  according to their derivatives and hash.

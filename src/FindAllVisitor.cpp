@@ -1,18 +1,12 @@
 #include <symengine/pow.h>
 
 //#include "Tinned/Perturbation.hpp"
-#include "Tinned/PerturbedParameter.hpp"
 #include "Tinned/ConjugateTranspose.hpp"
 
-#include "Tinned/OneElecDensity.hpp"
-#include "Tinned/OneElecOperator.hpp"
-#include "Tinned/TwoElecEnergy.hpp"
 #include "Tinned/CompositeFunction.hpp"
 #include "Tinned/ExchCorrEnergy.hpp"
 #include "Tinned/ExchCorrPotential.hpp"
-#include "Tinned/NonElecFunction.hpp"
 #include "Tinned/TemporumOperator.hpp"
-#include "Tinned/TemporumOverlap.hpp"
 
 #include "Tinned/AdjointMap.hpp"
 #include "Tinned/ClusterConjHamiltonian.hpp"
@@ -296,6 +290,6 @@ namespace Tinned
         // object, so we need only check if its this object is that we are
         // looking for
         auto arg = x.get_arg();
-        if (arg->__eq__(*symbol_)) result_.insert(x.rcp_from_this());
+        if (arg->__eq__(*symbol_)) insert_symbol(x);
     }
 }

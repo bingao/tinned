@@ -119,13 +119,13 @@ namespace Tinned
             }
 
             // Get all unique unperturbed and perturbed grid weights
-            inline SymEngine::set_basic get_weights() const
+            inline SymEngine::vec_basic get_weights() const
             {
                 return find_all(energy_, get_weight());
             }
 
             // Get all unique unperturbed and perturbed electronic states
-            inline SymEngine::set_basic get_states() const
+            inline SymEngine::vec_basic get_states() const
             {
                 return find_all(energy_, get_state());
             }
@@ -151,7 +151,7 @@ namespace Tinned
 
             // Get all unique unperturbed and perturbed generalized overlap
             // distribution vectors
-            inline SymEngine::set_basic get_overlap_distributions() const
+            inline SymEngine::vec_basic get_overlap_distributions() const
             {
                 return find_all(energy_, get_overlap_distribution());
             }
