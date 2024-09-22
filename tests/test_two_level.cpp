@@ -1,10 +1,11 @@
 #define CATCH_CONFIG_MAIN
 
+#include <iostream>
+
+#include <cstddef>
 #include <map>
 #include <string>
 #include <utility>
-
-#include <iostream>
 
 #include <catch2/catch.hpp>
 
@@ -42,16 +43,16 @@ inline SymEngine::RCP<const SymEngine::MatrixExpr> pure_state_density(
     const SymEngine::RCP<const SymEngine::Basic>& phi
 )
 {
-    auto rho_22 = SymEngine::sub(SymEngine::one, rho);
+    auto rho_11 = SymEngine::sub(SymEngine::one, rho);
     if (SymEngine::eq(*rho, *SymEngine::zero) ||
-        SymEngine::eq(*rho_22, *SymEngine::zero)) {
-        return SymEngine::diagonal_matrix({rho, rho_22});
+        SymEngine::eq(*rho_11, *SymEngine::zero)) {
+        return SymEngine::diagonal_matrix({rho, rho_11});
     }
     else {
-        auto rho_12 = SymEngine::sqrt(SymEngine::mul(rho, rho_22));
+        auto rho_01 = SymEngine::sqrt(SymEngine::mul(rho, rho_11));
         if (SymEngine::eq(*phi, *SymEngine::zero)) {
             return SymEngine::immutable_dense_matrix(
-                2, 2, {rho, rho_12, rho_12, rho_22}
+                2, 2, {rho, rho_01, rho_01, rho_11}
             );
         }
         else {
@@ -64,16 +65,16 @@ inline SymEngine::RCP<const SymEngine::MatrixExpr> pure_state_density(
                             SymEngine::cos(phi),
                             SymEngine::mul(SymEngine::I, SymEngine::sin(phi))
                         ),
-                        rho_12
+                        rho_01
                     ),
                     SymEngine::mul(
                         SymEngine::add(
                             SymEngine::cos(phi),
                             SymEngine::mul(SymEngine::I, SymEngine::sin(phi))
                         ),
-                        rho_12
+                        rho_01
                     ),
-                    rho_22
+                    rho_11
                 }
             );
         }
@@ -81,45 +82,44 @@ inline SymEngine::RCP<const SymEngine::MatrixExpr> pure_state_density(
 }
 
 // Density matrix for mixed states
-// [[rho_11, rho_12], [conj(rho_12), 1-rho_11]]
+// [[rho_11, rho_01], [conj(rho_01), 1-rho_11]]
 // See ...
 //inline SymEngine::RCP<const SymEngine::MatrixExpr> mixed_states_density(
 //    const SymEngine::RCP<const SymEngine::Basic>& rho_11,
-//    const SymEngine::RCP<const SymEngine::Basic>& rho_12
+//    const SymEngine::RCP<const SymEngine::Basic>& rho_01
 //)
 //{
-//    auto rho_22 = SymEngine::sub(SymEngine::one, rho_11);
+//    auto rho_11 = SymEngine::sub(SymEngine::one, rho_11);
 //    return SymEngine::immutable_dense_matrix(
-//        2, 2, {rho_11, rho_12, SymEngine::conjugate(rho_12), rho_22}
+//        2, 2, {rho_11, rho_01, SymEngine::conjugate(rho_01), rho_11}
 //    );
 //}
 
-// Unperturbed Hamiltonian [[E1, 0], [0, E2]]
+// Unperturbed Hamiltonian [[E0, 0], [0, E1]]
 inline SymEngine::RCP<const SymEngine::MatrixExpr> make_unperturbed_hamiltonian(
-    const SymEngine::RCP<const SymEngine::Basic>& E1,
-    const SymEngine::RCP<const SymEngine::Basic>& E2
+    const SymEngine::RCP<const SymEngine::Basic>& E0,
+    const SymEngine::RCP<const SymEngine::Basic>& E1
 )
 {
-    return SymEngine::diagonal_matrix({E1, E2});
+    return SymEngine::diagonal_matrix({E0, E1});
 }
 
-// Field operator [[0, mu], [mu, 0]], and mu must be real because we require
-// that any pair of field operators commute
+// Field operator
 inline SymEngine::RCP<const SymEngine::MatrixExpr> make_field_operator(
-    const SymEngine::RCP<const SymEngine::Basic>& mu
+    const SymEngine::RCP<const SymEngine::Basic>& V_00,
+    const SymEngine::RCP<const SymEngine::Basic>& V_01,
+    const SymEngine::RCP<const SymEngine::Basic>& V_10,
+    const SymEngine::RCP<const SymEngine::Basic>& V_11
 )
 {
     return SymEngine::immutable_dense_matrix(
-        2, 2, {SymEngine::zero, mu, mu, SymEngine::zero}
+        2, 2, {V_00, V_01, V_10, V_11}
     );
 }
 
-TEST_CASE("Test two-level system", "[FunctionEvaluator] and [OperatorEvaluator]")
+TEST_CASE("Test two-level system", "[TwoLevelFunction], [TwoLevelOperator]")
 {
     // Zero frequency is not allowed, see Equation (66) of ...
-    //auto omega_a = SymEngine::real_double(0.1);
-    //auto omega_b = SymEngine::real_double(0.2);
-    //auto omega_c = SymEngine::real_double(0.3);
     auto omega_a = SymEngine::symbol("omega_a");
     auto omega_b = SymEngine::symbol("omega_b");
     auto omega_c = SymEngine::symbol("omega_c");
@@ -144,19 +144,29 @@ TEST_CASE("Test two-level system", "[FunctionEvaluator] and [OperatorEvaluator]"
         SymEngine::trace(SymEngine::matrix_mul({Vc, D}))
     });
 
+    auto E0 = SymEngine::symbol("E_0");
     auto E1 = SymEngine::symbol("E_1");
-    auto E2 = SymEngine::symbol("E_2");
-    auto val_H0 = make_unperturbed_hamiltonian(E1, E2);
-    auto mu_a = SymEngine::symbol("mu_a");
-    auto mu_b = SymEngine::symbol("mu_b");
-    auto mu_c = SymEngine::symbol("mu_c");
-    auto val_Ba = make_field_operator(mu_a);
-    auto val_Bb = make_field_operator(mu_b);
-    auto val_Bc = make_field_operator(mu_c);
+    auto val_H0 = make_unperturbed_hamiltonian(E0, E1);
+    auto Va_00 = SymEngine::symbol("Va_00");
+    auto Va_01 = SymEngine::symbol("Va_01");
+    auto Va_10 = SymEngine::symbol("Va_10");
+    auto Va_11 = SymEngine::symbol("Va_11");
+    auto Vb_00 = SymEngine::symbol("Vb_00");
+    auto Vb_01 = SymEngine::symbol("Vb_01");
+    auto Vb_10 = SymEngine::symbol("Vb_10");
+    auto Vb_11 = SymEngine::symbol("Vb_11");
+    auto Vc_00 = SymEngine::symbol("Vc_00");
+    auto Vc_01 = SymEngine::symbol("Vc_01");
+    auto Vc_10 = SymEngine::symbol("Vc_10");
+    auto Vc_11 = SymEngine::symbol("Vc_11");
+    auto val_Ba = make_field_operator(Va_00, Va_01, Va_10, Va_11);
+    auto val_Bb = make_field_operator(Vb_00, Vb_01, Vb_10, Vb_11);
+    auto val_Bc = make_field_operator(Vc_00, Vc_01, Vc_10, Vc_11);
 
-    // Test ground state [[1, 0], [0, 0]]
+    // We choose ground state [[1, 0], [0, 0]]
     auto val_D = pure_state_density(SymEngine::one, SymEngine::zero);
 
+    // Test evaluator for operators
     auto oper_eval = TwoLevelOperator(
         std::make_pair(H0, val_H0),
         std::map<SymEngine::RCP<const OneElecOperator>,
@@ -173,9 +183,9 @@ TEST_CASE("Test two-level system", "[FunctionEvaluator] and [OperatorEvaluator]"
     REQUIRE(SymEngine::eq(*oper_eval.apply(Va->diff(a)), *val_Ba));
     REQUIRE(SymEngine::eq(*oper_eval.apply(Vb->diff(b)), *val_Bb));
     REQUIRE(SymEngine::eq(*oper_eval.apply(Vc->diff(c)), *val_Bc));
-    // D^{a} = [[0, -mu_a/(omega_a+(E_2-E_1))], [mu_a/(omega_a-(E_2-E_1)), 0]]
-    auto E_12 = SymEngine::sub(E1, E2);
-    auto E_21 = SymEngine::sub(E2, E1);
+    // D^{a} = [[0, -Va_01/(omega_a+(E1-E0))], [Va_10/(omega_a-(E1-E0)), 0]]
+    auto E_01 = SymEngine::sub(E0, E1);
+    auto E_10 = SymEngine::sub(E1, E0);
     REQUIRE(SymEngine::eq(
         *oper_eval.apply(D->diff(a)),
         *SymEngine::immutable_dense_matrix(
@@ -183,73 +193,56 @@ TEST_CASE("Test two-level system", "[FunctionEvaluator] and [OperatorEvaluator]"
             {
                 SymEngine::zero,
                 SymEngine::div(
-                    SymEngine::mul(SymEngine::minus_one, mu_a),
-                    SymEngine::sub(omega_a, E_12)
+                    SymEngine::mul(SymEngine::minus_one, Va_01),
+                    SymEngine::sub(omega_a, E_01)
                 ),
-                SymEngine::div(mu_a, SymEngine::sub(omega_a, E_21)),
+                SymEngine::div(Va_10, SymEngine::sub(omega_a, E_10)),
                 SymEngine::zero
             }
         )
     ));
-    // D^{ab} = mu_a*mu_b/(omega_a+omega_b)*[
-    //     [1/(omega_a+(E_2-E_1))+1/(omega_a-(E_2-E_1))+1/(omega_b+(E_2-E_1))+1/(omega_b-(E_2-E_1)), 0],
-    //     [0, -1/(omega_a+(E_2-E_1))-1/(omega_a-(E_2-E_1))-1/(omega_b+(E_2-E_1))-1/(omega_b-(E_2-E_1))]
-    // ]
+    // D^{ab} = [Vb^{b}, D^{a}]\circ[(omega_a+omega_b-(E_m-E_n))^{-1}]
+    //        + [Va^{a}, D^{b}]\circ[(omega_a+omega_b-(E_m-E_n))^{-1}]
+    auto val_Da = oper_eval.apply(D->diff(a));
+    auto val_Db = oper_eval.apply(D->diff(b));
+    // Scalar matrix with the number as minus one
+    auto minus_identity = SymEngine::diagonal_matrix({
+        SymEngine::minus_one, SymEngine::minus_one
+    });
+    auto val_freq_denom = SymEngine::immutable_dense_matrix(
+        2, 2,
+        {
+            SymEngine::div(SymEngine::one, SymEngine::add(omega_a, omega_b)),
+            SymEngine::div(
+                SymEngine::one,
+                SymEngine::sub(SymEngine::add(omega_a, omega_b), E_01)
+            ),
+            SymEngine::div(
+                SymEngine::one,
+                SymEngine::sub(SymEngine::add(omega_a, omega_b), E_10)
+            ),
+            SymEngine::div(SymEngine::one, SymEngine::add(omega_a, omega_b))
+        }
+    );
     REQUIRE(SymEngine::eq(
         *oper_eval.apply(D->diff(a)->diff(b)),
-        *SymEngine::diagonal_matrix({
-            SymEngine::add(
-                SymEngine::div(
-                    SymEngine::add(
-                        SymEngine::div(
-                            SymEngine::mul(mu_a, mu_b), SymEngine::sub(omega_a, E_12)
-                        ),
-                        SymEngine::div(
-                            SymEngine::mul(mu_a, mu_b), SymEngine::sub(omega_a, E_21)
-                        )
-                    ),
-                    SymEngine::add(omega_a, omega_b)
-                ),
-                SymEngine::div(
-                    SymEngine::add(
-                        SymEngine::div(
-                            SymEngine::mul(mu_a, mu_b), SymEngine::sub(omega_b, E_12)
-                        ),
-                        SymEngine::div(
-                            SymEngine::mul(mu_a, mu_b), SymEngine::sub(omega_b, E_21)
-                        )
-                    ),
-                    SymEngine::add(omega_a, omega_b)
-                )
-            ),
-            SymEngine::add(
-                SymEngine::div(
-                    SymEngine::add(
-                        SymEngine::div(
-                            SymEngine::mul({SymEngine::minus_one, mu_a, mu_b}),
-                            SymEngine::sub(omega_a, E_12)
-                        ),
-                        SymEngine::div(
-                            SymEngine::mul({SymEngine::minus_one, mu_a, mu_b}),
-                            SymEngine::sub(omega_a, E_21)
-                        )
-                    ),
-                    SymEngine::add(omega_a, omega_b)
-                ),
-                SymEngine::div(
-                    SymEngine::add(
-                        SymEngine::div(
-                            SymEngine::mul({SymEngine::minus_one, mu_a, mu_b}),
-                            SymEngine::sub(omega_b, E_12)
-                        ),
-                        SymEngine::div(
-                            SymEngine::mul({SymEngine::minus_one, mu_a, mu_b}),
-                            SymEngine::sub(omega_b, E_21)
-                        )
-                    ),
-                    SymEngine::add(omega_a, omega_b)
-                )
-            )
+        *SymEngine::matrix_add({
+            SymEngine::hadamard_product({
+                SymEngine::matrix_add({
+                    SymEngine::matrix_mul({val_Bb, val_Da}),
+                    // `minus_identity` makes sure `SymEngine::matrix_mul`
+                    // returns only a 2x2 matrix
+                    SymEngine::matrix_mul({minus_identity, val_Da, val_Bb})
+                }),
+                val_freq_denom
+            }),
+            SymEngine::hadamard_product({
+                SymEngine::matrix_add({
+                    SymEngine::matrix_mul({val_Ba, val_Db}),
+                    SymEngine::matrix_mul({minus_identity, val_Db, val_Ba})
+                }),
+                val_freq_denom
+            })
         })
     ));
     // D^{ab} = D^{ba}
@@ -262,56 +255,58 @@ TEST_CASE("Test two-level system", "[FunctionEvaluator] and [OperatorEvaluator]"
     auto val_Dab = oper_eval.apply(D->diff(a)->diff(b));
     auto val_Dac = oper_eval.apply(D->diff(a)->diff(c));
     auto val_Dbc = oper_eval.apply(D->diff(b)->diff(c));
-    auto minus_identity = SymEngine::diagonal_matrix({
-        SymEngine::minus_one, SymEngine::minus_one
-    });
-    auto val_fabc = SymEngine::immutable_dense_matrix(
+    val_freq_denom = SymEngine::immutable_dense_matrix(
         2, 2,
         {
             SymEngine::div(SymEngine::two, SymEngine::add({omega_a, omega_b, omega_c})),
             SymEngine::div(
                 SymEngine::two,
-                SymEngine::sub(SymEngine::add({omega_a, omega_b, omega_c}), E_12)
+                SymEngine::sub(SymEngine::add({omega_a, omega_b, omega_c}), E_01)
             ),
             SymEngine::div(
                 SymEngine::two,
-                SymEngine::sub(SymEngine::add({omega_a, omega_b, omega_c}), E_21)
+                SymEngine::sub(SymEngine::add({omega_a, omega_b, omega_c}), E_10)
             ),
             SymEngine::div(SymEngine::two, SymEngine::add({omega_a, omega_b, omega_c}))
         }
     );
-    REQUIRE(SymEngine::eq(
-        *oper_eval.apply(D->diff(a)->diff(b)->diff(c)),
-        *SymEngine::matrix_add({
+    auto val_ref = SymEngine::rcp_dynamic_cast<const SymEngine::ImmutableDenseMatrix>(
+        SymEngine::matrix_add({
             SymEngine::hadamard_product({
                 SymEngine::matrix_add({
                     SymEngine::matrix_mul({val_Bc, val_Dab}),
-                    // `minus_identity` makes sure `SymEngine::matrix_mul`
-                    // returns only a 2x2 matrix
                     SymEngine::matrix_mul({minus_identity, val_Dab, val_Bc})
                 }),
-                val_fabc
+                val_freq_denom
             }),
             SymEngine::hadamard_product({
                 SymEngine::matrix_add({
                     SymEngine::matrix_mul({val_Bb, val_Dac}),
                     SymEngine::matrix_mul({minus_identity, val_Dac, val_Bb})
                 }),
-                val_fabc
+                val_freq_denom
             }),
             SymEngine::hadamard_product({
                 SymEngine::matrix_add({
                     SymEngine::matrix_mul({val_Ba, val_Dbc}),
                     SymEngine::matrix_mul({minus_identity, val_Dbc, val_Ba})
                 }),
-                val_fabc
+                val_freq_denom
             })
         })
+    )->get_values();
+    auto val_result = SymEngine::rcp_dynamic_cast<const SymEngine::ImmutableDenseMatrix>(
+        oper_eval.apply(D->diff(a)->diff(b)->diff(c))
+    )->get_values();
+    REQUIRE(val_ref.size()==val_result.size());
+    //FIXME: `SymEngine::expand` is necessary for the equality comparison, is it a bug for SymEngine?
+    for (std::size_t i=0; i<val_ref.size(); ++i) REQUIRE(SymEngine::eq(
+        *SymEngine::expand(val_ref[i]), *SymEngine::expand(val_result[i])
     ));
     // D^{aab} = 4*[Va^{a}, D^{ab}]\circ[(2*omega_a+omega_b-(E_m-E_n))^{-1}]
     //         + 2*[Vb^{b}, D^{aa}]\circ[(2*omega_a+omega_b-(E_m-E_n))^{-1}]
     auto val_Daa = oper_eval.apply(D->diff(a)->diff(a));
-    auto val_faba = SymEngine::immutable_dense_matrix(
+    auto val_freq_aba = SymEngine::immutable_dense_matrix(
         2, 2,
         {
             SymEngine::div(
@@ -319,52 +314,60 @@ TEST_CASE("Test two-level system", "[FunctionEvaluator] and [OperatorEvaluator]"
             ),
             SymEngine::div(
                 SymEngine::integer(4),
-                SymEngine::sub(SymEngine::add({omega_a, omega_a, omega_b}), E_12)
+                SymEngine::sub(SymEngine::add({omega_a, omega_a, omega_b}), E_01)
             ),
             SymEngine::div(
                 SymEngine::integer(4),
-                SymEngine::sub(SymEngine::add({omega_a, omega_a, omega_b}), E_21)
+                SymEngine::sub(SymEngine::add({omega_a, omega_a, omega_b}), E_10)
             ),
             SymEngine::div(
                 SymEngine::integer(4), SymEngine::add({omega_a, omega_a, omega_b})
             )
         }
     );
-    auto val_faab = SymEngine::immutable_dense_matrix(
+    auto val_freq_aab = SymEngine::immutable_dense_matrix(
         2, 2,
         {
             SymEngine::div(SymEngine::two, SymEngine::add({omega_a, omega_a, omega_b})),
             SymEngine::div(
                 SymEngine::two,
-                SymEngine::sub(SymEngine::add({omega_a, omega_a, omega_b}), E_12)
+                SymEngine::sub(SymEngine::add({omega_a, omega_a, omega_b}), E_01)
             ),
             SymEngine::div(
                 SymEngine::two,
-                SymEngine::sub(SymEngine::add({omega_a, omega_a, omega_b}), E_21)
+                SymEngine::sub(SymEngine::add({omega_a, omega_a, omega_b}), E_10)
             ),
             SymEngine::div(SymEngine::two, SymEngine::add({omega_a, omega_a, omega_b}))
         }
     );
-    REQUIRE(SymEngine::eq(
-        *oper_eval.apply(D->diff(a)->diff(a)->diff(b)),
-        *SymEngine::matrix_add({
+    val_ref = SymEngine::rcp_dynamic_cast<const SymEngine::ImmutableDenseMatrix>(
+        SymEngine::matrix_add({
             SymEngine::hadamard_product({
                 SymEngine::matrix_add({
                     SymEngine::matrix_mul({val_Ba, val_Dab}),
                     SymEngine::matrix_mul({minus_identity, val_Dab, val_Ba})
                 }),
-                val_faba
+                val_freq_aba
             }),
             SymEngine::hadamard_product({
                 SymEngine::matrix_add({
                     SymEngine::matrix_mul({val_Bb, val_Daa}),
                     SymEngine::matrix_mul({minus_identity, val_Daa, val_Bb})
                 }),
-                val_faab
+                val_freq_aab
             })
         })
+    )->get_values();
+    val_result = SymEngine::rcp_dynamic_cast<const SymEngine::ImmutableDenseMatrix>(
+        oper_eval.apply(D->diff(a)->diff(a)->diff(b))
+    )->get_values();
+    REQUIRE(val_ref.size()==val_result.size());
+    //FIXME: `SymEngine::expand` is necessary for the equality comparison, is it a bug for SymEngine?
+    for (std::size_t i=0; i<val_ref.size(); ++i) REQUIRE(SymEngine::eq(
+        *SymEngine::expand(val_ref[i]), *SymEngine::expand(val_result[i])
     ));
 
+    // Test evaluator for functions
     auto fun_eval = TwoLevelFunction(
         std::make_pair(H0, val_H0),
         std::map<SymEngine::RCP<const OneElecOperator>,
@@ -373,23 +376,30 @@ TEST_CASE("Test two-level system", "[FunctionEvaluator] and [OperatorEvaluator]"
         std::make_pair(D, val_D)
     );
 
-    REQUIRE(SymEngine::eq(*fun_eval.apply(E), *E1));
-    // E^{a} = tr(D^{a}*Va) + tr(D^{a}*Vb) + tr(D^{a}*Vc)
+    REQUIRE(SymEngine::eq(
+        *fun_eval.apply(E),
+        *SymEngine::add({
+            E0,
+            SymEngine::mul(a, Va_00),
+            SymEngine::mul(b, Vb_00),
+            SymEngine::mul(c, Vc_00)
+        })
+    ));
+    // E^{a} = tr(D*Va^{a}) + tr(D^{a}*Va) + tr(D^{a}*Vb) + tr(D^{a}*Vc)
     REQUIRE(SymEngine::eq(
         *fun_eval.apply(E->diff(a)),
         *SymEngine::add({
+            Va_00,
             SymEngine::mul(
                 a,
                 SymEngine::add(
                     SymEngine::div(
-                        SymEngine::mul(
-                            SymEngine::minus_one, SymEngine::pow(mu_a, SymEngine::two)
-                        ),
-                        SymEngine::sub(omega_a, E_12)
+                        SymEngine::mul({SymEngine::minus_one, Va_01, Va_10}),
+                        SymEngine::sub(omega_a, E_01)
                     ),
                     SymEngine::div(
-                        SymEngine::pow(mu_a, SymEngine::two),
-                        SymEngine::sub(omega_a, E_21)
+                        SymEngine::mul(Va_10, Va_01),
+                        SymEngine::sub(omega_a, E_10)
                     )
                 )
             ),
@@ -397,11 +407,11 @@ TEST_CASE("Test two-level system", "[FunctionEvaluator] and [OperatorEvaluator]"
                 b,
                 SymEngine::add(
                     SymEngine::div(
-                        SymEngine::mul({SymEngine::minus_one, mu_a, mu_b}),
-                        SymEngine::sub(omega_a, E_12)
+                        SymEngine::mul({SymEngine::minus_one, Va_01, Vb_10}),
+                        SymEngine::sub(omega_a, E_01)
                     ),
                     SymEngine::div(
-                        SymEngine::mul(mu_a, mu_b), SymEngine::sub(omega_a, E_21)
+                        SymEngine::mul(Va_10, Vb_01), SymEngine::sub(omega_a, E_10)
                     )
                 )
             ),
@@ -409,41 +419,42 @@ TEST_CASE("Test two-level system", "[FunctionEvaluator] and [OperatorEvaluator]"
                 c,
                 SymEngine::add(
                     SymEngine::div(
-                        SymEngine::mul({SymEngine::minus_one, mu_a, mu_c}),
-                        SymEngine::sub(omega_a, E_12)
+                        SymEngine::mul({SymEngine::minus_one, Va_01, Vc_10}),
+                        SymEngine::sub(omega_a, E_01)
                     ),
                     SymEngine::div(
-                        SymEngine::mul(mu_a, mu_c), SymEngine::sub(omega_a, E_21)
+                        SymEngine::mul(Va_10, Vc_01), SymEngine::sub(omega_a, E_10)
                     )
                 )
             )
         })
     ));
     // E^{ab} = tr(D^{b}*Va^{a}) + tr(D^{a}*Vb^{b}) + tr(D^{ab}*H0)
-    auto val_Da = oper_eval.apply(D->diff(a));
-    auto val_Db = oper_eval.apply(D->diff(b));
+    //        + tr(D^{ab}*Va) + tr(D^{ab}*Vb) + tr(D^{ab}*Vc)
     REQUIRE(SymEngine::eq(
         *fun_eval.apply(E->diff(a)->diff(b)),
         *SymEngine::add({
             SymEngine::trace(SymEngine::matrix_mul({val_Db, val_Ba})),
             SymEngine::trace(SymEngine::matrix_mul({val_Da, val_Bb})),
-            SymEngine::trace(SymEngine::matrix_mul({val_Dab, val_H0}))
+            SymEngine::trace(SymEngine::matrix_mul({val_Dab, val_H0})),
+            SymEngine::trace(SymEngine::matrix_mul({a, val_Dab, val_Ba})),
+            SymEngine::trace(SymEngine::matrix_mul({b, val_Dab, val_Bb})),
+            SymEngine::trace(SymEngine::matrix_mul({c, val_Dab, val_Bc}))
         })
     ));
-    // E^{abc} = tr(D^{abc}*Va) + tr(D^{abc}*Vb) + tr(D^{abc}*Vc)
+    // E^{abc} = tr(D^{bc}*Va^{a}) + tr(D^{ac}*Vb^{b}) + tr(D^{ab}*Vc^{c})
+    //         + tr(D^{abc}*H0) + tr(D^{abc}*Va) + tr(D^{abc}*Vb) + tr(D^{abc}*Vc)
     auto val_Dabc = oper_eval.apply(D->diff(a)->diff(b)->diff(c));
     REQUIRE(SymEngine::eq(
         *fun_eval.apply(E->diff(a)->diff(b)->diff(c)),
         *SymEngine::add({
-            SymEngine::mul(
-                a, SymEngine::trace(SymEngine::matrix_mul({val_Dabc, val_Ba}))
-            ),
-            SymEngine::mul(
-                b, SymEngine::trace(SymEngine::matrix_mul({val_Dabc, val_Bb}))
-            ),
-            SymEngine::mul(
-                c, SymEngine::trace(SymEngine::matrix_mul({val_Dabc, val_Bc}))
-            )
+            SymEngine::trace(SymEngine::matrix_mul({val_Dbc, val_Ba})),
+            SymEngine::trace(SymEngine::matrix_mul({val_Dac, val_Bb})),
+            SymEngine::trace(SymEngine::matrix_mul({val_Dab, val_Bc})),
+            SymEngine::trace(SymEngine::matrix_mul({val_Dabc, val_H0})),
+            SymEngine::trace(SymEngine::matrix_mul({a, val_Dabc, val_Ba})),
+            SymEngine::trace(SymEngine::matrix_mul({b, val_Dabc, val_Bb})),
+            SymEngine::trace(SymEngine::matrix_mul({c, val_Dabc, val_Bc}))
         })
     ));
 

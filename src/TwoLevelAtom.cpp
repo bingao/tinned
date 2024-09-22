@@ -1,5 +1,3 @@
-#include <iostream>
-
 #include <cstddef>
 #include <string>
 
@@ -16,6 +14,7 @@
 #include <symengine/matrices/trace.h>
 #include <symengine/symengine_assert.h>
 #include <symengine/symengine_exception.h>
+#include <symengine/simplify.h>
 
 #include "Tinned/TwoLevelAtom.hpp"
 
@@ -31,20 +30,8 @@ namespace Tinned
                         SymEngine::RCP<const SymEngine::MatrixExpr>>& rho0
     ) : max_order_(7), H0_(H0), V_(V)
     {
-        // A density matrix is Hermitian and has a trace one
-        if (SymEngine::neq(
-            *rho0.second, *SymEngine::conjugate_matrix(SymEngine::transpose(rho0.second))
-        )) throw SymEngine::SymEngineException(
-                "Density matrix must be Hermitian: " + stringify(rho0.second)
-            );
-        if (!is_zero_quantity(SymEngine::add(
-            SymEngine::minus_one, SymEngine::trace(rho0.second)
-        ))) throw SymEngine::SymEngineException(
-                "Density matrix must have a trace one: " + stringify(rho0.second)
-            );
-        rho0_ = rho0;
+        // Compute transition angular frequencies
         auto op = SymEngine::rcp_dynamic_cast<const SymEngine::DiagonalMatrix>(H0.second);
-        // Here, we do not check if all matrices should have the same dimension
         dim_operator_ = op->get_container().size();
         for (std::size_t i=0; i<dim_operator_; ++i) {
             for (std::size_t j=0; j<dim_operator_; ++j) {
@@ -56,7 +43,25 @@ namespace Tinned
                 }
             }
         }
-        SymEngine::vec_basic values;
+        // A density matrix is Hermitian and has a trace one
+        auto val_rho0 = get_values(rho0.second);
+        auto val_rho0_H = get_values(
+            SymEngine::conjugate_matrix(SymEngine::transpose(rho0.second))
+        );
+        for (std::size_t i=0; i<val_rho0.size(); ++i) {
+            //FIXME: SymEngine::neq may fail for comparing `conjugate`
+            if (SymEngine::neq(*val_rho0[i], *SymEngine::simplify(val_rho0_H[i])))
+                throw SymEngine::SymEngineException(
+                    "Density matrix must be Hermitian: " + stringify(rho0.second)
+                );
+        }
+        if (!is_zero_quantity(SymEngine::add(
+            SymEngine::minus_one, SymEngine::trace(rho0.second)
+        ))) throw SymEngine::SymEngineException(
+                "Density matrix must have a trace one: " + stringify(rho0.second)
+            );
+        rho0_ = rho0;
+        // Check the validity of field operators
         for (const auto& oper: V_) {
             auto dependencies = oper.first->get_dependencies();
             if (dependencies.size()!=1) throw SymEngine::SymEngineException(
@@ -77,18 +82,6 @@ namespace Tinned
             //)) throw SymEngine::SymEngineException(
             //        "Each field operator must be Hermitian: " + stringify(oper.second)
             //    );
-            values.push_back(oper.second);
-        }
-        // Each pair of V's must commute
-        for (std::size_t i=1; i<values.size(); ++i) {
-            for (std::size_t j=0; j<i; ++j) {
-                auto val_ij = SymEngine::matrix_mul({values[i], values[j]});
-                auto val_ji = SymEngine::matrix_mul({values[j], values[i]});
-                if (SymEngine::neq(*val_ij, *val_ji)) throw SymEngine::SymEngineException(
-                    "Field operators: " + stringify(values[i]) + " and "
-                    + stringify(values[j]) + " do not commute"
-                );
-            }
         }
         // Store unperturbed density matrix
         rho_all_derivatives_[0] = DensityDerivative({
@@ -246,12 +239,12 @@ namespace Tinned
                                     // Compute higher order derivatives of
                                     // the density matrix
                                     for (std::size_t i=0; i<omega_.size(); ++i) {
-                                        val_rho.push_back(
+                                        val_rho.push_back(SymEngine::simplify(
                                             SymEngine::div(
                                                 SymEngine::sub(val_V_rho[i], val_rho_V[i]),
                                                 SymEngine::sub(freq_sum, omega_[i])
                                             )
-                                        );
+                                        ));
                                     }
                                     if (idx_higher>=0) {
                                         rho_derivatives[idx_higher].second
