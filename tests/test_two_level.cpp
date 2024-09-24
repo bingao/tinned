@@ -1,7 +1,5 @@
 #define CATCH_CONFIG_MAIN
 
-#include <iostream>
-
 #include <cstddef>
 #include <map>
 #include <string>
@@ -151,16 +149,16 @@ TEST_CASE("Test two-level system", "[TwoLevelFunction], [TwoLevelOperator]")
     auto Va_01 = SymEngine::symbol("Va_01");
     auto Va_10 = SymEngine::symbol("Va_10");
     auto Va_11 = SymEngine::symbol("Va_11");
+    auto val_Ba = make_field_operator(Va_00, Va_01, Va_10, Va_11);
     auto Vb_00 = SymEngine::symbol("Vb_00");
     auto Vb_01 = SymEngine::symbol("Vb_01");
     auto Vb_10 = SymEngine::symbol("Vb_10");
     auto Vb_11 = SymEngine::symbol("Vb_11");
+    auto val_Bb = make_field_operator(Vb_00, Vb_01, Vb_10, Vb_11);
     auto Vc_00 = SymEngine::symbol("Vc_00");
     auto Vc_01 = SymEngine::symbol("Vc_01");
     auto Vc_10 = SymEngine::symbol("Vc_10");
     auto Vc_11 = SymEngine::symbol("Vc_11");
-    auto val_Ba = make_field_operator(Va_00, Va_01, Va_10, Va_11);
-    auto val_Bb = make_field_operator(Vb_00, Vb_01, Vb_10, Vb_11);
     auto val_Bc = make_field_operator(Vc_00, Vc_01, Vc_10, Vc_11);
 
     // We choose ground state [[1, 0], [0, 0]]

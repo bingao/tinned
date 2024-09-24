@@ -135,12 +135,13 @@ namespace Tinned
         else {
             // Important to set `zero_factor_` in particular the last term is zero
             zero_factor_ = false;
-            if (num_terms==1) {
-                str_ = o.str();
-            }
-            else {
-                str_ = parenthesize(o.str());
-            }
+            str_ = o.str();
+            //if (num_terms==1) {
+            //    str_ = o.str();
+            //}
+            //else {
+            //    str_ = parenthesize(o.str());
+            //}
         }
     }
 
