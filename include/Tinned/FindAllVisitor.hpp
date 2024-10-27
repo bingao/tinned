@@ -42,8 +42,6 @@
 #include <symengine/symengine_rcp.h>
 #include <symengine/visitor.h>
 
-#include "Tinned/PertDependency.hpp"
-
 #include "Tinned/PerturbedParameter.hpp"
 #include "Tinned/OneElecDensity.hpp"
 #include "Tinned/OneElecOperator.hpp"
@@ -247,7 +245,7 @@ namespace Tinned
                     && op1.get_state()->get_name()==op2.get_state()->get_name();
             }
 
-            // Method called by objects to prcess their argument(s)
+            // Method called by objects to process their argument(s)
             inline void apply_(const SymEngine::RCP<const SymEngine::Basic>& x)
             {
                 x->accept(*this);

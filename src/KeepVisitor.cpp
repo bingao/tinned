@@ -4,9 +4,6 @@
 #include <symengine/pow.h>
 #include <symengine/symengine_exception.h>
 
-#include "Tinned/Perturbation.hpp"
-#include "Tinned/PertDependency.hpp"
-#include "Tinned/ElectronicState.hpp"
 #include "Tinned/PerturbedParameter.hpp"
 #include "Tinned/ConjugateTranspose.hpp"
 

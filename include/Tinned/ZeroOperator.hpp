@@ -25,8 +25,6 @@
 #include <symengine/symengine_rcp.h>
 #include <symengine/matrices/zero_matrix.h>
 
-//#include "Tinned/PertDependency.hpp"
-
 namespace Tinned
 {
     class ZeroOperator: public SymEngine::ZeroMatrix

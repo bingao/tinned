@@ -24,6 +24,7 @@ add_library(tinned
             ${LIB_TINNED_PATH}/src/FindAllVisitor.cpp
             ${LIB_TINNED_PATH}/src/EliminationVisitor.cpp
             ${LIB_TINNED_PATH}/src/TemporumCleaner.cpp
+            ${LIB_TINNED_PATH}/src/ExistAnyVisitor.cpp
             ${LIB_TINNED_PATH}/src/LaTeXifyVisitor.cpp
             ${LIB_TINNED_PATH}/src/StringifyVisitor.cpp
             ${LIB_TINNED_PATH}/src/TwoLevelAtom.cpp)

@@ -210,87 +210,62 @@ TEST_CASE("Test two-level system", "[TwoLevelFunction], [TwoLevelOperator]")
     auto val_freq_denom = SymEngine::immutable_dense_matrix(
         2, 2,
         {
-            SymEngine::div(SymEngine::one, SymEngine::add(omega_a, omega_b)),
+            SymEngine::div(SymEngine::two, SymEngine::add(omega_a, omega_b)),
             SymEngine::div(
-                SymEngine::one,
+                SymEngine::two,
                 SymEngine::sub(SymEngine::add(omega_a, omega_b), E_01)
             ),
             SymEngine::div(
-                SymEngine::one,
+                SymEngine::two,
                 SymEngine::sub(SymEngine::add(omega_a, omega_b), E_10)
             ),
-            SymEngine::div(SymEngine::one, SymEngine::add(omega_a, omega_b))
+            SymEngine::div(SymEngine::two, SymEngine::add(omega_a, omega_b))
         }
     );
     REQUIRE(SymEngine::eq(
         *oper_eval.apply(D->diff(a)->diff(b)),
-        *SymEngine::matrix_add({
-            SymEngine::hadamard_product({
-                SymEngine::matrix_add({
-                    SymEngine::matrix_mul({val_Bb, val_Da}),
-                    // `minus_identity` makes sure `SymEngine::matrix_mul`
-                    // returns only a 2x2 matrix
-                    SymEngine::matrix_mul({minus_identity, val_Da, val_Bb})
-                }),
-                val_freq_denom
+        *SymEngine::hadamard_product({
+            SymEngine::matrix_add({
+                SymEngine::matrix_mul({val_Bb, val_Da}),
+                // `minus_identity` makes sure `SymEngine::matrix_mul`
+                // returns only a 2x2 matrix
+                SymEngine::matrix_mul({minus_identity, val_Da, val_Bb})
             }),
-            SymEngine::hadamard_product({
-                SymEngine::matrix_add({
-                    SymEngine::matrix_mul({val_Ba, val_Db}),
-                    SymEngine::matrix_mul({minus_identity, val_Db, val_Ba})
-                }),
-                val_freq_denom
-            })
+            val_freq_denom
         })
     ));
     // D^{ab} = D^{ba}
     REQUIRE(SymEngine::eq(
         *oper_eval.apply(D->diff(a)->diff(b)), *oper_eval.apply(D->diff(b)->diff(a))
     ));
-    // D^{abc} = 2*[Vc^{c}, D^{ab}]\circ[(omega_a+omega_b+omega_c-(E_m-E_n))^{-1}]
-    //         + 2*[Vb^{b}, D^{ac}]\circ[(omega_a+omega_b+omega_c-(E_m-E_n))^{-1}]
-    //         + 2*[Va^{a}, D^{bc}]\circ[(omega_a+omega_b+omega_c-(E_m-E_n))^{-1}]
+    // D^{abc} = 3*[Vc^{c}, D^{ab}]\circ[(omega_a+omega_b+omega_c-(E_m-E_n))^{-1}]
     auto val_Dab = oper_eval.apply(D->diff(a)->diff(b));
-    auto val_Dac = oper_eval.apply(D->diff(a)->diff(c));
-    auto val_Dbc = oper_eval.apply(D->diff(b)->diff(c));
     val_freq_denom = SymEngine::immutable_dense_matrix(
         2, 2,
         {
-            SymEngine::div(SymEngine::two, SymEngine::add({omega_a, omega_b, omega_c})),
             SymEngine::div(
-                SymEngine::two,
+                SymEngine::integer(3), SymEngine::add({omega_a, omega_b, omega_c})
+            ),
+            SymEngine::div(
+                SymEngine::integer(3),
                 SymEngine::sub(SymEngine::add({omega_a, omega_b, omega_c}), E_01)
             ),
             SymEngine::div(
-                SymEngine::two,
+                SymEngine::integer(3),
                 SymEngine::sub(SymEngine::add({omega_a, omega_b, omega_c}), E_10)
             ),
-            SymEngine::div(SymEngine::two, SymEngine::add({omega_a, omega_b, omega_c}))
+            SymEngine::div(
+                SymEngine::integer(3), SymEngine::add({omega_a, omega_b, omega_c})
+            )
         }
     );
     auto val_ref = SymEngine::rcp_dynamic_cast<const SymEngine::ImmutableDenseMatrix>(
-        SymEngine::matrix_add({
-            SymEngine::hadamard_product({
-                SymEngine::matrix_add({
-                    SymEngine::matrix_mul({val_Bc, val_Dab}),
-                    SymEngine::matrix_mul({minus_identity, val_Dab, val_Bc})
-                }),
-                val_freq_denom
+        SymEngine::hadamard_product({
+            SymEngine::matrix_add({
+                SymEngine::matrix_mul({val_Bc, val_Dab}),
+                SymEngine::matrix_mul({minus_identity, val_Dab, val_Bc})
             }),
-            SymEngine::hadamard_product({
-                SymEngine::matrix_add({
-                    SymEngine::matrix_mul({val_Bb, val_Dac}),
-                    SymEngine::matrix_mul({minus_identity, val_Dac, val_Bb})
-                }),
-                val_freq_denom
-            }),
-            SymEngine::hadamard_product({
-                SymEngine::matrix_add({
-                    SymEngine::matrix_mul({val_Ba, val_Dbc}),
-                    SymEngine::matrix_mul({minus_identity, val_Dbc, val_Ba})
-                }),
-                val_freq_denom
-            })
+            val_freq_denom
         })
     )->get_values();
     auto val_result = SymEngine::rcp_dynamic_cast<const SymEngine::ImmutableDenseMatrix>(
@@ -301,59 +276,34 @@ TEST_CASE("Test two-level system", "[TwoLevelFunction], [TwoLevelOperator]")
     for (std::size_t i=0; i<val_ref.size(); ++i) REQUIRE(SymEngine::eq(
         *SymEngine::expand(val_ref[i]), *SymEngine::expand(val_result[i])
     ));
-    // D^{aab} = 4*[Va^{a}, D^{ab}]\circ[(2*omega_a+omega_b-(E_m-E_n))^{-1}]
-    //         + 2*[Vb^{b}, D^{aa}]\circ[(2*omega_a+omega_b-(E_m-E_n))^{-1}]
+    // D^{aab} = 3*[Vb^{b}, D^{aa}]\circ[(2*omega_a+omega_b-(E_m-E_n))^{-1}]
     auto val_Daa = oper_eval.apply(D->diff(a)->diff(a));
-    auto val_freq_aba = SymEngine::immutable_dense_matrix(
+    val_freq_denom = SymEngine::immutable_dense_matrix(
         2, 2,
         {
             SymEngine::div(
-                SymEngine::integer(4), SymEngine::add({omega_a, omega_a, omega_b})
+                SymEngine::integer(3), SymEngine::add({omega_a, omega_a, omega_b})
             ),
             SymEngine::div(
-                SymEngine::integer(4),
+                SymEngine::integer(3),
                 SymEngine::sub(SymEngine::add({omega_a, omega_a, omega_b}), E_01)
             ),
             SymEngine::div(
-                SymEngine::integer(4),
+                SymEngine::integer(3),
                 SymEngine::sub(SymEngine::add({omega_a, omega_a, omega_b}), E_10)
             ),
             SymEngine::div(
-                SymEngine::integer(4), SymEngine::add({omega_a, omega_a, omega_b})
+                SymEngine::integer(3), SymEngine::add({omega_a, omega_a, omega_b})
             )
         }
     );
-    auto val_freq_aab = SymEngine::immutable_dense_matrix(
-        2, 2,
-        {
-            SymEngine::div(SymEngine::two, SymEngine::add({omega_a, omega_a, omega_b})),
-            SymEngine::div(
-                SymEngine::two,
-                SymEngine::sub(SymEngine::add({omega_a, omega_a, omega_b}), E_01)
-            ),
-            SymEngine::div(
-                SymEngine::two,
-                SymEngine::sub(SymEngine::add({omega_a, omega_a, omega_b}), E_10)
-            ),
-            SymEngine::div(SymEngine::two, SymEngine::add({omega_a, omega_a, omega_b}))
-        }
-    );
     val_ref = SymEngine::rcp_dynamic_cast<const SymEngine::ImmutableDenseMatrix>(
-        SymEngine::matrix_add({
-            SymEngine::hadamard_product({
-                SymEngine::matrix_add({
-                    SymEngine::matrix_mul({val_Ba, val_Dab}),
-                    SymEngine::matrix_mul({minus_identity, val_Dab, val_Ba})
-                }),
-                val_freq_aba
+        SymEngine::hadamard_product({
+            SymEngine::matrix_add({
+                SymEngine::matrix_mul({val_Bb, val_Daa}),
+                SymEngine::matrix_mul({minus_identity, val_Daa, val_Bb})
             }),
-            SymEngine::hadamard_product({
-                SymEngine::matrix_add({
-                    SymEngine::matrix_mul({val_Bb, val_Daa}),
-                    SymEngine::matrix_mul({minus_identity, val_Daa, val_Bb})
-                }),
-                val_freq_aab
-            })
+            val_freq_denom
         })
     )->get_values();
     val_result = SymEngine::rcp_dynamic_cast<const SymEngine::ImmutableDenseMatrix>(
@@ -442,6 +392,8 @@ TEST_CASE("Test two-level system", "[TwoLevelFunction], [TwoLevelOperator]")
     ));
     // E^{abc} = tr(D^{bc}*Va^{a}) + tr(D^{ac}*Vb^{b}) + tr(D^{ab}*Vc^{c})
     //         + tr(D^{abc}*H0) + tr(D^{abc}*Va) + tr(D^{abc}*Vb) + tr(D^{abc}*Vc)
+    auto val_Dac = oper_eval.apply(D->diff(a)->diff(c));
+    auto val_Dbc = oper_eval.apply(D->diff(b)->diff(c));
     auto val_Dabc = oper_eval.apply(D->diff(a)->diff(b)->diff(c));
     REQUIRE(SymEngine::eq(
         *fun_eval.apply(E->diff(a)->diff(b)->diff(c)),

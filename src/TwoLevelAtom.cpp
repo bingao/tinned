@@ -1,8 +1,10 @@
 #include <cstddef>
+#include <iterator>
 #include <string>
 
 #include <symengine/add.h>
 #include <symengine/mul.h>
+#include <symengine/integer.h>
 #include <symengine/constants.h>
 #include <symengine/matrices/zero_matrix.h>
 #include <symengine/matrices/identity_matrix.h>
@@ -28,7 +30,7 @@ namespace Tinned
                        SymEngine::RCPBasicKeyLess>& V,
         const std::pair<SymEngine::RCP<const OneElecDensity>,
                         SymEngine::RCP<const SymEngine::MatrixExpr>>& rho0
-    ) : max_order_(7), H0_(H0), V_(V)
+    ) : max_order_(12), H0_(H0), V_(V)
     {
         // Compute transition angular frequencies
         auto op = SymEngine::rcp_dynamic_cast<const SymEngine::DiagonalMatrix>(H0.second);
@@ -62,18 +64,19 @@ namespace Tinned
             );
         rho0_ = rho0;
         // Check the validity of field operators
+        SymEngine::set_basic perturbations;
         for (const auto& oper: V_) {
             auto dependencies = oper.first->get_dependencies();
             if (dependencies.size()!=1) throw SymEngine::SymEngineException(
                 "Each field operator should depend only on one perturbation: "
                 + stringify(oper.first)
             );
-            if (perturbations_.find(dependencies.begin()->first)!=perturbations_.end())
+            if (perturbations.find(dependencies.begin()->first)!=perturbations.end())
                 throw SymEngine::SymEngineException(
                     "Field operators should depend on different perturbations: "
                     + stringify(oper.first)
                 );
-            perturbations_.insert(dependencies.begin()->first);
+            perturbations.insert(dependencies.begin()->first);
             //Elements of V's can be symbols that we cannot check the hermicity
             //// All V's must be Hermitian
             //if (SymEngine::neq(
@@ -84,7 +87,7 @@ namespace Tinned
             //    );
         }
         // Store unperturbed density matrix
-        rho_all_derivatives_[0] = DensityDerivative({
+        rho_cached_[0] = DensityDerivative({
             std::make_pair(SymEngine::multiset_basic({}), rho0.second)
         });
     }
@@ -180,116 +183,102 @@ namespace Tinned
             case 0:
                 return rho0_.second;
             default:
-                if (derivatives.size()>rho_all_derivatives_.size()-1) {
-                    for (unsigned int order=rho_all_derivatives_.size()-1;
-                         order<derivatives.size();
-                         ++order) {
-                        DensityDerivative rho_derivatives;
-                        auto pert_permutation = PertPermutation(order+1, perturbations_);
-                        bool remaining = true;
-                        do {
-                            auto permut_derivatives
-                                = pert_permutation.get_derivatives(remaining);
-                            auto freq_sum = get_frequency_sum(permut_derivatives);
-                            // The last perturbation is the one for the
-                            // external field, and we need to find the value of
-                            // its corresponding operator
-                            SymEngine::RCP<const SymEngine::MatrixExpr> oper_field;
-                            bool not_found = true;
-                            for (const auto& oper: V_) {
-                                if (SymEngine::eq(
-                                    *permut_derivatives.back(),
-                                    *oper.first->get_dependencies().begin()->first
-                                )) {
-                                    oper_field = oper.second;
-                                    not_found = false;
-                                    break;
-                                }
-                            }
-                            if (not_found) throw SymEngine::SymEngineException(
-                                "Invalid perturbation for the external field "
-                                + stringify(permut_derivatives.back())
-                            );
-                            // Check if the higher order derivatives of the
-                            // density matrix already computed partially
-                            auto higher_derivatives = SymEngine::multiset_basic(
-                                permut_derivatives.begin(), permut_derivatives.end()
-                            );
-                            int idx_higher = -1;
-                            for (std::size_t i=0; i<rho_derivatives.size(); ++i)
-                                if (SymEngine::unified_eq(rho_derivatives[i].first, higher_derivatives)) {
-                                    idx_higher = i;
-                                    break;
-                                }
-                            // Try to find the matched lower order derivatives
-                            // of the density matrix
-                            not_found = true;
-                            auto lower_derivatives = SymEngine::multiset_basic(
-                                permut_derivatives.begin(), permut_derivatives.end()-1
-                            );
-                            for (const auto& rho_lower: rho_all_derivatives_[order]) {
-                                if (SymEngine::unified_eq(rho_lower.first, lower_derivatives)) {
-                                    auto val_V_rho = get_values(SymEngine::matrix_mul({
-                                        oper_field, rho_lower.second
-                                    }));
-                                    auto val_rho_V = get_values(SymEngine::matrix_mul({
-                                        rho_lower.second, oper_field
-                                    }));
-                                    SymEngine::vec_basic val_rho;
-                                    // Compute higher order derivatives of
-                                    // the density matrix
-                                    for (std::size_t i=0; i<omega_.size(); ++i) {
-                                        val_rho.push_back(SymEngine::simplify(
-                                            SymEngine::div(
-                                                SymEngine::sub(val_V_rho[i], val_rho_V[i]),
-                                                SymEngine::sub(freq_sum, omega_[i])
-                                            )
-                                        ));
-                                    }
-                                    if (idx_higher>=0) {
-                                        rho_derivatives[idx_higher].second
-                                            = SymEngine::matrix_add({
-                                                  rho_derivatives[idx_higher].second,
-                                                  SymEngine::immutable_dense_matrix(
-                                                      dim_operator_, dim_operator_, val_rho
-                                                  )
-                                              });
-                                    }
-                                    else {
-                                        rho_derivatives.push_back(
-                                            std::make_pair(
-                                                higher_derivatives,
-                                                SymEngine::immutable_dense_matrix(
-                                                    dim_operator_, dim_operator_, val_rho
-                                                )
-                                            )
-                                        );
-                                    }
-                                    not_found = false;
-                                    break;
-                                }
-                            }
-                            if (not_found) {
-                                std::string str_lower_derivatives;
-                                for (const auto& p: permut_derivatives)
-                                   str_lower_derivatives += stringify(p) + ",";
-                                throw SymEngine::SymEngineException(
-                                    "Invalid lower order derivatives: "
-                                    + str_lower_derivatives
-                                    + " of the density matrix: "
-                                    + stringify(x)
-                                );
-                            }
-                        } while (remaining);
-                        rho_all_derivatives_[order+1] = rho_derivatives;
+                auto max_order_cached = rho_cached_.size()-1;
+                // Return when derivatives of the density matrix already computed
+                if (derivatives.size()<=max_order_cached)
+                    for (const auto& iter: rho_cached_[derivatives.size()])
+                        if (SymEngine::unified_eq(derivatives, iter.first))
+                            return iter.second;
+                // Find matched lower order derivatives of the density matrix
+                unsigned int lower_order = derivatives.size()<=max_order_cached
+                                         ? derivatives.size()-1 : max_order_cached;
+                auto lower_derivatives = SymEngine::multiset_basic(
+                    derivatives.begin(),
+                    std::next(derivatives.begin(), lower_order)
+                );
+                auto lower_found = false;
+                SymEngine::RCP<const SymEngine::MatrixExpr> rho_matrix;
+                for (; lower_order>0; --lower_order) {
+                    auto last_perturbation = std::next(
+                        lower_derivatives.begin(), lower_order-1
+                    );
+                    for (const auto& iter: rho_cached_[lower_order]) {
+                        if (SymEngine::unified_eq(iter.first, lower_derivatives)) {
+                            rho_matrix = iter.second;
+                            lower_found = true;
+                            break;
+                        }
+                    }
+                    if (lower_found) break;
+                    lower_derivatives.erase(last_perturbation);
+                }
+                if (!lower_found) rho_matrix = rho_cached_[0].begin()->second;
+                // Loop over lower order derivatives
+                for (; lower_order<derivatives.size(); ++lower_order) {
+                    // Find the field operator according to its perturbation
+                    auto field_pert = *(std::next(derivatives.begin(), lower_order));
+                    SymEngine::RCP<const SymEngine::MatrixExpr> field_matrix;
+                    auto field_found = true;
+                    for (const auto& oper: V_) {
+                        if (SymEngine::eq(
+                            *field_pert,
+                            *oper.first->get_dependencies().begin()->first
+                        )) {
+                            field_matrix = oper.second;
+                            field_found = false;
+                            break;
+                        }
+                    }
+                    if (field_found) throw SymEngine::SymEngineException(
+                        "Invalid perturbation for the external field "
+                        + stringify(field_pert)
+                    );
+                    // Compute higher order derivatives of the density matrix
+                    auto higher_order = lower_order+1;
+                    auto higher_derivatives = SymEngine::multiset_basic(
+                        derivatives.begin(),
+                        std::next(derivatives.begin(), higher_order)
+                    );
+                    auto freq_sum = get_frequency_sum(higher_derivatives);
+                    auto val_V_rho = get_values(SymEngine::matrix_mul({
+                        field_matrix, rho_matrix
+                    }));
+                    auto val_rho_V = get_values(SymEngine::matrix_mul({
+                        rho_matrix, field_matrix
+                    }));
+                    SymEngine::vec_basic val_rho;
+                    for (std::size_t i=0; i<omega_.size(); ++i) {
+                        val_rho.push_back(SymEngine::simplify(
+                            SymEngine::div(
+                                SymEngine::mul(
+                                    SymEngine::integer(higher_order),
+                                    SymEngine::sub(val_V_rho[i], val_rho_V[i])
+                                ),
+                                SymEngine::sub(freq_sum, omega_[i])
+                            )
+                        ));
+                    }
+                    // Update cached derivatives of density matrix by inserting
+                    // the computed higher order derivatives of the density matrix
+                    rho_matrix = SymEngine::immutable_dense_matrix(
+                        dim_operator_, dim_operator_, val_rho
+                    );
+                    auto iter = rho_cached_.find(higher_order);
+                    if (iter==rho_cached_.end()) {
+                        rho_cached_.insert(std::pair<unsigned int, DensityDerivative>{
+                            higher_order,
+                            DensityDerivative({
+                                std::make_pair(higher_derivatives, rho_matrix)
+                            })
+                        });
+                    }
+                    else {
+                        iter->second.push_back(
+                            std::make_pair(higher_derivatives, rho_matrix)
+                        );
                     }
                 }
-                for (const auto& rho_derivatives: rho_all_derivatives_[derivatives.size()])
-                    if (SymEngine::unified_eq(derivatives, rho_derivatives.first))
-                        return rho_derivatives.second;
-                throw SymEngine::SymEngineException(
-                    "Density matrix with invalid derivatives: " + stringify(x)
-                );
+                return rho_matrix;
         }
     }
 

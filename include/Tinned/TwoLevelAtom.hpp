@@ -53,14 +53,12 @@ namespace Tinned
                      SymEngine::RCPBasicKeyLess> V_;
             // Transition angular frequencies (row major)
             SymEngine::vec_basic omega_;
-            // All perturbations
-            SymEngine::set_basic perturbations_;
             // Cached derivatives of density matrix <order, <perturbations, derivatives>>
             //FIXME: not optimal for identical perturbations
             typedef std::vector<std::pair<SymEngine::multiset_basic,
                                           SymEngine::RCP<const SymEngine::MatrixExpr>>>
                 DensityDerivative;
-            std::map<unsigned int, DensityDerivative> rho_all_derivatives_;
+            std::map<unsigned int, DensityDerivative> rho_cached_;
 
             // Get values of an operator matrix
             SymEngine::vec_basic get_values(

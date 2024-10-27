@@ -85,10 +85,8 @@ namespace Tinned
         const FirstArg& first_arg, const Args&... args
     )
     {
-        if (visit_arguments(v, f_args, has_arg_affected, first_arg))
-            return true;
-        if (visit_arguments(v, f_args, has_arg_affected, args...))
-            return true;
+        if (visit_arguments(v, f_args, has_arg_affected, first_arg)) return true;
+        if (visit_arguments(v, f_args, has_arg_affected, args...)) return true;
         return false;
     }
 

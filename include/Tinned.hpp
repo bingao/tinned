@@ -53,5 +53,6 @@
 #include "Tinned/FindAllVisitor.hpp"
 #include "Tinned/EliminationVisitor.hpp"
 #include "Tinned/TemporumCleaner.hpp"
+#include "Tinned/ExistAnyVisitor.hpp"
 #include "Tinned/LaTeXifyVisitor.hpp"
 #include "Tinned/StringifyVisitor.hpp"
