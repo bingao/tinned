@@ -65,6 +65,11 @@ namespace Tinned
                 const SymEngine::RCP<const SymEngine::MatrixExpr>& A
             ) const;
 
+            // Evaluate derivatives of density matrix and all involved lower
+            // order derivatives in a recursive manner, and cache them
+            SymEngine::RCP<const SymEngine::MatrixExpr>
+            eval_1el_density(const SymEngine::multiset_basic& derivatives);
+
             SymEngine::RCP<const SymEngine::MatrixExpr> eval_hermitian_transpose(
                 const SymEngine::RCP<const SymEngine::MatrixExpr>& A
             ) override;
