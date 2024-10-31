@@ -293,13 +293,12 @@ namespace Tinned
             for (const auto& oper: V_) {
                 if (x.get_name()==oper.first->get_name()) {
                     auto derivatives = x.get_derivatives();
-                    if (derivatives.empty()) {
-                        return SymEngine::matrix_mul({
-                            oper.first->get_dependencies().begin()->first,
-                            oper.second
-                        });
-                    }
-                    else if (derivatives.size()==1) {
+                    if (derivatives.size()==1 &&
+                        SymEngine::eq(
+                            *(*derivatives.begin()),
+                            *(oper.first->get_dependencies().begin()->first)
+                        )
+                    ) {
                         return oper.second;
                     }
                     else {

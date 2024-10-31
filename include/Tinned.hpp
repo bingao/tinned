@@ -27,7 +27,7 @@
 
 #include "Tinned/Perturbation.hpp"
 #include "Tinned/PertDependency.hpp"
-#include "Tinned/PertTuple.hpp"
+#include "Tinned/PertMultichain.hpp"
 #include "Tinned/PerturbedParameter.hpp"
 #include "Tinned/ZeroOperator.hpp"
 #include "Tinned/ConjugateTranspose.hpp"

@@ -22,6 +22,7 @@
 #include <symengine/matrices/matrix_mul.h>
 #include <symengine/matrices/hadamard_product.h>
 #include <symengine/matrices/trace.h>
+#include <symengine/matrices/zero_matrix.h>
 #include <symengine/symengine_rcp.h>
 
 #include "Tinned.hpp"
@@ -174,9 +175,15 @@ TEST_CASE("Test two-level system", "[TwoLevelFunction], [TwoLevelOperator]")
     );
 
     REQUIRE(SymEngine::eq(*oper_eval.apply(H0), *val_H0));
-    REQUIRE(SymEngine::eq(*oper_eval.apply(Va), *SymEngine::matrix_mul({a, val_Ba})));
-    REQUIRE(SymEngine::eq(*oper_eval.apply(Vb), *SymEngine::matrix_mul({b, val_Bb})));
-    REQUIRE(SymEngine::eq(*oper_eval.apply(Vc), *SymEngine::matrix_mul({c, val_Bc})));
+    REQUIRE(SymEngine::eq(
+        *oper_eval.apply(Va), *SymEngine::zero_matrix(SymEngine::two, SymEngine::two)
+    ));
+    REQUIRE(SymEngine::eq(
+        *oper_eval.apply(Vb), *SymEngine::zero_matrix(SymEngine::two, SymEngine::two)
+    ));
+    REQUIRE(SymEngine::eq(
+        *oper_eval.apply(Vc), *SymEngine::zero_matrix(SymEngine::two, SymEngine::two)
+    ));
     REQUIRE(SymEngine::eq(*oper_eval.apply(D), *val_D));
     REQUIRE(SymEngine::eq(*oper_eval.apply(Va->diff(a)), *val_Ba));
     REQUIRE(SymEngine::eq(*oper_eval.apply(Vb->diff(b)), *val_Bb));
@@ -356,74 +363,19 @@ TEST_CASE("Test two-level system", "[TwoLevelFunction], [TwoLevelOperator]")
         std::make_pair(D, val_D)
     );
 
-    REQUIRE(SymEngine::eq(
-        *fun_eval.apply(E),
-        *SymEngine::add({
-            E0,
-            SymEngine::mul(a, Va_00),
-            SymEngine::mul(b, Vb_00),
-            SymEngine::mul(c, Vc_00)
-        })
-    ));
-    // E^{a} = tr(D*Va^{a}) + tr(D^{a}*Va) + tr(D^{a}*Vb) + tr(D^{a}*Vc)
-    REQUIRE(SymEngine::eq(
-        *fun_eval.apply(E->diff(a)),
-        *SymEngine::add({
-            Va_00,
-            SymEngine::mul(
-                a,
-                SymEngine::add(
-                    SymEngine::div(
-                        SymEngine::mul({SymEngine::minus_one, Va_01, Va_10}),
-                        SymEngine::sub(omega_a, E_01)
-                    ),
-                    SymEngine::div(
-                        SymEngine::mul(Va_10, Va_01),
-                        SymEngine::sub(omega_a, E_10)
-                    )
-                )
-            ),
-            SymEngine::mul(
-                b,
-                SymEngine::add(
-                    SymEngine::div(
-                        SymEngine::mul({SymEngine::minus_one, Va_01, Vb_10}),
-                        SymEngine::sub(omega_a, E_01)
-                    ),
-                    SymEngine::div(
-                        SymEngine::mul(Va_10, Vb_01), SymEngine::sub(omega_a, E_10)
-                    )
-                )
-            ),
-            SymEngine::mul(
-                c,
-                SymEngine::add(
-                    SymEngine::div(
-                        SymEngine::mul({SymEngine::minus_one, Va_01, Vc_10}),
-                        SymEngine::sub(omega_a, E_01)
-                    ),
-                    SymEngine::div(
-                        SymEngine::mul(Va_10, Vc_01), SymEngine::sub(omega_a, E_10)
-                    )
-                )
-            )
-        })
-    ));
+    REQUIRE(SymEngine::eq(*fun_eval.apply(E), *E0));
+    // E^{a} = tr(D*Va^{a})
+    REQUIRE(SymEngine::eq(*fun_eval.apply(E->diff(a)), *Va_00));
     // E^{ab} = tr(D^{b}*Va^{a}) + tr(D^{a}*Vb^{b}) + tr(D^{ab}*H0)
-    //        + tr(D^{ab}*Va) + tr(D^{ab}*Vb) + tr(D^{ab}*Vc)
     REQUIRE(SymEngine::eq(
         *fun_eval.apply(E->diff(a)->diff(b)),
         *SymEngine::add({
             SymEngine::trace(SymEngine::matrix_mul({val_Db, val_Ba})),
             SymEngine::trace(SymEngine::matrix_mul({val_Da, val_Bb})),
-            SymEngine::trace(SymEngine::matrix_mul({val_Dab, val_H0})),
-            SymEngine::trace(SymEngine::matrix_mul({a, val_Dab, val_Ba})),
-            SymEngine::trace(SymEngine::matrix_mul({b, val_Dab, val_Bb})),
-            SymEngine::trace(SymEngine::matrix_mul({c, val_Dab, val_Bc}))
+            SymEngine::trace(SymEngine::matrix_mul({val_Dab, val_H0}))
         })
     ));
-    // E^{abc} = tr(D^{bc}*Va^{a}) + tr(D^{ac}*Vb^{b}) + tr(D^{ab}*Vc^{c})
-    //         + tr(D^{abc}*H0) + tr(D^{abc}*Va) + tr(D^{abc}*Vb) + tr(D^{abc}*Vc)
+    // E^{abc} = tr(D^{bc}*Va^{a}) + tr(D^{ac}*Vb^{b}) + tr(D^{ab}*Vc^{c}) + tr(D^{abc}*H0)
     auto val_Dabc = oper_eval.apply(D->diff(a)->diff(b)->diff(c));
     REQUIRE(SymEngine::eq(
         *fun_eval.apply(E->diff(a)->diff(b)->diff(c)),
@@ -431,10 +383,7 @@ TEST_CASE("Test two-level system", "[TwoLevelFunction], [TwoLevelOperator]")
             SymEngine::trace(SymEngine::matrix_mul({val_Dbc, val_Ba})),
             SymEngine::trace(SymEngine::matrix_mul({val_Dac, val_Bb})),
             SymEngine::trace(SymEngine::matrix_mul({val_Dab, val_Bc})),
-            SymEngine::trace(SymEngine::matrix_mul({val_Dabc, val_H0})),
-            SymEngine::trace(SymEngine::matrix_mul({a, val_Dabc, val_Ba})),
-            SymEngine::trace(SymEngine::matrix_mul({b, val_Dabc, val_Bb})),
-            SymEngine::trace(SymEngine::matrix_mul({c, val_Dabc, val_Bc}))
+            SymEngine::trace(SymEngine::matrix_mul({val_Dabc, val_H0}))
         })
     ));
 
