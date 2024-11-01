@@ -246,12 +246,12 @@ namespace Tinned
         return rho_matrix;
     }
 
-    SymEngine::RCP<const SymEngine::MatrixExpr>
-    TwoLevelOperator::eval_hermitian_transpose(const SymEngine::RCP<const SymEngine::MatrixExpr>& A)
-    {
-        auto conj = SymEngine::conjugate_matrix(A);
-        return SymEngine::transpose(conj);
-    }
+    //SymEngine::RCP<const SymEngine::MatrixExpr>
+    //TwoLevelOperator::eval_hermitian_transpose(const SymEngine::RCP<const SymEngine::MatrixExpr>& A)
+    //{
+    //    auto conj = SymEngine::conjugate_matrix(A);
+    //    return SymEngine::transpose(conj);
+    //}
 
     SymEngine::RCP<const SymEngine::MatrixExpr>
     TwoLevelOperator::eval_1el_density(const OneElecDensity& x)
@@ -313,26 +313,26 @@ namespace Tinned
         throw SymEngine::SymEngineException("Invalid operator " + stringify(x));
     }
 
-    SymEngine::RCP<const SymEngine::MatrixExpr>
-    TwoLevelOperator::eval_temporum_operator(const TemporumOperator& x)
-    {
-        result_ = apply(x.get_target());
-        eval_oper_scale(x.get_frequency(), result_);
-        return result_;
-    }
+    //SymEngine::RCP<const SymEngine::MatrixExpr>
+    //TwoLevelOperator::eval_temporum_operator(const TemporumOperator& x)
+    //{
+    //    result_ = apply(x.get_target());
+    //    eval_oper_scale(x.get_frequency(), result_);
+    //    return result_;
+    //}
+    //
+    //SymEngine::RCP<const SymEngine::MatrixExpr> TwoLevelOperator::eval_conjugate_matrix(
+    //    const SymEngine::RCP<const SymEngine::MatrixExpr>& A
+    //)
+    //{
+    //    return SymEngine::conjugate_matrix(A);
+    //}
 
-    SymEngine::RCP<const SymEngine::MatrixExpr> TwoLevelOperator::eval_conjugate_matrix(
-        const SymEngine::RCP<const SymEngine::MatrixExpr>& A
-    )
-    {
-        return SymEngine::conjugate_matrix(A);
-    }
-
-    SymEngine::RCP<const SymEngine::MatrixExpr>
-    TwoLevelOperator::eval_transpose(const SymEngine::RCP<const SymEngine::MatrixExpr>& A)
-    {
-        return SymEngine::transpose(A);
-    }
+    //SymEngine::RCP<const SymEngine::MatrixExpr>
+    //TwoLevelOperator::eval_transpose(const SymEngine::RCP<const SymEngine::MatrixExpr>& A)
+    //{
+    //    return SymEngine::transpose(A);
+    //}
 
     void TwoLevelOperator::eval_oper_addition(
         SymEngine::RCP<const SymEngine::MatrixExpr>& A,

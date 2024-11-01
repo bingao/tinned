@@ -70,9 +70,9 @@ namespace Tinned
             SymEngine::RCP<const SymEngine::MatrixExpr>
             eval_1el_density(const SymEngine::multiset_basic& derivatives);
 
-            SymEngine::RCP<const SymEngine::MatrixExpr> eval_hermitian_transpose(
-                const SymEngine::RCP<const SymEngine::MatrixExpr>& A
-            ) override;
+            //SymEngine::RCP<const SymEngine::MatrixExpr> eval_hermitian_transpose(
+            //    const SymEngine::RCP<const SymEngine::MatrixExpr>& A
+            //) override;
 
             SymEngine::RCP<const SymEngine::MatrixExpr>
             eval_1el_density(const OneElecDensity& x) override;
@@ -80,16 +80,16 @@ namespace Tinned
             SymEngine::RCP<const SymEngine::MatrixExpr>
             eval_1el_operator(const OneElecOperator& x) override;
 
-            SymEngine::RCP<const SymEngine::MatrixExpr>
-            eval_temporum_operator(const TemporumOperator& x) override;
+            //SymEngine::RCP<const SymEngine::MatrixExpr>
+            //eval_temporum_operator(const TemporumOperator& x) override;
 
-            SymEngine::RCP<const SymEngine::MatrixExpr> eval_conjugate_matrix(
-                const SymEngine::RCP<const SymEngine::MatrixExpr>& A
-            ) override;
+            //SymEngine::RCP<const SymEngine::MatrixExpr> eval_conjugate_matrix(
+            //    const SymEngine::RCP<const SymEngine::MatrixExpr>& A
+            //) override;
 
-            SymEngine::RCP<const SymEngine::MatrixExpr> eval_transpose(
-                const SymEngine::RCP<const SymEngine::MatrixExpr>& A
-            ) override;
+            //SymEngine::RCP<const SymEngine::MatrixExpr> eval_transpose(
+            //    const SymEngine::RCP<const SymEngine::MatrixExpr>& A
+            //) override;
 
             void eval_oper_addition(
                 SymEngine::RCP<const SymEngine::MatrixExpr>& A,
