@@ -176,8 +176,10 @@ namespace Tinned
             update_num_symbols(1, str_);
         }
         else if (SymEngine::is_a_sub<const ConjugateTranspose>(x)) {
-            auto& op = SymEngine::down_cast<const ConjugateTranspose&>(x);
-            str_ = add_suffix(parenthesize(apply(op.get_arg())), "^{\\dagger}");
+            auto op = SymEngine::down_cast<const ConjugateTranspose&>(x).get_arg();
+            str_ = SymEngine::is_a_sub<const SymEngine::MatrixSymbol>(*op)
+                 ? add_suffix(apply(op), "^{\\dagger}")
+                 : add_suffix(parenthesize(apply(op)), "^{\\dagger}");
         }
         else if (SymEngine::is_a_sub<const OneElecDensity>(x)) {
             auto& op = SymEngine::down_cast<const OneElecDensity&>(x);
@@ -236,13 +238,15 @@ namespace Tinned
         }
         else if (SymEngine::is_a_sub<const ClusterConjHamiltonian>(x)) {
             auto& op = SymEngine::down_cast<const ClusterConjHamiltonian&>(x);
+            auto cluster_op = op.get_cluster_operator();
             // Subscripts and superscripts should not change the number of
             // symbols, so we use a new visitor
             LaTeXifyVisitor visitor;
-            auto str_op = "\\mathrm{" + op.get_name() + "}_{"
-                        + remove_newline(visitor.apply(SymEngine::matrix_mul({
-                              SymEngine::minus_one, op.get_cluster_operator()
-                          }))) + "}(";
+            auto str_cluster_op
+                = SymEngine::is_a_sub<const SymEngine::MatrixSymbol>(*cluster_op)
+                ? visitor.apply(cluster_op) : parenthesize(visitor.apply(cluster_op));
+            auto str_op = "\\mathrm{" + op.get_name() + "}_{-"
+                        + remove_newline(str_cluster_op) + "}(";
             update_num_symbols(2, str_op);
             str_ = str_op + add_suffix(apply(op.get_hamiltonian()), ")");
         }
@@ -308,19 +312,26 @@ namespace Tinned
 
     void LaTeXifyVisitor::bvisit(const SymEngine::ConjugateMatrix& x)
     {
-        str_ = add_suffix(parenthesize(apply(x.get_arg())), "^{*}");
+        auto op = x.get_arg();
+        str_ = SymEngine::is_a_sub<const SymEngine::MatrixSymbol>(*op)
+             ? add_suffix(apply(op), "^{*}")
+             : add_suffix(parenthesize(apply(op)), "^{*}");
     }
 
     void LaTeXifyVisitor::bvisit(const SymEngine::Transpose& x)
     {
-        str_ = add_suffix(parenthesize(apply(x.get_arg())), "^{\\mathrm{T}}");
+        auto op = x.get_arg();
+        str_ = SymEngine::is_a_sub<const SymEngine::MatrixSymbol>(*op)
+             ? add_suffix(apply(op), "^{\\mathrm{T}}")
+             : add_suffix(parenthesize(apply(op)), "^{\\mathrm{T}}");
     }
 
     void LaTeXifyVisitor::bvisit(const SymEngine::MatrixDerivative& x)
     {
-        str_ = add_suffix(
-            parenthesize(apply(x.get_arg())), latexify_derivatives(x.get_symbols())
-        );
+        auto op = x.get_arg();
+        str_ = SymEngine::is_a_sub<const SymEngine::MatrixSymbol>(*op)
+             ? add_suffix(apply(op), latexify_derivatives(x.get_symbols()))
+             : add_suffix(parenthesize(apply(op)), latexify_derivatives(x.get_symbols()));
     }
 
     std::string LaTeXifyVisitor::parenthesize(const std::string& expr)
