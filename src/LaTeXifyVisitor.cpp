@@ -245,8 +245,8 @@ namespace Tinned
             auto str_cluster_op
                 = SymEngine::is_a_sub<const SymEngine::MatrixSymbol>(*cluster_op)
                 ? visitor.apply(cluster_op) : parenthesize(visitor.apply(cluster_op));
-            auto str_op = "\\mathrm{" + op.get_name() + "}_{-"
-                        + remove_newline(str_cluster_op) + "}(";
+            auto str_op = "\\mathrm{e}^{\\mathrm{ad}_{-"
+                        + remove_newline(str_cluster_op) + "}}(";
             update_num_symbols(2, str_op);
             str_ = str_op + add_suffix(apply(op.get_hamiltonian()), ")");
         }

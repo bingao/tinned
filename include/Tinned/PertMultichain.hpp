@@ -16,19 +16,15 @@
 
 #pragma once
 
-#include <iostream>
-#include "Tinned/StringifyVisitor.hpp"
-
-#include <algorithm>
-#include <cstddef>
+#include <iterator>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 #include <symengine/basic.h>
 #include <symengine/dict.h>
 #include <symengine/add.h>
 #include <symengine/constants.h>
-#include <symengine/symbol.h>
 #include <symengine/symengine_assert.h>
 #include <symengine/symengine_rcp.h>
 
@@ -102,5 +98,24 @@ namespace Tinned
             );
         }
         return result;
+    }
+
+    // A vector of unique perturbation with its number of occurrences (multiplicity)
+    typedef std::vector<std::pair<SymEngine::RCP<const Perturbation>, unsigned int>>
+        PertMultiplicity;
+
+    // Convert a `PertMultichain` object to `PertMultiplicity`
+    inline PertMultiplicity make_pert_multiplicity(const PertMultichain& perturbations)
+    {
+        PertMultiplicity pert_multiplicities;
+        auto cur_iter = perturbations.begin();
+        for (; cur_iter!=perturbations.end(); ) {
+            auto next_iter = perturbations.upper_bound(*cur_iter);
+            pert_multiplicities.push_back(
+                std::make_pair(*cur_iter, std::distance(cur_iter, next_iter))
+            );
+            cur_iter = next_iter;
+        }
+        return pert_multiplicities;
     }
 }

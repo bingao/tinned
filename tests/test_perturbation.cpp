@@ -129,3 +129,30 @@ TEST_CASE("Test Perturbation, make_perturbation() and PertDependency", "[Perturb
     REQUIRE(is_zero_derivative(SymEngine::multiset_basic({el1, el1}), el_pert));
     REQUIRE(!is_zero_derivative(SymEngine::multiset_basic({el1, el3, el4, el6}), el_pert));
 }
+
+TEST_CASE("Test PertMultichain", "[Perturbation]")
+{
+    auto omega_a = SymEngine::symbol("omega_A");
+    auto omega_b = SymEngine::symbol("omega_B");
+    auto omega_c = SymEngine::symbol("omega_C");
+    auto a = make_perturbation(std::string("a"), omega_a);
+    auto b = make_perturbation(std::string("b"), omega_b);
+    auto c = make_perturbation(std::string("c"), omega_c);
+    auto perturbations = PertMultichain({a, a, b, b, b, c});
+    auto pert_multiplicities = make_pert_multiplicity(perturbations);
+    REQUIRE(pert_multiplicities.size()==3);
+    for (const auto& p: pert_multiplicities) {
+        auto is_a = SymEngine::eq(*p.first, *a);
+        auto is_b = SymEngine::eq(*p.first, *b);
+        REQUIRE((is_a || is_b || SymEngine::eq(*p.first, *c)));
+        if (is_a) {
+            REQUIRE(p.second==2);
+        }
+        else if (is_b) {
+            REQUIRE(p.second==3);
+        }
+        else {
+            REQUIRE(p.second==1);
+        }
+    }
+}
