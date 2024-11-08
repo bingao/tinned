@@ -51,6 +51,28 @@ namespace Tinned
         return perturbations;
     }
 
+    // Compare two perturbation multichains
+    inline int compare_pert_multichain(
+        const PertMultichain& lhs, const PertMultichain& rhs
+    )
+    {
+        if (lhs.size()<rhs.size()) {
+            return -1;
+        }
+        else if (lhs.size()>rhs.size()) {
+            return 1;
+        }
+        else {
+            auto iter_lhs = lhs.begin();
+            auto iter_rhs = rhs.begin();
+            for (; iter_lhs!=lhs.end(); ++iter_lhs,++iter_rhs) {
+                auto result = (*iter_lhs)->compare(*(*iter_rhs));
+                if (result!=0) return result;
+            }
+        }
+        return 0;
+    }
+
     // Helper function to do high-order differentiation, and to remove zero
     // quantities
     template<typename T,
