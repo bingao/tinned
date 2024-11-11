@@ -8,6 +8,10 @@
    This file is the header file of finding a given symbol and all its
    differentiated ones.
 
+   2024-11-10, Bin Gao:
+   * use `FindAllResult` for result which is well organized according to the
+     order of derivatives
+
    2024-09-18, Bin Gao:
    * use `SymEngine::vec_basic` for return result
 
@@ -21,6 +25,7 @@
 #pragma once
 
 #include <functional>
+#include <map>
 #include <type_traits>
 
 #include <symengine/basic.h>
@@ -43,6 +48,7 @@
 #include <symengine/visitor.h>
 
 #include "Tinned/PerturbedParameter.hpp"
+#include "Tinned/ElectronicState.hpp"
 #include "Tinned/OneElecDensity.hpp"
 #include "Tinned/OneElecOperator.hpp"
 #include "Tinned/TwoElecEnergy.hpp"
@@ -56,10 +62,13 @@ namespace Tinned
     class ExchCorrEnergy;
     class ExchCorrPotential;
 
+    // Type for result from `FindAllVisitor`
+    typedef std::map<unsigned int, SymEngine::set_basic> FindAllResult;
+
     class FindAllVisitor: public SymEngine::BaseVisitor<FindAllVisitor>
     {
         protected:
-            SymEngine::vec_basic result_;
+            FindAllResult result_;
             SymEngine::RCP<const SymEngine::Basic> symbol_;
 
             // Symbols are sorted according to their derivatives and hash
@@ -69,37 +78,32 @@ namespace Tinned
                          std::is_same<T, const SymEngine::Derivative>::value, int>::type = 0>
             inline void insert_symbol(T& x)
             {
-                if (result_.empty()) {
-                    result_.push_back(x.rcp_from_this());
+                auto order = x.get_symbols().size();
+                auto iter = result_.find(order);
+                if (iter==result_.end()) {
+                    result_.insert({order, SymEngine::set_basic({x.rcp_from_this()})});
                 }
                 else {
-                    auto order_x = x.get_symbols().size();
-                    auto hash_x = x.hash();
-                    auto iter = result_.begin();
-                    for (; iter!=result_.end(); ++iter) {
-                        auto s = SymEngine::rcp_dynamic_cast<const T>(*iter);
-                        auto order_s = s->get_symbols().size();
-                        if (order_x==order_s) {
-                            if (SymEngine::eq(x, *s)) return;
-                            auto hash_s = s->hash();
-                            if (hash_x<hash_s) {
-                                result_.insert(iter, x.rcp_from_this());
-                                return;
-                            }
-                        }
-                        else if (order_x<order_s) {
-                            result_.insert(iter, x.rcp_from_this());
-                            return;
-                        }
-                    }
-                    // Add `x` to the end
-                    result_.push_back(x.rcp_from_this());
+                    iter->second.insert(x.rcp_from_this());
+                }
+            }
+
+            inline void insert_symbol(const CompositeFunction& x)
+            {
+                auto order = x.get_order();
+                auto iter = result_.find(order);
+                if (iter==result_.end()) {
+                    result_.insert({order, SymEngine::set_basic({x.rcp_from_this()})});
+                }
+                else {
+                    iter->second.insert(x.rcp_from_this());
                 }
             }
 
             template<typename T,
                      typename std::enable_if<
                          std::is_same<T, const PerturbedParameter>::value ||
+                         std::is_same<T, const ElectronicState>::value ||
                          std::is_same<T, const OneElecDensity>::value ||
                          std::is_same<T, const OneElecOperator>::value ||
                          std::is_same<T, const TwoElecEnergy>::value ||
@@ -110,30 +114,13 @@ namespace Tinned
                          std::is_same<T, const TemporumOverlap>::value, int>::type = 0>
             inline void insert_symbol(T& x)
             {
-                if (result_.empty()) {
-                    result_.push_back(x.rcp_from_this());
+                auto order = x.get_derivatives().size();
+                auto iter = result_.find(order);
+                if (iter==result_.end()) {
+                    result_.insert({order, SymEngine::set_basic({x.rcp_from_this()})});
                 }
                 else {
-                    auto order_x = x.get_derivatives().size();
-                    auto hash_x = x.hash();
-                    auto iter = result_.begin();
-                    for (; iter!=result_.end(); ++iter) {
-                        auto s = SymEngine::rcp_dynamic_cast<const T>(*iter);
-                        auto order_s = s->get_derivatives().size();
-                        if (order_x==order_s) {
-                            if (SymEngine::eq(x, *s)) return;
-                            auto hash_s = s->hash();
-                            if (hash_x<hash_s) {
-                                result_.insert(iter, x.rcp_from_this());
-                                return;
-                            }
-                        }
-                        else if (order_x<order_s) {
-                            result_.insert(iter, x.rcp_from_this());
-                            return;
-                        }
-                    }
-                    result_.push_back(x.rcp_from_this());
+                    iter->second.insert(x.rcp_from_this());
                 }
             }
 
@@ -141,7 +128,9 @@ namespace Tinned
                      typename std::enable_if<
                          !(std::is_same<T, const SymEngine::MatrixDerivative>::value ||
                          std::is_same<T, const SymEngine::Derivative>::value ||
+                         std::is_same<T, const CompositeFunction>::value ||
                          std::is_same<T, const PerturbedParameter>::value ||
+                         std::is_same<T, const ElectronicState>::value ||
                          std::is_same<T, const OneElecDensity>::value ||
                          std::is_same<T, const OneElecOperator>::value ||
                          std::is_same<T, const TwoElecEnergy>::value ||
@@ -152,23 +141,12 @@ namespace Tinned
                          std::is_same<T, const TemporumOverlap>::value), int>::type = 0>
             inline void insert_symbol(T& x)
             {
-                if (result_.empty()) {
-                    result_.push_back(x.rcp_from_this());
+                auto iter = result_.find(0);
+                if (iter==result_.end()) {
+                    result_.insert({0, SymEngine::set_basic({x.rcp_from_this()})});
                 }
                 else {
-                    auto hash_x = x.hash();
-                    auto iter = result_.begin();
-                    for (; iter!=result_.end(); ++iter) {
-                        auto hash_s = (*iter)->hash();
-                        if (hash_x==hash_s) {
-                            if (SymEngine::eq(x, *(*iter))) return;
-                        }
-                        else if (hash_x<hash_s) {
-                            result_.insert(iter, x.rcp_from_this());
-                            return;
-                        }
-                    }
-                    result_.push_back(x.rcp_from_this());
+                    iter->second.insert(x.rcp_from_this());
                 }
             }
 
@@ -256,7 +234,7 @@ namespace Tinned
                 const SymEngine::RCP<const SymEngine::Basic>& symbol
             ) : symbol_(symbol) {}
 
-            inline SymEngine::vec_basic apply(
+            inline FindAllResult apply(
                 const SymEngine::RCP<const SymEngine::Basic>& x
             )
             {
@@ -282,12 +260,25 @@ namespace Tinned
     };
 
     // Helper function to find a given `symbol` and all its differentiated ones in `x`
-    inline SymEngine::vec_basic find_all(
+    inline FindAllResult find_all(
         const SymEngine::RCP<const SymEngine::Basic>& x,
         const SymEngine::RCP<const SymEngine::Basic>& symbol
     )
     {
         FindAllVisitor visitor(symbol);
         return visitor.apply(x);
+    }
+
+    // Equality comparison of two found results
+    inline bool is_equal(const FindAllResult& lhs, const FindAllResult& rhs)
+    {
+        if (lhs.size()!=rhs.size()) return false;
+        auto iter_lhs = lhs.begin();
+        auto iter_rhs = rhs.begin();
+        for (; iter_lhs!=lhs.end(); ++iter_lhs,++iter_rhs) {
+            if (iter_lhs->first!=iter_rhs->first) return false;
+            if (!SymEngine::unified_eq(iter_lhs->second, iter_rhs->second)) return false;
+        }
+        return true;
     }
 }

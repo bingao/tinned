@@ -20,6 +20,7 @@
 
 #pragma once
 
+#include <map>
 #include <string>
 #include <set>
 #include <utility>
@@ -119,13 +120,13 @@ namespace Tinned
             }
 
             // Get all unique unperturbed and perturbed grid weights
-            inline SymEngine::vec_basic get_weights() const
+            inline std::map<unsigned int, SymEngine::set_basic> get_weights() const
             {
                 return find_all(potential_, get_weight());
             }
 
             // Get all unique unperturbed and perturbed electronic states
-            inline SymEngine::vec_basic get_states() const
+            inline std::map<unsigned int, SymEngine::set_basic> get_states() const
             {
                 return find_all(potential_, get_state());
             }
@@ -135,23 +136,17 @@ namespace Tinned
             inline SymEngine::multiset_basic get_derivatives() const
             {
                 auto states = get_states();
-                auto state = states.begin();
+                SYMENGINE_ASSERT(states.rbegin()->second.size()==1)
+                auto state = states.rbegin()->second.begin();
                 SYMENGINE_ASSERT(SymEngine::is_a_sub<const ElectronicState>(*(*state)))
                 auto op = SymEngine::rcp_dynamic_cast<const ElectronicState>(*state);
-                auto max_derivatives = op->get_derivatives();
-                for (; state!=states.end(); ++state) {
-                    SYMENGINE_ASSERT(SymEngine::is_a_sub<const ElectronicState>(*(*state)))
-                    op = SymEngine::rcp_dynamic_cast<const ElectronicState>(*state);
-                    auto derivatives = op->get_derivatives();
-                    if (derivatives.size()>max_derivatives.size())
-                        max_derivatives = std::move(derivatives);
-                }
-                return max_derivatives;
+                return op->get_derivatives();
             }
 
             // Get all unique unperturbed and perturbed generalized overlap
             // distribution vectors
-            inline SymEngine::vec_basic get_overlap_distributions() const
+            inline std::map<unsigned int, SymEngine::set_basic>
+            get_overlap_distributions() const
             {
                 return find_all(potential_, get_overlap_distribution());
             }
@@ -161,11 +156,7 @@ namespace Tinned
             {
                 auto exc = find_all(potential_, make_exc_density(state_, Omega_, 1));
                 std::set<unsigned int> orders;
-                for (auto& e: exc) {
-                    SYMENGINE_ASSERT(SymEngine::is_a_sub<const CompositeFunction>(*e))
-                    auto op = SymEngine::rcp_dynamic_cast<const CompositeFunction>(e);
-                    orders.insert(op->get_order());
-                }
+                for (auto& e: exc) orders.insert(e.first);
                 return orders;
             }
 

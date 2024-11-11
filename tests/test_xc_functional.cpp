@@ -298,10 +298,15 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
     REQUIRE(SymEngine::eq(*Exc->get_weight(), *weight));
     REQUIRE(SymEngine::eq(*Exc->get_state(), *D));
     REQUIRE(SymEngine::eq(*Exc->get_overlap_distribution(), *Omega));
-    REQUIRE(SymEngine::unified_eq(Exc->get_weights(), SymEngine::vec_basic({weight})));
-    REQUIRE(SymEngine::unified_eq(Exc->get_states(), SymEngine::vec_basic({D})));
-    REQUIRE(SymEngine::unified_eq(
-        Exc->get_overlap_distributions(), SymEngine::vec_basic({Omega})
+    REQUIRE(is_equal(
+        Exc->get_weights(), FindAllResult({{0, SymEngine::set_basic({weight})}})
+    ));
+    REQUIRE(is_equal(
+        Exc->get_states(), FindAllResult({{0, SymEngine::set_basic({D})}})
+    ));
+    REQUIRE(is_equal(
+        Exc->get_overlap_distributions(),
+        FindAllResult({{0, SymEngine::set_basic({Omega})}})
     ));
     REQUIRE(Exc->get_exc_orders() == std::set<unsigned int>({0}));
     REQUIRE(eq_energy_map(
@@ -344,10 +349,18 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
     auto Omega_abcd = SymEngine::rcp_dynamic_cast<const OneElecOperator>(Omega_abc->diff(d));
     // (1) The first order XC energy density derivative
     auto Exc_a = SymEngine::rcp_dynamic_cast<const ExchCorrEnergy>(Exc->diff(a));
-    REQUIRE(SymEngine::unified_eq(Exc_a->get_weights(), SymEngine::vec_basic({weight})));
-    REQUIRE(SymEngine::unified_eq(Exc_a->get_states(), SymEngine::vec_basic({D, D_a})));
-    REQUIRE(SymEngine::unified_eq(
-        Exc_a->get_overlap_distributions(), SymEngine::vec_basic({Omega, Omega_a})
+    REQUIRE(is_equal(
+        Exc_a->get_weights(), FindAllResult({{0, SymEngine::set_basic({weight})}})
+    ));
+    REQUIRE(is_equal(
+        Exc_a->get_states(),
+        FindAllResult({{0, SymEngine::set_basic({D})}, {1, SymEngine::set_basic({D_a})}})
+    ));
+    REQUIRE(is_equal(
+        Exc_a->get_overlap_distributions(),
+        FindAllResult({
+            {0, SymEngine::set_basic({Omega})}, {1, SymEngine::set_basic({Omega_a})}
+        })
     ));
     REQUIRE(Exc_a->get_exc_orders() == std::set<unsigned int>({1}));
     REQUIRE(eq_energy_map(
@@ -361,15 +374,24 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
     ));
     // (2) The second order XC energy density derivative
     auto Exc_ab = SymEngine::rcp_dynamic_cast<const ExchCorrEnergy>(Exc_a->diff(b));
-    REQUIRE(SymEngine::unified_eq(
-        Exc_ab->get_weights(), SymEngine::vec_basic({weight})
+    REQUIRE(is_equal(
+        Exc_ab->get_weights(), FindAllResult({{0, SymEngine::set_basic({weight})}})
     ));
-    REQUIRE(SymEngine::unified_eq(
-        Exc_ab->get_states(), SymEngine::vec_basic({D, D_b, D_a, D_ab})
+    REQUIRE(is_equal(
+        Exc_ab->get_states(),
+        FindAllResult({
+            {0, SymEngine::set_basic({D})},
+            {1, SymEngine::set_basic({D_a, D_b})},
+            {2, SymEngine::set_basic({D_ab})}
+        })
     ));
-    REQUIRE(SymEngine::unified_eq(
+    REQUIRE(is_equal(
         Exc_ab->get_overlap_distributions(),
-        SymEngine::vec_basic({Omega, Omega_a, Omega_b, Omega_ab})
+        FindAllResult({
+            {0, SymEngine::set_basic({Omega})},
+            {1, SymEngine::set_basic({Omega_a, Omega_b})},
+            {2, SymEngine::set_basic({Omega_ab})}
+        })
     ));
     REQUIRE(Exc_ab->get_exc_orders() == std::set<unsigned int>({1, 2}));
     REQUIRE(eq_energy_map(
@@ -385,17 +407,25 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
     ));
     // (3) The third order XC energy density derivative
     auto Exc_abc = SymEngine::rcp_dynamic_cast<const ExchCorrEnergy>(Exc_ab->diff(c));
-    REQUIRE(SymEngine::unified_eq(
-        Exc_abc->get_weights(), SymEngine::vec_basic({weight})
+    REQUIRE(is_equal(
+        Exc_abc->get_weights(), FindAllResult({{0, SymEngine::set_basic({weight})}})
     ));
-    REQUIRE(SymEngine::unified_eq(
+    REQUIRE(is_equal(
         Exc_abc->get_states(),
-        SymEngine::vec_basic({D, D_b, D_a, D_c, D_bc, D_ab, D_ac, D_abc})
+        FindAllResult({
+            {0, SymEngine::set_basic({D})},
+            {1, SymEngine::set_basic({D_a, D_b, D_c})},
+            {2, SymEngine::set_basic({D_ab, D_ac, D_bc})},
+            {3, SymEngine::set_basic({D_abc})}
+        })
     ));
-    REQUIRE(SymEngine::unified_eq(
+    REQUIRE(is_equal(
         Exc_abc->get_overlap_distributions(),
-        SymEngine::vec_basic({
-          Omega, Omega_c, Omega_a, Omega_b, Omega_bc, Omega_ac, Omega_ab, Omega_abc
+        FindAllResult({
+            {0, SymEngine::set_basic({Omega})},
+            {1, SymEngine::set_basic({Omega_a, Omega_b, Omega_c})},
+            {2, SymEngine::set_basic({Omega_ab, Omega_ac, Omega_bc})},
+            {3, SymEngine::set_basic({Omega_abc})}
         })
     ));
     REQUIRE(Exc_abc->get_exc_orders() == std::set<unsigned int>({1, 2, 3}));
@@ -416,27 +446,32 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
     ));
     // (4) The fourth order XC energy density derivative
     auto Exc_abcd = SymEngine::rcp_dynamic_cast<const ExchCorrEnergy>(Exc_abc->diff(d));
-    REQUIRE(SymEngine::unified_eq(
-        Exc_abcd->get_weights(), SymEngine::vec_basic({weight})
+    REQUIRE(is_equal(
+        Exc_abcd->get_weights(), FindAllResult({{0, SymEngine::set_basic({weight})}})
     ));
-    REQUIRE(SymEngine::unified_eq(
+    REQUIRE(is_equal(
         Exc_abcd->get_states(),
-        SymEngine::vec_basic({
-          D,
-          D_b, D_a, D_c, D_d,
-          D_bc, D_bd, D_ab, D_ac, D_ad, D_cd,
-          D_acd, D_abc, D_abd, D_bcd,
-          D_abcd
+        FindAllResult({
+            {0, SymEngine::set_basic({D})},
+            {1, SymEngine::set_basic({D_a, D_b, D_c, D_d})},
+            {2, SymEngine::set_basic({D_ab, D_ac, D_ad, D_bc, D_bd, D_cd})},
+            {3, SymEngine::set_basic({D_abc, D_abd, D_acd, D_bcd})},
+            {4, SymEngine::set_basic({D_abcd})}
         })
     ));
-    REQUIRE(SymEngine::unified_eq(
+    REQUIRE(is_equal(
         Exc_abcd->get_overlap_distributions(),
-        SymEngine::vec_basic({
-          Omega,
-          Omega_d, Omega_c, Omega_a, Omega_b,
-          Omega_bd, Omega_bc, Omega_ac, Omega_ad, Omega_ab, Omega_cd,
-          Omega_abd, Omega_abc, Omega_acd, Omega_bcd,
-          Omega_abcd
+        FindAllResult({
+            {0, SymEngine::set_basic({Omega})},
+            {1, SymEngine::set_basic({Omega_a, Omega_b, Omega_c, Omega_d})},
+            {
+                2,
+                SymEngine::set_basic({
+                    Omega_ab, Omega_ac, Omega_ad, Omega_bc, Omega_bd, Omega_cd
+                })
+            },
+            {3, SymEngine::set_basic({Omega_abc, Omega_abd, Omega_acd, Omega_bcd})},
+            {4, SymEngine::set_basic({Omega_abcd})}
         })
     ));
     REQUIRE(Exc_abcd->get_exc_orders() == std::set<unsigned int>({1, 2, 3, 4}));
@@ -612,14 +647,24 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
     // (1) The first order XC energy density derivative
     Exc_a = SymEngine::rcp_dynamic_cast<const ExchCorrEnergy>(Exc->diff(a));
     auto weight_a = SymEngine::rcp_dynamic_cast<const NonElecFunction>(weight->diff(a));
-    REQUIRE(SymEngine::unified_eq(
-        Exc_a->get_weights(), SymEngine::vec_basic({weight, weight_a})
+    REQUIRE(is_equal(
+        Exc_a->get_weights(),
+        FindAllResult({
+            {0, SymEngine::set_basic({weight})},
+            {1, SymEngine::set_basic({weight_a})}
+        })
     ));
-    REQUIRE(SymEngine::unified_eq(
-        Exc_a->get_states(), SymEngine::vec_basic({D, D_a})
+    REQUIRE(is_equal(
+        Exc_a->get_states(),
+        FindAllResult({
+            {0, SymEngine::set_basic({D})}, {1, SymEngine::set_basic({D_a})}
+        })
     ));
-    REQUIRE(SymEngine::unified_eq(
-        Exc_a->get_overlap_distributions(), SymEngine::vec_basic({Omega, Omega_a})
+    REQUIRE(is_equal(
+        Exc_a->get_overlap_distributions(),
+        FindAllResult({
+            {0, SymEngine::set_basic({Omega})}, {1, SymEngine::set_basic({Omega_a})}
+        })
     ));
     REQUIRE(Exc_a->get_exc_orders() == std::set<unsigned int>({0, 1}));
     REQUIRE(eq_energy_map(
@@ -639,16 +684,29 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
     Exc_ab = SymEngine::rcp_dynamic_cast<const ExchCorrEnergy>(Exc_a->diff(b));
     auto weight_b = SymEngine::rcp_dynamic_cast<const NonElecFunction>(weight->diff(b));
     auto weight_ab = SymEngine::rcp_dynamic_cast<const NonElecFunction>(weight_a->diff(b));
-    REQUIRE(SymEngine::unified_eq(
+    REQUIRE(is_equal(
         Exc_ab->get_weights(),
-        SymEngine::vec_basic({weight, weight_b, weight_a, weight_ab})
+        FindAllResult({
+            {0, SymEngine::set_basic({weight})},
+            {1, SymEngine::set_basic({weight_a, weight_b})},
+            {2, SymEngine::set_basic({weight_ab})}
+        })
     ));
-    REQUIRE(SymEngine::unified_eq(
-        Exc_ab->get_states(), SymEngine::vec_basic({D, D_b, D_a, D_ab})
+    REQUIRE(is_equal(
+        Exc_ab->get_states(),
+        FindAllResult({
+            {0, SymEngine::set_basic({D})},
+            {1, SymEngine::set_basic({D_a, D_b})},
+            {2, SymEngine::set_basic({D_ab})}
+        })
     ));
-    REQUIRE(SymEngine::unified_eq(
+    REQUIRE(is_equal(
         Exc_ab->get_overlap_distributions(),
-        SymEngine::vec_basic({Omega, Omega_a, Omega_b, Omega_ab})
+        FindAllResult({
+            {0, SymEngine::set_basic({Omega})},
+            {1, SymEngine::set_basic({Omega_a, Omega_b})},
+            {2, SymEngine::set_basic({Omega_ab})}
+        })
     ));
     REQUIRE(Exc_ab->get_exc_orders() == std::set<unsigned int>({0, 1, 2}));
     REQUIRE(eq_energy_map(
@@ -677,18 +735,30 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
     // (3) The third order XC energy density derivative, note that the grid
     // weights do not depend on the perturbation `c`
     Exc_abc = SymEngine::rcp_dynamic_cast<const ExchCorrEnergy>(Exc_ab->diff(c));
-    REQUIRE(SymEngine::unified_eq(
+    REQUIRE(is_equal(
         Exc_abc->get_weights(),
-        SymEngine::vec_basic({weight, weight_b, weight_a, weight_ab})
+        FindAllResult({
+            {0, SymEngine::set_basic({weight})},
+            {1, SymEngine::set_basic({weight_a, weight_b})},
+            {2, SymEngine::set_basic({weight_ab})}
+        })
     ));
-    REQUIRE(SymEngine::unified_eq(
+    REQUIRE(is_equal(
         Exc_abc->get_states(),
-        SymEngine::vec_basic({D, D_b, D_a, D_c, D_bc, D_ab, D_ac, D_abc})
+        FindAllResult({
+            {0, SymEngine::set_basic({D})},
+            {1, SymEngine::set_basic({D_a, D_b, D_c})},
+            {2, SymEngine::set_basic({D_ab, D_ac, D_bc})},
+            {3, SymEngine::set_basic({D_abc})}
+        })
     ));
-    REQUIRE(SymEngine::unified_eq(
+    REQUIRE(is_equal(
         Exc_abc->get_overlap_distributions(),
-        SymEngine::vec_basic({
-          Omega, Omega_c, Omega_a, Omega_b, Omega_bc, Omega_ac, Omega_ab, Omega_abc
+        FindAllResult({
+            {0, SymEngine::set_basic({Omega})},
+            {1, SymEngine::set_basic({Omega_a, Omega_b, Omega_c})},
+            {2, SymEngine::set_basic({Omega_ab, Omega_ac, Omega_bc})},
+            {3, SymEngine::set_basic({Omega_abc})}
         })
     ));
     REQUIRE(Exc_abc->get_exc_orders() == std::set<unsigned int>({1, 2, 3}));
@@ -743,14 +813,21 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
     Exc = make_xc_energy(Exc_name, D, Omega, weight);
     // (1) The first order XC energy density derivative
     Exc_a = SymEngine::rcp_dynamic_cast<const ExchCorrEnergy>(Exc->diff(a));
-    REQUIRE(SymEngine::unified_eq(
-        Exc_a->get_weights(), SymEngine::vec_basic({weight, weight_a})
+    REQUIRE(is_equal(
+        Exc_a->get_weights(),
+        FindAllResult({
+            {0, SymEngine::set_basic({weight})}, {1, SymEngine::set_basic({weight_a})}
+        })
     ));
-    REQUIRE(SymEngine::unified_eq(
-        Exc_a->get_states(), SymEngine::vec_basic({D, D_a})
+    REQUIRE(is_equal(
+        Exc_a->get_states(),
+        FindAllResult({
+            {0, SymEngine::set_basic({D})}, {1, SymEngine::set_basic({D_a})}
+        })
     ));
-    REQUIRE(SymEngine::unified_eq(
-        Exc_a->get_overlap_distributions(), SymEngine::vec_basic({Omega})
+    REQUIRE(is_equal(
+        Exc_a->get_overlap_distributions(),
+        FindAllResult({{0, SymEngine::set_basic({Omega})}})
     ));
     REQUIRE(Exc_a->get_exc_orders() == std::set<unsigned int>({0, 1}));
     REQUIRE(eq_energy_map(
@@ -770,15 +847,25 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
     ));
     // (2) The second order XC energy density derivative
     Exc_ab = SymEngine::rcp_dynamic_cast<const ExchCorrEnergy>(Exc_a->diff(b));
-    REQUIRE(SymEngine::unified_eq(
+    REQUIRE(is_equal(
         Exc_ab->get_weights(),
-        SymEngine::vec_basic({weight, weight_b, weight_a, weight_ab})
+        FindAllResult({
+            {0, SymEngine::set_basic({weight})},
+            {1, SymEngine::set_basic({weight_a, weight_b})},
+            {2, SymEngine::set_basic({weight_ab})}
+        })
     ));
-    REQUIRE(SymEngine::unified_eq(
-        Exc_ab->get_states(), SymEngine::vec_basic({D, D_b, D_a, D_ab})
+    REQUIRE(is_equal(
+        Exc_ab->get_states(),
+        FindAllResult({
+            {0, SymEngine::set_basic({D})},
+            {1, SymEngine::set_basic({D_a, D_b})},
+            {2, SymEngine::set_basic({D_ab})}
+        })
     ));
-    REQUIRE(SymEngine::unified_eq(
-        Exc_ab->get_overlap_distributions(), SymEngine::vec_basic({Omega})
+    REQUIRE(is_equal(
+        Exc_ab->get_overlap_distributions(),
+        FindAllResult({{0, SymEngine::set_basic({Omega})}})
     ));
     REQUIRE(Exc_ab->get_exc_orders() == std::set<unsigned int>({0, 1, 2}));
     REQUIRE(eq_energy_map(
@@ -821,17 +908,28 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
     // (3) The third order XC energy density derivative, note that the grid
     // weights do not depend on the perturbation `c`
     Exc_abc = SymEngine::rcp_dynamic_cast<const ExchCorrEnergy>(Exc_ab->diff(c));
-    REQUIRE(SymEngine::unified_eq(
+    REQUIRE(is_equal(
         Exc_abc->get_weights(),
-        SymEngine::vec_basic({weight, weight_b, weight_a, weight_ab})
+        FindAllResult({
+            {0, SymEngine::set_basic({weight})},
+            {1, SymEngine::set_basic({weight_a, weight_b})},
+            {2, SymEngine::set_basic({weight_ab})}
+        })
     ));
-    REQUIRE(SymEngine::unified_eq(
+    REQUIRE(is_equal(
         Exc_abc->get_states(),
-        SymEngine::vec_basic({D, D_b, D_a, D_c, D_bc, D_ab, D_ac, D_abc})
+        FindAllResult({
+            {0, SymEngine::set_basic({D})},
+            {1, SymEngine::set_basic({D_a, D_b, D_c})},
+            {2, SymEngine::set_basic({D_ab, D_ac, D_bc})},
+            {3, SymEngine::set_basic({D_abc})}
+        })
     ));
-    REQUIRE(SymEngine::unified_eq(
+    REQUIRE(is_equal(
         Exc_abc->get_overlap_distributions(),
-        SymEngine::vec_basic({Omega, Omega_c})
+        FindAllResult({
+            {0, SymEngine::set_basic({Omega})}, {1, SymEngine::set_basic({Omega_c})}
+        })
     ));
     REQUIRE(Exc_abc->get_exc_orders() == std::set<unsigned int>({1, 2, 3}));
     REQUIRE(eq_energy_map(
@@ -913,23 +1011,31 @@ TEST_CASE("Test ExchCorrEnergy and make_xc_energy()", "[ExchCorrEnergy]")
     ));
     // (4) The fourth order XC energy density derivative
     Exc_abcd = SymEngine::rcp_dynamic_cast<const ExchCorrEnergy>(Exc_abc->diff(d));
-    REQUIRE(SymEngine::unified_eq(
+    REQUIRE(is_equal(
         Exc_abcd->get_weights(),
-        SymEngine::vec_basic({weight, weight_b, weight_a, weight_ab})
-    ));
-    REQUIRE(SymEngine::unified_eq(
-        Exc_abcd->get_states(),
-        SymEngine::vec_basic({
-          D,
-          D_b, D_a, D_c, D_d,
-          D_bc, D_bd, D_ab, D_ac, D_ad, D_cd,
-          D_acd, D_abc, D_abd, D_bcd,
-          D_abcd
+        FindAllResult({
+            {0, SymEngine::set_basic({weight})},
+            {1, SymEngine::set_basic({weight_a, weight_b})},
+            {2, SymEngine::set_basic({weight_ab})}
         })
     ));
-    REQUIRE(SymEngine::unified_eq(
+    REQUIRE(is_equal(
+        Exc_abcd->get_states(),
+        FindAllResult({
+            {0, SymEngine::set_basic({D})},
+            {1, SymEngine::set_basic({D_a, D_b, D_c, D_d})},
+            {2, SymEngine::set_basic({D_ab, D_ac, D_ad, D_bc, D_bd, D_cd})},
+            {3, SymEngine::set_basic({D_abc, D_abd, D_acd, D_bcd})},
+            {4, SymEngine::set_basic({D_abcd})}
+        })
+    ));
+    REQUIRE(is_equal(
         Exc_abcd->get_overlap_distributions(),
-        SymEngine::vec_basic({Omega, Omega_d, Omega_c, Omega_cd})
+        FindAllResult({
+            {0, SymEngine::set_basic({Omega})},
+            {1, SymEngine::set_basic({Omega_c, Omega_d})},
+            {2, SymEngine::set_basic({Omega_cd})}
+        })
     ));
     REQUIRE(Exc_abcd->get_exc_orders() == std::set<unsigned int>({1, 2, 3, 4}));
     REQUIRE(eq_energy_map(
@@ -1224,12 +1330,15 @@ TEST_CASE("Test ExchCorrPotential and make_xc_potential()", "[ExchCorrPotential]
     REQUIRE(SymEngine::eq(*Vxc->get_weight(), *weight));
     REQUIRE(SymEngine::eq(*Vxc->get_state(), *D));
     REQUIRE(SymEngine::eq(*Vxc->get_overlap_distribution(), *Omega));
-    REQUIRE(SymEngine::unified_eq(
-        Vxc->get_weights(), SymEngine::vec_basic({weight})
+    REQUIRE(is_equal(
+        Vxc->get_weights(), FindAllResult({{0, SymEngine::set_basic({weight})}})
     ));
-    REQUIRE(SymEngine::unified_eq(Vxc->get_states(), SymEngine::vec_basic({D})));
-    REQUIRE(SymEngine::unified_eq(
-        Vxc->get_overlap_distributions(), SymEngine::vec_basic({Omega})
+    REQUIRE(is_equal(
+        Vxc->get_states(), FindAllResult({{0, SymEngine::set_basic({D})}})
+    ));
+    REQUIRE(is_equal(
+        Vxc->get_overlap_distributions(),
+        FindAllResult({{0, SymEngine::set_basic({Omega})}})
     ));
     REQUIRE(Vxc->get_exc_orders() == std::set<unsigned int>({1}));
     REQUIRE(eq_potential_map(
@@ -1251,14 +1360,18 @@ TEST_CASE("Test ExchCorrPotential and make_xc_potential()", "[ExchCorrPotential]
     auto Omega_ab = SymEngine::rcp_dynamic_cast<const OneElecOperator>(Omega_a->diff(b));
     // (1) The first order XC potential matrix
     auto Vxc_a = SymEngine::rcp_dynamic_cast<const ExchCorrPotential>(Vxc->diff(a));
-    REQUIRE(SymEngine::unified_eq(
-        Vxc_a->get_weights(), SymEngine::vec_basic({weight})
+    REQUIRE(is_equal(
+        Vxc_a->get_weights(), FindAllResult({{0, SymEngine::set_basic({weight})}})
     ));
-    REQUIRE(SymEngine::unified_eq(
-        Vxc_a->get_states(), SymEngine::vec_basic({D, D_a})
+    REQUIRE(is_equal(
+        Vxc_a->get_states(),
+        FindAllResult({{0, SymEngine::set_basic({D})}, {1, SymEngine::set_basic({D_a})}})
     ));
-    REQUIRE(SymEngine::unified_eq(
-        Vxc_a->get_overlap_distributions(), SymEngine::vec_basic({Omega, Omega_a})
+    REQUIRE(is_equal(
+        Vxc_a->get_overlap_distributions(),
+        FindAllResult({
+            {0, SymEngine::set_basic({Omega})}, {1, SymEngine::set_basic({Omega_a})}
+        })
     ));
     REQUIRE(Vxc_a->get_exc_orders() == std::set<unsigned int>({1, 2}));
     REQUIRE(eq_potential_map(
@@ -1276,17 +1389,26 @@ TEST_CASE("Test ExchCorrPotential and make_xc_potential()", "[ExchCorrPotential]
             }
         })
     ));
-    // (2) The first order XC potential matrix
+    // (2) The second order XC potential matrix
     auto Vxc_ab = SymEngine::rcp_dynamic_cast<const ExchCorrPotential>(Vxc_a->diff(b));
-    REQUIRE(SymEngine::unified_eq(
-        Vxc_ab->get_weights(), SymEngine::vec_basic({weight})
+    REQUIRE(is_equal(
+        Vxc_ab->get_weights(), FindAllResult({{0, SymEngine::set_basic({weight})}})
     ));
-    REQUIRE(SymEngine::unified_eq(
-        Vxc_ab->get_states(), SymEngine::vec_basic({D, D_b, D_a, D_ab})
+    REQUIRE(is_equal(
+        Vxc_ab->get_states(),
+        FindAllResult({
+            {0, SymEngine::set_basic({D})},
+            {1, SymEngine::set_basic({D_a, D_b})},
+            {2, SymEngine::set_basic({D_ab})}
+        })
     ));
-    REQUIRE(SymEngine::unified_eq(
+    REQUIRE(is_equal(
         Vxc_ab->get_overlap_distributions(),
-        SymEngine::vec_basic({Omega, Omega_a, Omega_b, Omega_ab})
+        FindAllResult({
+            {0, SymEngine::set_basic({Omega})},
+            {1, SymEngine::set_basic({Omega_a, Omega_b})},
+            {2, SymEngine::set_basic({Omega_ab})}
+        })
     ));
     REQUIRE(Vxc_ab->get_exc_orders() == std::set<unsigned int>({1, 2, 3}));
     REQUIRE(eq_potential_map(

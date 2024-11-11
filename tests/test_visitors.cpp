@@ -698,17 +698,19 @@ TEST_CASE("Test FindAllVisitor and find_all()", "[FindAllVisitor]")
     auto S = make_1el_operator(std::string("S"), dependencies);
 
     // Test finding `TwoElecOperator` and `TwoElecEnergy` objects
-    REQUIRE(SymEngine::unified_eq(
-        find_all(E, G), SymEngine::vec_basic({G})
+    REQUIRE(is_equal(
+        find_all(E, G), FindAllResult({{0, SymEngine::set_basic({G})}})
     ));
-    REQUIRE(SymEngine::unified_eq(
-        find_all(E, make_2el_energy(G)), SymEngine::vec_basic({make_2el_energy(G)})
+    REQUIRE(is_equal(
+        find_all(E, make_2el_energy(G)),
+        FindAllResult({{0, SymEngine::set_basic({make_2el_energy(G)})}})
     ));
     auto Gb = SymEngine::make_rcp<const TwoElecOperator>(
         G->get_name(), D, dependencies, SymEngine::multiset_basic({b})
     );
-    REQUIRE(SymEngine::unified_eq(
-        find_all(E->diff(b), G), SymEngine::vec_basic({G, Gb})
+    REQUIRE(is_equal(
+        find_all(E->diff(b), G),
+        FindAllResult({{0, SymEngine::set_basic({G})}, {1, SymEngine::set_basic({Gb})}})
     ));
 
     // Equation (229), J. Chem. Phys. 129, 214108 (2008)
@@ -716,46 +718,85 @@ TEST_CASE("Test FindAllVisitor and find_all()", "[FindAllVisitor]")
     // (1) The first order
     auto Y_b = Y->diff(b);
     auto D_b = SymEngine::rcp_dynamic_cast<const ElectronicState>(D->diff(b));
-    REQUIRE(SymEngine::unified_eq(find_all(Y_b, D), SymEngine::vec_basic({D, D_b})));
-    auto h_b = SymEngine::rcp_dynamic_cast<const OneElecOperator>(h->diff(b));
-    REQUIRE(SymEngine::unified_eq(find_all(Y_b, h), SymEngine::vec_basic({h, h_b})));
-    auto V_b = SymEngine::rcp_dynamic_cast<const OneElecOperator>(V->diff(b));
-    REQUIRE(SymEngine::unified_eq(find_all(Y_b, V), SymEngine::vec_basic({V, V_b})));
-    auto G_Db = make_2el_operator(G->get_name(), D_b, dependencies);
-    REQUIRE(SymEngine::unified_eq(
-        find_all(Y_b, G), SymEngine::vec_basic({G, G_Db, Gb})
+    REQUIRE(is_equal(
+        find_all(Y_b, D),
+        FindAllResult({{0, SymEngine::set_basic({D})}, {1, SymEngine::set_basic({D_b})}})
     ));
-    REQUIRE(SymEngine::unified_eq(
-        find_all(Y_b, weight), SymEngine::vec_basic({weight})
+    auto h_b = SymEngine::rcp_dynamic_cast<const OneElecOperator>(h->diff(b));
+    REQUIRE(is_equal(
+        find_all(Y_b, h),
+        FindAllResult({{0, SymEngine::set_basic({h})}, {1, SymEngine::set_basic({h_b})}})
+    ));
+    auto V_b = SymEngine::rcp_dynamic_cast<const OneElecOperator>(V->diff(b));
+    REQUIRE(is_equal(
+        find_all(Y_b, V),
+        FindAllResult({{0, SymEngine::set_basic({V})}, {1, SymEngine::set_basic({V_b})}})
+    ));
+    auto G_Db = make_2el_operator(G->get_name(), D_b, dependencies);
+    REQUIRE(is_equal(
+        find_all(Y_b, G),
+        FindAllResult({
+            {0, SymEngine::set_basic({G, G_Db})}, {1, SymEngine::set_basic({Gb})}
+        })
+    ));
+    REQUIRE(is_equal(
+        find_all(Y_b, weight), FindAllResult({{0, SymEngine::set_basic({weight})}})
     ));
     auto Omega_b = SymEngine::rcp_dynamic_cast<const OneElecOperator>(Omega->diff(b));
-    REQUIRE(SymEngine::unified_eq(
-        find_all(Y_b, Omega), SymEngine::vec_basic({Omega, Omega_b})
+    REQUIRE(is_equal(
+        find_all(Y_b, Omega),
+        FindAllResult({
+            {0, SymEngine::set_basic({Omega})}, {1, SymEngine::set_basic({Omega_b})}
+        })
     ));
     auto Fxc_b = SymEngine::rcp_dynamic_cast<const ExchCorrPotential>(Fxc->diff(b));
-    REQUIRE(SymEngine::unified_eq(
-        find_all(Y_b, Fxc), SymEngine::vec_basic({Fxc, Fxc_b})
+    REQUIRE(is_equal(
+        find_all(Y_b, Fxc),
+        FindAllResult({
+            {0, SymEngine::set_basic({Fxc})}, {1, SymEngine::set_basic({Fxc_b})}
+        })
     ));
     auto T_b = SymEngine::rcp_dynamic_cast<const TemporumOverlap>(T->diff(b));
-    REQUIRE(SymEngine::unified_eq(find_all(Y_b, T), SymEngine::vec_basic({T, T_b})));
+    REQUIRE(is_equal(
+        find_all(Y_b, T),
+        FindAllResult({{0, SymEngine::set_basic({T})}, {1, SymEngine::set_basic({T_b})}})
+    ));
     auto S_b = SymEngine::rcp_dynamic_cast<const OneElecOperator>(S->diff(b));
-    REQUIRE(SymEngine::unified_eq(find_all(Y_b, S), SymEngine::vec_basic({S, S_b})));
+    REQUIRE(is_equal(
+        find_all(Y_b, S),
+        FindAllResult({{0, SymEngine::set_basic({S})}, {1, SymEngine::set_basic({S_b})}})
+    ));
     // (2) The second order
     auto Y_bc = Y_b->diff(c);
     auto D_c = SymEngine::rcp_dynamic_cast<const ElectronicState>(D->diff(c));
     auto D_bc = SymEngine::rcp_dynamic_cast<const ElectronicState>(D_b->diff(c));
-    REQUIRE(SymEngine::unified_eq(
-        find_all(Y_bc, D), SymEngine::vec_basic({D, D_b, D_c, D_bc})
+    REQUIRE(is_equal(
+        find_all(Y_bc, D),
+        FindAllResult({
+            {0, SymEngine::set_basic({D})},
+            {1, SymEngine::set_basic({D_b, D_c})},
+            {2, SymEngine::set_basic({D_bc})}
+        })
     ));
     auto h_c = SymEngine::rcp_dynamic_cast<const OneElecOperator>(h->diff(c));
     auto h_bc = SymEngine::rcp_dynamic_cast<const OneElecOperator>(h_b->diff(c));
-    REQUIRE(SymEngine::unified_eq(
-        find_all(Y_bc, h), SymEngine::vec_basic({h, h_c, h_b, h_bc})
+    REQUIRE(is_equal(
+        find_all(Y_bc, h),
+        FindAllResult({
+            {0, SymEngine::set_basic({h})},
+            {1, SymEngine::set_basic({h_b, h_c})},
+            {2, SymEngine::set_basic({h_bc})}
+        })
     ));
     auto V_c = SymEngine::rcp_dynamic_cast<const OneElecOperator>(V->diff(c));
     auto V_bc = SymEngine::rcp_dynamic_cast<const OneElecOperator>(V_b->diff(c));
-    REQUIRE(SymEngine::unified_eq(
-        find_all(Y_bc, V), SymEngine::vec_basic({V, V_c, V_b, V_bc})
+    REQUIRE(is_equal(
+        find_all(Y_bc, V),
+        FindAllResult({
+            {0, SymEngine::set_basic({V})},
+            {1, SymEngine::set_basic({V_b, V_c})},
+            {2, SymEngine::set_basic({V_bc})}
+        })
     ));
     auto Gc = SymEngine::make_rcp<const TwoElecOperator>(
         G->get_name(), D, dependencies, SymEngine::multiset_basic({c})
@@ -771,32 +812,56 @@ TEST_CASE("Test FindAllVisitor and find_all()", "[FindAllVisitor]")
         G->get_name(), D, dependencies, SymEngine::multiset_basic({b, c})
     );
     auto G_Dbc = make_2el_operator(G->get_name(), D_bc, dependencies);
-    REQUIRE(SymEngine::unified_eq(
+    REQUIRE(is_equal(
         find_all(Y_bc, G),
-        SymEngine::vec_basic({G, G_Db, G_Dc, G_Dbc, Gc_Db, Gb_Dc, Gc, Gb, Gbc})
+        FindAllResult({
+            {0, SymEngine::set_basic({G, G_Db, G_Dc, G_Dbc})},
+            {1, SymEngine::set_basic({Gb, Gc, Gb_Dc, Gc_Db})},
+            {2, SymEngine::set_basic({Gbc})}
+        })
     ));
-    REQUIRE(SymEngine::unified_eq(
-        find_all(Y_bc, weight), SymEngine::vec_basic({weight})
+    REQUIRE(is_equal(
+        find_all(Y_bc, weight), FindAllResult({{0, SymEngine::set_basic({weight})}})
     ));
     auto Omega_c = SymEngine::rcp_dynamic_cast<const OneElecOperator>(Omega->diff(c));
     auto Omega_bc = SymEngine::rcp_dynamic_cast<const OneElecOperator>(Omega_b->diff(c));
-    REQUIRE(SymEngine::unified_eq(
-        find_all(Y_bc, Omega), SymEngine::vec_basic({Omega, Omega_b, Omega_c, Omega_bc})
+    REQUIRE(is_equal(
+        find_all(Y_bc, Omega),
+        FindAllResult({
+            {0, SymEngine::set_basic({Omega})},
+            {1, SymEngine::set_basic({Omega_b, Omega_c})},
+            {2, SymEngine::set_basic({Omega_bc})}
+        })
     ));
     auto Fxc_c = SymEngine::rcp_dynamic_cast<const ExchCorrPotential>(Fxc->diff(c));
     auto Fxc_bc = SymEngine::rcp_dynamic_cast<const ExchCorrPotential>(Fxc_b->diff(c));
-    REQUIRE(SymEngine::unified_eq(
-        find_all(Y_bc, Fxc), SymEngine::vec_basic({Fxc, Fxc_b, Fxc_c, Fxc_bc})
+    REQUIRE(is_equal(
+        find_all(Y_bc, Fxc),
+        FindAllResult({
+            {0, SymEngine::set_basic({Fxc})},
+            {1, SymEngine::set_basic({Fxc_b, Fxc_c})},
+            {2, SymEngine::set_basic({Fxc_bc})}
+        })
     ));
     auto T_c = SymEngine::rcp_dynamic_cast<const TemporumOverlap>(T->diff(c));
     auto T_bc = SymEngine::rcp_dynamic_cast<const TemporumOverlap>(T_b->diff(c));
-    REQUIRE(SymEngine::unified_eq(
-        find_all(Y_bc, T), SymEngine::vec_basic({T, T_b, T_c, T_bc})
+    REQUIRE(is_equal(
+        find_all(Y_bc, T),
+        FindAllResult({
+            {0, SymEngine::set_basic({T})},
+            {1, SymEngine::set_basic({T_b, T_c})},
+            {2, SymEngine::set_basic({T_bc})}
+        })
     ));
     auto S_c = SymEngine::rcp_dynamic_cast<const OneElecOperator>(S->diff(c));
     auto S_bc = SymEngine::rcp_dynamic_cast<const OneElecOperator>(S_b->diff(c));
-    REQUIRE(SymEngine::unified_eq(
-        find_all(Y_bc, S), SymEngine::vec_basic({S, S_b, S_c, S_bc})
+    REQUIRE(is_equal(
+        find_all(Y_bc, S),
+        FindAllResult({
+            {0, SymEngine::set_basic({S})},
+            {1, SymEngine::set_basic({S_b, S_c})},
+            {2, SymEngine::set_basic({S_bc})}
+        })
     ));
 }
 

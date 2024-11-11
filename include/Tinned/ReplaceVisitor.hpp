@@ -39,6 +39,7 @@
 #include <symengine/visitor.h>
 #include <symengine/subs.h>
 
+#include "Tinned/PertMultichain.hpp"
 #include "Tinned/FindAllVisitor.hpp"
 
 namespace Tinned
@@ -152,7 +153,7 @@ namespace Tinned
     // `Basic` symbols as well as their derivatives. The derivatives can be got
     // from the function `get_derivatives()` of those Tinned objects.
     template<typename T>
-    using TinnedBasicMap = std::map<SymEngine::RCP<const T>,
+    using ReplaceDictMap = std::map<SymEngine::RCP<const T>,
                                     SymEngine::RCP<const SymEngine::Basic>,
                                     SymEngine::RCPBasicKeyLess>;
 
@@ -161,7 +162,7 @@ namespace Tinned
     template<typename T>
     inline SymEngine::RCP<const SymEngine::Basic> replace_all(
         const SymEngine::RCP<const SymEngine::Basic>& x,
-        const TinnedBasicMap<T>& subs_dict
+        const ReplaceDictMap<T>& subs_dict
     )
     {
         SymEngine::map_basic_basic diff_subs_dict;
@@ -169,17 +170,14 @@ namespace Tinned
         // that will be replaced with the corresponding symbol and its
         // derivatives
         for (const auto& d: subs_dict) {
-            for (const auto& obj: find_all(x, d.first)) {
-                auto diff_symbol = d.second;
-                //FIXME: should `get_derivatives` return perturbations of type SymEngine::RCP<const Perturbation>?
-                SYMENGINE_ASSERT(SymEngine::is_a_sub<const T>(*obj))
-                auto op = SymEngine::rcp_dynamic_cast<const T>(obj);
-                for (const auto& p: op->get_derivatives()) {
-                    SYMENGINE_ASSERT(SymEngine::is_a_sub<const SymEngine::Symbol>(*p))
-                    auto s = SymEngine::rcp_dynamic_cast<const SymEngine::Symbol>(p);
-                    diff_symbol = diff_symbol->diff(s);
+            for (const auto& obj_map: find_all(x, d.first)) {
+                for (const auto& obj: obj_map.second) {
+                    SYMENGINE_ASSERT(SymEngine::is_a_sub<const T>(*obj))
+                    auto op = SymEngine::rcp_dynamic_cast<const T>(obj);
+                    diff_subs_dict.insert({
+                        obj, differentiate(d.second, op->get_derivatives())
+                    });
                 }
-                diff_subs_dict.insert({obj, diff_symbol});
             }
         }
         if (diff_subs_dict.empty()) return x;
@@ -193,7 +191,6 @@ namespace Tinned
         bool &has_arg_replaced,
         const SymEngine::vec_basic &arg)
     {
-        for (const auto &term : arg)
-            replace_arguments(f_args, has_arg_replaced, term);
+        for (const auto &term : arg) replace_arguments(f_args, has_arg_replaced, term);
     }
 }

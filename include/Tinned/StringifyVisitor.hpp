@@ -33,6 +33,8 @@
 #include "Tinned/PertDependency.hpp"
 #include "Tinned/ElectronicState.hpp"
 
+#include "Tinned/FindAllVisitor.hpp"
+
 namespace Tinned
 {
     class StringifyVisitor: public SymEngine::BaseVisitor<StringifyVisitor, SymEngine::StrPrinter>
@@ -127,5 +129,18 @@ namespace Tinned
     {
         StringifyVisitor visitor(verbose);
         return visitor.convert(*x);
+    }
+
+    // Stringify the result from `FindAllVisitor`
+    //FIXME: incorrect new line character
+    inline std::string stringify(const FindAllResult& result)
+    {
+        auto str_result = std::string("{\\\n");
+        for (const auto& term: result) {
+            str_result += "    {" + std::to_string(term.first) + ", {";
+            for (const auto& op: term.second) str_result += ", " + stringify(op);
+            str_result += "}\\\n    },\\\n";
+        }
+        return str_result + "}";
     }
 }
