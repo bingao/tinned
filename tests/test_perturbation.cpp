@@ -19,7 +19,7 @@
 #include <symengine/symbol.h>
 #include <symengine/symengine_rcp.h>
 
-#include "Tinned.hpp"
+#include "Tinned/Perturbations.hpp"
 
 using namespace Tinned;
 

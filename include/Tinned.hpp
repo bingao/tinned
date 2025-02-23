@@ -7,6 +7,9 @@
 
    This file is the header file of Tinned library.
 
+   2025-02-23, Bin Gao:
+   * reorganize header files
+
    2024-05-08, Bin Gao:
    * add more visitors for response theory
 
@@ -25,34 +28,6 @@
 
 #pragma once
 
-#include "Tinned/Perturbation.hpp"
-#include "Tinned/PertDependency.hpp"
-#include "Tinned/PertMultichain.hpp"
-#include "Tinned/PerturbedParameter.hpp"
-#include "Tinned/ZeroOperator.hpp"
-#include "Tinned/ConjugateTranspose.hpp"
-
-#include "Tinned/OneElecDensity.hpp"
-#include "Tinned/OneElecOperator.hpp"
-#include "Tinned/TwoElecEnergy.hpp"
-#include "Tinned/TwoElecOperator.hpp"
-#include "Tinned/ExchCorrContraction.hpp"
-#include "Tinned/ExchCorrEnergy.hpp"
-#include "Tinned/ExchCorrPotential.hpp"
-#include "Tinned/NonElecFunction.hpp"
-#include "Tinned/TemporumOperator.hpp"
-#include "Tinned/TemporumOverlap.hpp"
-
-#include "Tinned/AdjointMap.hpp"
-#include "Tinned/ClusterConjHamiltonian.hpp"
-
-#include "Tinned/ZerosRemover.hpp"
-#include "Tinned/RemoveVisitor.hpp"
-#include "Tinned/KeepVisitor.hpp"
-#include "Tinned/ReplaceVisitor.hpp"
-#include "Tinned/FindAllVisitor.hpp"
-#include "Tinned/EliminationVisitor.hpp"
-#include "Tinned/TemporumCleaner.hpp"
-#include "Tinned/ExistAnyVisitor.hpp"
-#include "Tinned/LaTeXifyVisitor.hpp"
-#include "Tinned/StringifyVisitor.hpp"
+#include "Tinned/Perturbations.hpp"
+#include "Tinned/Operators.hpp"
+#include "Tinned/Visitors.hpp"

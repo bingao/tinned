@@ -10,7 +10,8 @@
 #include <symengine/symengine_rcp.h>
 #include <symengine/matrices/matrix_add.h>
 
-#include "Tinned.hpp"
+#include "Tinned/Perturbations.hpp"
+#include "Tinned/Operators.hpp"
 
 using namespace Tinned;
 

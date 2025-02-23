@@ -13,7 +13,8 @@
 #include <symengine/mul.h>
 #include <symengine/symengine_rcp.h>
 
-#include "Tinned.hpp"
+#include "Tinned/Perturbations.hpp"
+#include "Tinned/Operators.hpp"
 
 using namespace Tinned;
 

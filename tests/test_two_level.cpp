@@ -25,8 +25,7 @@
 #include <symengine/matrices/zero_matrix.h>
 #include <symengine/symengine_rcp.h>
 
-#include "Tinned.hpp"
-#include "Tinned/TwoLevelAtom.hpp"
+#include "Tinned/models/TwoLevelAtom.hpp"
 
 using namespace Tinned;
 

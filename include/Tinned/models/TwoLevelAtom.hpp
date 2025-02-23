@@ -1,0 +1,163 @@
+/* Tinned: a set of nonnumerical routines for computational chemistry
+   Copyright 2023-2024 Bin Gao
+
+   This Source Code Form is subject to the terms of the Mozilla Public
+   License, v. 2.0. If a copy of the MPL was not distributed with this
+   file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+   This file is the header file of two-level atom system.
+
+   2024-07-15, Bin Gao:
+   * first version
+*/
+
+#pragma once
+
+#include <map>
+#include <memory>
+#include <utility>
+#include <vector>
+
+#include <symengine/basic.h>
+#include <symengine/dict.h>
+#include <symengine/matrices/immutable_dense_matrix.h>
+#include <symengine/symengine_rcp.h>
+
+#include "Tinned/Perturbations.hpp"
+#include "Tinned/Operators.hpp"
+#include "Tinned/Evaluators.hpp"
+
+// This two-level atom system is adopted from section 5.10.3, "Principles and
+// Practices of Molecular Properties: Theory, Modeling and Simulations",
+// Patrick Norman, Kenneth Ruud and Trond Saue.
+namespace Tinned
+{
+    // Evaluator for different (electron) operators
+    class TwoLevelOperator: public OperatorEvaluator<SymEngine::RCP<const SymEngine::MatrixExpr>>
+    {
+        protected:
+            // Maximum allowed order
+            unsigned int max_order_;
+            // Dimension of all operator matrices
+            unsigned int dim_operator_;
+            // Unperturbed Hamiltonian and its value
+            std::pair<SymEngine::RCP<const OneElecOperator>,
+                      SymEngine::RCP<const SymEngine::MatrixExpr>> H0_;
+            // Density matrix and the value of unperturbed one
+            std::pair<SymEngine::RCP<const OneElecDensity>,
+                      SymEngine::RCP<const SymEngine::MatrixExpr>> rho0_;
+            // External field's operators and their values, each operator
+            // should depend only on one unique perturbation
+            std::map<SymEngine::RCP<const OneElecOperator>,
+                     SymEngine::RCP<const SymEngine::MatrixExpr>,
+                     SymEngine::RCPBasicKeyLess> V_;
+            // Transition angular frequencies (row major)
+            SymEngine::vec_basic omega_;
+            // Cached derivatives of density matrix <order, <perturbations, derivatives>>
+            //FIXME: not optimal for identical perturbations
+            typedef std::vector<std::pair<SymEngine::multiset_basic,
+                                          SymEngine::RCP<const SymEngine::MatrixExpr>>>
+                DensityDerivative;
+            std::map<unsigned int, DensityDerivative> rho_cached_;
+
+            // Get values of an operator matrix
+            SymEngine::vec_basic get_values(
+                const SymEngine::RCP<const SymEngine::MatrixExpr>& A
+            ) const;
+
+            // Evaluate derivatives of density matrix and all involved lower
+            // order derivatives in a recursive manner, and cache them
+            SymEngine::RCP<const SymEngine::MatrixExpr>
+            eval_1el_density(const SymEngine::multiset_basic& derivatives);
+
+            //SymEngine::RCP<const SymEngine::MatrixExpr> eval_hermitian_transpose(
+            //    const SymEngine::RCP<const SymEngine::MatrixExpr>& A
+            //) override;
+
+            SymEngine::RCP<const SymEngine::MatrixExpr>
+            eval_1el_density(const OneElecDensity& x) override;
+
+            SymEngine::RCP<const SymEngine::MatrixExpr>
+            eval_1el_operator(const OneElecOperator& x) override;
+
+            //SymEngine::RCP<const SymEngine::MatrixExpr>
+            //eval_temporum_operator(const TemporumOperator& x) override;
+
+            //SymEngine::RCP<const SymEngine::MatrixExpr> eval_conjugate_matrix(
+            //    const SymEngine::RCP<const SymEngine::MatrixExpr>& A
+            //) override;
+
+            //SymEngine::RCP<const SymEngine::MatrixExpr> eval_transpose(
+            //    const SymEngine::RCP<const SymEngine::MatrixExpr>& A
+            //) override;
+
+            void eval_oper_addition(
+                SymEngine::RCP<const SymEngine::MatrixExpr>& A,
+                const SymEngine::RCP<const SymEngine::MatrixExpr>& B
+            ) override;
+
+            SymEngine::RCP<const SymEngine::MatrixExpr> eval_oper_multiplication(
+                const SymEngine::RCP<const SymEngine::MatrixExpr>& A,
+                const SymEngine::RCP<const SymEngine::MatrixExpr>& B
+            ) override;
+
+            void eval_oper_scale(
+                const SymEngine::RCP<const SymEngine::Basic>& scalar,
+                SymEngine::RCP<const SymEngine::MatrixExpr>& A
+            ) override;
+
+        public:
+            explicit TwoLevelOperator(
+                const std::pair<SymEngine::RCP<const OneElecOperator>,
+                                SymEngine::RCP<const SymEngine::MatrixExpr>>& H0,
+                const std::map<SymEngine::RCP<const OneElecOperator>,
+                               SymEngine::RCP<const SymEngine::MatrixExpr>,
+                               SymEngine::RCPBasicKeyLess>& V,
+                const std::pair<SymEngine::RCP<const OneElecDensity>,
+                                SymEngine::RCP<const SymEngine::MatrixExpr>>& rho0
+            );
+
+            ~TwoLevelOperator() = default;
+    };
+
+    // Evaluator for different expectation values
+    class TwoLevelFunction: public FunctionEvaluator<SymEngine::RCP<const SymEngine::Basic>,
+                                                     SymEngine::RCP<const SymEngine::MatrixExpr>>
+    {
+        protected:
+            std::shared_ptr<TwoLevelOperator> oper_evaluator_;
+
+            std::shared_ptr<OperatorEvaluator<SymEngine::RCP<const SymEngine::MatrixExpr>>>
+            get_oper_evaluator() override
+            {
+                return oper_evaluator_;
+            }
+
+            SymEngine::RCP<const SymEngine::Basic> eval_trace(
+                const SymEngine::RCP<const SymEngine::MatrixExpr>& A
+            ) override;
+
+            void eval_fun_addition(
+                SymEngine::RCP<const SymEngine::Basic>& f,
+                const SymEngine::RCP<const SymEngine::Basic>& g
+            ) override;
+
+            void eval_fun_scale(
+                const SymEngine::RCP<const SymEngine::Basic>& scalar,
+                SymEngine::RCP<const SymEngine::Basic>& f
+            ) override;
+
+        public:
+            explicit TwoLevelFunction(
+                const std::pair<SymEngine::RCP<const OneElecOperator>,
+                                SymEngine::RCP<const SymEngine::MatrixExpr>>& H0,
+                const std::map<SymEngine::RCP<const OneElecOperator>,
+                               SymEngine::RCP<const SymEngine::MatrixExpr>,
+                               SymEngine::RCPBasicKeyLess>& V,
+                const std::pair<SymEngine::RCP<const OneElecDensity>,
+                                SymEngine::RCP<const SymEngine::MatrixExpr>>& rho0
+            ) : oper_evaluator_(std::make_shared<TwoLevelOperator>(H0, V, rho0)) {}
+
+            ~TwoLevelFunction() = default;
+    };
+}

@@ -75,7 +75,7 @@ include(GNUInstallDirs)
 # target_link_libraries(... tinned)
 set(INCLUDE_INSTALL_DIR ${CMAKE_INSTALL_INCLUDEDIR}
     CACHE PATH "Location of include directory")
-install(TARGETS tinned
+install(TARGETS tinned tinned_models
         EXPORT TinnedTargets
         ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
@@ -84,12 +84,8 @@ install(TARGETS tinned
 # Install include headers
 install(FILES ${TINNED_INCLUDE_DIRS}/Tinned.hpp
         DESTINATION ${INCLUDE_INSTALL_DIR})
-# Pattern matching option from https://stackoverflow.com/a/67883070
 install(DIRECTORY ${TINNED_INCLUDE_DIRS}/Tinned
-        DESTINATION ${INCLUDE_INSTALL_DIR}
-        FILES_MATCHING
-        PATTERN "*.hpp"
-        PATTERN "*.swp" EXCLUDE)
+        DESTINATION ${INCLUDE_INSTALL_DIR})
 # Install generated `TinnedTargets.cmake`
 set(TINNED_CMAKE_INSTALL_DIR ${CMAKE_INSTALL_LIBDIR}/cmake/tinned)
 #set(TINNED_CMAKE_INSTALL_DIR ${CMAKE_INSTALL_DATADIR}/tinned/cmake)
