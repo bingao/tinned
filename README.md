@@ -32,36 +32,36 @@ Tinned currently provides C++ interface. Classes in Tinned that can be useful
 for computational chemistry include:
 
 * Class [`Perturbation`](include/Tinned/perturbations/Perturbation.hpp), perturbations.
-* Class [`PertMultichain`](include/Tinned/perturbations/PertMultichain.hpp), `std::multiset` for
-  perturbation multichains[[2]](#2).
-* Class [`PertDependency`](include/Tinned/perturbations/PertDependency.hpp), `std::set` for
-  perturbations that an operator depends on and their maximum orders that can
-  be differentiated.
+* Class [`PertMultichain`](include/Tinned/perturbations/PertMultichain.hpp),
+  `std::multiset` for perturbation multichains[[2]](#2).
+* Class [`PertDependency`](include/Tinned/perturbations/PertDependency.hpp),
+  `std::set` for perturbations that an operator depends on and their maximum
+  orders that can be differentiated.
 * Class [`PerturbedParameter`](include/Tinned/operators/PerturbedParameter.hpp),
   (perturbed) response parameter.
-* Class [`OneElecDensity`](include/Tinned/operators/OneElecDensity.hpp), one-electron
-  spin-orbital density matrix derived from the abstract electronic state
-  class [`ElectronicState`](include/Tinned/operators/ElectronicState.hpp).
-* Class [`OneElecOperator`](include/Tinned/operators/OneElecOperator.hpp), one-electron
-  like operators.
-* Class [`TwoElecEnergy`](include/Tinned/operators/TwoElecEnergy.hpp), two-electron like
-  energies.
-* Class [`TwoElecOperator`](include/Tinned/operators/TwoElecOperator.hpp), two-electron
-  like operators.
+* Class [`OneElecDensity`](include/Tinned/operators/OneElecDensity.hpp),
+  one-electron spin-orbital density matrix derived from the abstract electronic
+  state class [`ElectronicState`](include/Tinned/operators/ElectronicState.hpp).
+* Class [`OneElecOperator`](include/Tinned/operators/OneElecOperator.hpp),
+  one-electron like operators.
+* Class [`TwoElecEnergy`](include/Tinned/operators/TwoElecEnergy.hpp),
+  two-electron like energies.
+* Class [`TwoElecOperator`](include/Tinned/operators/TwoElecOperator.hpp),
+  two-electron like operators.
 * Class [`ExchCorrEnergy`](include/Tinned/operators/ExchCorrEnergy.hpp),
   exchange-correlation energy like functionals.
 * Class [`ExchCorrPotential`](include/Tinned/operators/ExchCorrPotential.hpp),
   exchange-correlation potential like operators.
-* Class [`NonElecFunction`](include/Tinned/operators/NonElecFunction.hpp), non-electron
-  like functions.
-* Class [`TemporumOperator`](include/Tinned/operators/TemporumOperator.hpp), for
-  operators $`\langle\mathrm{i}\frac{\partial}{\partial t}\vert`$ and
+* Class [`NonElecFunction`](include/Tinned/operators/NonElecFunction.hpp),
+  non-electron like functions.
+* Class [`TemporumOperator`](include/Tinned/operators/TemporumOperator.hpp),
+  for operators $`\langle\mathrm{i}\frac{\partial}{\partial t}\vert`$ and
   $`\vert\mathrm{i}\frac{\partial}{\partial t}\rangle`$.
-* Class [`TemporumOverlap`](include/Tinned/operators/TemporumOverlap.hpp), for the operator
-  $`-\frac{1}{2}(\langle\mathrm{i}\frac{\partial}{\partial t}\chi_{\kappa}\vert\chi_{\lambda}\rangle
+* Class [`TemporumOverlap`](include/Tinned/operators/TemporumOverlap.hpp), for
+  the operator $`-\frac{1}{2}(\langle\mathrm{i}\frac{\partial}{\partial t}\chi_{\kappa}\vert\chi_{\lambda}\rangle
   +\langle\chi_{\kappa}\vert\mathrm{i}\frac{\partial}{\partial t}\chi_{\lambda}\rangle)`$.
-* Class [`AdjointMap`](include/Tinned/operators/AdjointMap.hpp) represents an adjoint map
-  $`\prod_{j}\left(\text{ad}_{\tilde{\mathbf{X}}_{j}}\right)(\tilde{\mathbf{Y}})`$
+* Class [`AdjointMap`](include/Tinned/operators/AdjointMap.hpp) represents an
+  adjoint map $`\prod_{j}\left(\text{ad}_{\tilde{\mathbf{X}}_{j}}\right)(\tilde{\mathbf{Y}})`$
   where all $`\tilde{\mathbf{X}}_{j}`$'s and all their derivatives are commutative.
 * Class [`ClusterConjHamiltonian`](include/Tinned/operators/ClusterConjHamiltonian.hpp)
   is used for coupled-cluster theory and represents an exponential map in the
@@ -79,10 +79,10 @@ of helper functions.
 To facilitate the development of response theory, the following functions are
 provided by Tinned:
 
-* Function [`remove_zeros(x)`](include/Tinned/visitors/ZerosRemover.hpp) removes zero
-  quantities from `x`.
-* Function [`remove_if(x, symbols)`](include/Tinned/visitors/RemoveVisitor.hpp) removes
-  given `symbols` from `x`.
+* Function [`remove_zeros(x)`](include/Tinned/visitors/ZerosRemover.hpp)
+  removes zero quantities from `x`.
+* Function [`remove_if(x, symbols)`](include/Tinned/visitors/RemoveVisitor.hpp)
+  removes given `symbols` from `x`.
 * Function [`keep_if(x, symbols, remove_zero_quantities)`](include/Tinned/visitors/KeepVisitor.hpp)
   keeps given `symbols` in `x` while removing others, parameter
   `remove_zero_quantities` indicates if zero quantities will be removed from the
@@ -103,12 +103,12 @@ provided by Tinned:
   greater than the floor function of the half length of `perturbations`, and for
   multipliers, it should be greater than or equal to the ceiling function of the
   half length of `perturbations` according to J. Chem. Phys. 129, 214103 (2008).
-* Function [`clean_temporum(x)`](include/Tinned/visitors/TemporumCleaner.hpp) cleans
-  `TemporumOperator` objects in `x`.
-* Function [`latexify(x)`](include/Tinned/visitors/LaTeXifyVisitor.hpp) latexifies an
-  expression `x`.
-* Function [`stringify(x)`](include/Tinned/visitors/StringifyVisitor.hpp) stringifies an
-  expression `x`.
+* Function [`clean_temporum(x)`](include/Tinned/visitors/TemporumCleaner.hpp)
+  cleans `TemporumOperator` objects in `x`.
+* Function [`latexify(x)`](include/Tinned/visitors/LaTeXifyVisitor.hpp)
+  latexifies an expression `x`.
+* Function [`stringify(x)`](include/Tinned/visitors/StringifyVisitor.hpp)
+  stringifies an expression `x`.
 * Function [`differentiate(expr, perturbations)`](include/Tinned/perturbations/PertMultichain.hpp)
   can be used to do high-order differentiation, and to remove zero quantities.
 
@@ -192,8 +192,8 @@ https://doi.org/10.1002/jcc.27437.
 
 <a id="2">[2]</a>
 Bin Gao and Magnus Ringholm, "Unified framework for molecular response
-functions of diﬀerent electronic-structure
-models", *J. Phys. Chem. A* 2025, submitted.
+functions of diﬀerent electronic-structure models", *J. Phys. Chem. A* 2025,
+submitted.
 
 **NOTE** the following changes have been made comparing to reference [[1]](#1):
 
