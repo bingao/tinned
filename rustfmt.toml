@@ -1,0 +1,38 @@
+# --- General Style ---
+edition = "2021"
+max_width = 100  # You can increase this if you prefer wider lines
+hard_tabs = false
+tab_spaces = 4
+newline_style = "Unix"
+
+# --- Formatting Preferences ---
+use_small_heuristics = "Max"        # Always split long arguments/match arms/params into lines
+#match_arm_blocks = true             # Always use braces in match arms
+match_block_trailing_comma = true
+#trailing_comma = "Always"           # Add trailing commas where allowed (e.g. multiline args)
+#trailing_semicolon = true
+
+# --- Expression formatting ---
+#struct_lit_single_line = false      # Force multiline struct literals when long
+#force_multiline_blocks = true
+#wrap_comments = true
+#normalize_comments = true
+#normalize_doc_attributes = true
+
+# --- Imports and organization ---
+#group_imports = "StdExternalCrate"  # Group: std, external, crate
+#imports_granularity = "Module"
+reorder_imports = true
+reorder_modules = true
+
+# --- Misc / advanced ---
+#format_code_in_doc_comments = true
+#format_macro_matchers = true
+#format_macro_bodies = true
+#format_strings = true
+#hex_literal_case = "Lower"
+use_field_init_shorthand = true
+#space_after_colon = true
+#space_before_colon = false
+#blank_lines_upper_bound = 2
+#blank_lines_lower_bound = 0

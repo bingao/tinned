@@ -172,8 +172,39 @@ int main()
 
 More examples can be found in Tinned tests in the directory `tests`.
 
+## Design rationale
+
+Private talk with ChatGPT ;-)
+
+### Trait-Based Approach with Multiple Traits (Best for Extensibility)
+
+* Less than 100 expression types
+* Around 5 to 20 operations
+* When a new expression type is added, all operations must handle it
+* When a new operation is added, it must report an error if it cannot handle
+  all expression types
+
+* Multiple Traits (`Differentiable`, `Searchable`, `Replaceable`, `Evaluable`)
+    * Each trait represents a different type of operation.
+    * This makes it modular and extensible without modifying existing types.
+* Separation of Concerns
+    * Base trait `Expr` ensures expressions can be stored and cloned.
+    * Operations (`differentiate()`, `contains_variable()`,
+      `replace_variable()`, `evaluate()`) are implemented separately.
+* Extensibility
+    * You can easily add new operations (e.g., `Simplifiable`, `Integral`).
+    * You can extend to new expression types (e.g., `Sin(x)`, `Exp(x)`).
+* Runtime Flexibility
+    * Uses `dyn Expr`, allowing dynamic polymorphism (store different
+      expression types).
+
 ## TODO
 
+* Add simplification rules, e.g. simplify results automatically (e.g., 2 * 1 -> 2)
+* Add More Operations: `Simplifiable`, `Integral`, `PrettyPrintable`
+* Implement Algebraic Manipulation: Factorization, expansion, common term extraction
+* Serialization, e.g. convert expressions into JSON, LaTeX, or Graphviz for
+  visualization
 * Add Boolean input for `differentiate` function to indicate if
   call `clean_temporum` after differentiation;
 * Introduce `CoefficientMO` inherited from `ElectronicState`;
