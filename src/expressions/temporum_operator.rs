@@ -1,16 +1,13 @@
-use std::any::Any;
-use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::sync::Arc;
 
-use serde::{Deserialize, Serialize};
+use typetag;
 
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{OneElecOperator, WfnParameter, ZeroOperator};
-use crate::perturbations::Perturbation;
-use crate::utils::{intern, invalid_expression_error, is_zero_expr};
+use crate::utils::{downcast_from_ref, intern, invalid_expression_error, is_zero_expr};
 
 /// A TemporumOperator is a non-scalar operator acting on a ket or a bra
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct TemporumOperator {
     on_ket: bool,
     argument: Arc<dyn Expr>,
@@ -70,9 +67,10 @@ impl TemporumOperatorBuilder {
     }
 }
 
+#[typetag::serde]
 impl Expr for TemporumOperator {
     #[inline]
-    fn as_any(&self) -> &dyn Any {
+    fn as_any(&self) -> &dyn std::any::Any {
         self
     }
 
@@ -86,7 +84,19 @@ impl Expr for TemporumOperator {
         false
     }
 
-    fn differentiate(&self, s: &Perturbation) -> Result<Arc<dyn Expr>, TinnedError> {
+    #[inline]
+    fn eq_expr(&self, other: &dyn Expr) -> bool {
+        if let Some(op) = downcast_from_ref::<TemporumOperator>(other) {
+            self.on_ket == op.on_ket && self.argument == op.argument
+        } else {
+            false
+        }
+    }
+
+    fn differentiate(
+        &self,
+        s: &crate::perturbations::Perturbation,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
         let diff_arg = self.argument.differentiate(s)?;
 
         if is_zero_expr(&diff_arg) {
@@ -97,8 +107,8 @@ impl Expr for TemporumOperator {
     }
 }
 
-impl Display for TemporumOperator {
-    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+impl std::fmt::Display for TemporumOperator {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}({})", if self.on_ket { "i*dt" } else { "-i*dt" }, self.argument)
     }
 }

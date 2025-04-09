@@ -1,15 +1,14 @@
-use std::any::Any;
-use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::sync::Arc;
 
-use serde::{Deserialize, Serialize};
+use typetag;
 
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{Conjugate, MatrixMul, Transpose, ZeroOperator};
-use crate::perturbations::Perturbation;
-use crate::utils::{downcast_expr, intern, invalid_expression_error, is_one_expr};
+use crate::utils::{
+    downcast_from_arc, downcast_from_ref, intern, invalid_expression_error, is_one_expr,
+};
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct HermitianTranspose {
     argument: Arc<dyn Expr>,
 }
@@ -25,13 +24,13 @@ impl HermitianTranspose {
 
         if argument.is::<ZeroOperator>() {
             return Ok(argument);
-        } else if let Some(conj) = downcast_expr::<Conjugate>(&argument) {
+        } else if let Some(conj) = downcast_from_arc::<Conjugate>(&argument) {
             return Transpose::new(conj.argument().clone());
-        } else if let Some(trans) = downcast_expr::<Transpose>(&argument) {
+        } else if let Some(trans) = downcast_from_arc::<Transpose>(&argument) {
             return Conjugate::new(trans.argument().clone());
-        } else if let Some(herm) = downcast_expr::<HermitianTranspose>(&argument) {
+        } else if let Some(herm) = downcast_from_arc::<HermitianTranspose>(&argument) {
             return Ok(herm.argument().clone());
-        } else if let Some(matmul) = downcast_expr::<MatrixMul>(&argument) {
+        } else if let Some(matmul) = downcast_from_arc::<MatrixMul>(&argument) {
             if is_one_expr(matmul.coefficient()) {
                 return Ok(intern(Arc::new(Self { argument })));
             }

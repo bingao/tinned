@@ -1,16 +1,11 @@
-use std::any::Any;
-use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::sync::Arc;
 
-use serde::{Deserialize, Serialize};
+use typetag;
 
 use crate::core::{Expr, TinnedError};
-use crate::expressions::Number;
-use crate::perturbations::Perturbation;
-use crate::utils::intern;
 
 /// A scalar symbolic constant that becomes 0 after differentiation.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Symbol {
     name: String,
 }
@@ -18,7 +13,7 @@ pub struct Symbol {
 impl Symbol {
     #[inline]
     pub fn new(name: impl Into<String>) -> Arc<dyn Expr> {
-        intern(Arc::new(Self { name: name.into() }))
+        crate::utils::intern(Arc::new(Self { name: name.into() }))
     }
 
     #[inline]
@@ -27,9 +22,10 @@ impl Symbol {
     }
 }
 
+#[typetag::serde]
 impl Expr for Symbol {
     #[inline]
-    fn as_any(&self) -> &dyn Any {
+    fn as_any(&self) -> &dyn std::any::Any {
         self
     }
 
@@ -44,13 +40,25 @@ impl Expr for Symbol {
     }
 
     #[inline]
-    fn differentiate(&self, _s: &Perturbation) -> Result<Arc<dyn Expr>, TinnedError> {
+    fn eq_expr(&self, other: &dyn Expr) -> bool {
+        if let Some(s) = crate::utils::downcast_from_ref::<Symbol>(other) {
+            self.name == s.name
+        } else {
+            false
+        }
+    }
+
+    #[inline]
+    fn differentiate(
+        &self,
+        _s: &crate::perturbations::Perturbation,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
         Ok(0.into())
     }
 }
 
-impl Display for Symbol {
-    fn fmt(&self, f: &mut Formatter) -> FmtResult {
+impl std::fmt::Display for Symbol {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", self.name)
     }
 }

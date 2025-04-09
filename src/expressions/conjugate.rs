@@ -1,48 +1,45 @@
-use std::any::Any;
-use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::sync::Arc;
 
-use serde::{Deserialize, Serialize};
+use typetag;
 
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{
     Add, HermitianTranspose, MatrixMul, Mul, Number, Power, Transpose, ZeroOperator,
 };
-use crate::perturbations::Perturbation;
-use crate::utils::{downcast_expr, intern, is_one_expr};
+use crate::utils::{downcast_from_arc, downcast_from_ref, intern, is_one_expr};
 
 /// Represents complex conjugation of an expression.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Conjugate {
     argument: Arc<dyn Expr>,
 }
 
 impl Conjugate {
     pub fn new(argument: Arc<dyn Expr>) -> Result<Arc<dyn Expr>, TinnedError> {
-        if let Some(num) = downcast_expr::<Number>(&argument) {
+        if let Some(num) = downcast_from_arc::<Number>(&argument) {
             return Ok(num.conjugate().into());
-        } else if let Some(add) = downcast_expr::<Add>(&argument) {
+        } else if let Some(add) = downcast_from_arc::<Add>(&argument) {
             let terms: Vec<Arc<dyn Expr>> =
                 add.terms().iter().map(|t| Self::new(t.clone())?).collect();
             return Add::new(terms);
-        } else if let Some(mul) = downcast_expr::<Mul>(&argument) {
+        } else if let Some(mul) = downcast_from_arc::<Mul>(&argument) {
             let coef = mul.coefficient().conjugate();
             let mut new_terms: Vec<Arc<dyn Expr>> =
                 mul.factors().iter().map(|f| Self::new(f.clone())?).collect();
             new_terms.push(coef.into());
             return Mul::new(new_terms);
-        } else if let Some(power) = downcast_expr::<Power>(&argument) {
+        } else if let Some(power) = downcast_from_arc::<Power>(&argument) {
             let new_base = Self::new(power.base().clone())?;
             return Power::new(new_base, power.exponent());
         } else if argument.is::<ZeroOperator>() {
             return Ok(argument);
-        } else if let Some(conj) = downcast_expr::<Conjugate>(&argument) {
+        } else if let Some(conj) = downcast_from_arc::<Conjugate>(&argument) {
             return Ok(conj.argument.clone());
-        } else if let Some(trans) = downcast_expr::<Transpose>(&argument) {
+        } else if let Some(trans) = downcast_from_arc::<Transpose>(&argument) {
             return HermitianTranspose::new(trans.argument().clone());
-        } else if let Some(herm) = downcast_expr::<HermitianTranspose>(&argument) {
+        } else if let Some(herm) = downcast_from_arc::<HermitianTranspose>(&argument) {
             return Transpose::new(herm.argument().clone());
-        } else if let Some(matmul) = downcast_expr::<MatrixMul>(&argument) {
+        } else if let Some(matmul) = downcast_from_arc::<MatrixMul>(&argument) {
             if is_one_expr(matmul.coefficient()) {
                 return Ok(intern(Arc::new(Self { argument })));
             }
@@ -63,9 +60,12 @@ impl Conjugate {
     }
 }
 
+#[typetag::serde]
 impl Expr for Conjugate {
     #[inline]
-    fn as_any(&self) -> &dyn Any { self }
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 
     #[inline]
     fn hash_key(&self) -> String {
@@ -79,21 +79,24 @@ impl Expr for Conjugate {
 
     #[inline]
     fn eq_expr(&self, other: &dyn Expr) -> bool {
-        if let Some(conj) = downcast_expr::<Conjugate>(other) {
+        if let Some(conj) = downcast_from_ref::<Conjugate>(other) {
             self.argument == conj.argument
         } else {
             false
         }
     }
 
-    fn differentiate(&self, s: &Perturbation) -> Result<Arc<dyn Expr>, TinnedError> {
+    fn differentiate(
+        &self,
+        s: &crate::perturbations::Perturbation,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
         let diff_arg = self.argument.differentiate(s)?;
         Self::new(diff_arg)
     }
 }
 
-impl Display for Conjugate {
-    fn fmt(&self, f: &mut Formatter) -> FmtResult {
+impl std::fmt::Display for Conjugate {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "conj({arg})", arg = self.argument)
     }
 }

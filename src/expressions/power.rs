@@ -1,15 +1,11 @@
-use std::any::Any;
-use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::sync::Arc;
 
-use serde::{Deserialize, Serialize};
+use typetag;
 
 use crate::core::{Expr, TinnedError};
-use crate::expressions::{Mul, Number};
-use crate::perturbations::Perturbation;
-use crate::utils::{downcast_expr, intern, invalid_expression_error};
+use crate::utils::{downcast_from_arc, downcast_from_ref, intern, invalid_expression_error};
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Power {
     base: Arc<dyn Expr>,
     exponent: i64,
@@ -26,7 +22,7 @@ impl Power {
             1 => Ok(base),
             _ => {
                 // Flatten nested powers: (x^a)^b -> x^(a * b)
-                if let Some(inner) = downcast_expr::<Power>(&base) {
+                if let Some(inner) = downcast_from_arc::<Power>(&base) {
                     let combined_exp = inner.exponent * exponent;
                     return Ok(intern(Arc::new(Self {
                         base: inner.base.clone(),
@@ -50,9 +46,10 @@ impl Power {
     }
 }
 
+#[typetag::serde]
 impl Expr for Power {
     #[inline]
-    fn as_any(&self) -> &dyn Any {
+    fn as_any(&self) -> &dyn std::any::Any {
         self
     }
 
@@ -66,16 +63,32 @@ impl Expr for Power {
         true
     }
 
-    fn differentiate(&self, s: &Perturbation) -> Result<Arc<dyn Expr>, TinnedError> {
+    #[inline]
+    fn eq_expr(&self, other: &dyn Expr) -> bool {
+        if let Some(pow) = downcast_from_ref::<Power>(other) {
+            self.exponent == pow.exponent && self.base == pow.base
+        } else {
+            false
+        }
+    }
+
+    fn differentiate(
+        &self,
+        s: &crate::perturbations::Perturbation,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
         let new_exp = self.exponent - 1;
         let diff_base = self.base.differentiate(s)?;
 
-        Mul::new(vec![self.exponent.into(), Self::new(self.base.clone(), new_exp)?, diff_base])
+        crate::expressions::Mul::new(vec![
+            self.exponent.into(),
+            Self::new(self.base.clone(), new_exp)?,
+            diff_base,
+        ])
     }
 }
 
-impl Display for Power {
-    fn fmt(&self, f: &mut Formatter) -> FmtResult {
+impl std::fmt::Display for Power {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "({})^{}", self.base, self.exponent)
     }
 }

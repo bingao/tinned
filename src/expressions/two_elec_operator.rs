@@ -1,8 +1,6 @@
-use std::any::Any;
-use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::sync::Arc;
 
-use serde::{Deserialize, Serialize};
+use typetag;
 
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{MatrixAdd, WfnParameter, ZeroOperator};
@@ -10,9 +8,9 @@ use crate::perturbations::{
     is_sub_multichain, pert_multichain_display, pert_multichain_hash_key, PertMultichain,
     Perturbation,
 };
-use crate::utils::{intern, invalid_expression_error, is_zero_expr};
+use crate::utils::{downcast_from_ref, intern, invalid_expression_error, is_zero_expr};
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct TwoElecOperator {
     name: String,
     density: Arc<dyn Expr>,
@@ -114,9 +112,10 @@ impl TwoElecOperatorBuilder {
     }
 }
 
+#[typetag::serde]
 impl Expr for TwoElecOperator {
     #[inline]
-    fn as_any(&self) -> &dyn Any {
+    fn as_any(&self) -> &dyn std::any::Any {
         self
     }
 
@@ -134,6 +133,18 @@ impl Expr for TwoElecOperator {
     #[inline]
     fn is_scalar(&self) -> bool {
         false
+    }
+
+    #[inline]
+    fn eq_expr(&self, other: &dyn Expr) -> bool {
+        if let Some(op) = downcast_from_ref::<TwoElecOperator>(other) {
+            self.name == op.name
+                && self.density == op.density
+                && self.dependencies == op.dependencies
+                && self.derivative == op.derivative
+        } else {
+            false
+        }
     }
 
     fn differentiate(&self, s: &Perturbation) -> Result<Arc<dyn Expr>, TinnedError> {
@@ -154,8 +165,8 @@ impl Expr for TwoElecOperator {
     }
 }
 
-impl Display for TwoElecOperator {
-    fn fmt(&self, f: &mut Formatter) -> FmtResult {
+impl std::fmt::Display for TwoElecOperator {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}^{}[{}]", self.name, pert_multichain_display(&self.derivative), self.density)
     }
 }

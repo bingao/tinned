@@ -1,17 +1,15 @@
-use std::any::Any;
-use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::sync::Arc;
 
-use serde::{Deserialize, Serialize};
+use typetag;
 
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{MatrixMul, OneElecOperator, TemporumOperator, ZeroOperator};
 use crate::perturbations::{
     pert_multichain_display, pert_multichain_hash_key, PertMultichain, Perturbation,
 };
-use crate::utils::intern;
+use crate::utils::{downcast_from_ref, intern};
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct TemporumOverlap {
     braket: Arc<dyn Expr>,
     dependencies: PertMultichain,
@@ -47,11 +45,11 @@ pub struct TemporumOverlapBuilder {
 
 impl TemporumOverlapBuilder {
     pub fn build(self) -> Result<Arc<dyn Expr>, TinnedError> {
-        let Sb = OneElecOperator.builder("Sb").dependencies(self.dependencies).build()?;
-        let dt_Sb = TemporumOperator.builder(Sb).on_ket(false).build()?;
+        let Sb = OneElecOperator::builder("Sb").dependencies(self.dependencies).build()?;
+        let dt_Sb = TemporumOperator::builder(Sb).on_ket(false).build()?;
 
-        let Sk = OneElecOperator.builder("Sk").dependencies(self.dependencies).build()?;
-        let dt_Sk = TemporumOperator.builder(Sk).on_ket(true).build()?;
+        let Sk = OneElecOperator::builder("Sk").dependencies(self.dependencies).build()?;
+        let dt_Sk = TemporumOperator::builder(Sk).on_ket(true).build()?;
 
         Ok(intern(Arc::new(TemporumOverlap {
             braket: MatrixMul::new(vec![dt_Sb, dt_Sk])?,
@@ -61,9 +59,10 @@ impl TemporumOverlapBuilder {
     }
 }
 
+#[typetag::serde]
 impl Expr for TemporumOverlap {
     #[inline]
-    fn as_any(&self) -> &dyn Any {
+    fn as_any(&self) -> &dyn std::any::Any {
         self
     }
 
@@ -80,6 +79,15 @@ impl Expr for TemporumOverlap {
     #[inline]
     fn is_scalar(&self) -> bool {
         false
+    }
+
+    #[inline]
+    fn eq_expr(&self, other: &dyn Expr) -> bool {
+        if let Some(op) = downcast_from_ref::<TemporumOverlap>(other) {
+            self == op
+        } else {
+            false
+        }
     }
 
     fn differentiate(&self, s: &Perturbation) -> Result<Arc<dyn Expr>, TinnedError> {
@@ -108,8 +116,8 @@ impl PartialEq for TemporumOverlap {
 
 impl Eq for TemporumOverlap {}
 
-impl Display for TemporumOverlap {
-    fn fmt(&self, f: &mut Formatter) -> FmtResult {
+impl std::fmt::Display for TemporumOverlap {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "op(T)^{}", pert_multichain_display(&self.derivative))
     }
 }

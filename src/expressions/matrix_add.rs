@@ -1,27 +1,25 @@
-use std::any::Any;
 use std::collections::HashMap;
-use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::sync::Arc;
 
-use serde::{Deserialize, Serialize};
+use typetag;
 
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{Add, MatrixMul, Number, ZeroOperator};
-use crate::perturbations::Perturbation;
 use crate::utils::{
-    downcast_expr, intern, invalid_expression_error, is_one_expr, is_zero_expr, unreachable_error,
+    downcast_from_arc, downcast_from_ref, intern, invalid_expression_error, is_one_expr,
+    is_zero_expr, unreachable_error,
 };
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct MatrixAdd {
     terms: Vec<Arc<dyn Expr>>,
 }
 
 impl MatrixAdd {
     // Rules:
-    // - Flatten nested Add: (A + B) + (A + C) -> 2A + B + C
-    // - Remove redundant Add([A]) -> A
-    // - Remove empty Add([]) -> op(0)
+    // - Flatten nested MatrixAdd: (A + B) + (A + C) -> 2A + B + C
+    // - Remove redundant MatrixAdd([A]) -> A
+    // - Remove empty MatrixAdd([]) -> op(0)
     // - Combine like terms: 2*A*B + 3*A*B -> 5*A*B
     // - Identities: A + op(0) = A
     // - Sort terms based on hash values
@@ -39,11 +37,11 @@ impl MatrixAdd {
 
             if expr.is::<ZeroOperator>() {
                 return Ok(());
-            } else if let Some(add) = downcast_expr::<MatrixAdd>(expr) {
+            } else if let Some(add) = downcast_from_arc::<MatrixAdd>(expr) {
                 for term in add.terms() {
                     collect_terms(term, merged)?;
                 }
-            } else if let Some(mul) = downcast_expr::<MatrixMul>(expr) {
+            } else if let Some(mul) = downcast_from_arc::<MatrixMul>(expr) {
                 if mul.factors().is_empty() {
                     return Err(unreachable_error(
                         "MatrixAdd::new() got MatrixMul with empty factors",

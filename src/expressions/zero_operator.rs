@@ -1,26 +1,23 @@
-use std::any::Any;
-use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::sync::Arc;
 
-use serde::{Deserialize, Serialize};
+use typetag;
 
 use crate::core::{Expr, TinnedError};
-use crate::perturbations::Perturbation;
-use crate::utils::intern;
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ZeroOperator;
 
 impl ZeroOperator {
     #[inline]
     pub fn new() -> Arc<dyn Expr> {
-        intern(Arc::new(Self))
+        crate::utils::intern(Arc::new(Self))
     }
 }
 
+#[typetag::serde]
 impl Expr for ZeroOperator {
     #[inline]
-    fn as_any(&self) -> &dyn Any {
+    fn as_any(&self) -> &dyn std::any::Any {
         self
     }
 
@@ -35,13 +32,21 @@ impl Expr for ZeroOperator {
     }
 
     #[inline]
-    fn differentiate(&self, _s: &Perturbation) -> Result<Arc<dyn Expr>, TinnedError> {
+    fn eq_expr(&self, other: &dyn Expr) -> bool {
+        other.is::<ZeroOperator>()
+    }
+
+    #[inline]
+    fn differentiate(
+        &self,
+        _s: &crate::perturbations::Perturbation,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
         Ok(Self::new())
     }
 }
 
-impl Display for ZeroOperator {
-    fn fmt(&self, f: &mut Formatter) -> FmtResult {
+impl std::fmt::Display for ZeroOperator {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "op(0)")
     }
 }

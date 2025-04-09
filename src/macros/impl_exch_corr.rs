@@ -5,7 +5,7 @@ macro_rules! impl_exch_corr_type {
         $xc_grid_expr_name:ident,  // xc_energy or xc_potential
         $is_scalar:literal
     ) => {
-        #[derive(Clone, Debug, Serialize, Deserialize)]
+        #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
         pub struct $type_name {
             name: String,
             grid_weight: Arc<dyn Expr>,
@@ -23,7 +23,12 @@ macro_rules! impl_exch_corr_type {
                 density_matrix: Arc<dyn Expr>,
                 overlap_distribution: Arc<dyn Expr>,
             ) -> $builder_name {
-                $builder_name { name: name.into(), grid_weight, density_matrix, overlap_distribution }
+                $builder_name {
+                    name: name.into(),
+                    grid_weight,
+                    density_matrix,
+                    overlap_distribution,
+                }
             }
 
             #[inline]
@@ -82,10 +87,10 @@ macro_rules! impl_exch_corr_type {
                 )?;
 
                 let grid_expr = if $is_scalar {
-                    Mul::new(vec![self.grid_weight.clone(), xc_density])?
+                    crate::expressions::Mul::new(vec![self.grid_weight.clone(), xc_density])?
                 } else {
                     crate::expressions::MatrixMul::new(vec![
-                        Mul::new(vec![self.grid_weight.clone(), xc_density])?,
+                        crate::expressions::Mul::new(vec![self.grid_weight.clone(), xc_density])?,
                         self.overlap_distribution.clone(),
                     ])?
                 };
@@ -112,9 +117,10 @@ macro_rules! impl_exch_corr_traits {
         $fmt_xc_grid_term:ident,   // fmt_mul or fmt_matrix_mul
         $is_scalar:literal
     ) => {
+        #[typetag::serde]
         impl Expr for $type_name {
             #[inline]
-            fn as_any(&self) -> &dyn Any {
+            fn as_any(&self) -> &dyn std::any::Any {
                 self
             }
 
@@ -139,7 +145,7 @@ macro_rules! impl_exch_corr_traits {
 
             #[inline]
             fn eq_expr(&self, other: &dyn Expr) -> bool {
-                if let Some(xc) = downcast_expr::<$type_name>(other) {
+                if let Some(xc) = downcast_from_ref::<$type_name>(other) {
                     self == xc
                 } else {
                     false
@@ -179,14 +185,15 @@ macro_rules! impl_exch_corr_traits {
 
         impl Eq for $type_name {}
 
-        impl Display for $type_name {
-            fn fmt(&self, f: &mut Formatter) -> FmtResult {
+        impl std::fmt::Display for $type_name {
+            fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
                 // ExchCorrEnergy: unperturbed or the first-order perturbed cases
                 //
                 // ExchCorrPotential: unperturbed case or when the generalized
                 // overlap distribution does not depend on applied
                 // perturbation(s)
-                if let Some(mul) = downcast_expr::<$xc_grid_term_type>(&self.$xc_grid_expr_name) {
+                if let Some(mul) = downcast_from_arc::<$xc_grid_term_type>(&self.$xc_grid_expr_name)
+                {
                     write!(f, "{}[", self.name)?;
                     $fmt_xc_grid_term(f, mul)?;
                     write!(f, "]")
@@ -195,11 +202,12 @@ macro_rules! impl_exch_corr_traits {
                 // ExchCorrPotential: perturbed case in particular the
                 // generalized overlap distribution depends on applied
                 // perturbation(s)
-                } else if let Some(add) = downcast_expr::<$xc_grid_expr_type>(&self.$xc_grid_expr_name)
+                } else if let Some(add) =
+                    downcast_from_arc::<$xc_grid_expr_type>(&self.$xc_grid_expr_name)
                 {
                     let mut first_term = true;
                     for term in add.terms() {
-                        if let Some(mul) = downcast_expr::<$xc_grid_term_type>(term) {
+                        if let Some(mul) = downcast_from_arc::<$xc_grid_term_type>(term) {
                             if !first_term {
                                 write!(f, " + ")?;
                             }

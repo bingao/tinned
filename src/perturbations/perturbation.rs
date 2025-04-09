@@ -1,13 +1,11 @@
 use std::cmp::Ordering;
-use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::sync::Arc;
 
-use serde::{Deserialize, Serialize};
-
 use crate::core::Expr;
-use crate::utils::intern;
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
+)]
 pub struct Perturbation {
     name: String,
     frequency: Arc<dyn Expr>,
@@ -16,7 +14,8 @@ pub struct Perturbation {
 impl Perturbation {
     #[inline]
     pub fn new(name: impl Into<String>, frequency: Arc<dyn Expr>) -> Arc<Self> {
-        intern(Arc::new(Self { name: name.into(), frequency }))
+        //crate::utils::intern(Arc::new(Self { name: name.into(), frequency }))
+        Arc::new(Self { name: name.into(), frequency })
     }
 
     #[inline]
@@ -48,8 +47,8 @@ impl Ord for Perturbation {
     }
 }
 
-impl Display for Perturbation {
-    fn fmt(&self, f: &mut Formatter) -> FmtResult {
+impl std::fmt::Display for Perturbation {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}({})", self.name, self.frequency)
     }
 }

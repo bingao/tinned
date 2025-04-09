@@ -1,15 +1,16 @@
-use std::any::Any;
 use std::cmp::Ordering;
-use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
 use std::hash::{Hash, Hasher};
-use log::warn;
+//use log::warn;
 use std::sync::Arc;
+
+use typetag;
 
 use crate::core::TinnedError;
 
 // Base Expression Trait
-pub trait Expr: Debug + Send + Sync {
-    fn as_any(&self) -> &dyn Any;
+#[typetag::serde]
+pub trait Expr: std::fmt::Debug + Send + Sync {
+    fn as_any(&self) -> &dyn std::any::Any;
 
     fn hash_key(&self) -> String;
 
@@ -60,8 +61,8 @@ impl Ord for dyn Expr {
     }
 }
 
-impl Display for dyn Expr {
-    fn fmt(&self, f: &mut Formatter) -> FmtResult {
-        Display::fmt(&*self, f)
+impl std::fmt::Display for dyn Expr {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        std::fmt::Display::fmt(&*self, f)
     }
 }

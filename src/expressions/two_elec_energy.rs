@@ -1,20 +1,18 @@
-use std::any::Any;
-use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::sync::Arc;
 
-use serde::{Deserialize, Serialize};
+use typetag;
 
 use crate::core::{Expr, TinnedError};
-use crate::expressions::{Add, Number, WfnParameter};
+use crate::expressions::{Add, WfnParameter};
 use crate::perturbations::{
     is_sub_multichain, pert_multichain_display, pert_multichain_hash_key, PertMultichain,
     Perturbation,
 };
-use crate::utils::{intern, invalid_expression_error, is_zero_expr};
+use crate::utils::{downcast_from_ref, intern, invalid_expression_error, is_zero_expr};
 
 /// allow_density_swap means we allow inner_density and outer_density to be
 /// interchanged when comparing two TwoElecEnergy instances
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct TwoElecEnergy {
     name: String,
     inner_density: Arc<dyn Expr>,
@@ -171,9 +169,10 @@ impl TwoElecEnergyBuilder {
     }
 }
 
+#[typetag::serde]
 impl Expr for TwoElecEnergy {
     #[inline]
-    fn as_any(&self) -> &dyn Any {
+    fn as_any(&self) -> &dyn std::any::Any {
         self
     }
 
@@ -204,6 +203,15 @@ impl Expr for TwoElecEnergy {
     #[inline]
     fn is_scalar(&self) -> bool {
         true
+    }
+
+    #[inline]
+    fn eq_expr(&self, other: &dyn Expr) -> bool {
+        if let Some(op) = downcast_from_ref::<TwoElecEnergy>(other) {
+            self == op
+        } else {
+            false
+        }
     }
 
     fn differentiate(&self, s: &Perturbation) -> Result<Arc<dyn Expr>, TinnedError> {
@@ -259,8 +267,8 @@ impl PartialEq for TwoElecEnergy {
 
 impl Eq for TwoElecEnergy {}
 
-impl Display for TwoElecEnergy {
-    fn fmt(&self, f: &mut Formatter) -> FmtResult {
+impl std::fmt::Display for TwoElecEnergy {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let (inner, outer) = if self.allow_density_swap {
             let h1 = self.inner_density.hash_key();
             let h2 = self.outer_density.hash_key();

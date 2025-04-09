@@ -1,17 +1,16 @@
-use std::any::Any;
-use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::sync::Arc;
 
-use serde::{Deserialize, Serialize};
+use typetag;
 
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{
-    Add, Conjugate, HermitianTranspose, MatrixAdd, MatrixMul, Mul, Number, Transpose, ZeroOperator,
+    Add, Conjugate, HermitianTranspose, MatrixAdd, MatrixMul, Mul, Transpose, ZeroOperator,
 };
-use crate::perturbations::Perturbation;
-use crate::utils::{downcast_expr, intern, invalid_expression_error, is_one_expr};
+use crate::utils::{
+    downcast_from_arc, downcast_from_ref, intern, invalid_expression_error, is_one_expr,
+};
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Trace {
     argument: Arc<dyn Expr>,
 }
@@ -24,13 +23,13 @@ impl Trace {
 
         if expr.is::<ZeroOperator>() {
             Ok(0.into())
-        } else if let Some(matrix_add) = downcast_expr::<MatrixAdd>(&expr) {
+        } else if let Some(matrix_add) = downcast_from_arc::<MatrixAdd>(&expr) {
             let mut terms = Vec::new();
             for term in matrix_add.terms() {
                 terms.push(Self::new(term.clone())?);
             }
             Add::new(terms)
-        } else if let Some(matrix_mul) = downcast_expr::<MatrixMul>(&expr) {
+        } else if let Some(matrix_mul) = downcast_from_arc::<MatrixMul>(&expr) {
             let coef = matrix_mul.coefficient();
             let mut factors = matrix_mul.factors().to_vec();
 
@@ -53,11 +52,11 @@ impl Trace {
             } else {
                 Mul::new(vec![coef.clone(), result])
             }
-        } else if let Some(conj) = downcast_expr::<Conjugate>(&expr) {
+        } else if let Some(conj) = downcast_from_arc::<Conjugate>(&expr) {
             Conjugate::new(intern(Arc::new(Self { argument: conj.argument().clone() })))
-        } else if let Some(trans) = downcast_expr::<Transpose>(&expr) {
+        } else if let Some(trans) = downcast_from_arc::<Transpose>(&expr) {
             Ok(intern(Arc::new(Self { argument: trans.argument().clone() })))
-        } else if let Some(herm) = downcast_expr::<HermitianTranspose>(&expr) {
+        } else if let Some(herm) = downcast_from_arc::<HermitianTranspose>(&expr) {
             Conjugate::new(intern(Arc::new(Self { argument: herm.argument().clone() })))
         } else {
             Ok(intern(Arc::new(Self { argument: expr })))

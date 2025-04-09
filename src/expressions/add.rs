@@ -1,19 +1,16 @@
-use std::any::Any;
 use std::collections::HashMap;
-use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::sync::Arc;
 
-use serde::{Deserialize, Serialize};
+use typetag;
 
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{Mul, Number};
-use crate::perturbations::Perturbation;
 use crate::utils::{
-    downcast_expr, intern, invalid_expression_error, is_zero_expr, unreachable_error,
+    downcast_from_arc, downcast_from_ref, intern, invalid_expression_error, unreachable_error,
 };
 
 // Addition Expression
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Add {
     terms: Vec<Arc<dyn Expr>>,
 }
@@ -42,13 +39,13 @@ impl Add {
                 return Err(invalid_expression_error("Add::new()", &expr));
             }
 
-            if let Some(num) = downcast_expr::<Number>(expr) {
+            if let Some(num) = downcast_from_arc::<Number>(expr) {
                 *constant = constant.add(num);
-            } else if let Some(add) = downcast_expr::<Add>(expr) {
+            } else if let Some(add) = downcast_from_arc::<Add>(expr) {
                 for term in add.terms() {
                     collect_terms(term, constant, merged)?;
                 }
-            } else if let Some(mul) = downcast_expr::<Mul>(expr) {
+            } else if let Some(mul) = downcast_from_arc::<Mul>(expr) {
                 if mul.factors().is_empty() {
                     return Err(unreachable_error("Add::new() got Mul with empty factors", &mul));
                 }

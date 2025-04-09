@@ -1,15 +1,12 @@
-use std::any::Any;
-use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::sync::Arc;
 
-use serde::{Deserialize, Serialize};
+use typetag;
 
 use crate::core::{Expr, TinnedError};
-use crate::expressions::{MatrixAdd, Mul, Number, ZeroOperator};
-use crate::perturbations::Perturbation;
-use crate::utils::{downcast_expr, intern, is_one_expr, is_zero_expr};
+use crate::expressions::{Mul, Number, ZeroOperator};
+use crate::utils::{downcast_from_arc, downcast_from_ref, intern, is_one_expr, is_zero_expr};
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct MatrixMul {
     coefficient: Arc<dyn Expr>,
     factors: Vec<Arc<dyn Expr>>,
@@ -37,7 +34,7 @@ impl MatrixMul {
             // We may introduce diagonal matrix and dense matrix later, and we
             // may need to check if their dimensions match
             if term.is_scalar() {
-                if let Some(num) = downcast_expr::<Number>(term) {
+                if let Some(num) = downcast_from_arc::<Number>(term) {
                     if num.is_zero() {
                         return Ok(ZeroOperator::new());
                     }
@@ -45,7 +42,7 @@ impl MatrixMul {
                 all_coefficients.push(term.clone());
             } else if term.is::<ZeroOperator>() {
                 return Ok(ZeroOperator::new());
-            } else if let Some(mul) = downcast_expr::<MatrixMul>(term) {
+            } else if let Some(mul) = downcast_from_arc::<MatrixMul>(term) {
                 all_coefficients.push(mul.coefficient().clone());
                 all_factors.extend_from_slice(mul.factors());
             } else {
@@ -81,70 +78,4 @@ impl MatrixMul {
     }
 }
 
-impl Expr for MatrixMul {
-    #[inline]
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    #[inline]
-    fn hash_key(&self) -> String {
-        let keys: Vec<String> = self.factors.iter().map(|f| f.hash_key()).collect();
-        format!("MatrixMul({}; {})", self.coefficient.hash_key(), keys.join(","))
-    }
-
-    #[inline]
-    fn is_scalar(&self) -> bool {
-        false
-    }
-
-    #[inline]
-    fn eq_expr(&self, other: &dyn Expr) -> bool {
-        if let Some(mul) = downcast_expr::<MatrixMul>(other) {
-            self.coefficient == mul.coefficient && self.factors == mul.factors
-        } else {
-            false
-        }
-    }
-
-    fn differentiate(&self, s: &Perturbation) -> Result<Arc<dyn Expr>, TinnedError> {
-        let diff_coef = self.coefficient.differentiate(s)?;
-        let diff_factors: Vec<_> = self.factors.iter().map(|f| f.differentiate(s)?).collect();
-
-        let mut results = Vec::new();
-
-        // If coefficient's derivative is non-zero, append it as one result
-        if !is_zero_expr(&diff_coef) {
-            let mut new_terms = self.factors.clone();
-            new_terms.push(diff_coef);
-            results.push(Self::new(new_terms)?);
-        }
-
-        for (i, diff) in diff_factors.iter().enumerate() {
-            if is_zero_expr(diff) {
-                continue;
-            }
-
-            let mut new_terms = self.factors.clone();
-            new_terms[i] = diff.clone();
-            new_terms.push(self.coefficient.clone());
-
-            results.push(Self::new(new_terms)?);
-        }
-
-        MatrixAdd::new(results)
-    }
-}
-
-impl Display for MatrixMul {
-    fn fmt(&self, f: &mut Formatter) -> FmtResult {
-        let mut parts = Vec::new();
-        if !is_one_expr(&self.coefficient) || self.factors.is_empty() {
-            parts.push(format!("{}", self.coefficient));
-        }
-        for factor in &self.factors {
-            parts.push(format!("{}", factor));
-        }
-        write!(f, "{}", parts.join(" * "))
-    }
-}
+impl_mul_traits!(MatrixMul, false);

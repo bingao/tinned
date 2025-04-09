@@ -1,15 +1,10 @@
-use std::any::Any;
-use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::sync::Arc;
 
-use serde::{Deserialize, Serialize};
+use typetag;
 
 use crate::core::{Expr, TinnedError};
-use crate::expressions::Mul;
-use crate::perturbations::Perturbation;
-use crate::utils::intern;
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Composition {
     name: String,
     order: u32,
@@ -19,7 +14,7 @@ pub struct Composition {
 impl Composition {
     #[inline]
     pub fn new(name: impl Into<String>, order: u32, inner: Arc<dyn Expr>) -> Arc<dyn Expr> {
-        intern(Arc::new(Self { name: name.into(), order, inner }))
+        crate::utils::intern(Arc::new(Self { name: name.into(), order, inner }))
     }
 
     #[inline]
@@ -38,9 +33,10 @@ impl Composition {
     }
 }
 
+#[typetag::serde]
 impl Expr for Composition {
     #[inline]
-    fn as_any(&self) -> &dyn Any {
+    fn as_any(&self) -> &dyn std::any::Any {
         self
     }
 
@@ -56,23 +52,26 @@ impl Expr for Composition {
 
     #[inline]
     fn eq_expr(&self, other: &dyn Expr) -> bool {
-        if let Some(comp) = downcast_expr::<Composition>(other) {
+        if let Some(comp) = crate::utils::downcast_from_ref::<Composition>(other) {
             self.name == comp.name && self.order == comp.order && self.inner == comp.inner
         } else {
             false
         }
     }
 
-    fn differentiate(&self, s: &Perturbation) -> Result<Arc<dyn Expr>, TinnedError> {
+    fn differentiate(
+        &self,
+        s: &crate::perturbations::Perturbation,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
         let diff_outer = Self::new(self.name.clone(), self.order + 1, self.inner.clone());
         let diff_inner = self.inner.differentiate(s)?;
 
-        Mul::new(vec![diff_outer, diff_inner])
+        crate::expressions::Mul::new(vec![diff_outer, diff_inner])
     }
 }
 
-impl Display for Composition {
-    fn fmt(&self, f: &mut Formatter) -> FmtResult {
+impl std::fmt::Display for Composition {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         if self.order == 0 {
             write!(f, "{}({})", self.name, self.inner)
         } else {

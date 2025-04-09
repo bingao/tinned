@@ -1,18 +1,14 @@
-use std::any::Any;
-use std::fmt::{Display, Formatter, Result as FmtResult};
-use std::ops::{Add as StdAdd, Mul as StdMul};
 use std::sync::Arc;
 
 use num_complex::Complex64;
 use num_rational::Rational64;
-use serde::{Deserialize, Serialize};
+
+use typetag;
 
 use crate::core::{Expr, TinnedError};
-use crate::perturbations::Perturbation;
-use crate::utils::intern;
 
 // Define an enum to store different number types
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub enum Number {
     Integer(i64),
     Real(f64),
@@ -51,6 +47,8 @@ impl Number {
 
     #[inline]
     pub fn add(&self, other: &Number) -> Number {
+        use Number::*;
+
         match (self, other) {
             (Integer(a), Integer(b)) => Integer(a + b),
 
@@ -80,6 +78,8 @@ impl Number {
 
     #[inline]
     pub fn mul(&self, other: &Number) -> Number {
+        use Number::*;
+
         match (self, other) {
             (Integer(a), Integer(b)) => Integer(a * b),
 
@@ -118,7 +118,7 @@ macro_rules! impl_from_number {
         impl From<$t> for Arc<dyn Expr> {
             #[inline]
             fn from(value: $t) -> Self {
-                intern(Arc::new(Number::$variant(value)))
+                crate::utils::intern(Arc::new(Number::$variant(value)))
             }
         }
     };
@@ -133,13 +133,14 @@ impl_from_number!(Rational64, Fraction);
 impl From<Number> for Arc<dyn Expr> {
     #[inline]
     fn from(num: Number) -> Self {
-        intern(Arc::new(num))
+        crate::utils::intern(Arc::new(num))
     }
 }
 
+#[typetag::serde]
 impl Expr for Number {
     #[inline]
-    fn as_any(&self) -> &dyn Any {
+    fn as_any(&self) -> &dyn std::any::Any {
         self
     }
 
@@ -159,7 +160,19 @@ impl Expr for Number {
     }
 
     #[inline]
-    fn differentiate(&self, _s: &Perturbation) -> Result<Arc<dyn Expr>, TinnedError> {
+    fn eq_expr(&self, other: &dyn Expr) -> bool {
+        if let Some(num) = crate::utils::downcast_from_ref::<Number>(other) {
+            self == num
+        } else {
+            false
+        }
+    }
+
+    #[inline]
+    fn differentiate(
+        &self,
+        _s: &crate::perturbations::Perturbation,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
         Ok(0.into())
     }
 }
@@ -178,8 +191,8 @@ impl PartialEq for Number {
 
 impl Eq for Number {}
 
-impl Display for Number {
-    fn fmt(&self, f: &mut Formatter) -> FmtResult {
+impl std::fmt::Display for Number {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             Number::Integer(n) => write!(f, "{}", n),
             Number::Real(r) => write!(f, "{}", r),

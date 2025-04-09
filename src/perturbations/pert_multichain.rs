@@ -1,10 +1,9 @@
-use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use crate::perturbations::Perturbation;
 
 /// Perturbation multichain: unique perturbations with associated differentiation orders.
-pub type PertMultichain = BTreeMap<Arc<Perturbation>, u32>;
+pub type PertMultichain = std::collections::BTreeMap<Arc<Perturbation>, u32>;
 
 /// Generates a compact string suitable for hashing a perturbation multichain.
 #[inline]

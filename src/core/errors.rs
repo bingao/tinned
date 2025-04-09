@@ -1,5 +1,3 @@
-use std::fmt::{Display, Formatter, Result as FmtResult};
-
 /// Custom error type for the Tinned symbolic algebra library
 #[derive(Debug, Clone)]
 pub enum TinnedError {
@@ -19,8 +17,8 @@ pub enum TinnedError {
     Message(String),
 }
 
-impl Display for TinnedError {
-    fn fmt(&self, f: &mut Formatter) -> FmtResult {
+impl std::fmt::Display for TinnedError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             TinnedError::InvalidExpression { message, expression } => {
                 write!(f, "Invalid expression: {} encountered: {}", expression, message)

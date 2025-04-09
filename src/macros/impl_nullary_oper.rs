@@ -30,7 +30,7 @@ macro_rules! impl_nullary_oper_type {
     };
 
     (@def_oper_struct $type_name:ident, true) => {
-        #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+        #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
         pub struct $type_name {
             name: String,
             dependencies: PertMultichain,
@@ -39,7 +39,7 @@ macro_rules! impl_nullary_oper_type {
     };
 
     (@def_oper_struct $type_name:ident, false) => {
-        #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+        #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
         pub struct $type_name {
             name: String,
             derivative: PertMultichain,
@@ -116,7 +116,7 @@ macro_rules! impl_nullary_oper_type {
         #[inline]
         pub fn build(self) -> Result<Arc<dyn Expr>, TinnedError> {
             if is_sub_multichain(&self.derivative, &self.dependencies) {
-                Ok(intern(Arc::new($type_name {
+                Ok(crate::utils::intern(Arc::new($type_name {
                     name: self.name,
                     dependencies: self.dependencies,
                     derivative: self.derivative,
@@ -137,13 +137,13 @@ macro_rules! impl_nullary_oper_type {
         #[inline]
         pub fn build(self) -> Result<Arc<dyn Expr>, TinnedError> {
             if is_sub_multichain(&self.derivative, &self.dependencies) {
-                Ok(intern(Arc::new($type_name {
+                Ok(crate::utils::intern(Arc::new($type_name {
                     name: self.name,
                     dependencies: self.dependencies,
                     derivative: self.derivative,
                 })))
             } else {
-                Ok(ZeroOperator::new())
+                Ok(crate::expressions::ZeroOperator::new())
             }
         }
     };
@@ -155,7 +155,7 @@ macro_rules! impl_nullary_oper_type {
     (@impl_builder_methods $type_name:ident, false, false) => {
         #[inline]
         pub fn build(self) -> Result<Arc<dyn Expr>, TinnedError> {
-            Ok(intern(Arc::new($type_name {
+            Ok(crate::utils::intern(Arc::new($type_name {
                 name: self.name,
                 derivative: self.derivative,
             })))
@@ -165,9 +165,10 @@ macro_rules! impl_nullary_oper_type {
 
 macro_rules! impl_nullary_oper_traits {
     ($type_name:ident, $has_deps:tt, $is_scalar:tt) => {
+        #[typetag::serde]
         impl Expr for $type_name {
             #[inline]
-            fn as_any(&self) -> &dyn Any {
+            fn as_any(&self) -> &dyn std::any::Any {
                 self
             }
 
@@ -180,7 +181,7 @@ macro_rules! impl_nullary_oper_traits {
 
             #[inline]
             fn eq_expr(&self, other: &dyn Expr) -> bool {
-                if let Some(op) = downcast_expr::<$type_name>(other) {
+                if let Some(op) = crate::utils::downcast_from_ref::<$type_name>(other) {
                     impl_nullary_oper_traits!(@impl_eq_expr $has_deps, self, op)
                 } else {
                     false
@@ -197,8 +198,8 @@ macro_rules! impl_nullary_oper_traits {
             }
         }
 
-        impl Display for $type_name {
-            fn fmt(&self, f: &mut Formatter) -> FmtResult {
+        impl std::fmt::Display for $type_name {
+            fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
                 if self.derivative.is_empty() {
                     write!(f, "{}", self.name)
                 } else {

@@ -1,9 +1,8 @@
-use std::fmt::{Formatter, Result as FmtResult};
 use std::sync::Arc;
 
 use crate::core::{Expr, TinnedError};
-use crate::expressions::{Composition, MatrixMul, Mul, Trace, WfnParameter};
-use crate::utils::{invalid_expression_error, is_one_expr};
+use crate::expressions::{Composition, MatrixMul, Trace, WfnParameter};
+use crate::utils::invalid_expression_error;
 
 // Helper function to validate the density matrix, grid weight and overlap
 // distribution
@@ -49,54 +48,4 @@ pub fn build_xc_density(
     let density_vector = Trace::new(MatrixMul::new(vec![overlap_distribution, density_matrix])?)?;
 
     Ok(Composition::new(name, order, density_vector))
-}
-
-// Helper function to stream formatting to XC energy at a grid point
-// Format: name[coef; factor1; factor2; ...], omit coef if one
-#[inline]
-pub fn fmt_xc_energy_term(f: &mut Formatter, name: &str, mul: &Mul) -> FmtResult {
-    write!(f, "{}[", name)?;
-
-    let mut first = true;
-
-    let coef = mul.coefficient();
-    if coef.is_one() {
-        write!(f, "{}", coef)?;
-        first = false;
-    }
-
-    for factor in mul.factors() {
-        if !first {
-            write!(f, "; ")?;
-        }
-        write!(f, "{}", factor)?;
-        first = false;
-    }
-
-    write!(f, "]")
-}
-
-// Helper function to stream formatting to XC potential at a grid point
-// Format: name[coef; factor1; factor2; ...], omit coef if one
-#[inline]
-pub fn fmt_xc_potential_term(f: &mut Formatter, name: &str, mul: &MatrixMul) -> FmtResult {
-    write!(f, "{}[", name)?;
-
-    let mut first = true;
-
-    let coef = mul.coefficient();
-    if !is_one_expr(coef) {
-        write!(f, "{}", coef)?;
-        first = false;
-    }
-
-    for factor in mul.factors() {
-        if !first {
-            write!(f, "; ")?;
-        }
-        write!(f, "{}", factor)?;
-        first = false;
-    }
-
-    write!(f, "]")
 }
