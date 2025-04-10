@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{Composition, MatrixMul, Trace, WfnParameter};
-use crate::utils::invalid_expression_error;
+use crate::utils::{invalid_expression_error, is_expr_type};
 
 // Helper function to validate the density matrix, grid weight and overlap
 // distribution
@@ -12,7 +12,7 @@ pub fn validate_xc_inputs(
     grid_weight: &Arc<dyn Expr>,
     overlap_distribution: &Arc<dyn Expr>,
 ) -> Result<(), TinnedError> {
-    if !density_matrix.is::<WfnParameter>() {
+    if !is_expr_type::<WfnParameter>(density_matrix) {
         return Err(invalid_expression_error(
             "validate_xc_inputs() - density matrix must be WfnParameter",
             density_matrix,

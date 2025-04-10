@@ -27,9 +27,11 @@ pub trait Expr: std::fmt::Debug + Send + Sync {
     // Compare equality for concrete expression types
     fn eq_expr(&self, other: &dyn Expr) -> bool;
 
+    fn fmt_expr(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result;
+
     fn differentiate(
         &self,
-        s: &crate::perturbations::Perturbation,
+        s: &Arc<crate::perturbations::Perturbation>,
     ) -> Result<Arc<dyn Expr>, TinnedError>;
 }
 
@@ -49,6 +51,8 @@ impl PartialEq for dyn Expr {
     }
 }
 
+impl Eq for dyn Expr {}
+
 impl PartialOrd for dyn Expr {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.hash_key().cmp(&other.hash_key()))
@@ -63,6 +67,6 @@ impl Ord for dyn Expr {
 
 impl std::fmt::Display for dyn Expr {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        std::fmt::Display::fmt(&*self, f)
+        self.fmt_expr(f)
     }
 }

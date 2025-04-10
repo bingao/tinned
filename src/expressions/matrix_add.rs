@@ -6,11 +6,11 @@ use typetag;
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{Add, MatrixMul, Number, ZeroOperator};
 use crate::utils::{
-    downcast_from_arc, downcast_from_ref, intern, invalid_expression_error, is_one_expr,
-    is_zero_expr, unreachable_error,
+    downcast_from_arc, downcast_from_ref, intern_expr, invalid_expression_error, is_expr_type,
+    is_one_expr, is_zero_expr, unreachable_error,
 };
 
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct MatrixAdd {
     terms: Vec<Arc<dyn Expr>>,
 }
@@ -35,26 +35,26 @@ impl MatrixAdd {
                 return Err(invalid_expression_error("MatrixAdd::new()", &expr));
             }
 
-            if expr.is::<ZeroOperator>() {
+            if is_expr_type::<ZeroOperator>(expr) {
                 return Ok(());
-            } else if let Some(add) = downcast_from_arc::<MatrixAdd>(expr) {
-                for term in add.terms() {
+            } else if let Some(matadd) = downcast_from_arc::<MatrixAdd>(expr) {
+                for term in matadd.terms() {
                     collect_terms(term, merged)?;
                 }
-            } else if let Some(mul) = downcast_from_arc::<MatrixMul>(expr) {
-                if mul.factors().is_empty() {
+            } else if let Some(matmul) = downcast_from_arc::<MatrixMul>(expr) {
+                if matmul.factors().is_empty() {
                     return Err(unreachable_error(
                         "MatrixAdd::new() got MatrixMul with empty factors",
-                        &mul,
+                        &expr,
                     ));
                 }
-                let base_expr = if mul.factors().len() == 1 {
-                    mul.factors()[0].clone()
+                let base_expr = if matmul.factors().len() == 1 {
+                    matmul.factors()[0].clone()
                 } else {
-                    MatrixMul::new(mul.factors().to_vec())?
+                    MatrixMul::new(matmul.factors().to_vec())?
                 };
                 let key = base_expr.fast_hash();
-                let coef = mul.coefficient();
+                let coef = matmul.coefficient();
                 if let Some((existing_expr, existing_coef)) = merged.get_mut(&key) {
                     if existing_expr == &base_expr {
                         existing_coef.push(coef.clone());
@@ -98,7 +98,7 @@ impl MatrixAdd {
             1 => Ok(simplified_terms.pop().unwrap()),
             _ => {
                 simplified_terms.sort_by_key(|term| term.fast_hash());
-                Ok(intern(Arc::new(Self { terms: simplified_terms })))
+                Ok(intern_expr(Arc::new(Self { terms: simplified_terms })))
             },
         }
     }

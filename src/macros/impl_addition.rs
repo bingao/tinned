@@ -21,15 +21,20 @@ macro_rules! impl_add_traits {
             #[inline]
             fn eq_expr(&self, other: &dyn Expr) -> bool {
                 if let Some(add) = downcast_from_ref::<$type_name>(other) {
-                    self.terms == add.terms
+                    self == add
                 } else {
                     false
                 }
             }
 
+            #[inline]
+            fn fmt_expr(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                write!(f, "{self}")
+            }
+
             fn differentiate(
                 &self,
-                s: &crate::perturbations::Perturbation,
+                s: &Arc<crate::perturbations::Perturbation>,
             ) -> Result<Arc<dyn Expr>, TinnedError> {
                 let mut diff_terms = Vec::new();
 
@@ -44,9 +49,17 @@ macro_rules! impl_add_traits {
             }
         }
 
+        impl PartialEq for $type_name {
+            fn eq(&self, other: &Self) -> bool {
+                self.terms == other.terms
+            }
+        }
+
+        impl Eq for $type_name {}
+
         impl std::fmt::Display for $type_name {
             fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-                write!(f, "(")?;
+                f.write_str("(")?;
                 let mut iter = self.terms.iter();
                 if let Some(first) = iter.next() {
                     write!(f, "{}", first)?;
@@ -54,7 +67,7 @@ macro_rules! impl_add_traits {
                         write!(f, " + {}", term)?;
                     }
                 }
-                write!(f, ")")
+                f.write_str(")")
             }
         }
     };

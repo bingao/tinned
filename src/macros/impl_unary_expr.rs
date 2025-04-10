@@ -20,20 +20,33 @@ macro_rules! impl_unary_expr_traits {
             #[inline]
             fn eq_expr(&self, other: &dyn Expr) -> bool {
                 if let Some(expr) = downcast_from_ref::<$type_name>(other) {
-                    self.argument == expr.argument
+                    self == expr
                 } else {
                     false
                 }
             }
 
+            #[inline]
+            fn fmt_expr(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                write!(f, "{self}")
+            }
+
             fn differentiate(
                 &self,
-                s: &crate::perturbations::Perturbation,
+                s: &Arc<crate::perturbations::Perturbation>,
             ) -> Result<Arc<dyn Expr>, TinnedError> {
                 let diff_arg = self.argument.differentiate(s)?;
                 Self::new(diff_arg)
             }
         }
+
+        impl PartialEq for $type_name {
+            fn eq(&self, other: &Self) -> bool {
+                &self.argument == &other.argument
+            }
+        }
+
+        impl Eq for $type_name {}
 
         impl std::fmt::Display for $type_name {
             fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {

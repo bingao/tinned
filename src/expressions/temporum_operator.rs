@@ -4,10 +4,12 @@ use typetag;
 
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{OneElecOperator, WfnParameter, ZeroOperator};
-use crate::utils::{downcast_from_ref, intern, invalid_expression_error, is_zero_expr};
+use crate::utils::{
+    downcast_from_ref, intern_expr, invalid_expression_error, is_expr_type, is_zero_expr,
+};
 
 /// A TemporumOperator is a non-scalar operator acting on a ket or a bra
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct TemporumOperator {
     on_ket: bool,
     argument: Arc<dyn Expr>,
@@ -56,8 +58,13 @@ impl TemporumOperatorBuilder {
             ));
         }
 
-        if self.argument.is::<OneElecOperator>() || self.argument.is::<WfnParameter>() {
-            Ok(intern(Arc::new(TemporumOperator { on_ket: self.on_ket, argument: self.argument })))
+        if is_expr_type::<OneElecOperator>(&self.argument)
+            || is_expr_type::<WfnParameter>(&self.argument)
+        {
+            Ok(intern_expr(Arc::new(TemporumOperator {
+                on_ket: self.on_ket,
+                argument: self.argument,
+            })))
         } else {
             Err(invalid_expression_error(
                 "TemporumOperatorBuilder::build() - unsupported argument type",
@@ -87,15 +94,20 @@ impl Expr for TemporumOperator {
     #[inline]
     fn eq_expr(&self, other: &dyn Expr) -> bool {
         if let Some(op) = downcast_from_ref::<TemporumOperator>(other) {
-            self.on_ket == op.on_ket && self.argument == op.argument
+            self == op
         } else {
             false
         }
     }
 
+    #[inline]
+    fn fmt_expr(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{self}")
+    }
+
     fn differentiate(
         &self,
-        s: &crate::perturbations::Perturbation,
+        s: &Arc<crate::perturbations::Perturbation>,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
         let diff_arg = self.argument.differentiate(s)?;
 
@@ -106,6 +118,14 @@ impl Expr for TemporumOperator {
         }
     }
 }
+
+impl PartialEq for TemporumOperator {
+    fn eq(&self, other: &Self) -> bool {
+        self.on_ket == other.on_ket && &self.argument == &other.argument
+    }
+}
+
+impl Eq for TemporumOperator {}
 
 impl std::fmt::Display for TemporumOperator {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {

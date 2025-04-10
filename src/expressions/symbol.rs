@@ -13,7 +13,7 @@ pub struct Symbol {
 impl Symbol {
     #[inline]
     pub fn new(name: impl Into<String>) -> Arc<dyn Expr> {
-        crate::utils::intern(Arc::new(Self { name: name.into() }))
+        crate::utils::intern_expr(Arc::new(Self { name: name.into() }))
     }
 
     #[inline]
@@ -49,11 +49,16 @@ impl Expr for Symbol {
     }
 
     #[inline]
+    fn fmt_expr(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{self}")
+    }
+
+    #[inline]
     fn differentiate(
         &self,
-        _s: &crate::perturbations::Perturbation,
+        _s: &Arc<crate::perturbations::Perturbation>,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
-        Ok(0.into())
+        Ok(crate::expressions::Number::zero())
     }
 }
 

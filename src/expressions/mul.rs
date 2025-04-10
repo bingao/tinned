@@ -6,7 +6,7 @@ use typetag;
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{Number, Power};
 use crate::utils::{
-    downcast_from_arc, downcast_from_ref, intern, invalid_expression_error, is_zero_expr,
+    downcast_from_arc, downcast_from_ref, intern_expr, invalid_expression_error, is_zero_expr,
 };
 
 // Multiplication Expression
@@ -30,7 +30,7 @@ impl Mul {
     // - Sort terms based on hash values
     pub fn new(terms: Vec<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
         if terms.is_empty() {
-            return Ok(0.into());
+            return Ok(Number::zero());
         }
 
         let mut coefficient = Number::Integer(1);
@@ -47,7 +47,7 @@ impl Mul {
             }
 
             if let Some(mul) = downcast_from_arc::<Mul>(expr) {
-                *coefficient = coefficient.mul(mul.coefficient());
+                *coefficient = coefficient.mul(&mul.coefficient);
                 for factor in mul.factors() {
                     if collect_terms(factor, coefficient, power_map)? {
                         return Ok(true);
@@ -76,7 +76,7 @@ impl Mul {
 
         for term in &terms {
             if collect_terms(term, &mut coefficient, &mut power_map)? {
-                return Ok(0.into());
+                return Ok(Number::zero());
             }
         }
 
@@ -97,7 +97,7 @@ impl Mul {
         match simplified_factors.len() {
             0 => Ok(coefficient.into()),
             1 if coefficient.is_one() => Ok(simplified_factors.pop().unwrap()),
-            _ => Ok(intern(Arc::new(Self { coefficient, factors: simplified_factors }))),
+            _ => Ok(intern_expr(Arc::new(Self { coefficient, factors: simplified_factors }))),
         }
     }
 

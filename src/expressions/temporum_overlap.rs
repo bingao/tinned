@@ -7,7 +7,7 @@ use crate::expressions::{MatrixMul, OneElecOperator, TemporumOperator, ZeroOpera
 use crate::perturbations::{
     pert_multichain_display, pert_multichain_hash_key, PertMultichain, Perturbation,
 };
-use crate::utils::{downcast_from_ref, intern};
+use crate::utils::{downcast_from_ref, intern_expr, is_expr_type};
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct TemporumOverlap {
@@ -45,13 +45,13 @@ pub struct TemporumOverlapBuilder {
 
 impl TemporumOverlapBuilder {
     pub fn build(self) -> Result<Arc<dyn Expr>, TinnedError> {
-        let Sb = OneElecOperator::builder("Sb").dependencies(self.dependencies).build()?;
+        let Sb = OneElecOperator::builder("Sb").dependencies(self.dependencies.clone()).build()?;
         let dt_Sb = TemporumOperator::builder(Sb).on_ket(false).build()?;
 
-        let Sk = OneElecOperator::builder("Sk").dependencies(self.dependencies).build()?;
+        let Sk = OneElecOperator::builder("Sk").dependencies(self.dependencies.clone()).build()?;
         let dt_Sk = TemporumOperator::builder(Sk).on_ket(true).build()?;
 
-        Ok(intern(Arc::new(TemporumOverlap {
+        Ok(intern_expr(Arc::new(TemporumOverlap {
             braket: MatrixMul::new(vec![dt_Sb, dt_Sk])?,
             dependencies: self.dependencies,
             derivative: PertMultichain::new(),
@@ -90,16 +90,21 @@ impl Expr for TemporumOverlap {
         }
     }
 
-    fn differentiate(&self, s: &Perturbation) -> Result<Arc<dyn Expr>, TinnedError> {
+    #[inline]
+    fn fmt_expr(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{self}")
+    }
+
+    fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
         let diff_braket = self.braket.differentiate(s)?;
-        if diff_braket.is::<ZeroOperator>() {
+        if is_expr_type::<ZeroOperator>(&diff_braket) {
             return Ok(diff_braket);
         }
 
         let mut new_deriv = self.derivative.clone();
         *new_deriv.entry(s.clone()).or_insert(0) += 1;
 
-        Ok(intern(Arc::new(Self {
+        Ok(intern_expr(Arc::new(Self {
             braket: diff_braket,
             dependencies: self.dependencies.clone(),
             derivative: new_deriv,

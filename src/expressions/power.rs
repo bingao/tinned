@@ -3,9 +3,10 @@ use std::sync::Arc;
 use typetag;
 
 use crate::core::{Expr, TinnedError};
-use crate::utils::{downcast_from_arc, downcast_from_ref, intern, invalid_expression_error};
+use crate::expressions::Number;
+use crate::utils::{downcast_from_arc, downcast_from_ref, intern_expr, invalid_expression_error};
 
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Power {
     base: Arc<dyn Expr>,
     exponent: i64,
@@ -18,19 +19,19 @@ impl Power {
         }
 
         match exponent {
-            0 => Ok(1.into()),
+            0 => Ok(Number::one()),
             1 => Ok(base),
             _ => {
                 // Flatten nested powers: (x^a)^b -> x^(a * b)
                 if let Some(inner) = downcast_from_arc::<Power>(&base) {
                     let combined_exp = inner.exponent * exponent;
-                    return Ok(intern(Arc::new(Self {
+                    return Ok(intern_expr(Arc::new(Self {
                         base: inner.base.clone(),
                         exponent: combined_exp,
                     })));
                 }
 
-                Ok(intern(Arc::new(Self { base, exponent })))
+                Ok(intern_expr(Arc::new(Self { base, exponent })))
             },
         }
     }
@@ -66,26 +67,39 @@ impl Expr for Power {
     #[inline]
     fn eq_expr(&self, other: &dyn Expr) -> bool {
         if let Some(pow) = downcast_from_ref::<Power>(other) {
-            self.exponent == pow.exponent && self.base == pow.base
+            self == pow
         } else {
             false
         }
     }
 
+    #[inline]
+    fn fmt_expr(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{self}")
+    }
+
     fn differentiate(
         &self,
-        s: &crate::perturbations::Perturbation,
+        s: &Arc<crate::perturbations::Perturbation>,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
         let new_exp = self.exponent - 1;
         let diff_base = self.base.differentiate(s)?;
 
         crate::expressions::Mul::new(vec![
-            self.exponent.into(),
+            Number::from_i64(self.exponent),
             Self::new(self.base.clone(), new_exp)?,
             diff_base,
         ])
     }
 }
+
+impl PartialEq for Power {
+    fn eq(&self, other: &Self) -> bool {
+        self.exponent == other.exponent && &self.base == &other.base
+    }
+}
+
+impl Eq for Power {}
 
 impl std::fmt::Display for Power {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {

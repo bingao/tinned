@@ -6,11 +6,11 @@ use typetag;
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{Mul, Number};
 use crate::utils::{
-    downcast_from_arc, downcast_from_ref, intern, invalid_expression_error, unreachable_error,
+    downcast_from_arc, downcast_from_ref, intern_expr, invalid_expression_error, unreachable_error,
 };
 
 // Addition Expression
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Add {
     terms: Vec<Arc<dyn Expr>>,
 }
@@ -47,7 +47,7 @@ impl Add {
                 }
             } else if let Some(mul) = downcast_from_arc::<Mul>(expr) {
                 if mul.factors().is_empty() {
-                    return Err(unreachable_error("Add::new() got Mul with empty factors", &mul));
+                    return Err(unreachable_error("Add::new() got Mul with empty factors", expr));
                 }
 
                 let base_expr = if mul.factors().len() == 1 {
@@ -96,15 +96,15 @@ impl Add {
         }
 
         if !constant.is_zero() {
-            simplified_terms.push(intern(Arc::new(constant)));
+            simplified_terms.push(intern_expr(Arc::new(constant)));
         }
 
         match simplified_terms.len() {
-            0 => Ok(0.into()),
+            0 => Ok(Number::zero()),
             1 => Ok(simplified_terms.pop().unwrap()),
             _ => {
                 simplified_terms.sort_by_key(|term| term.fast_hash());
-                Ok(intern(Arc::new(Self { terms: simplified_terms })))
+                Ok(intern_expr(Arc::new(Self { terms: simplified_terms })))
             },
         }
     }

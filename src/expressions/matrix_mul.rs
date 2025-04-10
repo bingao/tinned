@@ -4,7 +4,9 @@ use typetag;
 
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{Mul, Number, ZeroOperator};
-use crate::utils::{downcast_from_arc, downcast_from_ref, intern, is_one_expr, is_zero_expr};
+use crate::utils::{
+    downcast_from_arc, downcast_from_ref, intern_expr, is_expr_type, is_one_expr, is_zero_expr,
+};
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct MatrixMul {
@@ -40,11 +42,11 @@ impl MatrixMul {
                     }
                 }
                 all_coefficients.push(term.clone());
-            } else if term.is::<ZeroOperator>() {
+            } else if is_expr_type::<ZeroOperator>(term) {
                 return Ok(ZeroOperator::new());
-            } else if let Some(mul) = downcast_from_arc::<MatrixMul>(term) {
-                all_coefficients.push(mul.coefficient().clone());
-                all_factors.extend_from_slice(mul.factors());
+            } else if let Some(matmul) = downcast_from_arc::<MatrixMul>(term) {
+                all_coefficients.push(matmul.coefficient().clone());
+                all_factors.extend_from_slice(matmul.factors());
             } else {
                 all_factors.push(term.clone());
             }
@@ -54,7 +56,10 @@ impl MatrixMul {
             return match all_factors.len() {
                 0 => Ok(ZeroOperator::new()), // Should be unreachable
                 1 => Ok(all_factors.pop().unwrap()),
-                _ => Ok(intern(Arc::new(Self { coefficient: 1.into(), factors: all_factors }))),
+                _ => Ok(intern_expr(Arc::new(Self {
+                    coefficient: Number::one(),
+                    factors: all_factors,
+                }))),
             };
         }
 
@@ -63,7 +68,7 @@ impl MatrixMul {
             // Return a pure scalar expression
             0 => Ok(coefficient),
             1 if is_one_expr(&coefficient) => Ok(all_factors.pop().unwrap()),
-            _ => Ok(intern(Arc::new(Self { coefficient, factors: all_factors }))),
+            _ => Ok(intern_expr(Arc::new(Self { coefficient, factors: all_factors }))),
         }
     }
 

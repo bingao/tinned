@@ -1,11 +1,13 @@
-use std::cmp::Ordering;
 use std::sync::Arc;
 
 use crate::core::Expr;
 
-#[derive(
-    Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
-)]
+// Perturbations are compared first by name (String), then by frequency
+// (Arc<dyn Expr>).
+//
+// So two perturbations with the same name but different frequencies will not
+// be equal and will have a deterministic ordering.
+#[derive(Clone, Debug, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
 pub struct Perturbation {
     name: String,
     frequency: Arc<dyn Expr>,
@@ -14,8 +16,7 @@ pub struct Perturbation {
 impl Perturbation {
     #[inline]
     pub fn new(name: impl Into<String>, frequency: Arc<dyn Expr>) -> Arc<Self> {
-        //crate::utils::intern(Arc::new(Self { name: name.into(), frequency }))
-        Arc::new(Self { name: name.into(), frequency })
+        crate::utils::intern_pert(Arc::new(Self { name: name.into(), frequency }))
     }
 
     #[inline]
@@ -28,24 +29,20 @@ impl Perturbation {
         &self.frequency
     }
 
-    // A canonical string used for hashing and ordering
+    // A canonical string used for hashing, ordering, interning, etc.
     #[inline]
     pub fn hash_key(&self) -> String {
         format!("Perturbation({},{})", self.name, self.frequency.hash_key())
     }
 }
 
-impl PartialOrd for Perturbation {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.hash_key().cmp(&other.hash_key()))
+impl PartialEq for Perturbation {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name && &self.frequency == &other.frequency
     }
 }
 
-impl Ord for Perturbation {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.hash_key().cmp(&other.hash_key())
-    }
-}
+impl Eq for Perturbation {}
 
 impl std::fmt::Display for Perturbation {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {

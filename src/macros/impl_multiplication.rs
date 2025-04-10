@@ -26,19 +26,24 @@ macro_rules! impl_mul_traits {
             #[inline]
             fn eq_expr(&self, other: &dyn Expr) -> bool {
                 if let Some(mul) = downcast_from_ref::<$type_name>(other) {
-                    self.coefficient == mul.coefficient && self.factors == mul.factors
+                    &self.coefficient == &mul.coefficient && self.factors == mul.factors
                 } else {
                     false
                 }
             }
 
+            #[inline]
+            fn fmt_expr(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                write!(f, "{self}")
+            }
+
             fn differentiate(
                 &self,
-                s: &crate::perturbations::Perturbation,
+                s: &Arc<crate::perturbations::Perturbation>,
             ) -> Result<Arc<dyn Expr>, TinnedError> {
                 // Precompute the derivative of each factor and store it
-                let diff_factors: Vec<_> =
-                    self.factors.iter().map(|f| f.differentiate(s)?).collect();
+                let diff_factors: Vec<Arc<dyn Expr>> =
+                    self.factors.iter().map(|f| f.differentiate(s)).collect::<Result<_, _>>()?;
 
                 let mut results = Vec::new();
 
@@ -78,12 +83,31 @@ macro_rules! impl_mul_traits {
         }
 
         impl std::fmt::Display for $type_name {
+            // Format: coefficient * factor1 * factor2 * ..., omit coefficient if one
             fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-                if $is_scalar {
-                    crate::utils::fmt_mul(f, self)
-                } else {
-                    crate::utils::fmt_matrix_mul(f, self)
+                let coef = self.coefficient();
+
+                let mut wrote_any =
+                    if $is_scalar { !coef.is_one() } else { !crate::utils::is_one_expr(coef) };
+
+                if wrote_any {
+                    write!(f, "{}", coef)?;
                 }
+
+                if let Some((first, rest)) = self.factors().split_first() {
+                    if wrote_any {
+                        f.write_str(" * ")?;
+                    }
+                    write!(f, "{}", first)?;
+                    wrote_any = true;
+
+                    for factor in rest {
+                        f.write_str(" * ")?;
+                        write!(f, "{}", factor)?;
+                    }
+                }
+
+                Ok(())
             }
         }
     };

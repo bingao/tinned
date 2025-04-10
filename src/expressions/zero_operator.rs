@@ -10,7 +10,7 @@ pub struct ZeroOperator;
 impl ZeroOperator {
     #[inline]
     pub fn new() -> Arc<dyn Expr> {
-        crate::utils::intern(Arc::new(Self))
+        crate::utils::intern_expr(Arc::new(Self))
     }
 }
 
@@ -33,13 +33,20 @@ impl Expr for ZeroOperator {
 
     #[inline]
     fn eq_expr(&self, other: &dyn Expr) -> bool {
-        other.is::<ZeroOperator>()
+        other.as_any().downcast_ref::<ZeroOperator>().is_some()
     }
 
+    #[allow(unused_variables)]
+    #[inline]
+    fn fmt_expr(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.write_str("op(0)")
+    }
+
+    #[allow(unused_variables)]
     #[inline]
     fn differentiate(
         &self,
-        _s: &crate::perturbations::Perturbation,
+        _s: &Arc<crate::perturbations::Perturbation>,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
         Ok(Self::new())
     }
@@ -47,6 +54,6 @@ impl Expr for ZeroOperator {
 
 impl std::fmt::Display for ZeroOperator {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "op(0)")
+        f.write_str("op(0)")
     }
 }

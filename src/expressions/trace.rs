@@ -4,34 +4,35 @@ use typetag;
 
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{
-    Add, Conjugate, HermitianTranspose, MatrixAdd, MatrixMul, Mul, Transpose, ZeroOperator,
+    Add, Conjugate, HermitianTranspose, MatrixAdd, MatrixMul, Mul, Number, Transpose, ZeroOperator,
 };
 use crate::utils::{
-    downcast_from_arc, downcast_from_ref, intern, invalid_expression_error, is_one_expr,
+    downcast_from_arc, downcast_from_ref, intern_expr, invalid_expression_error, is_expr_type,
+    is_one_expr,
 };
 
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Trace {
     argument: Arc<dyn Expr>,
 }
 
 impl Trace {
-    pub fn new(expr: Arc<dyn Expr>) -> Result<Arc<dyn Expr>, TinnedError> {
-        if expr.is_scalar() {
-            return Err(invalid_expression_error("Trace::new()", &expr));
+    pub fn new(argument: Arc<dyn Expr>) -> Result<Arc<dyn Expr>, TinnedError> {
+        if argument.is_scalar() {
+            return Err(invalid_expression_error("Trace::new()", &argument));
         }
 
-        if expr.is::<ZeroOperator>() {
-            Ok(0.into())
-        } else if let Some(matrix_add) = downcast_from_arc::<MatrixAdd>(&expr) {
+        if is_expr_type::<ZeroOperator>(&argument) {
+            Ok(Number::zero())
+        } else if let Some(matadd) = downcast_from_arc::<MatrixAdd>(&argument) {
             let mut terms = Vec::new();
-            for term in matrix_add.terms() {
+            for term in matadd.terms() {
                 terms.push(Self::new(term.clone())?);
             }
             Add::new(terms)
-        } else if let Some(matrix_mul) = downcast_from_arc::<MatrixMul>(&expr) {
-            let coef = matrix_mul.coefficient();
-            let mut factors = matrix_mul.factors().to_vec();
+        } else if let Some(matmul) = downcast_from_arc::<MatrixMul>(&argument) {
+            let coef = matmul.coefficient();
+            let mut factors = matmul.factors().to_vec();
 
             if factors.len() > 1 {
                 // circular shift to bring minimal hash to front
@@ -45,21 +46,21 @@ impl Trace {
             }
 
             let new_mul = MatrixMul::new(factors)?;
-            let result = intern(Arc::new(Self { argument: new_mul }));
+            let result = intern_expr(Arc::new(Self { argument: new_mul }));
 
             if is_one_expr(coef) {
                 Ok(result)
             } else {
                 Mul::new(vec![coef.clone(), result])
             }
-        } else if let Some(conj) = downcast_from_arc::<Conjugate>(&expr) {
-            Conjugate::new(intern(Arc::new(Self { argument: conj.argument().clone() })))
-        } else if let Some(trans) = downcast_from_arc::<Transpose>(&expr) {
-            Ok(intern(Arc::new(Self { argument: trans.argument().clone() })))
-        } else if let Some(herm) = downcast_from_arc::<HermitianTranspose>(&expr) {
-            Conjugate::new(intern(Arc::new(Self { argument: herm.argument().clone() })))
+        } else if let Some(conj) = downcast_from_arc::<Conjugate>(&argument) {
+            Conjugate::new(intern_expr(Arc::new(Self { argument: conj.argument().clone() })))
+        } else if let Some(trans) = downcast_from_arc::<Transpose>(&argument) {
+            Ok(intern_expr(Arc::new(Self { argument: trans.argument().clone() })))
+        } else if let Some(herm) = downcast_from_arc::<HermitianTranspose>(&argument) {
+            Conjugate::new(intern_expr(Arc::new(Self { argument: herm.argument().clone() })))
         } else {
-            Ok(intern(Arc::new(Self { argument: expr })))
+            Ok(intern_expr(Arc::new(Self { argument })))
         }
     }
 

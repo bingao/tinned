@@ -86,6 +86,17 @@ macro_rules! impl_exch_corr_type {
                     order,
                 )?;
 
+                // `grid_expr` will be:
+                // - `Mul` (for `ExchCorrEnergy`) for unperturbed or the
+                //   first-order perturbed cases
+                // - `MatrixMul` (for `ExchCorrPotential`) for unperturbed case,
+                //   or when the generalized overlap distribution does not
+                //   depend on applied perturbation(s)
+                // - `Add` (for `ExchCorrEnergy`) for higher-order perturbed
+                //   case
+                // - `MatrixAdd` (for `ExchCorrPotential`) for perturbed case
+                //   in particular the generalized overlap distribution depends
+                //   on applied perturbation(s)
                 let grid_expr = if $is_scalar {
                     crate::expressions::Mul::new(vec![self.grid_weight.clone(), xc_density])?
                 } else {
@@ -95,7 +106,7 @@ macro_rules! impl_exch_corr_type {
                     ])?
                 };
 
-                Ok(intern(Arc::new($type_name {
+                Ok(intern_expr(Arc::new($type_name {
                     name: self.name,
                     grid_weight: self.grid_weight,
                     density_matrix: self.density_matrix,
@@ -112,9 +123,6 @@ macro_rules! impl_exch_corr_traits {
     (
         $type_name:ident,          // ExchCorrEnergy or ExchCorrPotential
         $xc_grid_expr_name:ident,  // xc_energy or xc_potential
-        $xc_grid_term_type:ty,     // Mul or MatrixMul
-        $xc_grid_expr_type:ty,     // Add or MatrixAdd
-        $fmt_xc_grid_term:ident,   // fmt_mul or fmt_matrix_mul
         $is_scalar:literal
     ) => {
         #[typetag::serde]
@@ -152,12 +160,17 @@ macro_rules! impl_exch_corr_traits {
                 }
             }
 
-            fn differentiate(&self, s: &Perturbation) -> Result<Arc<dyn Expr>, TinnedError> {
+            #[inline]
+            fn fmt_expr(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                write!(f, "{self}")
+            }
+
+            fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
                 let diff_expr = self.$xc_grid_expr_name.differentiate(s)?;
                 let mut new_deriv = self.derivative.clone();
                 *new_deriv.entry(s.clone()).or_insert(0) += 1;
 
-                Ok(intern(Arc::new(Self {
+                Ok(intern_expr(Arc::new(Self {
                     name: self.name.clone(),
                     grid_weight: self.grid_weight.clone(),
                     density_matrix: self.density_matrix.clone(),
@@ -171,15 +184,15 @@ macro_rules! impl_exch_corr_traits {
         impl PartialEq for $type_name {
             fn eq(&self, other: &Self) -> bool {
                 if self.name != other.name
-                    || self.grid_weight != other.grid_weight
-                    || self.density_matrix != other.density_matrix
-                    || self.overlap_distribution != other.overlap_distribution
+                    || &self.grid_weight != &other.grid_weight
+                    || &self.density_matrix != &other.density_matrix
+                    || &self.overlap_distribution != &other.overlap_distribution
                     || self.derivative != other.derivative
                 {
                     return false;
                 }
 
-                self.$xc_grid_expr_name == other.$xc_grid_expr_name
+                &self.$xc_grid_expr_name == &other.$xc_grid_expr_name
             }
         }
 
@@ -187,42 +200,7 @@ macro_rules! impl_exch_corr_traits {
 
         impl std::fmt::Display for $type_name {
             fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-                // ExchCorrEnergy: unperturbed or the first-order perturbed cases
-                //
-                // ExchCorrPotential: unperturbed case or when the generalized
-                // overlap distribution does not depend on applied
-                // perturbation(s)
-                if let Some(mul) = downcast_from_arc::<$xc_grid_term_type>(&self.$xc_grid_expr_name)
-                {
-                    write!(f, "{}[", self.name)?;
-                    $fmt_xc_grid_term(f, mul)?;
-                    write!(f, "]")
-                // ExchCorrEnergy: Higher-order perturbed case
-                //
-                // ExchCorrPotential: perturbed case in particular the
-                // generalized overlap distribution depends on applied
-                // perturbation(s)
-                } else if let Some(add) =
-                    downcast_from_arc::<$xc_grid_expr_type>(&self.$xc_grid_expr_name)
-                {
-                    let mut first_term = true;
-                    for term in add.terms() {
-                        if let Some(mul) = downcast_from_arc::<$xc_grid_term_type>(term) {
-                            if !first_term {
-                                write!(f, " + ")?;
-                            }
-                            write!(f, "{}[", self.name)?;
-                            $fmt_xc_grid_term(f, mul)?;
-                            write!(f, "]")?;
-                            first_term = false;
-                        } else {
-                            write!(f, "{}[unreachable term type: {}]", self.name, term)?;
-                        }
-                    }
-                    Ok(())
-                } else {
-                    write!(f, "{}[unreachable expr type: {}]", self.name, self.$xc_grid_expr_name)
-                }
+                write!(f, "{}[{}]", self.name, &self.$xc_grid_expr_name)
             }
         }
     };

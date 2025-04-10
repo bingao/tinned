@@ -8,9 +8,11 @@ use crate::perturbations::{
     is_sub_multichain, pert_multichain_display, pert_multichain_hash_key, PertMultichain,
     Perturbation,
 };
-use crate::utils::{downcast_from_ref, intern, invalid_expression_error, is_zero_expr};
+use crate::utils::{
+    downcast_from_ref, intern_expr, invalid_expression_error, is_expr_type, is_zero_expr,
+};
 
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct TwoElecOperator {
     name: String,
     density: Arc<dyn Expr>,
@@ -92,9 +94,9 @@ impl TwoElecOperatorBuilder {
     }
 
     pub fn build(self) -> Result<Arc<dyn Expr>, TinnedError> {
-        if self.density.is::<WfnParameter>() {
+        if is_expr_type::<WfnParameter>(&self.density) {
             if is_sub_multichain(&self.derivative, &self.dependencies) {
-                Ok(intern(Arc::new(TwoElecOperator {
+                Ok(intern_expr(Arc::new(TwoElecOperator {
                     name: self.name,
                     density: self.density,
                     dependencies: self.dependencies,
@@ -138,16 +140,18 @@ impl Expr for TwoElecOperator {
     #[inline]
     fn eq_expr(&self, other: &dyn Expr) -> bool {
         if let Some(op) = downcast_from_ref::<TwoElecOperator>(other) {
-            self.name == op.name
-                && self.density == op.density
-                && self.dependencies == op.dependencies
-                && self.derivative == op.derivative
+            self == op
         } else {
             false
         }
     }
 
-    fn differentiate(&self, s: &Perturbation) -> Result<Arc<dyn Expr>, TinnedError> {
+    #[inline]
+    fn fmt_expr(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{self}")
+    }
+
+    fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
         let diff_density = self.density.differentiate(s)?;
 
         let term1 = self.builder_from_density(diff_density).build()?;
@@ -164,6 +168,17 @@ impl Expr for TwoElecOperator {
         MatrixAdd::new(vec![term1, term2])
     }
 }
+
+impl PartialEq for TwoElecOperator {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name
+            && &self.density == &other.density
+            && self.dependencies == other.dependencies
+            && self.derivative == other.derivative
+    }
+}
+
+impl Eq for TwoElecOperator {}
 
 impl std::fmt::Display for TwoElecOperator {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {

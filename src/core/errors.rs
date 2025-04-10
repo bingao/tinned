@@ -23,7 +23,7 @@ impl std::fmt::Display for TinnedError {
             TinnedError::InvalidExpression { message, expression } => {
                 write!(f, "Invalid expression: {} encountered: {}", expression, message)
             },
-            TinnedError::DivisionByZero => write!(f, "Division by zero encountered"),
+            TinnedError::DivisionByZero => f.write_str("Division by zero encountered"),
             TinnedError::Unreachable { message, expression } => {
                 write!(f, "Unreachable error: {} in expression: {}", message, expression)
             },

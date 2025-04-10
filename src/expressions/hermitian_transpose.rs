@@ -5,10 +5,11 @@ use typetag;
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{Conjugate, MatrixMul, Transpose, ZeroOperator};
 use crate::utils::{
-    downcast_from_arc, downcast_from_ref, intern, invalid_expression_error, is_one_expr,
+    downcast_from_arc, downcast_from_ref, intern_expr, invalid_expression_error, is_expr_type,
+    is_one_expr,
 };
 
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct HermitianTranspose {
     argument: Arc<dyn Expr>,
 }
@@ -22,7 +23,7 @@ impl HermitianTranspose {
             ));
         }
 
-        if argument.is::<ZeroOperator>() {
+        if is_expr_type::<ZeroOperator>(&argument) {
             return Ok(argument);
         } else if let Some(conj) = downcast_from_arc::<Conjugate>(&argument) {
             return Transpose::new(conj.argument().clone());
@@ -32,17 +33,17 @@ impl HermitianTranspose {
             return Ok(herm.argument().clone());
         } else if let Some(matmul) = downcast_from_arc::<MatrixMul>(&argument) {
             if is_one_expr(matmul.coefficient()) {
-                return Ok(intern(Arc::new(Self { argument })));
+                return Ok(intern_expr(Arc::new(Self { argument })));
             }
 
             let new_arg = MatrixMul::new(matmul.factors().to_vec())?;
             return MatrixMul::new(vec![
                 Conjugate::new(matmul.coefficient().clone())?,
-                intern(Arc::new(Self { argument: new_arg })),
+                intern_expr(Arc::new(Self { argument: new_arg })),
             ]);
         }
 
-        Ok(intern(Arc::new(Self { argument })))
+        Ok(intern_expr(Arc::new(Self { argument })))
     }
 
     #[inline]

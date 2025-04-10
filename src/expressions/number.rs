@@ -6,6 +6,7 @@ use num_rational::Rational64;
 use typetag;
 
 use crate::core::{Expr, TinnedError};
+use crate::utils::intern_expr;
 
 // Define an enum to store different number types
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -17,6 +18,36 @@ pub enum Number {
 }
 
 impl Number {
+    #[inline]
+    pub fn from_i64(value: i64) -> Arc<dyn Expr> {
+        intern_expr(Arc::new(Number::Integer(value)))
+    }
+
+    #[inline]
+    pub fn from_f64(value: f64) -> Arc<dyn Expr> {
+        intern_expr(Arc::new(Number::Real(value)))
+    }
+
+    #[inline]
+    pub fn from_complex(value: Complex64) -> Arc<dyn Expr> {
+        intern_expr(Arc::new(Number::Complex(value)))
+    }
+
+    #[inline]
+    pub fn from_rational(value: Rational64) -> Arc<dyn Expr> {
+        intern_expr(Arc::new(Number::Fraction(value)))
+    }
+
+    #[inline]
+    pub fn zero() -> Arc<dyn Expr> {
+        intern_expr(Arc::new(Number::Integer(0)))
+    }
+
+    #[inline]
+    pub fn one() -> Arc<dyn Expr> {
+        intern_expr(Arc::new(Number::Integer(1)))
+    }
+
     #[inline]
     pub fn is_zero(&self) -> bool {
         match self {
@@ -108,32 +139,11 @@ impl Number {
     }
 }
 
-// From implementations for primitives, so one can use, for example,
-//
-// let a: Arc<dyn Expr> = 3.into();
-// let b: Arc<dyn Expr> = 2.0.into();
-// let c: Arc<dyn Expr> = Complex64::new(1.0, 2.0).into();
-macro_rules! impl_from_number {
-    ($t:ty, $variant:ident) => {
-        impl From<$t> for Arc<dyn Expr> {
-            #[inline]
-            fn from(value: $t) -> Self {
-                crate::utils::intern(Arc::new(Number::$variant(value)))
-            }
-        }
-    };
-}
-
-impl_from_number!(i64, Integer);
-impl_from_number!(f64, Real);
-impl_from_number!(Complex64, Complex);
-impl_from_number!(Rational64, Fraction);
-
-// From<Number> implementation
+// From<Number> implementation so that we can use into() method for Number
 impl From<Number> for Arc<dyn Expr> {
     #[inline]
     fn from(num: Number) -> Self {
-        crate::utils::intern(Arc::new(num))
+        crate::utils::intern_expr(Arc::new(num))
     }
 }
 
@@ -169,11 +179,16 @@ impl Expr for Number {
     }
 
     #[inline]
+    fn fmt_expr(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{self}")
+    }
+
+    #[inline]
     fn differentiate(
         &self,
-        _s: &crate::perturbations::Perturbation,
+        _s: &Arc<crate::perturbations::Perturbation>,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
-        Ok(0.into())
+        Ok(Number::zero())
     }
 }
 

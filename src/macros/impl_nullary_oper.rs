@@ -116,13 +116,13 @@ macro_rules! impl_nullary_oper_type {
         #[inline]
         pub fn build(self) -> Result<Arc<dyn Expr>, TinnedError> {
             if is_sub_multichain(&self.derivative, &self.dependencies) {
-                Ok(crate::utils::intern(Arc::new($type_name {
+                Ok(crate::utils::intern_expr(Arc::new($type_name {
                     name: self.name,
                     dependencies: self.dependencies,
                     derivative: self.derivative,
                 })))
             } else {
-                Ok(0.into())
+                Ok(crate::expressions::Number::zero())
             }
         }
     };
@@ -137,7 +137,7 @@ macro_rules! impl_nullary_oper_type {
         #[inline]
         pub fn build(self) -> Result<Arc<dyn Expr>, TinnedError> {
             if is_sub_multichain(&self.derivative, &self.dependencies) {
-                Ok(crate::utils::intern(Arc::new($type_name {
+                Ok(crate::utils::intern_expr(Arc::new($type_name {
                     name: self.name,
                     dependencies: self.dependencies,
                     derivative: self.derivative,
@@ -155,7 +155,7 @@ macro_rules! impl_nullary_oper_type {
     (@impl_builder_methods $type_name:ident, false, false) => {
         #[inline]
         pub fn build(self) -> Result<Arc<dyn Expr>, TinnedError> {
-            Ok(crate::utils::intern(Arc::new($type_name {
+            Ok(crate::utils::intern_expr(Arc::new($type_name {
                 name: self.name,
                 derivative: self.derivative,
             })))
@@ -189,7 +189,12 @@ macro_rules! impl_nullary_oper_traits {
             }
 
             #[inline]
-            fn differentiate(&self, s: &Perturbation) -> Result<Arc<dyn Expr>, TinnedError>
+            fn fmt_expr(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                write!(f, "{self}")
+            }
+
+            #[inline]
+            fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError>
             {
                 let mut new_deriv = self.derivative.clone();
                 *new_deriv.entry(s.clone()).or_insert(0) += 1;

@@ -3,12 +3,14 @@ use std::sync::Arc;
 use typetag;
 
 use crate::core::{Expr, TinnedError};
-use crate::expressions::{Add, WfnParameter};
+use crate::expressions::{Add, Number, WfnParameter};
 use crate::perturbations::{
     is_sub_multichain, pert_multichain_display, pert_multichain_hash_key, PertMultichain,
     Perturbation,
 };
-use crate::utils::{downcast_from_ref, intern, invalid_expression_error, is_zero_expr};
+use crate::utils::{
+    downcast_from_ref, intern_expr, invalid_expression_error, is_expr_type, is_zero_expr,
+};
 
 /// allow_density_swap means we allow inner_density and outer_density to be
 /// interchanged when comparing two TwoElecEnergy instances
@@ -40,7 +42,7 @@ impl TwoElecEnergy {
         TwoElecEnergyBuilder {
             name: self.name.clone(),
             inner_density,
-            outer_density: self.outer_density.clone(),
+            outer_density: Some(self.outer_density.clone()),
             allow_density_swap: true,
             dependencies: self.dependencies.clone(),
             derivative: self.derivative.clone(),
@@ -52,7 +54,7 @@ impl TwoElecEnergy {
         TwoElecEnergyBuilder {
             name: self.name.clone(),
             inner_density: self.inner_density.clone(),
-            outer_density,
+            outer_density: Some(outer_density),
             allow_density_swap: true,
             dependencies: self.dependencies.clone(),
             derivative: self.derivative.clone(),
@@ -64,7 +66,7 @@ impl TwoElecEnergy {
         TwoElecEnergyBuilder {
             name: self.name.clone(),
             inner_density: self.inner_density.clone(),
-            outer_density: self.outer_density.clone(),
+            outer_density: Some(self.outer_density.clone()),
             allow_density_swap: true,
             dependencies: self.dependencies.clone(),
             derivative,
@@ -140,25 +142,25 @@ impl TwoElecEnergyBuilder {
     pub fn build(self) -> Result<Arc<dyn Expr>, TinnedError> {
         let outer = self.outer_density.unwrap_or_else(|| self.inner_density.clone());
 
-        if !self.inner_density.is::<WfnParameter>() {
+        if !is_expr_type::<WfnParameter>(&self.inner_density) {
             return Err(invalid_expression_error(
                 "TwoElecEnergyBuilder::build() - inner_density must be WfnParameter",
-                self.inner_density,
+                &self.inner_density,
             ));
         }
 
-        if !outer.is::<WfnParameter>() {
+        if !is_expr_type::<WfnParameter>(&outer) {
             return Err(invalid_expression_error(
                 "TwoElecEnergyBuilder::build() - outer_density must be WfnParameter",
-                outer,
+                &outer,
             ));
         }
 
         if !is_sub_multichain(&self.derivative, &self.dependencies) {
-            return Ok(0.into());
+            return Ok(Number::zero());
         }
 
-        Ok(intern(Arc::new(TwoElecEnergy {
+        Ok(intern_expr(Arc::new(TwoElecEnergy {
             name: self.name,
             inner_density: self.inner_density,
             outer_density: outer,
@@ -214,7 +216,12 @@ impl Expr for TwoElecEnergy {
         }
     }
 
-    fn differentiate(&self, s: &Perturbation) -> Result<Arc<dyn Expr>, TinnedError> {
+    #[inline]
+    fn fmt_expr(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{self}")
+    }
+
+    fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
         let diff_inner = self.inner_density.differentiate(s)?;
         let diff_outer = self.outer_density.differentiate(s)?;
 
@@ -255,12 +262,14 @@ impl PartialEq for TwoElecEnergy {
         // Handle density equality based on swap flags
         if !self.allow_density_swap && !other.allow_density_swap {
             // Strict matching only
-            self.inner_density == other.inner_density && self.outer_density == other.outer_density
+            &self.inner_density == &other.inner_density
+                && &self.outer_density == &other.outer_density
         } else {
             // Accept either order
-            (self.inner_density == other.inner_density && self.outer_density == other.outer_density)
-                || (self.inner_density == other.outer_density
-                    && self.outer_density == other.inner_density)
+            (&self.inner_density == &other.inner_density
+                && &self.outer_density == &other.outer_density)
+                || (&self.inner_density == &other.outer_density
+                    && &self.outer_density == &other.inner_density)
         }
     }
 }
