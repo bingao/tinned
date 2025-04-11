@@ -8,7 +8,7 @@ use crate::utils::{
     downcast_from_arc, downcast_from_ref, intern_expr, is_expr_type, is_one_expr, is_zero_expr,
 };
 
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct MatrixMul {
     coefficient: Arc<dyn Expr>,
     factors: Vec<Arc<dyn Expr>>,
@@ -68,7 +68,10 @@ impl MatrixMul {
             // Return a pure scalar expression
             0 => Ok(coefficient),
             1 if is_one_expr(&coefficient) => Ok(all_factors.pop().unwrap()),
-            _ => Ok(intern_expr(Arc::new(Self { coefficient, factors: all_factors }))),
+            _ => Ok(intern_expr(Arc::new(Self {
+                coefficient,
+                factors: all_factors,
+            }))),
         }
     }
 

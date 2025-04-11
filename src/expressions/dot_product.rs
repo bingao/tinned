@@ -23,7 +23,11 @@ impl DotProduct {
         if bra.is_scalar() || ket.is_scalar() {
             return Err(crate::utils::invalid_expression_error(
                 "DotProduct::new() - both arguments must be non-scalar",
-                if bra.is_scalar() { &bra } else { &ket },
+                if bra.is_scalar() {
+                    &bra
+                } else {
+                    &ket
+                },
             ));
         }
 
@@ -31,9 +35,17 @@ impl DotProduct {
             return Ok(Number::zero());
         }
 
-        let bra = if is_complex { HermitianTranspose::new(bra)? } else { Transpose::new(bra)? };
+        let bra = if is_complex {
+            HermitianTranspose::new(bra)?
+        } else {
+            Transpose::new(bra)?
+        };
 
-        Ok(crate::utils::intern_expr(Arc::new(Self { bra, ket, is_complex })))
+        Ok(crate::utils::intern_expr(Arc::new(Self {
+            bra,
+            ket,
+            is_complex,
+        })))
     }
 
     #[inline]

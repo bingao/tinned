@@ -6,7 +6,7 @@ tab_spaces = 4
 newline_style = "Unix"
 
 # --- Formatting Preferences ---
-use_small_heuristics = "Max"        # Always split long arguments/match arms/params into lines
+use_small_heuristics = "Off"         # Always split long arguments/match arms/params into lines
 #match_arm_blocks = true             # Always use braces in match arms
 match_block_trailing_comma = true
 #trailing_comma = "Always"           # Add trailing commas where allowed (e.g. multiline args)
@@ -29,6 +29,7 @@ reorder_modules = true
 #format_code_in_doc_comments = true
 #format_macro_matchers = true
 #format_macro_bodies = true
+#unstable_features = true
 #format_strings = true
 #hex_literal_case = "Lower"
 use_field_init_shorthand = true

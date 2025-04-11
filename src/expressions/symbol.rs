@@ -13,7 +13,9 @@ pub struct Symbol {
 impl Symbol {
     #[inline]
     pub fn new(name: impl Into<String>) -> Arc<dyn Expr> {
-        crate::utils::intern_expr(Arc::new(Self { name: name.into() }))
+        crate::utils::intern_expr(Arc::new(Self {
+            name: name.into(),
+        }))
     }
 
     #[inline]

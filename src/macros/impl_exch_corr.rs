@@ -1,9 +1,9 @@
 macro_rules! impl_exch_corr_type {
     (
-        $type_name:ident,          // ExchCorrEnergy or ExchCorrPotential
-        $builder_name:ident,       // ExchCorrEnergyBuilder or ExchCorrPotentialBuilder
-        $xc_grid_expr_name:ident,  // xc_energy or xc_potential
-        $is_scalar:literal
+        $type_name:ident,       // ExchCorrEnergy or ExchCorrPotential
+        $builder_name:ident,    // ExchCorrEnergyBuilder or ExchCorrPotentialBuilder
+        $grid_expr_name:ident,  // xc_energy or xc_potential
+        $is_scalar:tt
     ) => {
         #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
         pub struct $type_name {
@@ -11,7 +11,7 @@ macro_rules! impl_exch_corr_type {
             grid_weight: Arc<dyn Expr>,
             density_matrix: Arc<dyn Expr>,
             overlap_distribution: Arc<dyn Expr>,
-            $xc_grid_expr_name: Arc<dyn Expr>,
+            $grid_expr_name: Arc<dyn Expr>,
             derivative: PertMultichain,
         }
 
@@ -52,8 +52,8 @@ macro_rules! impl_exch_corr_type {
             }
 
             #[inline]
-            pub fn $xc_grid_expr_name(&self) -> &Arc<dyn Expr> {
-                &self.$xc_grid_expr_name
+            pub fn $grid_expr_name(&self) -> &Arc<dyn Expr> {
+                &self.$grid_expr_name
             }
 
             #[inline]
@@ -78,53 +78,57 @@ macro_rules! impl_exch_corr_type {
                     &self.overlap_distribution,
                 )?;
 
-                let order = if $is_scalar { 0 } else { 1 };
-                let xc_density = build_xc_density(
-                    if $is_scalar { "Exc" } else { "Vxc" },
-                    self.density_matrix.clone(),
-                    self.overlap_distribution.clone(),
-                    order,
-                )?;
-
-                // `grid_expr` will be:
-                // - `Mul` (for `ExchCorrEnergy`) for unperturbed or the
-                //   first-order perturbed cases
-                // - `MatrixMul` (for `ExchCorrPotential`) for unperturbed case,
-                //   or when the generalized overlap distribution does not
-                //   depend on applied perturbation(s)
-                // - `Add` (for `ExchCorrEnergy`) for higher-order perturbed
-                //   case
-                // - `MatrixAdd` (for `ExchCorrPotential`) for perturbed case
-                //   in particular the generalized overlap distribution depends
-                //   on applied perturbation(s)
-                let grid_expr = if $is_scalar {
-                    crate::expressions::Mul::new(vec![self.grid_weight.clone(), xc_density])?
-                } else {
-                    crate::expressions::MatrixMul::new(vec![
-                        crate::expressions::Mul::new(vec![self.grid_weight.clone(), xc_density])?,
-                        self.overlap_distribution.clone(),
-                    ])?
-                };
+                impl_exch_corr_type!(@build_grid_expr self $grid_expr_name $is_scalar);
 
                 Ok(intern_expr(Arc::new($type_name {
                     name: self.name,
                     grid_weight: self.grid_weight,
                     density_matrix: self.density_matrix,
                     overlap_distribution: self.overlap_distribution,
-                    $xc_grid_expr_name: grid_expr,
+                    $grid_expr_name,
                     derivative: PertMultichain::new(),
                 })))
             }
         }
     };
+
+    (@build_grid_expr $self:ident $grid_expr_name:ident true) => {
+        let xc_density = build_xc_density(
+            "Exc",
+            $self.density_matrix.clone(),
+            $self.overlap_distribution.clone(),
+            0,
+        )?;
+
+        // - `Mul` for unperturbed or the first-order perturbed cases
+        // - `Add` for higher-order perturbed case
+        let $grid_expr_name = crate::expressions::Mul::new(vec![
+            $self.grid_weight.clone(),
+            xc_density],
+        )?;
+    };
+
+    (@build_grid_expr $self:ident $grid_expr_name:ident false) => {
+        let xc_density = build_xc_density(
+            "Vxc",
+            $self.density_matrix.clone(),
+            $self.overlap_distribution.clone(),
+            1,
+        )?;
+
+        // - `MatrixMul` for unperturbed case, or when the generalized overlap
+        //   distribution does not depend on applied perturbation(s)
+        // - `MatrixAdd` for perturbed case in particular the generalized
+        //   overlap distribution depends on applied perturbation(s)
+        let $grid_expr_name = crate::expressions::MatrixMul::new(vec![
+            crate::expressions::Mul::new(vec![$self.grid_weight.clone(), xc_density])?,
+            $self.overlap_distribution.clone()
+        ])?;
+    };
 }
 
 macro_rules! impl_exch_corr_traits {
-    (
-        $type_name:ident,          // ExchCorrEnergy or ExchCorrPotential
-        $xc_grid_expr_name:ident,  // xc_energy or xc_potential
-        $is_scalar:literal
-    ) => {
+    ($type_name:ident, $grid_expr_name:ident, $is_scalar:literal) => {
         #[typetag::serde]
         impl Expr for $type_name {
             #[inline]
@@ -142,7 +146,7 @@ macro_rules! impl_exch_corr_traits {
                     self.density_matrix.hash_key(),
                     self.overlap_distribution.hash_key(),
                     pert_multichain_hash_key(&self.derivative),
-                    self.$xc_grid_expr_name.hash_key(),
+                    self.$grid_expr_name.hash_key(),
                 )
             }
 
@@ -166,7 +170,7 @@ macro_rules! impl_exch_corr_traits {
             }
 
             fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
-                let diff_expr = self.$xc_grid_expr_name.differentiate(s)?;
+                let diff_expr = self.$grid_expr_name.differentiate(s)?;
                 let mut new_deriv = self.derivative.clone();
                 *new_deriv.entry(s.clone()).or_insert(0) += 1;
 
@@ -175,7 +179,7 @@ macro_rules! impl_exch_corr_traits {
                     grid_weight: self.grid_weight.clone(),
                     density_matrix: self.density_matrix.clone(),
                     overlap_distribution: self.overlap_distribution.clone(),
-                    $xc_grid_expr_name: diff_expr,
+                    $grid_expr_name: diff_expr,
                     derivative: new_deriv,
                 })))
             }
@@ -192,7 +196,7 @@ macro_rules! impl_exch_corr_traits {
                     return false;
                 }
 
-                &self.$xc_grid_expr_name == &other.$xc_grid_expr_name
+                &self.$grid_expr_name == &other.$grid_expr_name
             }
         }
 
@@ -200,7 +204,7 @@ macro_rules! impl_exch_corr_traits {
 
         impl std::fmt::Display for $type_name {
             fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-                write!(f, "{}[{}]", self.name, &self.$xc_grid_expr_name)
+                write!(f, "{}[{}]", self.name, &self.$grid_expr_name)
             }
         }
     };

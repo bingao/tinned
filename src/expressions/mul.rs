@@ -10,7 +10,7 @@ use crate::utils::{
 };
 
 // Multiplication Expression
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Mul {
     coefficient: Number,
     factors: Vec<Arc<dyn Expr>>,
@@ -97,10 +97,14 @@ impl Mul {
         match simplified_factors.len() {
             0 => Ok(coefficient.into()),
             1 if coefficient.is_one() => Ok(simplified_factors.pop().unwrap()),
-            _ => Ok(intern_expr(Arc::new(Self { coefficient, factors: simplified_factors }))),
+            _ => Ok(intern_expr(Arc::new(Self {
+                coefficient,
+                factors: simplified_factors,
+            }))),
         }
     }
 
+    /// Returns the coefficient as a reference to the internal `Number`.
     #[inline]
     pub fn coefficient(&self) -> &Number {
         &self.coefficient

@@ -31,7 +31,10 @@ impl Power {
                     })));
                 }
 
-                Ok(intern_expr(Arc::new(Self { base, exponent })))
+                Ok(intern_expr(Arc::new(Self {
+                    base,
+                    exponent,
+                })))
             },
         }
     }

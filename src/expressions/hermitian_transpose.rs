@@ -33,17 +33,23 @@ impl HermitianTranspose {
             return Ok(herm.argument().clone());
         } else if let Some(matmul) = downcast_from_arc::<MatrixMul>(&argument) {
             if is_one_expr(matmul.coefficient()) {
-                return Ok(intern_expr(Arc::new(Self { argument })));
+                return Ok(intern_expr(Arc::new(Self {
+                    argument,
+                })));
             }
 
             let new_arg = MatrixMul::new(matmul.factors().to_vec())?;
             return MatrixMul::new(vec![
                 Conjugate::new(matmul.coefficient().clone())?,
-                intern_expr(Arc::new(Self { argument: new_arg })),
+                intern_expr(Arc::new(Self {
+                    argument: new_arg,
+                })),
             ]);
         }
 
-        Ok(intern_expr(Arc::new(Self { argument })))
+        Ok(intern_expr(Arc::new(Self {
+            argument,
+        })))
     }
 
     #[inline]

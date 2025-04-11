@@ -46,7 +46,9 @@ impl Trace {
             }
 
             let new_mul = MatrixMul::new(factors)?;
-            let result = intern_expr(Arc::new(Self { argument: new_mul }));
+            let result = intern_expr(Arc::new(Self {
+                argument: new_mul,
+            }));
 
             if is_one_expr(coef) {
                 Ok(result)
@@ -54,13 +56,21 @@ impl Trace {
                 Mul::new(vec![coef.clone(), result])
             }
         } else if let Some(conj) = downcast_from_arc::<Conjugate>(&argument) {
-            Conjugate::new(intern_expr(Arc::new(Self { argument: conj.argument().clone() })))
+            Conjugate::new(intern_expr(Arc::new(Self {
+                argument: conj.argument().clone(),
+            })))
         } else if let Some(trans) = downcast_from_arc::<Transpose>(&argument) {
-            Ok(intern_expr(Arc::new(Self { argument: trans.argument().clone() })))
+            Ok(intern_expr(Arc::new(Self {
+                argument: trans.argument().clone(),
+            })))
         } else if let Some(herm) = downcast_from_arc::<HermitianTranspose>(&argument) {
-            Conjugate::new(intern_expr(Arc::new(Self { argument: herm.argument().clone() })))
+            Conjugate::new(intern_expr(Arc::new(Self {
+                argument: herm.argument().clone(),
+            })))
         } else {
-            Ok(intern_expr(Arc::new(Self { argument })))
+            Ok(intern_expr(Arc::new(Self {
+                argument,
+            })))
         }
     }
 

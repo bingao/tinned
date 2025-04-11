@@ -18,12 +18,18 @@ pub struct TemporumOperator {
 impl TemporumOperator {
     #[inline]
     pub fn builder(argument: Arc<dyn Expr>) -> TemporumOperatorBuilder {
-        TemporumOperatorBuilder { on_ket: true, argument }
+        TemporumOperatorBuilder {
+            on_ket: true,
+            argument,
+        }
     }
 
     #[inline]
     fn builder_from(&self, argument: Arc<dyn Expr>) -> TemporumOperatorBuilder {
-        TemporumOperatorBuilder { on_ket: self.on_ket, argument }
+        TemporumOperatorBuilder {
+            on_ket: self.on_ket,
+            argument,
+        }
     }
 
     #[inline]
@@ -129,6 +135,15 @@ impl Eq for TemporumOperator {}
 
 impl std::fmt::Display for TemporumOperator {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}({})", if self.on_ket { "i*dt" } else { "-i*dt" }, self.argument)
+        write!(
+            f,
+            "{}({})",
+            if self.on_ket {
+                "i*dt"
+            } else {
+                "-i*dt"
+            },
+            self.argument
+        )
     }
 }

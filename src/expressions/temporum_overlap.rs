@@ -19,7 +19,9 @@ pub struct TemporumOverlap {
 impl TemporumOverlap {
     #[inline]
     pub fn builder(dependencies: PertMultichain) -> TemporumOverlapBuilder {
-        TemporumOverlapBuilder { dependencies }
+        TemporumOverlapBuilder {
+            dependencies,
+        }
     }
 
     #[inline]
@@ -45,14 +47,14 @@ pub struct TemporumOverlapBuilder {
 
 impl TemporumOverlapBuilder {
     pub fn build(self) -> Result<Arc<dyn Expr>, TinnedError> {
-        let Sb = OneElecOperator::builder("Sb").dependencies(self.dependencies.clone()).build()?;
-        let dt_Sb = TemporumOperator::builder(Sb).on_ket(false).build()?;
+        let bra = OneElecOperator::builder("Sb").dependencies(self.dependencies.clone()).build()?;
+        let dt_bra = TemporumOperator::builder(bra).on_ket(false).build()?;
 
-        let Sk = OneElecOperator::builder("Sk").dependencies(self.dependencies.clone()).build()?;
-        let dt_Sk = TemporumOperator::builder(Sk).on_ket(true).build()?;
+        let ket = OneElecOperator::builder("Sk").dependencies(self.dependencies.clone()).build()?;
+        let dt_ket = TemporumOperator::builder(ket).on_ket(true).build()?;
 
         Ok(intern_expr(Arc::new(TemporumOverlap {
-            braket: MatrixMul::new(vec![dt_Sb, dt_Sk])?,
+            braket: MatrixMul::new(vec![dt_bra, dt_ket])?,
             dependencies: self.dependencies,
             derivative: PertMultichain::new(),
         })))

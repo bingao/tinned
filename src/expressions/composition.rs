@@ -14,7 +14,11 @@ pub struct Composition {
 impl Composition {
     #[inline]
     pub fn new(name: impl Into<String>, order: u32, inner: Arc<dyn Expr>) -> Arc<dyn Expr> {
-        crate::utils::intern_expr(Arc::new(Self { name: name.into(), order, inner }))
+        crate::utils::intern_expr(Arc::new(Self {
+            name: name.into(),
+            order,
+            inner,
+        }))
     }
 
     #[inline]

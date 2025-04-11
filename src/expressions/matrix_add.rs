@@ -98,7 +98,9 @@ impl MatrixAdd {
             1 => Ok(simplified_terms.pop().unwrap()),
             _ => {
                 simplified_terms.sort_by_key(|term| term.fast_hash());
-                Ok(intern_expr(Arc::new(Self { terms: simplified_terms })))
+                Ok(intern_expr(Arc::new(Self {
+                    terms: simplified_terms,
+                })))
             },
         }
     }

@@ -23,10 +23,9 @@ impl Conjugate {
                 add.terms().iter().map(|t| Self::new(t.clone())).collect::<Result<_, _>>()?;
             return Add::new(terms);
         } else if let Some(mul) = downcast_from_arc::<Mul>(&argument) {
-            let coef = mul.coefficient().conjugate();
             let mut new_terms: Vec<Arc<dyn Expr>> =
                 mul.factors().iter().map(|f| Self::new(f.clone())).collect::<Result<_, _>>()?;
-            new_terms.push(coef.into());
+            new_terms.push(mul.coefficient().conjugate().into());
             return Mul::new(new_terms);
         } else if let Some(power) = downcast_from_arc::<Power>(&argument) {
             let new_base = Self::new(power.base().clone())?;
@@ -41,17 +40,23 @@ impl Conjugate {
             return Transpose::new(herm.argument().clone());
         } else if let Some(matmul) = downcast_from_arc::<MatrixMul>(&argument) {
             if is_one_expr(matmul.coefficient()) {
-                return Ok(intern_expr(Arc::new(Self { argument })));
+                return Ok(intern_expr(Arc::new(Self {
+                    argument,
+                })));
             }
 
             let new_arg = MatrixMul::new(matmul.factors().to_vec())?;
             return MatrixMul::new(vec![
                 Self::new(matmul.coefficient().clone())?,
-                intern_expr(Arc::new(Self { argument: new_arg })),
+                intern_expr(Arc::new(Self {
+                    argument: new_arg,
+                })),
             ]);
         }
 
-        Ok(intern_expr(Arc::new(Self { argument })))
+        Ok(intern_expr(Arc::new(Self {
+            argument,
+        })))
     }
 
     #[inline]

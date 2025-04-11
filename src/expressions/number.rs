@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use num_complex::Complex64;
 use num_rational::Rational64;
+use num_traits::ToPrimitive;
 
 use typetag;
 
@@ -94,14 +95,28 @@ impl Number {
             (Integer(a), Complex(b)) => Complex(Complex64::new(*a as f64, 0.0) + *b),
             (Complex(a), Integer(b)) => Complex(*a + Complex64::new(*b as f64, 0.0)),
 
-            (Real(a), Fraction(b)) => Real(*a + b.to_f64()),
-            (Fraction(a), Real(b)) => Real(a.to_f64() + *b),
+            (Real(a), Fraction(b)) => {
+                Real(*a + b.to_f64().unwrap_or_else(|| panic!("Failed to convert {} to f64", b)))
+            },
+            (Fraction(a), Real(b)) => {
+                Real(a.to_f64().unwrap_or_else(|| panic!("Failed to convert {} to f64", a)) + *b)
+            },
 
             (Real(a), Complex(b)) => Complex(Complex64::new(*a, 0.0) + *b),
             (Complex(a), Real(b)) => Complex(*a + Complex64::new(*b, 0.0)),
 
-            (Fraction(a), Complex(b)) => Complex(Complex64::new(a.to_f64(), 0.0) + *b),
-            (Complex(a), Fraction(b)) => Complex(*a + Complex64::new(b.to_f64(), 0.0)),
+            (Fraction(a), Complex(b)) => Complex(
+                Complex64::new(
+                    a.to_f64().unwrap_or_else(|| panic!("Failed to convert {} to f64", a)),
+                    0.0,
+                ) + *b,
+            ),
+            (Complex(a), Fraction(b)) => Complex(
+                *a + Complex64::new(
+                    b.to_f64().unwrap_or_else(|| panic!("Failed to convert {} to f64", b)),
+                    0.0,
+                ),
+            ),
 
             (Complex(a), Complex(b)) => Complex(*a + *b),
         }
@@ -125,14 +140,28 @@ impl Number {
             (Integer(a), Complex(b)) => Complex(Complex64::new(*a as f64, 0.0) * *b),
             (Complex(a), Integer(b)) => Complex(*a * Complex64::new(*b as f64, 0.0)),
 
-            (Real(a), Fraction(b)) => Real(*a * b.to_f64()),
-            (Fraction(a), Real(b)) => Real(a.to_f64() * *b),
+            (Real(a), Fraction(b)) => {
+                Real(*a * b.to_f64().unwrap_or_else(|| panic!("Failed to convert {} to f64", b)))
+            },
+            (Fraction(a), Real(b)) => {
+                Real(a.to_f64().unwrap_or_else(|| panic!("Failed to convert {} to f64", a)) * *b)
+            },
 
             (Real(a), Complex(b)) => Complex(Complex64::new(*a, 0.0) * *b),
             (Complex(a), Real(b)) => Complex(*a * Complex64::new(*b, 0.0)),
 
-            (Fraction(a), Complex(b)) => Complex(Complex64::new(a.to_f64(), 0.0) * *b),
-            (Complex(a), Fraction(b)) => Complex(*a * Complex64::new(b.to_f64(), 0.0)),
+            (Fraction(a), Complex(b)) => Complex(
+                Complex64::new(
+                    a.to_f64().unwrap_or_else(|| panic!("Failed to convert {} to f64", a)),
+                    0.0,
+                ) * *b,
+            ),
+            (Complex(a), Fraction(b)) => Complex(
+                *a * Complex64::new(
+                    b.to_f64().unwrap_or_else(|| panic!("Failed to convert {} to f64", b)),
+                    0.0,
+                ),
+            ),
 
             (Complex(a), Complex(b)) => Complex(*a * *b),
         }
