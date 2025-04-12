@@ -22,7 +22,7 @@ macro_rules! define_interner {
                 dashmap::mapref::entry::Entry::Vacant(e) => {
                     e.insert(Arc::clone(&obj));
                     obj
-                }
+                },
             }
         }
     };

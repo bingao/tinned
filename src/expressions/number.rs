@@ -248,13 +248,7 @@ impl std::fmt::Display for Number {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
-    use num_complex::Complex64;
-    use num_rational::Rational64;
-
-    use crate::core::Expr;
-    use crate::expressions::Number;
+    use super::*;
     use crate::utils::{downcast_from_arc, is_expr_type, is_one_expr, is_zero_expr};
 
     // Basic structure and methods

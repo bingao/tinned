@@ -72,10 +72,7 @@ impl std::fmt::Display for Symbol {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
-    use crate::core::Expr;
-    use crate::expressions::Symbol;
+    use super::*;
     use crate::utils::{downcast_from_arc, is_expr_type, is_one_expr, is_zero_expr};
 
     // Basic structure and methods
@@ -86,9 +83,7 @@ mod tests {
         };
 
         assert_eq!(s.name(), "alpha");
-
         assert_eq!(s.hash_key(), "Symbol(alpha)");
-
         assert!(s.is_scalar());
 
         assert_eq!(
@@ -113,7 +108,6 @@ mod tests {
         let s = Symbol::new("alpha");
 
         assert_eq!(s.hash_key(), "Symbol(alpha)");
-
         assert!(s.is_scalar());
 
         let s1 = Symbol::new("alpha");
@@ -143,8 +137,6 @@ mod tests {
         assert!(Arc::ptr_eq(&s1, &s2));
         assert!(!Arc::ptr_eq(&s1, &s3));
 
-        assert!(downcast_from_arc::<Symbol>(&s1).is_some());
-
         let s = downcast_from_arc::<Symbol>(&s1).unwrap();
         assert_eq!(
             s,
@@ -154,9 +146,7 @@ mod tests {
         );
 
         assert!(is_expr_type::<Symbol>(&s1));
-
         assert!(!is_zero_expr(&s1));
-
         assert!(!is_one_expr(&s1));
     }
 }
