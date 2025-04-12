@@ -17,12 +17,13 @@ macro_rules! define_interner {
 
             let key = obj.hash_key();
 
-            if let Some(cached) = $map_name.get(&key) {
-                return Arc::clone(&cached);
+            match $map_name.entry(key) {
+                dashmap::mapref::entry::Entry::Occupied(e) => Arc::clone(e.get()),
+                dashmap::mapref::entry::Entry::Vacant(e) => {
+                    e.insert(Arc::clone(&obj));
+                    obj
+                }
             }
-
-            $map_name.insert(key.clone(), Arc::clone(&obj));
-            obj
         }
     };
 }

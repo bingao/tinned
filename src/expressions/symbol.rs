@@ -69,3 +69,94 @@ impl std::fmt::Display for Symbol {
         write!(f, "{}", self.name)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use crate::core::Expr;
+    use crate::expressions::Symbol;
+    use crate::utils::{downcast_from_arc, is_expr_type, is_one_expr, is_zero_expr};
+
+    // Basic structure and methods
+    #[test]
+    fn test_struct() {
+        let s = Symbol {
+            name: "alpha".into(),
+        };
+
+        assert_eq!(s.name(), "alpha");
+
+        assert_eq!(s.hash_key(), "Symbol(alpha)");
+
+        assert!(s.is_scalar());
+
+        assert_eq!(
+            s,
+            Symbol {
+                name: "alpha".into()
+            }
+        );
+        assert_ne!(
+            s,
+            Symbol {
+                name: "beta".into()
+            }
+        );
+
+        assert_eq!(format!("{}", s), "alpha");
+    }
+
+    // Implementation for Expr
+    #[test]
+    fn test_impl_expr() {
+        let s = Symbol::new("alpha");
+
+        assert_eq!(s.hash_key(), "Symbol(alpha)");
+
+        assert!(s.is_scalar());
+
+        let s1 = Symbol::new("alpha");
+        let s2 = Symbol::new("beta");
+        assert!(s == s1);
+        assert!(s != s2);
+
+        assert_eq!(format!("{}", s), "alpha");
+    }
+
+    // Test serialization and deserialization via `serde_json`
+    #[test]
+    fn test_serialization() {
+        let s = Symbol::new("alpha");
+        let json = serde_json::to_string(&s).unwrap();
+        let deserialized: Arc<dyn Expr> = serde_json::from_str(&json).unwrap();
+        assert!(s == deserialized);
+    }
+
+    // Test utils: interning, downcast, type and identity check
+    #[test]
+    fn test_utils() {
+        let s1 = Symbol::new("alpha");
+        let s2 = Symbol::new("alpha");
+        let s3 = Symbol::new("beta");
+
+        assert!(Arc::ptr_eq(&s1, &s2));
+        assert!(!Arc::ptr_eq(&s1, &s3));
+
+        assert!(downcast_from_arc::<Symbol>(&s1).is_some());
+
+        let s = downcast_from_arc::<Symbol>(&s1).unwrap();
+        assert_eq!(
+            s,
+            &Symbol {
+                name: "alpha".into()
+            }
+        );
+
+        assert!(is_expr_type::<Symbol>(&s1));
+
+        assert!(!is_zero_expr(&s1));
+
+        assert!(!is_one_expr(&s1));
+    }
+}
