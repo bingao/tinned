@@ -77,6 +77,8 @@ mod tests {
 
     test_struct_safety!(Symbol);
 
+    test_thread_interning!(Symbol::new("alpha"));
+
     // Basic structure and methods
     #[test]
     fn test_struct() {
@@ -151,6 +153,4 @@ mod tests {
         assert!(!is_zero_expr(&s1));
         assert!(!is_one_expr(&s1));
     }
-
-    test_thread_interning!(Symbol::new("alpha"));
 }

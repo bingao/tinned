@@ -65,6 +65,8 @@ mod tests {
 
     test_struct_safety!(ZeroOperator);
 
+    test_thread_interning!(ZeroOperator::new());
+
     #[test]
     fn test_struct() {
         let z = ZeroOperator;
@@ -112,6 +114,4 @@ mod tests {
         assert!(is_zero_expr(&z1));
         assert!(!is_one_expr(&z1));
     }
-
-    test_thread_interning!(ZeroOperator::new());
 }

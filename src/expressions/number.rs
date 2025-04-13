@@ -253,6 +253,11 @@ mod tests {
 
     test_struct_safety!(Number);
 
+    test_thread_interning!({
+        let expr: Arc<dyn Expr> = Number::Integer(123).into();
+        expr
+    });
+
     // Basic structure and methods
     #[test]
     fn test_struct() {
@@ -539,9 +544,4 @@ mod tests {
         assert!(is_one_expr(&cmplx));
         assert!(!is_one_expr(&frac));
     }
-
-    test_thread_interning!({
-        let expr: Arc<dyn Expr> = Number::Integer(123).into();
-        expr
-    });
 }

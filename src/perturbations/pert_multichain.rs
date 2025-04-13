@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 
-use serde::{Serialize, Deserialize, Serializer, Deserializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::perturbations::Perturbation;
 
@@ -49,8 +49,8 @@ impl PertMultichain {
     /// same order.
     #[inline]
     pub fn is_subchain(&self, subchain: &PertMultichain) -> bool {
-        let map = self.0.lock().unwrap();
-        let submap = subchain.0.lock().unwrap();
+        let map = self.0.lock().unwrap().clone();
+        let submap = subchain.0.lock().unwrap().clone();
 
         map.iter().all(|(p, &order)| submap.get(p).copied().unwrap_or(0) <= order)
     }
@@ -60,8 +60,8 @@ impl PertMultichain {
     /// same order.
     #[inline]
     pub fn is_superchain(&self, superchain: &PertMultichain) -> bool {
-        let map = self.0.lock().unwrap();
-        let supermap = superchain.0.lock().unwrap();
+        let map = self.0.lock().unwrap().clone();
+        let supermap = superchain.0.lock().unwrap().clone();
 
         map.iter().all(|(p, &order)| supermap.get(p).copied().unwrap_or(0) >= order)
     }
@@ -80,9 +80,10 @@ impl PertMultichain {
 
 impl PartialEq for PertMultichain {
     fn eq(&self, other: &Self) -> bool {
-        let self_map = self.0.lock().unwrap();
-        let other_map = other.0.lock().unwrap();
-        *self_map == *other_map
+        // Clone to avoid double-locks, nested locks and deadlock
+        let self_map = self.0.lock().unwrap().clone();
+        let other_map = other.0.lock().unwrap().clone();
+        self_map == other_map
     }
 }
 
@@ -93,7 +94,7 @@ impl std::fmt::Display for PertMultichain {
         let map = self.0.lock().unwrap();
         let parts: Vec<String> =
             map.iter().map(|(pert, order)| format!("{}^{}", pert.name(), order)).collect();
-        f.write_str(&parts.join(", "))
+        f.write_str(&parts.join(","))
     }
 }
 
@@ -110,7 +111,8 @@ impl Serialize for PertMultichain {
         S: Serializer,
     {
         let map = self.0.lock().unwrap();
-        let entries: Vec<PertEntry> = map.iter()
+        let entries: Vec<PertEntry> = map
+            .iter()
             .map(|(p, &order)| PertEntry {
                 perturbation: Arc::clone(p),
                 order,

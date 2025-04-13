@@ -65,6 +65,11 @@ mod tests {
 
     test_struct_safety!(Perturbation);
 
+    test_thread_interning!({
+        let freq: Arc<dyn Expr> = Number::Integer(1).into();
+        Perturbation::new("alpha", freq.clone())
+    });
+
     #[test]
     fn test_struct() {
         let f1: Arc<dyn Expr> = Number::Integer(1).into();
@@ -101,11 +106,6 @@ mod tests {
 
         assert!(Arc::ptr_eq(&p1, &p2));
     }
-
-    test_thread_interning!({
-        let freq: Arc<dyn Expr> = Number::Integer(1).into();
-        Perturbation::new("alpha", freq.clone())
-    });
 
     #[test]
     fn test_order_and_hash() {
