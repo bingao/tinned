@@ -1,93 +1,270 @@
-use std::sync::Arc;
+use std::collections::BTreeMap;
+use std::sync::{Arc, Mutex};
+
+use serde::{Serialize, Deserialize, Serializer, Deserializer};
 
 use crate::perturbations::Perturbation;
 
 /// Perturbation multichain: unique perturbations with associated differentiation orders.
-pub type PertMultichain = std::collections::BTreeMap<Arc<Perturbation>, u32>;
+#[derive(Clone, Debug)]
+pub struct PertMultichain(Arc<Mutex<BTreeMap<Arc<Perturbation>, u32>>>);
 
-/// Generates a compact string suitable for hashing a perturbation multichain.
-#[inline]
-pub fn pert_multichain_hash_key(multichain: &PertMultichain) -> String {
-    multichain
-        .iter()
-        .map(|(p, order)| format!("{}^{}", p.hash_key(), order))
-        .collect::<Vec<_>>()
-        .join(",")
+impl PertMultichain {
+    /// Creates a new and empty perturbation multichain.
+    #[inline]
+    pub fn new() -> Self {
+        Self(Arc::new(Mutex::new(BTreeMap::new())))
+    }
+
+    /// Returns true if the perturbation multichain is empty.
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.0.lock().unwrap().is_empty()
+    }
+
+    /// Returns the order of a perturbation in the multichain, or 0 if absent.
+    #[inline]
+    pub fn get_order(&self, p: &Arc<Perturbation>) -> u32 {
+        let map = self.0.lock().unwrap();
+        *map.get(p).unwrap_or(&0)
+    }
+
+    /// Returns a cloned internal map of the perturbation multichain.
+    #[inline]
+    pub fn get_map_clone(&self) -> BTreeMap<Arc<Perturbation>, u32> {
+        self.0.lock().unwrap().clone()
+    }
+
+    /// Inserts a perturbation into the multichain, or increases the order by 1
+    /// if the perturbation already exists in the multichain.
+    #[inline]
+    pub fn insert(&mut self, p: &Arc<Perturbation>) {
+        let mut map = self.0.lock().unwrap();
+        let entry = map.entry(p.clone()).or_insert(0);
+        *entry += 1;
+    }
+
+    /// Returns true if `chain` is a super-multichain of `subchain`. That is,
+    /// all perturbations in `subchain` appear in `chain` with at least the
+    /// same order.
+    #[inline]
+    pub fn is_subchain(&self, subchain: &PertMultichain) -> bool {
+        let map = self.0.lock().unwrap();
+        let submap = subchain.0.lock().unwrap();
+
+        map.iter().all(|(p, &order)| submap.get(p).copied().unwrap_or(0) <= order)
+    }
+
+    /// Returns true if `chain` is a sub-multichain of `superchain`. That is,
+    /// all perturbations in `chain` appear in `superchain` with at least the
+    /// same order.
+    #[inline]
+    pub fn is_superchain(&self, superchain: &PertMultichain) -> bool {
+        let map = self.0.lock().unwrap();
+        let supermap = superchain.0.lock().unwrap();
+
+        map.iter().all(|(p, &order)| supermap.get(p).copied().unwrap_or(0) >= order)
+    }
+
+    /// Generates a compact string suitable for hashing a perturbation multichain.
+    #[inline]
+    pub fn hash_key(&self) -> String {
+        let map = self.0.lock().unwrap();
+        let mut parts = Vec::new();
+        for (pert, order) in map.iter() {
+            parts.push(format!("{}^{}", pert.name(), order));
+        }
+        parts.join(",")
+    }
 }
 
-/// Produces a human-readable string for a perturbation multichain.
-#[inline]
-pub fn pert_multichain_display(multichain: &PertMultichain) -> String {
-    multichain.iter().map(|(p, order)| format!("{}^{}", p, order)).collect::<Vec<_>>().join(", ")
+impl PartialEq for PertMultichain {
+    fn eq(&self, other: &Self) -> bool {
+        let self_map = self.0.lock().unwrap();
+        let other_map = other.0.lock().unwrap();
+        *self_map == *other_map
+    }
 }
 
-/// Returns the order of a perturbation in the multichain, or 0 if absent.
-#[inline]
-pub fn get_perturbation_order(multichain: &PertMultichain, p: &Arc<Perturbation>) -> u32 {
-    *multichain.get(p).unwrap_or(&0)
+impl Eq for PertMultichain {}
+
+impl std::fmt::Display for PertMultichain {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let map = self.0.lock().unwrap();
+        let parts: Vec<String> =
+            map.iter().map(|(pert, order)| format!("{}^{}", pert.name(), order)).collect();
+        f.write_str(&parts.join(", "))
+    }
 }
 
-/// Returns true if `chain` is a sub-chain of `super_chain`.
-/// That is, all perturbations in `chain` appear in `super_chain`
-/// with at least the same order.
-#[inline]
-pub fn is_sub_multichain(chain: &PertMultichain, super_chain: &PertMultichain) -> bool {
-    chain.iter().all(|(p, &order)| order <= get_perturbation_order(super_chain, p))
+// Intermediate format for serialization
+#[derive(Serialize, Deserialize)]
+struct PertEntry {
+    perturbation: Arc<Perturbation>,
+    order: u32,
+}
+
+impl Serialize for PertMultichain {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let map = self.0.lock().unwrap();
+        let entries: Vec<PertEntry> = map.iter()
+            .map(|(p, &order)| PertEntry {
+                perturbation: Arc::clone(p),
+                order,
+            })
+            .collect();
+        entries.serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for PertMultichain {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let entries: Vec<PertEntry> = Vec::deserialize(deserializer)?;
+        let mut map = BTreeMap::new();
+
+        for entry in entries {
+            map.insert(entry.perturbation, entry.order);
+        }
+
+        Ok(PertMultichain(Arc::new(Mutex::new(map))))
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::expressions::{Number, Symbol};
+    use crate::perturbations::Perturbation;
+
+    test_struct_safety!(PertMultichain);
 
     #[test]
-    fn test_pert_multichain_behavior() {
-        let p1 = Perturbation::new("p1", Number::Integer(1).into());
-        let p2 = Perturbation::new("p2", Symbol::new("x"));
-
+    fn test_insert_and_get_order() {
         let mut chain = PertMultichain::new();
-        chain.insert(p1.clone(), 1);
-        chain.insert(p2.clone(), 2);
+        let p = Perturbation::new("alpha", Number::from_i64(0));
 
-        // Order is stored correctly
-        assert_eq!(get_perturbation_order(&chain, &p1), 1);
-        assert_eq!(get_perturbation_order(&chain, &p2), 2);
+        assert_eq!(chain.get_order(&p), 0);
 
-        // Absent perturbation returns 0
-        let absent = Perturbation::new("absent", Number::Real(3.14).into());
-        assert_eq!(get_perturbation_order(&chain, &absent), 0);
+        chain.insert(&p);
+        assert_eq!(chain.get_order(&p), 1);
 
-        // Display and hash key format
-        let display = pert_multichain_display(&chain);
-        assert!(display.contains("p1^1"));
-        assert!(display.contains("p2^2"));
-
-        let hash_key = pert_multichain_hash_key(&chain);
-        assert!(hash_key.contains("p1^1"));
-        assert!(hash_key.contains("p2^2"));
+        chain.insert(&p);
+        assert_eq!(chain.get_order(&p), 2);
     }
 
     #[test]
-    fn test_is_sub_multichain() {
-        let p1 = Perturbation::new("p1", Number::Integer(1).into());
-        let p2 = Perturbation::new("p2", Symbol::new("x"));
+    fn test_get_map_clone() {
+        let mut chain = PertMultichain::new();
+        let p1 = Perturbation::new("p1", Symbol::new("x"));
+        let p2 = Perturbation::new("p2", Number::from_i64(42));
 
-        let mut super_chain = PertMultichain::new();
-        super_chain.insert(p1.clone(), 2);
-        super_chain.insert(p2.clone(), 3);
+        chain.insert(&p1);
+        chain.insert(&p1);
+        chain.insert(&p2);
 
-        let mut sub_chain = PertMultichain::new();
-        sub_chain.insert(p1.clone(), 1);
+        let map = chain.get_map_clone();
 
-        let mut exact_chain = PertMultichain::new();
-        exact_chain.insert(p1.clone(), 2);
-        exact_chain.insert(p2.clone(), 3);
+        assert_eq!(map.get(&p1), Some(&2));
+        assert_eq!(map.get(&p2), Some(&1));
+    }
 
-        let mut invalid_sub_chain = PertMultichain::new();
-        invalid_sub_chain.insert(p2.clone(), 4); // Too high order
+    #[test]
+    fn test_is_subchain_and_superchain() {
+        let mut c1 = PertMultichain::new();
+        let mut c2 = PertMultichain::new();
 
-        assert!(is_sub_multichain(&sub_chain, &super_chain));
-        assert!(is_sub_multichain(&exact_chain, &super_chain));
-        assert!(!is_sub_multichain(&invalid_sub_chain, &super_chain));
+        let p1 = Perturbation::new("p1", Symbol::new("x"));
+        let p2 = Perturbation::new("p2", Number::from_i64(42));
+
+        c1.insert(&p1);
+        c1.insert(&p1);
+        c1.insert(&p2);
+
+        c2.insert(&p1);
+
+        assert!(!c1.is_superchain(&c2));
+        assert!(c1.is_subchain(&c2));
+        assert!(c2.is_superchain(&c1));
+        assert!(!c2.is_subchain(&c1));
+
+        c2.insert(&p2);
+
+        assert!(!c1.is_superchain(&c2));
+        assert!(c1.is_subchain(&c2));
+        assert!(c2.is_superchain(&c1));
+        assert!(!c2.is_subchain(&c1));
+
+        c2.insert(&p2);
+
+        assert!(!c1.is_superchain(&c2));
+        assert!(!c1.is_subchain(&c2));
+        assert!(!c2.is_superchain(&c1));
+        assert!(!c2.is_subchain(&c1));
+    }
+
+    #[test]
+    fn test_hash_key_and_display() {
+        let mut chain = PertMultichain::new();
+        let p1 = Perturbation::new("alpha", Symbol::new("x"));
+        let p2 = Perturbation::new("beta", Number::from_i64(5));
+
+        chain.insert(&p1);
+        chain.insert(&p2);
+        chain.insert(&p1);
+
+        let key = chain.hash_key();
+        assert!(
+            key.contains("alpha^2") && key.contains("beta^1"),
+            "hash_key() must contain perturbation orders"
+        );
+
+        let display = format!("{}", chain);
+        assert!(
+            display.contains("alpha^2") && display.contains("beta^1"),
+            "Display should contain correct names and orders"
+        );
+    }
+
+    #[test]
+    fn test_equality() {
+        let p1 = Perturbation::new("p1", Symbol::new("x"));
+        let p2 = Perturbation::new("p2", Number::from_i64(42));
+
+        let mut c1 = PertMultichain::new();
+        let mut c2 = PertMultichain::new();
+
+        c1.insert(&p1);
+        c1.insert(&p1);
+        c1.insert(&p2);
+
+        c2.insert(&p1);
+        c2.insert(&p1);
+        c2.insert(&p2);
+
+        assert_eq!(c1, c2);
+    }
+
+    #[test]
+    fn test_serialization() {
+        use serde_json;
+
+        let p1 = Perturbation::new("p1", Symbol::new("x"));
+        let p2 = Perturbation::new("p2", Number::from_i64(42));
+
+        let mut c = PertMultichain::new();
+        c.insert(&p1);
+        c.insert(&p1);
+        c.insert(&p2);
+
+        let serialized = serde_json::to_string(&c).unwrap();
+        let deserialized: PertMultichain = serde_json::from_str(&serialized).unwrap();
+
+        assert_eq!(c, deserialized);
     }
 }

@@ -4,10 +4,7 @@ use typetag;
 
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{Add, Number, WfnParameter};
-use crate::perturbations::{
-    is_sub_multichain, pert_multichain_display, pert_multichain_hash_key, PertMultichain,
-    Perturbation,
-};
+use crate::perturbations::{PertMultichain, Perturbation};
 use crate::utils::{
     downcast_from_ref, intern_expr, invalid_expression_error, is_expr_type, is_zero_expr,
 };
@@ -156,7 +153,7 @@ impl TwoElecEnergyBuilder {
             ));
         }
 
-        if !is_sub_multichain(&self.derivative, &self.dependencies) {
+        if !self.dependencies.is_subchain(&self.derivative) {
             return Ok(Number::zero());
         }
 
@@ -197,8 +194,8 @@ impl Expr for TwoElecEnergy {
             self.name,
             inner,
             outer,
-            pert_multichain_hash_key(&self.dependencies),
-            pert_multichain_hash_key(&self.derivative),
+            self.dependencies.hash_key(),
+            self.derivative.hash_key(),
         )
     }
 
@@ -235,7 +232,7 @@ impl Expr for TwoElecEnergy {
         ];
 
         let mut new_deriv = self.derivative.clone();
-        *new_deriv.entry(s.clone()).or_insert(0) += 1;
+        new_deriv.insert(s);
 
         let diff_oper = self
             .builder_from_derivative(new_deriv)
@@ -290,13 +287,6 @@ impl std::fmt::Display for TwoElecEnergy {
             (self.inner_density.as_ref(), self.outer_density.as_ref())
         };
 
-        write!(
-            f,
-            "{}^{}[{}; {}]",
-            self.name,
-            pert_multichain_display(&self.derivative),
-            inner,
-            outer,
-        )
+        write!(f, "{}^{}[{}; {}]", self.name, self.derivative, inner, outer)
     }
 }

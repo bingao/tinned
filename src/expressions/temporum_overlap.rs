@@ -4,9 +4,7 @@ use typetag;
 
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{MatrixMul, OneElecOperator, TemporumOperator, ZeroOperator};
-use crate::perturbations::{
-    pert_multichain_display, pert_multichain_hash_key, PertMultichain, Perturbation,
-};
+use crate::perturbations::{PertMultichain, Perturbation};
 use crate::utils::{downcast_from_ref, intern_expr, is_expr_type};
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -73,8 +71,8 @@ impl Expr for TemporumOverlap {
         // We remove braket here, to be consistent with PartialEq
         format!(
             "TemporumOverlap([{}]; [{}])",
-            pert_multichain_hash_key(&self.dependencies),
-            pert_multichain_hash_key(&self.derivative),
+            self.dependencies.hash_key(),
+            self.derivative.hash_key(),
         )
     }
 
@@ -104,7 +102,7 @@ impl Expr for TemporumOverlap {
         }
 
         let mut new_deriv = self.derivative.clone();
-        *new_deriv.entry(s.clone()).or_insert(0) += 1;
+        new_deriv.insert(s);
 
         Ok(intern_expr(Arc::new(Self {
             braket: diff_braket,
@@ -125,6 +123,6 @@ impl Eq for TemporumOverlap {}
 
 impl std::fmt::Display for TemporumOverlap {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "op(T)^{}", pert_multichain_display(&self.derivative))
+        write!(f, "op(T)^{}", self.derivative)
     }
 }

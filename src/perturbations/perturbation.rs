@@ -63,14 +63,23 @@ mod tests {
     use super::*;
     use crate::expressions::{Number, Symbol};
 
+    test_struct_safety!(Perturbation);
+
     #[test]
     fn test_struct() {
-        let freq: Arc<dyn Expr> = Number::Integer(1).into();
-        let pert = Perturbation::new("alpha", freq.clone());
+        let f1: Arc<dyn Expr> = Number::Integer(1).into();
+        let p1 = Perturbation::new("alpha", f1.clone());
 
-        assert_eq!(pert.name(), "alpha");
-        assert_eq!(pert.frequency(), &freq);
-        assert!(pert.to_string().contains("alpha"));
+        assert_eq!(p1.name(), "alpha");
+        assert_eq!(p1.frequency(), &f1);
+        assert!(p1.to_string().contains("alpha"));
+
+        let f2: Arc<dyn Expr> = Number::Real(2.0).into();
+        let p2 = Perturbation::new("beta", f2.clone());
+        let p3 = Perturbation::new("alpha", f1.clone());
+
+        assert_ne!(p1, p2);
+        assert_eq!(p1, p3);
     }
 
     #[test]
@@ -86,12 +95,17 @@ mod tests {
 
     #[test]
     fn test_interning() {
-        let f: Arc<dyn Expr> = Number::Integer(5).into();
+        let f: Arc<dyn Expr> = Number::Real(5.0).into();
         let p1 = Perturbation::new("gamma", f.clone());
         let p2 = Perturbation::new("gamma", f);
 
         assert!(Arc::ptr_eq(&p1, &p2));
     }
+
+    test_thread_interning!({
+        let freq: Arc<dyn Expr> = Number::Integer(1).into();
+        Perturbation::new("alpha", freq.clone())
+    });
 
     #[test]
     fn test_order_and_hash() {
@@ -102,11 +116,9 @@ mod tests {
         let p2 = Perturbation::new("a", b.clone());
         let p3 = Perturbation::new("b", a.clone());
 
-        // Test Ord
         assert!(p1 < p2 || p1 > p2); // Different freq
         assert!(p1 < p3); // Different name
 
-        // Test Hash
         let mut hasher1 = DefaultHasher::new();
         p1.hash(&mut hasher1);
         let mut hasher2 = DefaultHasher::new();

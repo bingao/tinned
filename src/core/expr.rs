@@ -70,3 +70,10 @@ impl std::fmt::Display for dyn Expr {
         self.fmt_expr(f)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    test_struct_safety!(Arc<dyn Expr>);
+}

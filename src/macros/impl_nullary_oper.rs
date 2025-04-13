@@ -115,7 +115,7 @@ macro_rules! impl_nullary_oper_type {
 
         #[inline]
         pub fn build(self) -> Result<Arc<dyn Expr>, TinnedError> {
-            if is_sub_multichain(&self.derivative, &self.dependencies) {
+            if self.dependencies.is_subchain(&self.derivative) {
                 Ok(crate::utils::intern_expr(Arc::new($type_name {
                     name: self.name,
                     dependencies: self.dependencies,
@@ -136,7 +136,7 @@ macro_rules! impl_nullary_oper_type {
 
         #[inline]
         pub fn build(self) -> Result<Arc<dyn Expr>, TinnedError> {
-            if is_sub_multichain(&self.derivative, &self.dependencies) {
+            if self.dependencies.is_subchain(&self.derivative) {
                 Ok(crate::utils::intern_expr(Arc::new($type_name {
                     name: self.name,
                     dependencies: self.dependencies,
@@ -197,7 +197,7 @@ macro_rules! impl_nullary_oper_traits {
             fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError>
             {
                 let mut new_deriv = self.derivative.clone();
-                *new_deriv.entry(s.clone()).or_insert(0) += 1;
+                new_deriv.insert(s);
 
                 self.builder_from(new_deriv).build()
             }
@@ -208,12 +208,7 @@ macro_rules! impl_nullary_oper_traits {
                 if self.derivative.is_empty() {
                     write!(f, "{}", self.name)
                 } else {
-                    write!(
-                        f,
-                        "{}^({})",
-                        self.name,
-                        pert_multichain_display(&self.derivative),
-                    )
+                    write!(f, "{}^({})", self.name, self.derivative)
                 }
             }
         }
@@ -226,8 +221,8 @@ macro_rules! impl_nullary_oper_traits {
                 "{}({}; [{}]; [{}])",
                 stringify!($type_name),
                 self.name,
-                pert_multichain_hash_key(&self.dependencies),
-                pert_multichain_hash_key(&self.derivative),
+                self.dependencies.hash_key(),
+                self.derivative.hash_key(),
             )
         }
     };
@@ -239,7 +234,7 @@ macro_rules! impl_nullary_oper_traits {
                 "{}({}; [{}])",
                 stringify!($type_name),
                 self.name,
-                pert_multichain_hash_key(&self.derivative),
+                self.derivative.hash_key(),
             )
         }
     };

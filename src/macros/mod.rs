@@ -12,3 +12,6 @@ pub mod impl_nullary_oper;
 
 #[macro_use]
 pub mod impl_unary_expr;
+
+#[macro_use]
+pub mod impl_unit_tests;

@@ -4,10 +4,7 @@ use typetag;
 
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{MatrixAdd, WfnParameter, ZeroOperator};
-use crate::perturbations::{
-    is_sub_multichain, pert_multichain_display, pert_multichain_hash_key, PertMultichain,
-    Perturbation,
-};
+use crate::perturbations::{PertMultichain, Perturbation};
 use crate::utils::{
     downcast_from_ref, intern_expr, invalid_expression_error, is_expr_type, is_zero_expr,
 };
@@ -95,7 +92,7 @@ impl TwoElecOperatorBuilder {
 
     pub fn build(self) -> Result<Arc<dyn Expr>, TinnedError> {
         if is_expr_type::<WfnParameter>(&self.density) {
-            if is_sub_multichain(&self.derivative, &self.dependencies) {
+            if self.dependencies.is_subchain(&self.derivative) {
                 Ok(intern_expr(Arc::new(TwoElecOperator {
                     name: self.name,
                     density: self.density,
@@ -127,8 +124,8 @@ impl Expr for TwoElecOperator {
             "TwoElecOperator({}; {}; [{}]; [{}])",
             self.name,
             self.density.hash_key(),
-            pert_multichain_hash_key(&self.dependencies),
-            pert_multichain_hash_key(&self.derivative),
+            self.dependencies.hash_key(),
+            self.derivative.hash_key(),
         )
     }
 
@@ -157,7 +154,7 @@ impl Expr for TwoElecOperator {
         let term1 = self.builder_from_density(diff_density).build()?;
 
         let mut new_deriv = self.derivative.clone();
-        *new_deriv.entry(s.clone()).or_insert(0) += 1;
+        new_deriv.insert(s);
 
         let term2 = self.builder_from_derivative(new_deriv).build()?;
 
@@ -182,6 +179,6 @@ impl Eq for TwoElecOperator {}
 
 impl std::fmt::Display for TwoElecOperator {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}^{}[{}]", self.name, pert_multichain_display(&self.derivative), self.density)
+        write!(f, "{}^{}[{}]", self.name, self.derivative, self.density)
     }
 }

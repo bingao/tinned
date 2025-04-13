@@ -251,6 +251,8 @@ mod tests {
     use super::*;
     use crate::utils::{downcast_from_arc, is_expr_type, is_one_expr, is_zero_expr};
 
+    test_struct_safety!(Number);
+
     // Basic structure and methods
     #[test]
     fn test_struct() {
@@ -537,4 +539,9 @@ mod tests {
         assert!(is_one_expr(&cmplx));
         assert!(!is_one_expr(&frac));
     }
+
+    test_thread_interning!({
+        let expr: Arc<dyn Expr> = Number::Integer(123).into();
+        expr
+    });
 }

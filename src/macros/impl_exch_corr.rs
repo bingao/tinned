@@ -145,7 +145,7 @@ macro_rules! impl_exch_corr_traits {
                     self.grid_weight.hash_key(),
                     self.density_matrix.hash_key(),
                     self.overlap_distribution.hash_key(),
-                    pert_multichain_hash_key(&self.derivative),
+                    self.derivative.hash_key(),
                     self.$grid_expr_name.hash_key(),
                 )
             }
@@ -172,7 +172,7 @@ macro_rules! impl_exch_corr_traits {
             fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
                 let diff_expr = self.$grid_expr_name.differentiate(s)?;
                 let mut new_deriv = self.derivative.clone();
-                *new_deriv.entry(s.clone()).or_insert(0) += 1;
+                new_deriv.insert(s);
 
                 Ok(intern_expr(Arc::new(Self {
                     name: self.name.clone(),

@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::core::Expr;
 use crate::perturbations::Perturbation;
 
@@ -7,14 +9,12 @@ use crate::perturbations::Perturbation;
 macro_rules! define_interner {
     ($fn_name:ident, $ty:ty, $map_name:ident) => {
         lazy_static::lazy_static! {
-            static ref $map_name: std::sync::Arc<dashmap::DashMap<String, std::sync::Arc<$ty>>> =
-                std::sync::Arc::new(dashmap::DashMap::new());
+            static ref $map_name: Arc<dashmap::DashMap<String, Arc<$ty>>> =
+                Arc::new(dashmap::DashMap::new());
         }
 
         #[inline]
-        pub fn $fn_name(obj: std::sync::Arc<$ty>) -> std::sync::Arc<$ty> {
-            use std::sync::Arc;
-
+        pub fn $fn_name(obj: Arc<$ty>) -> Arc<$ty> {
             let key = obj.hash_key();
 
             match $map_name.entry(key) {
