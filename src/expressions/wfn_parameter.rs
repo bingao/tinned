@@ -22,7 +22,7 @@ mod tests {
         let mut chain = PertMultichain::new();
         chain.insert(&Perturbation::new("alpha", f1.clone()));
         chain.insert(&Perturbation::new("beta", f2.clone()));
-        WfnParameter::builder("Wfn").derivative(chain).build().unwrap()
+        WfnParameter::builder("Psi").derivative(chain).build().unwrap()
     });
 
     #[test]
@@ -34,38 +34,38 @@ mod tests {
         chain.insert(&Perturbation::new("beta", f2.clone()));
 
         let wfn = WfnParameter {
-            name: "Wfn".into(),
+            name: "Psi".into(),
             derivative: chain.clone(),
         };
 
-        assert_eq!(wfn.name(), "Wfn");
+        assert_eq!(wfn.name(), "Psi");
         assert_eq!(wfn.derivative(), &chain.clone());
-        assert_eq!(wfn.hash_key(), format!("WfnParameter(Wfn; [{chain}])"));
+        assert_eq!(wfn.hash_key(), format!("WfnParameter(Psi; [{chain}])"));
         assert!(!wfn.is_scalar());
 
         assert_eq!(
             wfn,
             WfnParameter {
-                name: "Wfn".into(),
+                name: "Psi".into(),
                 derivative: chain.clone()
             }
         );
         assert_ne!(
             wfn,
             WfnParameter {
-                name: "Other".into(),
+                name: "Phi".into(),
                 derivative: chain.clone()
             }
         );
         assert_ne!(
             wfn,
             WfnParameter {
-                name: "Wfn".into(),
+                name: "Psi".into(),
                 derivative: PertMultichain::new()
             }
         );
 
-        assert_eq!(format!("{}", wfn), format!("Wfn^({chain})"));
+        assert_eq!(format!("{}", wfn), format!("Psi^({chain})"));
     }
 
     #[test]
@@ -76,14 +76,14 @@ mod tests {
         chain.insert(&Perturbation::new("alpha", f1.clone()));
         chain.insert(&Perturbation::new("beta", f2.clone()));
 
-        let wfn = WfnParameter::builder("Wfn").derivative(chain.clone()).build().unwrap();
+        let wfn = WfnParameter::builder("Psi").derivative(chain.clone()).build().unwrap();
 
-        assert_eq!(wfn.hash_key(), format!("WfnParameter(Wfn; [{chain}])"));
+        assert_eq!(wfn.hash_key(), format!("WfnParameter(Psi; [{chain}])"));
         assert!(!wfn.is_scalar());
-        assert_eq!(format!("{}", wfn), format!("Wfn^({chain})"));
+        assert_eq!(format!("{}", wfn), format!("Psi^({chain})"));
 
-        let wfn1 = WfnParameter::builder("Wfn").derivative(chain.clone()).build().unwrap();
-        let wfn2 = WfnParameter::builder("Other").derivative(chain.clone()).build().unwrap();
+        let wfn1 = WfnParameter::builder("Psi").derivative(chain.clone()).build().unwrap();
+        let wfn2 = WfnParameter::builder("Phi").derivative(chain.clone()).build().unwrap();
 
         assert!(wfn == wfn1);
         assert!(wfn != wfn2);
@@ -97,7 +97,7 @@ mod tests {
         chain.insert(&Perturbation::new("alpha", f1.clone()));
         chain.insert(&Perturbation::new("beta", f2.clone()));
 
-        let wfn = WfnParameter::builder("Wfn").derivative(chain).build().unwrap();
+        let wfn = WfnParameter::builder("Psi").derivative(chain).build().unwrap();
 
         let json = serde_json::to_string(&wfn).unwrap();
         let deserialized: Arc<dyn Expr> = serde_json::from_str(&json).unwrap();
@@ -112,9 +112,9 @@ mod tests {
         chain.insert(&Perturbation::new("alpha", f1.clone()));
         chain.insert(&Perturbation::new("beta", f2.clone()));
 
-        let wfn1 = WfnParameter::builder("Wfn").derivative(chain.clone()).build().unwrap();
-        let wfn2 = WfnParameter::builder("Wfn").derivative(chain.clone()).build().unwrap();
-        let wfn3 = WfnParameter::builder("Other").derivative(chain.clone()).build().unwrap();
+        let wfn1 = WfnParameter::builder("Psi").derivative(chain.clone()).build().unwrap();
+        let wfn2 = WfnParameter::builder("Psi").derivative(chain.clone()).build().unwrap();
+        let wfn3 = WfnParameter::builder("Phi").derivative(chain.clone()).build().unwrap();
 
         assert!(Arc::ptr_eq(&wfn1, &wfn2));
         assert!(!Arc::ptr_eq(&wfn1, &wfn3));
@@ -123,7 +123,7 @@ mod tests {
         assert_eq!(
             wfn,
             &WfnParameter {
-                name: "Wfn".into(),
+                name: "Psi".into(),
                 derivative: chain.clone()
             }
         );
