@@ -16,6 +16,12 @@ impl PertMultichain {
         Self(Arc::new(Mutex::new(BTreeMap::new())))
     }
 
+    /// Creates a new perturbation multichain from a given `BTreeMap`.
+    #[inline]
+    pub fn from_map(map: BTreeMap<Arc<Perturbation>, u32>) -> Self {
+        PertMultichain(Arc::new(Mutex::new(map)))
+    }
+
     /// Returns true if the perturbation multichain is empty.
     #[inline]
     pub fn is_empty(&self) -> bool {
@@ -145,6 +151,21 @@ mod tests {
     use crate::perturbations::Perturbation;
 
     test_struct_safety!(PertMultichain);
+
+    #[test]
+    fn test_from_map() {
+        let mut map = BTreeMap::new();
+        let p1 = Perturbation::new("p1", Symbol::new("x"));
+        let p2 = Perturbation::new("p2", Number::from_i64(5));
+
+        map.insert(p1.clone(), 2);
+        map.insert(p2.clone(), 1);
+
+        let chain = PertMultichain::from_map(map);
+
+        assert_eq!(chain.get_order(&p1), 2);
+        assert_eq!(chain.get_order(&p2), 1);
+    }
 
     #[test]
     fn test_insert_and_get_order() {
