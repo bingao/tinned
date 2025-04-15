@@ -43,10 +43,11 @@ impl Hash for dyn Expr {
 
 impl PartialEq for dyn Expr {
     fn eq(&self, other: &Self) -> bool {
-        // Fast path: differing hash keys => not equal
-        if self.hash_key() != other.hash_key() {
-            return false;
+        // Shortcut for exact matches
+        if self.hash_key() == other.hash_key() {
+            return true;
         }
+        // Otherwise fall back to semantic comparison
         self.eq_expr(other)
     }
 }

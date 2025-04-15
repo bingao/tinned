@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use float_cmp::approx_eq;
 use num_complex::Complex64;
 use num_rational::Rational64;
 use num_traits::ToPrimitive;
@@ -225,8 +226,13 @@ impl PartialEq for Number {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Number::Integer(a), Number::Integer(b)) => a == b,
-            (Number::Real(a), Number::Real(b)) => a == b,
-            (Number::Complex(a), Number::Complex(b)) => a == b,
+            (Number::Real(a), Number::Real(b)) => {
+                approx_eq!(f64, *a, *b, epsilon = 1e-15, ulps = 4)
+            },
+            (Number::Complex(a), Number::Complex(b)) => {
+                approx_eq!(f64, a.re, b.re, epsilon = 1e-15, ulps = 4) &&
+                approx_eq!(f64, a.im, b.im, epsilon = 1e-15, ulps = 4)
+            },
             (Number::Fraction(a), Number::Fraction(b)) => a == b,
             _ => false,
         }
@@ -480,7 +486,7 @@ mod tests {
         let recovered: Number = serde_json::from_str(&json).unwrap();
         assert_eq!(n, recovered);
 
-        let n = Number::Complex(Complex64::new(1.0, -1.0));
+        let n = Number::Complex(Complex64::new(2.8840795660917706, 0.21233565255575826));
         let json = serde_json::to_string(&n).unwrap();
         let recovered: Number = serde_json::from_str(&json).unwrap();
         assert_eq!(n, recovered);

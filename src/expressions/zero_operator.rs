@@ -68,27 +68,20 @@ mod tests {
     test_thread_interning!(ZeroOperator::new());
 
     #[test]
-    fn test_struct() {
-        let z = ZeroOperator;
-
-        assert_eq!(z.hash_key(), "ZeroOperator");
-        assert!(!z.is_scalar());
-        assert_eq!(format!("{}", z), "op(0)");
-
-        assert_eq!(z, ZeroOperator);
-    }
-
-    #[test]
     fn test_impl_expr() {
-        let z = ZeroOperator::new();
-
-        assert_eq!(z.hash_key(), "ZeroOperator");
-        assert!(!z.is_scalar());
-
-        assert_eq!(format!("{}", z), "op(0)");
-
         let z1 = ZeroOperator::new();
-        assert!(z == z1);
+
+        // Test both `as_any` and `downcast_from_arc`
+        let z = downcast_from_arc::<ZeroOperator>(&z1).unwrap();
+        assert_eq!(z, &ZeroOperator);
+
+        assert_eq!(z1.hash_key(), "ZeroOperator");
+        assert!(!z1.is_scalar());
+
+        assert_eq!(format!("{}", z1), "op(0)");
+
+        let z2 = ZeroOperator::new();
+        assert!(z1 == z2);
     }
 
     #[test]
@@ -104,10 +97,8 @@ mod tests {
         let z1 = ZeroOperator::new();
         let z2 = ZeroOperator::new();
 
-        assert!(Arc::ptr_eq(&z1, &z2)); // Interning check
-
-        let z = downcast_from_arc::<ZeroOperator>(&z1).unwrap();
-        assert_eq!(z, &ZeroOperator);
+        // Interning check
+        assert!(Arc::ptr_eq(&z1, &z2));
 
         assert!(is_expr_type::<ZeroOperator>(&z1));
 

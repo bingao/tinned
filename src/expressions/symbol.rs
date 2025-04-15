@@ -79,45 +79,27 @@ mod tests {
 
     test_thread_interning!(Symbol::new("alpha"));
 
-    // Basic structure and methods
-    #[test]
-    fn test_struct() {
-        let s = Symbol {
-            name: "alpha".into(),
-        };
-
-        assert_eq!(s.name(), "alpha");
-        assert_eq!(s.hash_key(), "Symbol(alpha)");
-        assert!(s.is_scalar());
-
-        assert_eq!(
-            s,
-            Symbol {
-                name: "alpha".into()
-            }
-        );
-        assert_ne!(
-            s,
-            Symbol {
-                name: "beta".into()
-            }
-        );
-
-        assert_eq!(format!("{}", s), "alpha");
-    }
-
     // Implementation for Expr
     #[test]
     fn test_impl_expr() {
-        let s = Symbol::new("alpha");
-
-        assert_eq!(s.hash_key(), "Symbol(alpha)");
-        assert!(s.is_scalar());
-
         let s1 = Symbol::new("alpha");
-        let s2 = Symbol::new("beta");
-        assert!(s == s1);
-        assert!(s != s2);
+
+        let s = downcast_from_arc::<Symbol>(&s1).unwrap();
+        assert_eq!(
+            s,
+            &Symbol {
+                name: "alpha".into()
+            }
+        );
+        assert_eq!(s.name(), "alpha");
+
+        assert_eq!(s1.hash_key(), "Symbol(alpha)");
+        assert!(s1.is_scalar());
+
+        let s2 = Symbol::new("alpha");
+        let s3 = Symbol::new("beta");
+        assert!(s1 == s2);
+        assert!(s1 != s3);
 
         assert_eq!(format!("{}", s), "alpha");
     }
@@ -131,7 +113,7 @@ mod tests {
         assert!(s == deserialized);
     }
 
-    // Test utils: interning, downcast, type and identity check
+    // Test utils
     #[test]
     fn test_utils() {
         let s1 = Symbol::new("alpha");
@@ -140,14 +122,6 @@ mod tests {
 
         assert!(Arc::ptr_eq(&s1, &s2));
         assert!(!Arc::ptr_eq(&s1, &s3));
-
-        let s = downcast_from_arc::<Symbol>(&s1).unwrap();
-        assert_eq!(
-            s,
-            &Symbol {
-                name: "alpha".into()
-            }
-        );
 
         assert!(is_expr_type::<Symbol>(&s1));
         assert!(!is_zero_expr(&s1));

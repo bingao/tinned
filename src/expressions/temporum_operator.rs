@@ -147,3 +147,37 @@ impl std::fmt::Display for TemporumOperator {
         )
     }
 }
+
+//#[cfg(test)]
+//mod tests {
+//    use super::*;
+//    use crate::utils::{downcast_from_arc, is_expr_type, is_one_expr, is_zero_expr};
+//
+//    test_struct_safety!(TemporumOperator);
+//
+//    test_thread_interning!();
+//
+//    #[test]
+//    fn test_struct() {
+//        let deriv = make_chain();
+//    }
+//
+//    #[test]
+//    fn test_impl_expr() {
+//        let deriv = make_chain();
+//    }
+//
+//    #[test]
+//    fn test_serialization() {
+//        let op = test_nullary_oper!(@make_nullary_expr $type_name, "op", $has_deps);
+//
+//        let json = serde_json::to_string(&op).unwrap();
+//        let deserialized: Arc<dyn Expr> = serde_json::from_str(&json).unwrap();
+//        assert!(op == deserialized);
+//    }
+//
+//    #[test]
+//    fn test_utils() {
+//        let deriv = make_chain();
+//    }
+//}
