@@ -9,10 +9,44 @@ impl_nullary_oper_type!(OneElecOperator, OneElecOperatorBuilder, true, false);
 impl_nullary_oper_traits!(OneElecOperator, true, false);
 
 #[cfg(test)]
-mod tests {
+const DEFAULT_OPER_NAME: &str = "1el";
+
+#[cfg(test)]
+pub mod test_utils {
     use super::*;
-    use crate::perturbations::pert_multichain::test_utils::make_pert_multichain;
+    use crate::expressions::symbol::test_utils::random_alphanumeric;
+    use crate::perturbations::pert_multichain::test_utils::{
+        make_pert_multichain, make_super_multichain,
+    };
+
+    #[inline]
+    pub fn make_one_elec_operator(name: impl Into<String>) -> Arc<dyn Expr> {
+        let name: String = name.into();
+        if name.is_empty() {
+            let deriv = make_pert_multichain(2u32, 10u32, 1u32, 10u32);
+            let deps = make_super_multichain(&deriv, 1u32);
+            OneElecOperator::builder(random_alphanumeric(DEFAULT_OPER_NAME.len() as u32 + 1))
+                .dependencies(deps)
+                .derivative(deriv)
+                .build()
+                .unwrap()
+        } else {
+            let deriv = make_pert_multichain(0u32, 0u32, 1u32, 0u32);
+            let deps = make_super_multichain(&deriv, 1u32);
+            OneElecOperator::builder(name).dependencies(deps).derivative(deriv).build().unwrap()
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::test_utils::*;
+    use super::*;
+    use crate::expressions::symbol::test_utils::random_alphanumeric;
+    use crate::perturbations::pert_multichain::test_utils::{
+        make_pert_multichain, make_super_multichain,
+    };
     use crate::utils::{downcast_from_arc, is_expr_type, is_one_expr, is_zero_expr};
 
-    test_nullary_oper!(OneElecOperator, true, false);
+    test_nullary_oper!(OneElecOperator, DEFAULT_OPER_NAME, make_one_elec_operator, true, false);
 }

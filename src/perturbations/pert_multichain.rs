@@ -35,6 +35,12 @@ impl PertMultichain {
         *map.get(p).unwrap_or(&0)
     }
 
+    /// Returns all perturbations in the multichain and meanwhile preserves the order.
+    pub fn keys(&self) -> Vec<Arc<Perturbation>> {
+        let map = self.0.lock().unwrap();
+        map.keys().cloned().collect()
+    }
+
     /// Returns a cloned internal map of the perturbation multichain.
     #[inline]
     pub fn get_map_clone(&self) -> BTreeMap<Arc<Perturbation>, u32> {
@@ -58,7 +64,7 @@ impl PertMultichain {
         let map = self.0.lock().unwrap().clone();
         let submap = subchain.0.lock().unwrap().clone();
 
-        map.iter().all(|(p, &order)| submap.get(p).copied().unwrap_or(0) <= order)
+        submap.iter().all(|(p, &order)| map.get(p).copied().unwrap_or(0) >= order)
     }
 
     /// Returns true if `chain` is a sub-multichain of `superchain`. That is,
@@ -149,6 +155,7 @@ pub mod test_utils {
     use super::*;
     use crate::perturbations::perturbation::test_utils::*;
 
+    #[inline]
     pub fn make_pert_multichain(
         len_name: u32,
         val_range: u32,
@@ -172,6 +179,24 @@ pub mod test_utils {
 
         PertMultichain::from_map(map)
     }
+
+    #[inline]
+    pub fn make_super_multichain(subchain: &PertMultichain, min_increase: u32) -> PertMultichain {
+        let increment = if min_increase == 0 {
+            1
+        } else {
+            min_increase
+        };
+
+        let mut supermap = BTreeMap::new();
+        let map = subchain.get_map_clone();
+
+        for (pert, order) in map.iter() {
+            supermap.insert(Arc::clone(pert), order + increment);
+        }
+
+        PertMultichain::from_map(supermap)
+    }
 }
 
 #[cfg(test)]
@@ -183,17 +208,39 @@ mod tests {
     test_struct_safety!(PertMultichain);
 
     #[test]
-    fn test_insert_and_get_order() {
+    fn test_setter_and_getter() {
         let mut chain = PertMultichain::new();
-        let p = make_perturbation_complex(2u32, 10u32);
 
-        assert_eq!(chain.get_order(&p), 0);
+        let p1 = make_perturbation_i64(2u32, 10u32);
 
-        chain.insert(&p);
-        assert_eq!(chain.get_order(&p), 1);
+        assert_eq!(chain.get_order(&p1), 0);
 
-        chain.insert(&p);
-        assert_eq!(chain.get_order(&p), 2);
+        chain.insert(&p1);
+        assert_eq!(chain.get_order(&p1), 1);
+
+        chain.insert(&p1);
+        assert_eq!(chain.get_order(&p1), 2);
+
+        let mut keys: Vec<Arc<Perturbation>> = chain.keys();
+
+        assert_eq!(keys, vec![p1.clone()]);
+
+        let p2 = make_perturbation_f64(2u32, 10u32);
+        let p3 = make_perturbation_complex(2u32, 10u32);
+        let p4 = make_perturbation_rational(2u32, 10u32);
+        let p5 = make_perturbation_symbol(2u32, 4u32);
+
+        chain.insert(&p2);
+        chain.insert(&p3);
+        chain.insert(&p4);
+        chain.insert(&p5);
+
+        keys = chain.keys();
+
+        let mut expected_keys: Vec<Arc<Perturbation>> = vec![p1, p2, p3, p4, p5];
+        expected_keys.sort();
+
+        assert_eq!(keys, expected_keys);
     }
 
     #[test]
@@ -250,42 +297,27 @@ mod tests {
 
     #[test]
     fn test_chain_relationships() {
-        let mut c1 = PertMultichain::new();
-        let mut c2 = PertMultichain::new();
+        let mut c1 = make_pert_multichain(2u32, 8u32, 0u32, 10u32);
+        let mut c2 = make_super_multichain(&c1, 1u32);
 
-        let p1 = make_perturbation_i64(2u32, 10u32);
-        let p2 = make_perturbation_f64(2u32, 10u32);
-        let p3 = make_perturbation_complex(2u32, 10u32);
-        let p4 = make_perturbation_rational(2u32, 10u32);
-        let p5 = make_perturbation_symbol(2u32, 4u32);
+        assert!(c1.is_superchain(&c2));
+        assert!(!c1.is_subchain(&c2));
+        assert!(!c2.is_superchain(&c1));
+        assert!(c2.is_subchain(&c1));
 
-        c1.insert(&p1);
-        c1.insert(&p2);
-        c1.insert(&p3);
-        c1.insert(&p4);
-        c1.insert(&p5);
+        for p in c2.keys() {
+            c1.insert(&p);
+        }
 
-        c2.insert(&p1);
-        c2.insert(&p2);
-        c2.insert(&p3);
-        c2.insert(&p4);
-        c2.insert(&p5);
+        assert_eq!(c1, c2);
 
         assert!(c1.is_superchain(&c2));
         assert!(c1.is_subchain(&c2));
         assert!(c2.is_superchain(&c1));
         assert!(c2.is_subchain(&c1));
 
-        assert_eq!(c1, c2);
-
-        c1.insert(&p2);
-
-        assert!(!c1.is_superchain(&c2));
-        assert!(c1.is_subchain(&c2));
-        assert!(c2.is_superchain(&c1));
-        assert!(!c2.is_subchain(&c1));
-
-        c2.insert(&p3);
+        c1.insert(&make_perturbation_i64(2u32, 10u32));
+        c2.insert(&make_perturbation_f64(2u32, 10u32));
 
         assert!(!c1.is_superchain(&c2));
         assert!(!c1.is_subchain(&c2));

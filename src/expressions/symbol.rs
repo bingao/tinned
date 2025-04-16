@@ -71,43 +71,74 @@ impl std::fmt::Display for Symbol {
 }
 
 #[cfg(test)]
+pub mod test_utils {
+    use super::*;
+    use rand::prelude::IndexedRandom;
+    use rand::rng;
+
+    #[inline]
+    pub fn random_alphanumeric(len: u32) -> String {
+        if len == 0 {
+            "alpha".to_string()
+        } else {
+            let charset: &[u8] = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+            let mut rng = rng();
+
+            (0..len)
+                .map(|_| {
+                    let c = charset.choose(&mut rng).unwrap();
+                    *c as char
+                })
+                .collect()
+        }
+    }
+
+    #[inline]
+    pub fn make_symbol(len_name: u32) -> Arc<dyn Expr> {
+        Symbol::new(random_alphanumeric(len_name))
+    }
+}
+
+#[cfg(test)]
 mod tests {
+    use super::test_utils::*;
     use super::*;
     use crate::utils::{downcast_from_arc, is_expr_type, is_one_expr, is_zero_expr};
 
     test_struct_safety!(Symbol);
 
-    test_thread_interning!(Symbol::new("alpha"));
+    test_thread_interning!(make_symbol(0u32));
 
     // Implementation for Expr
     #[test]
     fn test_impl_expr() {
-        let s1 = Symbol::new("alpha");
+        let s1 = make_symbol(0u32);
+        let name = random_alphanumeric(0u32);
 
         let s = downcast_from_arc::<Symbol>(&s1).unwrap();
         assert_eq!(
             s,
             &Symbol {
-                name: "alpha".into()
+                name: name.clone()
             }
         );
-        assert_eq!(s.name(), "alpha");
+        assert_eq!(s.name(), name);
 
-        assert_eq!(s1.hash_key(), "Symbol(alpha)");
+        assert_eq!(s1.hash_key(), format!("Symbol({name})"));
         assert!(s1.is_scalar());
 
-        let s2 = Symbol::new("alpha");
-        let s3 = Symbol::new("beta");
+        let s2 = make_symbol(0u32);
+        let s3 = make_symbol(3u32);
         assert!(s1 == s2);
         assert!(s1 != s3);
 
-        assert_eq!(format!("{}", s), "alpha");
+        assert_eq!(format!("{}", s1), name);
     }
 
     // Test serialization and deserialization via `serde_json`
     #[test]
     fn test_serialization() {
-        let s = Symbol::new("alpha");
+        let s = make_symbol(10u32);
         let json = serde_json::to_string(&s).unwrap();
         let deserialized: Arc<dyn Expr> = serde_json::from_str(&json).unwrap();
         assert!(s == deserialized);
@@ -116,9 +147,9 @@ mod tests {
     // Test utils
     #[test]
     fn test_utils() {
-        let s1 = Symbol::new("alpha");
-        let s2 = Symbol::new("alpha");
-        let s3 = Symbol::new("beta");
+        let s1 = make_symbol(0u32);
+        let s2 = make_symbol(0u32);
+        let s3 = make_symbol(10u32);
 
         assert!(Arc::ptr_eq(&s1, &s2));
         assert!(!Arc::ptr_eq(&s1, &s3));

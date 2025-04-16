@@ -56,83 +56,57 @@ impl std::fmt::Display for Perturbation {
 #[cfg(test)]
 pub mod test_utils {
     use super::*;
-    use crate::expressions::{Number, Symbol};
-    use rand::prelude::IndexedRandom;
-    use rand::{random_range, rng};
+    use crate::expressions::number::test_utils::*;
+    use crate::expressions::symbol::test_utils::*;
 
-    fn random_alphanumeric(len: u32) -> String {
-        let charset: &[u8] = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-        let mut rng = rng();
-
-        (0..len)
-            .map(|_| {
-                let c = charset.choose(&mut rng).unwrap();
-                *c as char
-            })
-            .collect()
-    }
-
+    #[inline]
     pub fn make_perturbation_i64(len_name: u32, val_range: u32) -> Arc<Perturbation> {
-        if len_name == 0 || val_range == 0 {
-            // Return fixed Perturbation for deterministic testing
-            Perturbation::new("a", Number::from_i64(15))
+        let name: String = if len_name == 0 {
+            "a".to_string()
         } else {
-            let freq: i64 = random_range(-(val_range as i64)..=val_range as i64);
-            let name = random_alphanumeric(len_name);
-            Perturbation::new(name, Number::from_i64(freq))
-        }
+            random_alphanumeric(len_name)
+        };
+        Perturbation::new(name, make_number_i64(val_range))
     }
 
+    #[inline]
     pub fn make_perturbation_f64(len_name: u32, val_range: u32) -> Arc<Perturbation> {
-        if len_name == 0 || val_range == 0 {
-            // Return fixed Perturbation for deterministic testing
-            Perturbation::new("a", Number::from_f64(1.5))
+        let name: String = if len_name == 0 {
+            "a".to_string()
         } else {
-            let freq: f64 = random_range(-(val_range as f64)..=val_range as f64);
-            let name = random_alphanumeric(len_name);
-            Perturbation::new(name, Number::from_f64(freq))
-        }
+            random_alphanumeric(len_name)
+        };
+        Perturbation::new(name, make_number_f64(val_range))
     }
 
+    #[inline]
     pub fn make_perturbation_complex(len_name: u32, val_range: u32) -> Arc<Perturbation> {
-        if len_name == 0 || val_range == 0 {
-            // Return fixed Perturbation for deterministic testing
-            Perturbation::new("a", Number::from_complex(num_complex::Complex64::new(1.5, -1.5)))
+        let name: String = if len_name == 0 {
+            "a".to_string()
         } else {
-            let real: f64 = random_range(-(val_range as f64)..=val_range as f64);
-            let imaginary: f64 = random_range(-(val_range as f64)..=val_range as f64);
-            let name = random_alphanumeric(len_name);
-            Perturbation::new(
-                name,
-                Number::from_complex(num_complex::Complex64::new(real, imaginary)),
-            )
-        }
+            random_alphanumeric(len_name)
+        };
+        Perturbation::new(name, make_number_complex(val_range))
     }
 
+    #[inline]
     pub fn make_perturbation_rational(len_name: u32, val_range: u32) -> Arc<Perturbation> {
-        if len_name == 0 || val_range == 0 {
-            // Return fixed Perturbation for deterministic testing
-            Perturbation::new("a", Number::from_rational(num_rational::Rational64::new(1, 5)))
+        let name: String = if len_name == 0 {
+            "a".to_string()
         } else {
-            let numerator: i64 = random_range(-(val_range as i64)..=val_range as i64);
-            let denominator: i64 = random_range(1..=val_range as i64);
-            let name = random_alphanumeric(len_name);
-            Perturbation::new(
-                name,
-                Number::from_rational(num_rational::Rational64::new(numerator, denominator)),
-            )
-        }
+            random_alphanumeric(len_name)
+        };
+        Perturbation::new(name, make_number_rational(val_range))
     }
 
+    #[inline]
     pub fn make_perturbation_symbol(len_name: u32, len_freq: u32) -> Arc<Perturbation> {
-        if len_name == 0 || len_freq == 0 {
-            // Return fixed Perturbation for deterministic testing
-            Perturbation::new("a", Symbol::new("omega"))
+        let name: String = if len_name == 0 {
+            "a".to_string()
         } else {
-            let freq = random_alphanumeric(len_freq);
-            let name = random_alphanumeric(len_name);
-            Perturbation::new(name, Symbol::new(freq))
-        }
+            random_alphanumeric(len_name)
+        };
+        Perturbation::new(name, make_symbol(len_freq))
     }
 }
 

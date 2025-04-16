@@ -49,3 +49,18 @@ pub use two_elec_operator::{TwoElecOperator, TwoElecOperatorBuilder};
 pub use wfn_parameter::{WfnParameter, WfnParameterBuilder};
 pub use zero_operator::ZeroOperator;
 //pub use residue_parameter::ResidueParameter;
+
+#[cfg(test)]
+pub use number::test_utils as number_test_utils;
+
+#[cfg(test)]
+pub use symbol::test_utils as symbol_test_utils;
+
+#[cfg(test)]
+pub use non_elec_function::test_utils as non_elec_function_test_utils;
+
+#[cfg(test)]
+pub use one_elec_operator::test_utils as one_elec_operator_test_utils;
+
+#[cfg(test)]
+pub use wfn_parameter::test_utils as wfn_parameter_test_utils;

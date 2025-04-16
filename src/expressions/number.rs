@@ -227,11 +227,10 @@ impl PartialEq for Number {
         match (self, other) {
             (Number::Integer(a), Number::Integer(b)) => a == b,
             (Number::Real(a), Number::Real(b)) => {
-                approx_eq!(f64, *a, *b, epsilon = 1e-15, ulps = 4)
+                approx_eq!(f64, *a, *b, ulps = 4)
             },
             (Number::Complex(a), Number::Complex(b)) => {
-                approx_eq!(f64, a.re, b.re, epsilon = 1e-15, ulps = 4) &&
-                approx_eq!(f64, a.im, b.im, epsilon = 1e-15, ulps = 4)
+                approx_eq!(f64, a.re, b.re, ulps = 4) && approx_eq!(f64, a.im, b.im, ulps = 4)
             },
             (Number::Fraction(a), Number::Fraction(b)) => a == b,
             _ => false,
@@ -253,7 +252,54 @@ impl std::fmt::Display for Number {
 }
 
 #[cfg(test)]
+pub mod test_utils {
+    use super::*;
+    use rand::random_range;
+
+    // Returns the `f64` that is `n` ULPs greater than the given `base` value.
+    // If `n == 0`, returns the base itself.
+    #[inline]
+    pub fn ulps_up_f64(base: f64, n: u64) -> f64 {
+        f64::from_bits(base.to_bits().wrapping_add(n))
+    }
+
+    // Returns the `f64` that is `n` ULPs less than the given `base` value.
+    // Be careful near 0 — subnormals and negatives can behave differently.
+    #[inline]
+    pub fn ulps_down_f64(base: f64, n: u64) -> f64 {
+        f64::from_bits(base.to_bits().wrapping_sub(n))
+    }
+
+    #[inline]
+    pub fn make_number_i64(val_range: u32) -> Arc<dyn Expr> {
+        let val: i64 = random_range(-(val_range as i64)..=val_range as i64);
+        Number::from_i64(val)
+    }
+
+    #[inline]
+    pub fn make_number_f64(val_range: u32) -> Arc<dyn Expr> {
+        let val: f64 = random_range(-(val_range as f64)..=val_range as f64);
+        Number::from_f64(val)
+    }
+
+    #[inline]
+    pub fn make_number_complex(val_range: u32) -> Arc<dyn Expr> {
+        let real: f64 = random_range(-(val_range as f64)..=val_range as f64);
+        let imaginary: f64 = random_range(-(val_range as f64)..=val_range as f64);
+        Number::from_complex(Complex64::new(real, imaginary))
+    }
+
+    #[inline]
+    pub fn make_number_rational(val_range: u32) -> Arc<dyn Expr> {
+        let numerator: i64 = random_range(-(val_range as i64)..=val_range as i64);
+        let denominator: i64 = random_range(1..=val_range.max(1) as i64);
+        Number::from_rational(Rational64::new(numerator, denominator))
+    }
+}
+
+#[cfg(test)]
 mod tests {
+    use super::test_utils::*;
     use super::*;
     use crate::utils::{downcast_from_arc, is_expr_type, is_one_expr, is_zero_expr};
 
@@ -291,10 +337,11 @@ mod tests {
 
         assert_eq!(Number::Integer(5), Number::Integer(5));
         assert_ne!(Number::Integer(5), Number::Real(5.0)); // they are different variants
-        assert_eq!(Number::Real(5.0), Number::Real(5.0));
+        assert_eq!(Number::Real(5.0), Number::Real(ulps_up_f64(5.0, 3)));
+        assert_eq!(Number::Real(5.0), Number::Real(ulps_down_f64(5.0, 3)));
         assert_eq!(
             Number::Complex(Complex64::new(2.0, 3.0)),
-            Number::Complex(Complex64::new(2.0, 3.0))
+            Number::Complex(Complex64::new(ulps_up_f64(2.0, 3), ulps_down_f64(3.0, 3)))
         );
         assert_eq!(
             Number::Fraction(Rational64::new(1, 2)),
@@ -481,15 +528,25 @@ mod tests {
     // Test serialization and deserialization via `serde_json`
     #[test]
     fn test_serialization() {
-        let n = Number::Fraction(Rational64::new(3, 7));
-        let json = serde_json::to_string(&n).unwrap();
-        let recovered: Number = serde_json::from_str(&json).unwrap();
-        assert_eq!(n, recovered);
+        let mut n = make_number_i64(100u32);
+        let mut json = serde_json::to_string(&n).unwrap();
+        let mut recovered: Arc<dyn Expr> = serde_json::from_str(&json).unwrap();
+        assert!(n == recovered);
 
-        let n = Number::Complex(Complex64::new(2.8840795660917706, 0.21233565255575826));
-        let json = serde_json::to_string(&n).unwrap();
-        let recovered: Number = serde_json::from_str(&json).unwrap();
-        assert_eq!(n, recovered);
+        n = make_number_f64(100u32);
+        json = serde_json::to_string(&n).unwrap();
+        recovered = serde_json::from_str(&json).unwrap();
+        assert!(n == recovered);
+
+        n = make_number_complex(100u32);
+        json = serde_json::to_string(&n).unwrap();
+        recovered = serde_json::from_str(&json).unwrap();
+        assert!(n == recovered);
+
+        n = make_number_rational(100u32);
+        json = serde_json::to_string(&n).unwrap();
+        recovered = serde_json::from_str(&json).unwrap();
+        assert!(n == recovered);
     }
 
     // Test utils: interning, downcast, type and identity check
