@@ -3,7 +3,7 @@ macro_rules! impl_exch_corr_type {
         $type_name:ident,       // ExchCorrEnergy or ExchCorrPotential
         $builder_name:ident,    // ExchCorrEnergyBuilder or ExchCorrPotentialBuilder
         $grid_expr_name:ident,  // xc_energy or xc_potential
-        $is_scalar:tt
+        $build_grid_expr:ident  // build_xc_energy or build_xc_potential
     ) => {
         #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
         pub struct $type_name {
@@ -78,7 +78,11 @@ macro_rules! impl_exch_corr_type {
                     &self.overlap_distribution,
                 )?;
 
-                impl_exch_corr_type!(@build_grid_expr self $grid_expr_name $is_scalar);
+                let $grid_expr_name = $build_grid_expr(
+                    self.grid_weight.clone(),
+                    self.density_matrix.clone(),
+                    self.overlap_distribution.clone(),
+                )?;
 
                 Ok(intern_expr(Arc::new($type_name {
                     name: self.name,
@@ -90,40 +94,6 @@ macro_rules! impl_exch_corr_type {
                 })))
             }
         }
-    };
-
-    (@build_grid_expr $self:ident $grid_expr_name:ident true) => {
-        let xc_density = build_xc_density(
-            "Exc",
-            $self.density_matrix.clone(),
-            $self.overlap_distribution.clone(),
-            0,
-        )?;
-
-        // - `Mul` for unperturbed or the first-order perturbed cases
-        // - `Add` for higher-order perturbed case
-        let $grid_expr_name = crate::expressions::Mul::new(vec![
-            $self.grid_weight.clone(),
-            xc_density],
-        )?;
-    };
-
-    (@build_grid_expr $self:ident $grid_expr_name:ident false) => {
-        let xc_density = build_xc_density(
-            "Vxc",
-            $self.density_matrix.clone(),
-            $self.overlap_distribution.clone(),
-            1,
-        )?;
-
-        // - `MatrixMul` for unperturbed case, or when the generalized overlap
-        //   distribution does not depend on applied perturbation(s)
-        // - `MatrixAdd` for perturbed case in particular the generalized
-        //   overlap distribution depends on applied perturbation(s)
-        let $grid_expr_name = crate::expressions::MatrixMul::new(vec![
-            crate::expressions::Mul::new(vec![$self.grid_weight.clone(), xc_density])?,
-            $self.overlap_distribution.clone()
-        ])?;
     };
 }
 

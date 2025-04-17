@@ -298,6 +298,7 @@ const DEFAULT_OPER_NAME: &str = "E(2el)";
 pub mod test_utils {
     use super::*;
     use crate::expressions::symbol::test_utils::random_alphanumeric;
+    use crate::expressions::wfn_parameter::test_utils::make_wfn_parameter;
     use crate::perturbations::pert_multichain::test_utils::{
         make_pert_multichain, make_super_multichain,
     };
@@ -305,27 +306,25 @@ pub mod test_utils {
     #[inline]
     pub fn make_two_elec_energy(
         name: impl Into<String>,
-        inner_density: Arc<dyn Expr>,
+        inner_density: Option<Arc<dyn Expr>>,
         outer_density: Option<Arc<dyn Expr>>,
     ) -> Arc<dyn Expr> {
         let name: String = name.into();
-        let outer = outer_density.unwrap_or_else(|| inner_density.clone());
+        let inner = inner_density.unwrap_or_else(|| make_wfn_parameter(""));
+        let outer = outer_density.unwrap_or_else(|| inner.clone());
         if name.is_empty() {
             let deriv = make_pert_multichain(2u32, 10u32, 1u32, 10u32);
             let deps = make_super_multichain(&deriv, 1u32);
-            TwoElecEnergy::builder(
-                random_alphanumeric(DEFAULT_OPER_NAME.len() as u32 + 1),
-                inner_density,
-            )
-            .outer_density(outer)
-            .dependencies(deps)
-            .derivative(deriv)
-            .build()
-            .unwrap()
+            TwoElecEnergy::builder(random_alphanumeric(DEFAULT_OPER_NAME.len() as u32 + 1), inner)
+                .outer_density(outer)
+                .dependencies(deps)
+                .derivative(deriv)
+                .build()
+                .unwrap()
         } else {
             let deriv = make_pert_multichain(0u32, 0u32, 1u32, 0u32);
             let deps = make_super_multichain(&deriv, 1u32);
-            TwoElecEnergy::builder(name, inner_density)
+            TwoElecEnergy::builder(name, inner)
                 .outer_density(outer)
                 .dependencies(deps)
                 .derivative(deriv)
@@ -349,7 +348,7 @@ mod tests {
     test_struct_safety!(TwoElecEnergy);
 
     test_thread_interning!({
-        make_two_elec_energy(DEFAULT_OPER_NAME, make_wfn_parameter("density"), None)
+        make_two_elec_energy(DEFAULT_OPER_NAME, Some(make_wfn_parameter("density")), None)
     });
 
     #[test]
@@ -471,7 +470,8 @@ mod tests {
 
     #[test]
     fn test_serialization() {
-        let op = make_two_elec_energy("", make_wfn_parameter(""), Some(make_wfn_parameter("")));
+        let op =
+            make_two_elec_energy("", Some(make_wfn_parameter("")), Some(make_wfn_parameter("")));
         let json = serde_json::to_string(&op).unwrap();
         let deserialized: Arc<dyn Expr> = serde_json::from_str(&json).unwrap();
         assert_eq!(&op, &deserialized);
@@ -487,21 +487,23 @@ mod tests {
 
         let op1 = make_two_elec_energy(
             DEFAULT_OPER_NAME,
-            inner_density.clone(),
+            Some(inner_density.clone()),
             Some(outer_density.clone()),
         );
         let op2 = make_two_elec_energy(
             DEFAULT_OPER_NAME,
-            inner_density.clone(),
+            Some(inner_density.clone()),
             Some(outer_density.clone()),
         );
         let op3 = make_two_elec_energy(
             DEFAULT_OPER_NAME,
-            outer_density.clone(),
+            Some(outer_density.clone()),
             Some(inner_density.clone()),
         );
-        let op4 = make_two_elec_energy("", inner_density.clone(), Some(outer_density.clone()));
-        let op5 = make_two_elec_energy(DEFAULT_OPER_NAME, make_wfn_parameter("density"), None);
+        let op4 =
+            make_two_elec_energy("", Some(inner_density.clone()), Some(outer_density.clone()));
+        let op5 =
+            make_two_elec_energy(DEFAULT_OPER_NAME, Some(make_wfn_parameter("density")), None);
 
         let op = downcast_from_arc::<TwoElecEnergy>(&op1).unwrap();
         let op6 = op

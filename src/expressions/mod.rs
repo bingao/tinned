@@ -70,3 +70,6 @@ pub use two_elec_operator::test_utils as two_elec_operator_test_utils;
 
 #[cfg(test)]
 pub use two_elec_energy::test_utils as two_elec_energy_test_utils;
+
+#[cfg(test)]
+pub use exch_corr_energy::test_utils as exch_corr_energy_test_utils;

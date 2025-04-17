@@ -190,6 +190,7 @@ const DEFAULT_OPER_NAME: &str = "op(2el)";
 pub mod test_utils {
     use super::*;
     use crate::expressions::symbol::test_utils::random_alphanumeric;
+    use crate::expressions::wfn_parameter::test_utils::make_wfn_parameter;
     use crate::perturbations::pert_multichain::test_utils::{
         make_pert_multichain, make_super_multichain,
     };
@@ -197,24 +198,22 @@ pub mod test_utils {
     #[inline]
     pub fn make_two_elec_operator(
         name: impl Into<String>,
-        density: Arc<dyn Expr>,
+        density: Option<Arc<dyn Expr>>,
     ) -> Arc<dyn Expr> {
         let name: String = name.into();
+        let dens = density.unwrap_or_else(|| make_wfn_parameter(""));
         if name.is_empty() {
             let deriv = make_pert_multichain(2u32, 10u32, 1u32, 10u32);
             let deps = make_super_multichain(&deriv, 1u32);
-            TwoElecOperator::builder(
-                random_alphanumeric(DEFAULT_OPER_NAME.len() as u32 + 1),
-                density,
-            )
-            .dependencies(deps)
-            .derivative(deriv)
-            .build()
-            .unwrap()
+            TwoElecOperator::builder(random_alphanumeric(DEFAULT_OPER_NAME.len() as u32 + 1), dens)
+                .dependencies(deps)
+                .derivative(deriv)
+                .build()
+                .unwrap()
         } else {
             let deriv = make_pert_multichain(0u32, 0u32, 1u32, 0u32);
             let deps = make_super_multichain(&deriv, 1u32);
-            TwoElecOperator::builder(name, density)
+            TwoElecOperator::builder(name, dens)
                 .dependencies(deps)
                 .derivative(deriv)
                 .build()
@@ -237,7 +236,7 @@ mod tests {
     test_struct_safety!(TwoElecOperator);
 
     test_thread_interning!({
-        make_two_elec_operator(DEFAULT_OPER_NAME, make_wfn_parameter("density"))
+        make_two_elec_operator(DEFAULT_OPER_NAME, Some(make_wfn_parameter("density")))
     });
 
     #[test]
@@ -332,7 +331,7 @@ mod tests {
 
     #[test]
     fn test_serialization() {
-        let op = make_two_elec_operator("", make_wfn_parameter(""));
+        let op = make_two_elec_operator("", None);
         let json = serde_json::to_string(&op).unwrap();
         let deserialized: Arc<dyn Expr> = serde_json::from_str(&json).unwrap();
         assert_eq!(&op, &deserialized);
@@ -341,10 +340,10 @@ mod tests {
     #[test]
     fn test_utils() {
         let density = make_wfn_parameter("");
-        let op1 = make_two_elec_operator(DEFAULT_OPER_NAME, density.clone());
-        let op2 = make_two_elec_operator(DEFAULT_OPER_NAME, density);
-        let op3 = make_two_elec_operator("", make_wfn_parameter("density"));
-        let op4 = make_two_elec_operator(DEFAULT_OPER_NAME, make_wfn_parameter("density"));
+        let op1 = make_two_elec_operator(DEFAULT_OPER_NAME, Some(density.clone()));
+        let op2 = make_two_elec_operator(DEFAULT_OPER_NAME, Some(density));
+        let op3 = make_two_elec_operator("", Some(make_wfn_parameter("density")));
+        let op4 = make_two_elec_operator(DEFAULT_OPER_NAME, Some(make_wfn_parameter("density")));
 
         assert!(Arc::ptr_eq(&op1, &op2));
         assert!(!Arc::ptr_eq(&op1, &op3));
