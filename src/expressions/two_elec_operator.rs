@@ -182,3 +182,176 @@ impl std::fmt::Display for TwoElecOperator {
         write!(f, "{}^{}[{}]", self.name, self.derivative, self.density)
     }
 }
+
+#[cfg(test)]
+const DEFAULT_OPER_NAME: &str = "op(2el)";
+
+#[cfg(test)]
+pub mod test_utils {
+    use super::*;
+    use crate::expressions::symbol::test_utils::random_alphanumeric;
+    use crate::perturbations::pert_multichain::test_utils::{
+        make_pert_multichain, make_super_multichain,
+    };
+
+    #[inline]
+    pub fn make_two_elec_operator(
+        name: impl Into<String>,
+        density: Arc<dyn Expr>,
+    ) -> Arc<dyn Expr> {
+        let name: String = name.into();
+        if name.is_empty() {
+            let deriv = make_pert_multichain(2u32, 10u32, 1u32, 10u32);
+            let deps = make_super_multichain(&deriv, 1u32);
+            TwoElecOperator::builder(
+                random_alphanumeric(DEFAULT_OPER_NAME.len() as u32 + 1),
+                density,
+            )
+            .dependencies(deps)
+            .derivative(deriv)
+            .build()
+            .unwrap()
+        } else {
+            let deriv = make_pert_multichain(0u32, 0u32, 1u32, 0u32);
+            let deps = make_super_multichain(&deriv, 1u32);
+            TwoElecOperator::builder(name, density)
+                .dependencies(deps)
+                .derivative(deriv)
+                .build()
+                .unwrap()
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::test_utils::*;
+    use super::*;
+    use crate::expressions::symbol::test_utils::random_alphanumeric;
+    use crate::expressions::wfn_parameter::test_utils::make_wfn_parameter;
+    use crate::perturbations::pert_multichain::test_utils::{
+        make_pert_multichain, make_super_multichain,
+    };
+    use crate::utils::{downcast_from_arc, is_expr_type, is_one_expr, is_zero_expr};
+
+    test_struct_safety!(TwoElecOperator);
+
+    test_thread_interning!({
+        make_two_elec_operator(DEFAULT_OPER_NAME, make_wfn_parameter("density"))
+    });
+
+    #[test]
+    fn test_impl_expr() {
+        let density = make_wfn_parameter("");
+        let deriv = make_pert_multichain(2u32, 8u32, 1u32, 10u32);
+        let op0 = TwoElecOperator::builder(DEFAULT_OPER_NAME, density.clone())
+            .derivative(deriv.clone())
+            .build()
+            .unwrap();
+
+        assert!(is_zero_expr(&op0));
+
+        let deps = make_super_multichain(&deriv, 1u32);
+        let op1 = TwoElecOperator::builder(DEFAULT_OPER_NAME, density.clone())
+            .dependencies(deps.clone())
+            .derivative(deriv.clone())
+            .build()
+            .unwrap();
+
+        let op = downcast_from_arc::<TwoElecOperator>(&op1).unwrap();
+        assert_eq!(
+            op,
+            &TwoElecOperator {
+                name: DEFAULT_OPER_NAME.into(),
+                density: density.clone(),
+                dependencies: deps.clone(),
+                derivative: deriv.clone()
+            }
+        );
+
+        assert_eq!(op.name(), DEFAULT_OPER_NAME);
+        assert_eq!(op.density(), &density);
+        assert_eq!(op.dependencies(), &deps);
+        assert_eq!(op.derivative(), &deriv);
+
+        let mut op2 = op.builder_from_density(density.clone()).build().unwrap();
+        assert!(Arc::ptr_eq(&op1, &op2));
+        assert_eq!(&op1, &op2);
+
+        op2 = op.builder_from_derivative(deriv.clone()).build().unwrap();
+        assert!(Arc::ptr_eq(&op1, &op2));
+        assert_eq!(&op1, &op2);
+
+        assert_eq!(
+            op1.hash_key(),
+            format!(
+                "TwoElecOperator({}; {}; [{}]; [{}])",
+                DEFAULT_OPER_NAME,
+                density.hash_key(),
+                deps.hash_key(),
+                deriv.hash_key()
+            )
+        );
+        assert!(!op1.is_scalar());
+        assert_eq!(format!("{}", op1), format!("{}^{}[{}]", DEFAULT_OPER_NAME, deriv, density));
+
+        let op3 = TwoElecOperator::builder(DEFAULT_OPER_NAME, density.clone())
+            .dependencies(deps.clone())
+            .derivative(deriv.clone())
+            .build()
+            .unwrap();
+        let op4 = TwoElecOperator::builder(
+            random_alphanumeric(DEFAULT_OPER_NAME.len() as u32 + 1),
+            density.clone(),
+        )
+        .dependencies(deps.clone())
+        .derivative(deriv.clone())
+        .build()
+        .unwrap();
+        let op5 = TwoElecOperator::builder(DEFAULT_OPER_NAME, density.clone())
+            .dependencies(deps.clone())
+            .build()
+            .unwrap();
+        let op6 = TwoElecOperator::builder(DEFAULT_OPER_NAME, density)
+            .dependencies(make_super_multichain(&deriv, 2u32))
+            .derivative(deriv.clone())
+            .build()
+            .unwrap();
+        let op7 = TwoElecOperator::builder(DEFAULT_OPER_NAME, make_wfn_parameter("density"))
+            .dependencies(deps)
+            .derivative(deriv)
+            .build()
+            .unwrap();
+
+        assert_eq!(&op1, &op3);
+        assert_ne!(&op1, &op4);
+        assert_ne!(&op1, &op5);
+        assert_ne!(&op1, &op6);
+        assert_ne!(&op1, &op7);
+    }
+
+    #[test]
+    fn test_serialization() {
+        let op = make_two_elec_operator("", make_wfn_parameter(""));
+        let json = serde_json::to_string(&op).unwrap();
+        let deserialized: Arc<dyn Expr> = serde_json::from_str(&json).unwrap();
+        assert_eq!(&op, &deserialized);
+    }
+
+    #[test]
+    fn test_utils() {
+        let density = make_wfn_parameter("");
+        let op1 = make_two_elec_operator(DEFAULT_OPER_NAME, density.clone());
+        let op2 = make_two_elec_operator(DEFAULT_OPER_NAME, density);
+        let op3 = make_two_elec_operator("", make_wfn_parameter("density"));
+        let op4 = make_two_elec_operator(DEFAULT_OPER_NAME, make_wfn_parameter("density"));
+
+        assert!(Arc::ptr_eq(&op1, &op2));
+        assert!(!Arc::ptr_eq(&op1, &op3));
+        assert!(!Arc::ptr_eq(&op1, &op4));
+
+        assert!(is_expr_type::<TwoElecOperator>(&op1));
+        assert!(!is_zero_expr(&op1));
+        assert!(!is_one_expr(&op1));
+    }
+}

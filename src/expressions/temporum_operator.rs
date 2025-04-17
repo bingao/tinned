@@ -148,36 +148,90 @@ impl std::fmt::Display for TemporumOperator {
     }
 }
 
-//#[cfg(test)]
-//mod tests {
-//    use super::*;
-//    use crate::utils::{downcast_from_arc, is_expr_type, is_one_expr, is_zero_expr};
-//
-//    test_struct_safety!(TemporumOperator);
-//
-//    test_thread_interning!();
-//
-//    #[test]
-//    fn test_struct() {
-//        let deriv = make_chain();
-//    }
-//
-//    #[test]
-//    fn test_impl_expr() {
-//        let deriv = make_chain();
-//    }
-//
-//    #[test]
-//    fn test_serialization() {
-//        let op = test_nullary_oper!(@make_nullary_expr $type_name, "op", $has_deps);
-//
-//        let json = serde_json::to_string(&op).unwrap();
-//        let deserialized: Arc<dyn Expr> = serde_json::from_str(&json).unwrap();
-//        assert!(op == deserialized);
-//    }
-//
-//    #[test]
-//    fn test_utils() {
-//        let deriv = make_chain();
-//    }
-//}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::expressions::one_elec_operator::test_utils::make_one_elec_operator;
+    use crate::expressions::wfn_parameter::test_utils::make_wfn_parameter;
+    use crate::utils::{downcast_from_arc, is_expr_type, is_one_expr, is_zero_expr};
+
+    test_struct_safety!(TemporumOperator);
+
+    test_thread_interning!(TemporumOperator::builder(make_one_elec_operator("1el"))
+        .build()
+        .unwrap());
+
+    #[test]
+    fn test_impl_expr() {
+        let on_ket = true;
+        let argument = make_one_elec_operator("");
+        let op1 = TemporumOperator::builder(argument.clone()).on_ket(on_ket).build().unwrap();
+
+        let op = downcast_from_arc::<TemporumOperator>(&op1).unwrap();
+        assert_eq!(
+            op,
+            &TemporumOperator {
+                on_ket,
+                argument: argument.clone()
+            }
+        );
+
+        assert_eq!(op.on_ket(), on_ket);
+        assert_eq!(op.argument(), &argument.clone());
+
+        let op2 = op.builder_from(argument.clone()).build().unwrap();
+        assert!(Arc::ptr_eq(&op1, &op2));
+        assert_eq!(&op1, &op2);
+
+        assert_eq!(
+            op1.hash_key(),
+            format!("TemporumOperator({}; {})", on_ket, argument.hash_key())
+        );
+        assert!(!op1.is_scalar());
+        assert_eq!(
+            format!("{}", op1),
+            format!(
+                "{}({})",
+                if on_ket {
+                    "i*dt"
+                } else {
+                    "-i*dt"
+                },
+                argument
+            )
+        );
+
+        let op3 = TemporumOperator::builder(argument).on_ket(!on_ket).build().unwrap();
+        let op4 = TemporumOperator::builder(make_wfn_parameter("")).build().unwrap();
+
+        assert_ne!(&op1, &op3);
+        assert_ne!(&op1, &op4);
+    }
+
+    #[test]
+    fn test_serialization() {
+        let mut op = TemporumOperator::builder(make_one_elec_operator("")).build().unwrap();
+        let mut json = serde_json::to_string(&op).unwrap();
+        let mut deserialized: Arc<dyn Expr> = serde_json::from_str(&json).unwrap();
+        assert_eq!(&op, &deserialized);
+
+        op = TemporumOperator::builder(make_wfn_parameter("")).build().unwrap();
+        json = serde_json::to_string(&op).unwrap();
+        deserialized = serde_json::from_str(&json).unwrap();
+        assert_eq!(&op, &deserialized);
+    }
+
+    #[test]
+    fn test_utils() {
+        let op1 = TemporumOperator::builder(make_one_elec_operator("1el")).build().unwrap();
+        let op2 = TemporumOperator::builder(make_one_elec_operator("1el")).build().unwrap();
+        let op3 = TemporumOperator::builder(make_one_elec_operator("")).build().unwrap();
+
+        assert!(Arc::ptr_eq(&op1, &op2));
+        assert!(!Arc::ptr_eq(&op1, &op3));
+
+        assert!(is_expr_type::<TemporumOperator>(&op1));
+        assert!(!is_zero_expr(&op1));
+        assert!(!is_one_expr(&op1));
+    }
+}

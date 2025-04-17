@@ -290,3 +290,236 @@ impl std::fmt::Display for TwoElecEnergy {
         write!(f, "{}^{}[{}; {}]", self.name, self.derivative, inner, outer)
     }
 }
+
+#[cfg(test)]
+const DEFAULT_OPER_NAME: &str = "E(2el)";
+
+#[cfg(test)]
+pub mod test_utils {
+    use super::*;
+    use crate::expressions::symbol::test_utils::random_alphanumeric;
+    use crate::perturbations::pert_multichain::test_utils::{
+        make_pert_multichain, make_super_multichain,
+    };
+
+    #[inline]
+    pub fn make_two_elec_energy(
+        name: impl Into<String>,
+        inner_density: Arc<dyn Expr>,
+        outer_density: Option<Arc<dyn Expr>>,
+    ) -> Arc<dyn Expr> {
+        let name: String = name.into();
+        let outer = outer_density.unwrap_or_else(|| inner_density.clone());
+        if name.is_empty() {
+            let deriv = make_pert_multichain(2u32, 10u32, 1u32, 10u32);
+            let deps = make_super_multichain(&deriv, 1u32);
+            TwoElecEnergy::builder(
+                random_alphanumeric(DEFAULT_OPER_NAME.len() as u32 + 1),
+                inner_density,
+            )
+            .outer_density(outer)
+            .dependencies(deps)
+            .derivative(deriv)
+            .build()
+            .unwrap()
+        } else {
+            let deriv = make_pert_multichain(0u32, 0u32, 1u32, 0u32);
+            let deps = make_super_multichain(&deriv, 1u32);
+            TwoElecEnergy::builder(name, inner_density)
+                .outer_density(outer)
+                .dependencies(deps)
+                .derivative(deriv)
+                .build()
+                .unwrap()
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::test_utils::*;
+    use super::*;
+    use crate::expressions::symbol::test_utils::random_alphanumeric;
+    use crate::expressions::wfn_parameter::test_utils::make_wfn_parameter;
+    use crate::perturbations::pert_multichain::test_utils::{
+        make_pert_multichain, make_super_multichain,
+    };
+    use crate::utils::{downcast_from_arc, is_expr_type, is_one_expr, is_zero_expr};
+
+    test_struct_safety!(TwoElecEnergy);
+
+    test_thread_interning!({
+        make_two_elec_energy(DEFAULT_OPER_NAME, make_wfn_parameter("density"), None)
+    });
+
+    #[test]
+    fn test_impl_expr() {
+        let mut inner_density = make_wfn_parameter("");
+        let mut outer_density = make_wfn_parameter("");
+        if inner_density.hash_key() > outer_density.hash_key() {
+            std::mem::swap(&mut inner_density, &mut outer_density);
+        }
+        let deriv = make_pert_multichain(2u32, 8u32, 1u32, 10u32);
+        let op0 = TwoElecEnergy::builder(DEFAULT_OPER_NAME, inner_density.clone())
+            .derivative(deriv.clone())
+            .build()
+            .unwrap();
+
+        assert!(is_zero_expr(&op0));
+
+        let deps = make_super_multichain(&deriv, 1u32);
+        let op1 = TwoElecEnergy::builder(DEFAULT_OPER_NAME, inner_density.clone())
+            .outer_density(outer_density.clone())
+            .allow_density_swap(true)
+            .dependencies(deps.clone())
+            .derivative(deriv.clone())
+            .build()
+            .unwrap();
+
+        let op = downcast_from_arc::<TwoElecEnergy>(&op1).unwrap();
+        assert_eq!(
+            op,
+            &TwoElecEnergy {
+                name: DEFAULT_OPER_NAME.into(),
+                inner_density: inner_density.clone(),
+                outer_density: outer_density.clone(),
+                allow_density_swap: true,
+                dependencies: deps.clone(),
+                derivative: deriv.clone()
+            }
+        );
+
+        assert_eq!(op.name(), DEFAULT_OPER_NAME);
+        assert_eq!(op.inner_density(), &inner_density);
+        assert_eq!(op.outer_density(), &outer_density);
+        assert!(op.allow_density_swap());
+        assert_eq!(op.dependencies(), &deps);
+        assert_eq!(op.derivative(), &deriv);
+
+        let mut op2 = op.builder_from_inner_density(inner_density.clone()).build().unwrap();
+        assert!(Arc::ptr_eq(&op1, &op2));
+        assert_eq!(&op1, &op2);
+
+        op2 = op.builder_from_outer_density(outer_density.clone()).build().unwrap();
+        assert!(Arc::ptr_eq(&op1, &op2));
+        assert_eq!(&op1, &op2);
+
+        op2 = op.builder_from_derivative(deriv.clone()).build().unwrap();
+        assert!(Arc::ptr_eq(&op1, &op2));
+        assert_eq!(&op1, &op2);
+
+        assert_eq!(
+            op1.hash_key(),
+            format!(
+                "TwoElecEnergy({}; {}; {}; [{}]; [{}])",
+                DEFAULT_OPER_NAME,
+                inner_density.hash_key(),
+                outer_density.hash_key(),
+                deps.hash_key(),
+                deriv.hash_key()
+            )
+        );
+        assert!(op1.is_scalar());
+        assert_eq!(
+            format!("{}", op1),
+            format!("{}^{}[{}; {}]", DEFAULT_OPER_NAME, deriv, inner_density, outer_density)
+        );
+
+        let op3 = TwoElecEnergy::builder(DEFAULT_OPER_NAME, inner_density.clone())
+            .outer_density(outer_density.clone())
+            .allow_density_swap(true)
+            .dependencies(deps.clone())
+            .derivative(deriv.clone())
+            .build()
+            .unwrap();
+        let op4 = TwoElecEnergy::builder(
+            random_alphanumeric(DEFAULT_OPER_NAME.len() as u32 + 1),
+            inner_density.clone(),
+        )
+        .outer_density(outer_density.clone())
+        .allow_density_swap(true)
+        .dependencies(deps.clone())
+        .derivative(deriv.clone())
+        .build()
+        .unwrap();
+        let op5 = TwoElecEnergy::builder(DEFAULT_OPER_NAME, inner_density.clone())
+            .outer_density(outer_density.clone())
+            .allow_density_swap(true)
+            .dependencies(deps.clone())
+            .build()
+            .unwrap();
+        let op6 = TwoElecEnergy::builder(DEFAULT_OPER_NAME, inner_density)
+            .outer_density(outer_density.clone())
+            .allow_density_swap(true)
+            .dependencies(make_super_multichain(&deriv, 2u32))
+            .derivative(deriv.clone())
+            .build()
+            .unwrap();
+        let op7 = TwoElecEnergy::builder(DEFAULT_OPER_NAME, make_wfn_parameter("density"))
+            .allow_density_swap(true)
+            .dependencies(deps)
+            .derivative(deriv)
+            .build()
+            .unwrap();
+
+        assert_eq!(&op1, &op3);
+        assert_ne!(&op1, &op4);
+        assert_ne!(&op1, &op5);
+        assert_ne!(&op1, &op6);
+        assert_ne!(&op1, &op7);
+    }
+
+    #[test]
+    fn test_serialization() {
+        let op = make_two_elec_energy("", make_wfn_parameter(""), Some(make_wfn_parameter("")));
+        let json = serde_json::to_string(&op).unwrap();
+        let deserialized: Arc<dyn Expr> = serde_json::from_str(&json).unwrap();
+        assert_eq!(&op, &deserialized);
+    }
+
+    #[test]
+    fn test_utils() {
+        let mut inner_density = make_wfn_parameter("");
+        let mut outer_density = make_wfn_parameter("");
+        if inner_density.hash_key() > outer_density.hash_key() {
+            std::mem::swap(&mut inner_density, &mut outer_density);
+        }
+
+        let op1 = make_two_elec_energy(
+            DEFAULT_OPER_NAME,
+            inner_density.clone(),
+            Some(outer_density.clone()),
+        );
+        let op2 = make_two_elec_energy(
+            DEFAULT_OPER_NAME,
+            inner_density.clone(),
+            Some(outer_density.clone()),
+        );
+        let op3 = make_two_elec_energy(
+            DEFAULT_OPER_NAME,
+            outer_density.clone(),
+            Some(inner_density.clone()),
+        );
+        let op4 = make_two_elec_energy("", inner_density.clone(), Some(outer_density.clone()));
+        let op5 = make_two_elec_energy(DEFAULT_OPER_NAME, make_wfn_parameter("density"), None);
+
+        let op = downcast_from_arc::<TwoElecEnergy>(&op1).unwrap();
+        let op6 = op
+            .builder_from_inner_density(outer_density)
+            .outer_density(inner_density)
+            .allow_density_swap(false)
+            .build()
+            .unwrap();
+
+        assert!(Arc::ptr_eq(&op1, &op2));
+        assert!(Arc::ptr_eq(&op1, &op3));
+        assert!(!Arc::ptr_eq(&op1, &op4));
+        assert!(!Arc::ptr_eq(&op1, &op5));
+        assert!(!Arc::ptr_eq(&op1, &op6));
+        assert_eq!(&op1, &op6);
+
+        assert!(is_expr_type::<TwoElecEnergy>(&op1));
+        assert!(!is_zero_expr(&op1));
+        assert!(!is_one_expr(&op1));
+    }
+}

@@ -52,7 +52,7 @@ macro_rules! test_nullary_oper {
             let op = $make_expr("");
             let json = serde_json::to_string(&op).unwrap();
             let deserialized: Arc<dyn Expr> = serde_json::from_str(&json).unwrap();
-            assert!(op == deserialized);
+            assert_eq!(&op, &deserialized);
         }
 
         #[test]
@@ -102,16 +102,22 @@ macro_rules! test_nullary_oper {
         );
 
         assert_eq!(op.name(), $oper_name);
-        assert_eq!(op.dependencies(), &deps.clone());
-        assert_eq!(op.derivative(), &$deriv.clone());
+        assert_eq!(op.dependencies(), &deps);
+        assert_eq!(op.derivative(), &$deriv);
 
         let op2 = op.builder_from($deriv.clone()).build().unwrap();
         assert!(Arc::ptr_eq(&op1, &op2));
-        assert!(op1 == op2);
+        assert_eq!(&op1, &op2);
 
         assert_eq!(
             op1.hash_key(),
-            format!("{}({}; [{}]; [{}])", stringify!($type_name), $oper_name, deps, $deriv)
+            format!(
+                "{}({}; [{}]; [{}])",
+                stringify!($type_name),
+                $oper_name,
+                deps.hash_key(),
+                $deriv.hash_key()
+            )
         );
         assert_eq!(op1.is_scalar(), $is_scalar);
         assert_eq!(format!("{}", op1), format!("{}^({})", $oper_name, $deriv));
@@ -129,10 +135,10 @@ macro_rules! test_nullary_oper {
         let op5 = $type_name::builder($oper_name).dependencies(deps).build().unwrap();
         let op6 = $type_name::builder($oper_name).derivative($deriv).build().unwrap();
 
-        assert!(op1 == op3);
-        assert!(op1 != op4);
-        assert!(op1 != op5);
-        assert!(op1 != op6);
+        assert_eq!(&op1, &op3);
+        assert_ne!(&op1, &op4);
+        assert_ne!(&op1, &op5);
+        assert_ne!(&op1, &op6);
     };
 
     (@test_nullary_expr
@@ -154,15 +160,15 @@ macro_rules! test_nullary_oper {
         );
 
         assert_eq!(op.name(), $oper_name);
-        assert_eq!(op.derivative(), &$deriv.clone());
+        assert_eq!(op.derivative(), &$deriv);
 
         let op2 = op.builder_from($deriv.clone()).build().unwrap();
         assert!(Arc::ptr_eq(&op1, &op2));
-        assert!(op1 == op2);
+        assert_eq!(&op1, &op2);
 
         assert_eq!(
             op1.hash_key(),
-            format!("{}({}; [{}])", stringify!($type_name), $oper_name, $deriv)
+            format!("{}({}; [{}])", stringify!($type_name), $oper_name, $deriv.hash_key())
         );
         assert_eq!(op1.is_scalar(), $is_scalar);
         assert_eq!(format!("{}", op1), format!("{}^({})", $oper_name, $deriv));
@@ -174,8 +180,8 @@ macro_rules! test_nullary_oper {
             .unwrap();
         let op5 = $type_name::builder($oper_name).build().unwrap();
 
-        assert!(op1 == op3);
-        assert!(op1 != op4);
-        assert!(op1 != op5);
+        assert_eq!(&op1, &op3);
+        assert_ne!(&op1, &op4);
+        assert_ne!(&op1, &op5);
     };
 }

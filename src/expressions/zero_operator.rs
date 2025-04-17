@@ -81,7 +81,7 @@ mod tests {
         assert_eq!(format!("{}", z1), "op(0)");
 
         let z2 = ZeroOperator::new();
-        assert!(z1 == z2);
+        assert_eq!(&z1, &z2);
     }
 
     #[test]
@@ -89,7 +89,7 @@ mod tests {
         let z = ZeroOperator::new();
         let json = serde_json::to_string(&z).unwrap();
         let deserialized: Arc<dyn Expr> = serde_json::from_str(&json).unwrap();
-        assert!(z == deserialized);
+        assert_eq!(&z, &deserialized);
     }
 
     #[test]

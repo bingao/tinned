@@ -129,8 +129,8 @@ mod tests {
 
         let s2 = make_symbol(0u32);
         let s3 = make_symbol(3u32);
-        assert!(s1 == s2);
-        assert!(s1 != s3);
+        assert_eq!(&s1, &s2);
+        assert_ne!(&s1, &s3);
 
         assert_eq!(format!("{}", s1), name);
     }
@@ -141,7 +141,7 @@ mod tests {
         let s = make_symbol(10u32);
         let json = serde_json::to_string(&s).unwrap();
         let deserialized: Arc<dyn Expr> = serde_json::from_str(&json).unwrap();
-        assert!(s == deserialized);
+        assert_eq!(&s, &deserialized);
     }
 
     // Test utils

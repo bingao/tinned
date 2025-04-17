@@ -9,7 +9,7 @@ impl_nullary_oper_type!(NonElecFunction, NonElecFunctionBuilder, true, true);
 impl_nullary_oper_traits!(NonElecFunction, true, true);
 
 #[cfg(test)]
-const DEFAULT_OPER_NAME: &str = "nel";
+const DEFAULT_FUN_NAME: &str = "nel";
 
 #[cfg(test)]
 pub mod test_utils {
@@ -25,7 +25,7 @@ pub mod test_utils {
         if name.is_empty() {
             let deriv = make_pert_multichain(2u32, 10u32, 1u32, 10u32);
             let deps = make_super_multichain(&deriv, 1u32);
-            NonElecFunction::builder(random_alphanumeric(DEFAULT_OPER_NAME.len() as u32 + 1))
+            NonElecFunction::builder(random_alphanumeric(DEFAULT_FUN_NAME.len() as u32 + 1))
                 .dependencies(deps)
                 .derivative(deriv)
                 .build()
@@ -48,5 +48,5 @@ mod tests {
     };
     use crate::utils::{downcast_from_arc, is_expr_type, is_one_expr, is_zero_expr};
 
-    test_nullary_oper!(NonElecFunction, DEFAULT_OPER_NAME, make_non_elec_function, true, true);
+    test_nullary_oper!(NonElecFunction, DEFAULT_FUN_NAME, make_non_elec_function, true, true);
 }

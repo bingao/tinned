@@ -64,3 +64,9 @@ pub use one_elec_operator::test_utils as one_elec_operator_test_utils;
 
 #[cfg(test)]
 pub use wfn_parameter::test_utils as wfn_parameter_test_utils;
+
+#[cfg(test)]
+pub use two_elec_operator::test_utils as two_elec_operator_test_utils;
+
+#[cfg(test)]
+pub use two_elec_energy::test_utils as two_elec_energy_test_utils;

@@ -9,7 +9,7 @@ impl_nullary_oper_type!(OneElecOperator, OneElecOperatorBuilder, true, false);
 impl_nullary_oper_traits!(OneElecOperator, true, false);
 
 #[cfg(test)]
-const DEFAULT_OPER_NAME: &str = "1el";
+const DEFAULT_OPER_NAME: &str = "op(1el)";
 
 #[cfg(test)]
 pub mod test_utils {
