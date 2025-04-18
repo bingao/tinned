@@ -81,3 +81,84 @@ impl Trace {
 }
 
 impl_unary_expr_traits!(Trace, true, "tr({arg})");
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::expressions::number::test_utils::make_number_complex;
+    use crate::expressions::two_elec_operator::test_utils::make_two_elec_operator;
+    use crate::expressions::wfn_parameter::test_utils::make_wfn_parameter;
+    use crate::utils::{downcast_from_arc, is_expr_type, is_one_expr, is_zero_expr};
+
+    test_unary_oper_properties!(Trace);
+
+    #[test]
+    fn test_impl_expr() {
+        let op0 = Trace::new(ZeroOperator::new()).unwrap();
+        assert!(is_zero_expr(&op0));
+
+        let arg_2el = make_two_elec_operator("", None);
+        let op1 = Trace::new(arg_2el.clone()).unwrap();
+
+        let op = downcast_from_arc::<Trace>(&op1).unwrap();
+        assert_eq!(
+            op,
+            &Trace {
+                argument: arg_2el.clone()
+            }
+        );
+        assert_eq!(op.argument(), &arg_2el);
+
+        let op2 = Trace::new(arg_2el.clone()).unwrap();
+        assert!(Arc::ptr_eq(&op1, &op2));
+        assert_eq!(&op1, &op2);
+
+        assert_eq!(op1.hash_key(), format!("Trace({})", arg_2el.hash_key()));
+        assert!(op1.is_scalar());
+        assert_eq!(format!("{}", op1), format!("tr({})", arg_2el));
+
+        let mut argument = Conjugate::new(arg_2el.clone()).unwrap();
+        let op3 = Trace::new(argument).unwrap();
+        assert_ne!(&op1, &op3);
+        assert_eq!(&op3, &Conjugate::new(Trace::new(arg_2el.clone()).unwrap()).unwrap());
+
+        argument = Transpose::new(arg_2el.clone()).unwrap();
+        let op4 = Trace::new(argument).unwrap();
+        assert!(Arc::ptr_eq(&op1, &op4));
+        assert_eq!(&op1, &op4);
+
+        argument = HermitianTranspose::new(arg_2el.clone()).unwrap();
+        let op5 = Trace::new(argument).unwrap();
+        assert_ne!(&op1, &op5);
+        assert_eq!(&op5, &Conjugate::new(Trace::new(arg_2el.clone()).unwrap()).unwrap());
+
+        let arg_wfn = make_wfn_parameter("");
+        argument = MatrixAdd::new(vec![arg_2el.clone(), arg_wfn.clone()]).unwrap();
+        let op6 = Trace::new(argument).unwrap();
+        assert_ne!(&op1, &op6);
+        assert_eq!(
+            &op6,
+            &Add::new(vec![
+                Trace::new(arg_2el.clone()).unwrap(),
+                Trace::new(arg_wfn.clone()).unwrap()
+            ])
+            .unwrap()
+        );
+
+        let coef = make_number_complex(100u32);
+        argument = MatrixMul::new(vec![coef.clone(), arg_2el.clone(), arg_wfn.clone()]).unwrap();
+        let op7 = Trace::new(argument).unwrap();
+        assert_ne!(&op1, &op7);
+
+        let mul = downcast_from_arc::<Mul>(&op7).unwrap();
+        //let expected: Arc<dyn Expr> = mul.coefficient().clone().into();
+        let expected: Arc<dyn Expr> = mul.coefficient().into();
+        assert_eq!(&expected, &coef);
+        let terms = if arg_2el.hash_key() <= arg_wfn.hash_key() {
+            vec![arg_2el, arg_wfn]
+        } else {
+            vec![arg_wfn, arg_2el]
+        };
+        assert_eq!(mul.factors(), vec![Trace::new(MatrixMul::new(terms).unwrap()).unwrap()]);
+    }
+}

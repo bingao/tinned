@@ -180,6 +180,7 @@ macro_rules! impl_exch_corr_traits {
     };
 }
 
+#[allow(unused_macros)]
 macro_rules! impl_exch_corr_test_utils {
     (
         $type_name:ident,  // ExchCorrEnergy or ExchCorrPotential

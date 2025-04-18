@@ -177,6 +177,13 @@ impl From<Number> for Arc<dyn Expr> {
     }
 }
 
+impl From<&Number> for Arc<dyn Expr> {
+    #[inline]
+    fn from(num: &Number) -> Self {
+        crate::utils::intern_expr(Arc::new(num.clone()))
+    }
+}
+
 #[typetag::serde]
 impl Expr for Number {
     #[inline]

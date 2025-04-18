@@ -44,7 +44,13 @@ macro_rules! test_nullary_oper {
         #[test]
         fn test_impl_expr() {
             let deriv = make_pert_multichain(2u32, 8u32, 1u32, 10u32);
-            test_nullary_oper!(@test_nullary_expr $type_name, $oper_name, deriv, $has_deps, $is_scalar);
+            test_nullary_oper!(@test_nullary_expr
+                $type_name,
+                $oper_name,
+                deriv,
+                $has_deps,
+                $is_scalar,
+            );
         }
 
         #[test]
@@ -75,7 +81,7 @@ macro_rules! test_nullary_oper {
         $oper_name:ident,
         $deriv:ident,
         true,
-        $is_scalar:tt
+        $is_scalar:tt,
     ) => {
         let op0 = $type_name::builder($oper_name)
             .derivative($deriv.clone())
@@ -146,7 +152,7 @@ macro_rules! test_nullary_oper {
         $oper_name:ident,
         $deriv:ident,
         false,
-        $is_scalar:tt
+        $is_scalar:tt,
     ) => {
         let op1 = $type_name::builder($oper_name).derivative($deriv.clone()).build().unwrap();
 
@@ -195,7 +201,7 @@ macro_rules! test_exch_corr {
         $make_expr:ident,
         $grid_expr_name:ident,
         $build_grid_expr:ident,
-        $is_scalar:literal
+        $is_scalar:literal,
     ) => {
         test_struct_safety!($type_name);
 
@@ -317,5 +323,121 @@ macro_rules! test_exch_corr {
             assert!(!is_zero_expr(&op1));
             assert!(!is_one_expr(&op1));
         }
+    };
+}
+
+// Test interning, serialization and utils for Trace, Transpose and HermitianTranspose
+#[allow(unused_macros)]
+macro_rules! test_unary_oper_properties {
+    ($type_name:ident) => {
+        test_struct_safety!($type_name);
+
+        test_thread_interning!($type_name::new(make_two_elec_operator(
+            "op(2el)",
+            Some(make_wfn_parameter("wfn"))
+        ))
+        .unwrap());
+
+        #[test]
+        fn test_serialization() {
+            let op = $type_name::new(make_two_elec_operator("", None)).unwrap();
+            let json = serde_json::to_string(&op).unwrap();
+            let deserialized: Arc<dyn Expr> = serde_json::from_str(&json).unwrap();
+            assert_eq!(&op, &deserialized);
+        }
+
+        #[test]
+        fn test_utils() {
+            let density = make_wfn_parameter("");
+            let arg_2el = make_two_elec_operator("op(2el)", Some(density.clone()));
+            let op1 = $type_name::new(arg_2el.clone()).unwrap();
+            let op2 = $type_name::new(arg_2el).unwrap();
+            let op3 = $type_name::new(make_two_elec_operator("", Some(density))).unwrap();
+            let op4 = $type_name::new(make_two_elec_operator("op(2el)", None)).unwrap();
+
+            assert!(Arc::ptr_eq(&op1, &op2));
+            assert!(!Arc::ptr_eq(&op1, &op3));
+            assert!(!Arc::ptr_eq(&op1, &op4));
+
+            assert!(is_expr_type::<$type_name>(&op1));
+            assert!(!is_zero_expr(&op1));
+            assert!(!is_one_expr(&op1));
+        }
+    };
+}
+
+// Test Transpose and HermitianTranspose
+#[allow(unused_macros)]
+macro_rules! test_transpose {
+    ($type_name:ident, $conj_type:ident, $has_conj:tt, $display_fmt:expr) => {
+        test_unary_oper_properties!($type_name);
+
+        #[test]
+        fn test_impl_expr() {
+            let op0 = $type_name::new(ZeroOperator::new()).unwrap();
+            assert!(is_zero_expr(&op0));
+
+            let arg_2el = make_two_elec_operator("", None);
+            let op1 = $type_name::new(arg_2el.clone()).unwrap();
+
+            let op = downcast_from_arc::<$type_name>(&op1).unwrap();
+            assert_eq!(
+                op,
+                &$type_name {
+                    argument: arg_2el.clone()
+                }
+            );
+            assert_eq!(op.argument(), &arg_2el);
+
+            let op2 = $type_name::new(arg_2el.clone()).unwrap();
+            assert!(Arc::ptr_eq(&op1, &op2));
+            assert_eq!(&op1, &op2);
+
+            assert_eq!(
+                op1.hash_key(),
+                format!("{}({})", stringify!($type_name), arg_2el.hash_key())
+            );
+            assert!(!op1.is_scalar());
+            assert_eq!(format!("{}", op1), format!($display_fmt, arg = arg_2el));
+
+            let mut argument = Conjugate::new(arg_2el.clone()).unwrap();
+            let op3 = $type_name::new(argument).unwrap();
+            assert_ne!(&op1, &op3);
+            assert_eq!(&op3, &$conj_type::new(arg_2el.clone()).unwrap());
+
+            let op4 = $type_name::new(op2).unwrap();
+            assert_ne!(&op1, &op4);
+            assert_eq!(&op4, &arg_2el);
+
+            argument = $conj_type::new(arg_2el.clone()).unwrap();
+            let op5 = $type_name::new(argument).unwrap();
+            assert_ne!(&op1, &op5);
+            assert_eq!(&op5, &Conjugate::new(arg_2el.clone()).unwrap());
+
+            let coef = make_symbol(4u32);
+            let arg_wfn = make_wfn_parameter("");
+            argument = MatrixMul::new(vec![
+                coef.clone(),
+                arg_2el.clone(),
+                arg_wfn.clone()
+            ]).unwrap();
+            let op6 = $type_name::new(argument).unwrap();
+            assert_ne!(&op1, &op6);
+
+            let matmul = downcast_from_arc::<MatrixMul>(&op6).unwrap();
+            test_transpose!(@assert_matmul_coef matmul, coef, $has_conj);
+            assert_eq!(
+                matmul.factors(),
+                vec![$type_name::new(MatrixMul::new(vec![arg_2el, arg_wfn]).unwrap()).unwrap()]
+            );
+        }
+    };
+
+    (@assert_matmul_coef $matmul:ident, $coef:ident, true) => {
+        assert_eq!($matmul.coefficient(), &Conjugate::new($coef).unwrap())
+    };
+
+    (@assert_matmul_coef $matmul:ident, $coef:ident, false) => {
+        assert_eq!($matmul.coefficient(), &$coef)
     };
 }
