@@ -185,3 +185,137 @@ macro_rules! test_nullary_oper {
         assert_ne!(&op1, &op5);
     };
 }
+
+// Test ExchCorrEnergy and ExchCorrPotential
+#[allow(unused_macros)]
+macro_rules! test_exch_corr {
+    (
+        $type_name:ident,
+        $oper_name:ident,
+        $make_expr:ident,
+        $grid_expr_name:ident,
+        $build_grid_expr:ident,
+        $is_scalar:literal
+    ) => {
+        test_struct_safety!($type_name);
+
+        test_thread_interning!({
+            $make_expr(
+                $oper_name,
+                Some(make_non_elec_function("weight")),
+                Some(make_wfn_parameter("density")),
+                Some(make_one_elec_operator("Omega")),
+            )
+        });
+
+        #[test]
+        fn test_impl_expr() {
+            let weight = make_non_elec_function("");
+            let density = make_wfn_parameter("");
+            let overlap = make_one_elec_operator("");
+            let op1 = $make_expr(
+                $oper_name,
+                Some(weight.clone()),
+                Some(density.clone()),
+                Some(overlap.clone()),
+            );
+
+            let op = downcast_from_arc::<$type_name>(&op1).unwrap();
+            let $grid_expr_name =
+                $build_grid_expr(weight.clone(), density.clone(), overlap.clone()).unwrap();
+            assert_eq!(
+                op,
+                &$type_name {
+                    name: $oper_name.into(),
+                    grid_weight: weight.clone(),
+                    density_matrix: density.clone(),
+                    overlap_distribution: overlap.clone(),
+                    $grid_expr_name: $grid_expr_name.clone(),
+                    derivative: PertMultichain::new(),
+                }
+            );
+
+            assert_eq!(op.name(), $oper_name);
+            assert_eq!(op.grid_weight(), &weight);
+            assert_eq!(op.density_matrix(), &density);
+            assert_eq!(op.overlap_distribution(), &overlap);
+            assert_eq!(op.$grid_expr_name(), &$grid_expr_name);
+
+            assert_eq!(
+                op1.hash_key(),
+                format!(
+                    "{}({}; {}; {}; {}; [{}]; {})",
+                    stringify!($type_name),
+                    $oper_name,
+                    weight.hash_key(),
+                    density.hash_key(),
+                    overlap.hash_key(),
+                    PertMultichain::new().hash_key(),
+                    $grid_expr_name.hash_key(),
+                )
+            );
+            assert_eq!(op1.is_scalar(), $is_scalar);
+            assert_eq!(format!("{}", op1), format!("{}[{}]", $oper_name, $grid_expr_name));
+
+            let op2 = $make_expr(
+                $oper_name,
+                Some(weight.clone()),
+                Some(density.clone()),
+                Some(overlap.clone()),
+            );
+            let op3 =
+                $make_expr("", Some(weight.clone()), Some(density.clone()), Some(overlap.clone()));
+            let op4 = $make_expr($oper_name, None, Some(density.clone()), Some(overlap.clone()));
+            let op5 = $make_expr($oper_name, Some(weight.clone()), None, Some(overlap));
+            let op6 = $make_expr($oper_name, Some(weight), Some(density), None);
+
+            assert_eq!(&op1, &op2);
+            assert_ne!(&op1, &op3);
+            assert_ne!(&op1, &op4);
+            assert_ne!(&op1, &op5);
+            assert_ne!(&op1, &op6);
+        }
+
+        #[test]
+        fn test_serialization() {
+            let op = $make_expr("", None, None, None);
+            let json = serde_json::to_string(&op).unwrap();
+            let deserialized: Arc<dyn Expr> = serde_json::from_str(&json).unwrap();
+            assert_eq!(&op, &deserialized);
+        }
+
+        #[test]
+        fn test_utils() {
+            let weight = make_non_elec_function("");
+            let density = make_wfn_parameter("");
+            let overlap = make_one_elec_operator("");
+            let op1 = $make_expr(
+                $oper_name,
+                Some(weight.clone()),
+                Some(density.clone()),
+                Some(overlap.clone()),
+            );
+            let op2 = $make_expr(
+                $oper_name,
+                Some(weight.clone()),
+                Some(density.clone()),
+                Some(overlap.clone()),
+            );
+            let op3 =
+                $make_expr("", Some(weight.clone()), Some(density.clone()), Some(overlap.clone()));
+            let op4 = $make_expr($oper_name, None, Some(density.clone()), Some(overlap.clone()));
+            let op5 = $make_expr($oper_name, Some(weight.clone()), None, Some(overlap));
+            let op6 = $make_expr($oper_name, Some(weight), Some(density), None);
+
+            assert!(Arc::ptr_eq(&op1, &op2));
+            assert!(!Arc::ptr_eq(&op1, &op3));
+            assert!(!Arc::ptr_eq(&op1, &op4));
+            assert!(!Arc::ptr_eq(&op1, &op5));
+            assert!(!Arc::ptr_eq(&op1, &op6));
+
+            assert!(is_expr_type::<$type_name>(&op1));
+            assert!(!is_zero_expr(&op1));
+            assert!(!is_one_expr(&op1));
+        }
+    };
+}

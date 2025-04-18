@@ -179,3 +179,36 @@ macro_rules! impl_exch_corr_traits {
         }
     };
 }
+
+macro_rules! impl_exch_corr_test_utils {
+    (
+        $type_name:ident,  // ExchCorrEnergy or ExchCorrPotential
+        $oper_name:ident,  // DEFAULT_FUNC_NAME
+        $make_expr:ident   // make_exch_corr_energy or make_exch_corr_potential
+    ) => {
+        #[inline]
+        pub fn $make_expr(
+            name: impl Into<String>,
+            grid_weight: Option<Arc<dyn Expr>>,
+            density_matrix: Option<Arc<dyn Expr>>,
+            overlap_distribution: Option<Arc<dyn Expr>>,
+        ) -> Arc<dyn Expr> {
+            let name: String = name.into();
+            let weight = grid_weight.unwrap_or_else(|| make_non_elec_function(""));
+            let dens = density_matrix.unwrap_or_else(|| make_wfn_parameter(""));
+            let overlap = overlap_distribution.unwrap_or_else(|| make_one_elec_operator(""));
+            if name.is_empty() {
+                $type_name::builder(
+                    random_alphanumeric($oper_name.len() as u32 + 1),
+                    weight,
+                    dens,
+                    overlap,
+                )
+                .build()
+                .unwrap()
+            } else {
+                $type_name::builder(name, weight, dens, overlap).build().unwrap()
+            }
+        }
+    };
+}
