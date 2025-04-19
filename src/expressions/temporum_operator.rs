@@ -153,7 +153,7 @@ mod tests {
     use super::*;
     use crate::expressions::one_elec_operator::test_utils::make_one_elec_operator;
     use crate::expressions::wfn_parameter::test_utils::make_wfn_parameter;
-    use crate::utils::{downcast_from_arc, is_expr_type, is_one_expr, is_zero_expr};
+    use crate::utils::{downcast_from_arc, is_one_expr};
 
     test_struct_safety!(TemporumOperator);
 
@@ -224,14 +224,15 @@ mod tests {
     #[test]
     fn test_utils() {
         let op1 = TemporumOperator::builder(make_one_elec_operator("1el")).build().unwrap();
+
+        assert!(is_expr_type::<TemporumOperator>(&op1));
+        assert!(!is_zero_expr(&op1));
+        assert!(!is_one_expr(&op1));
+
         let op2 = TemporumOperator::builder(make_one_elec_operator("1el")).build().unwrap();
         let op3 = TemporumOperator::builder(make_one_elec_operator("")).build().unwrap();
 
         assert!(Arc::ptr_eq(&op1, &op2));
         assert!(!Arc::ptr_eq(&op1, &op3));
-
-        assert!(is_expr_type::<TemporumOperator>(&op1));
-        assert!(!is_zero_expr(&op1));
-        assert!(!is_one_expr(&op1));
     }
 }

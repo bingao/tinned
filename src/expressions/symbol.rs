@@ -126,13 +126,12 @@ mod tests {
 
         assert_eq!(s1.hash_key(), format!("Symbol({name})"));
         assert!(s1.is_scalar());
+        assert_eq!(format!("{}", s1), name);
 
         let s2 = make_symbol(0u32);
         let s3 = make_symbol(3u32);
         assert_eq!(&s1, &s2);
         assert_ne!(&s1, &s3);
-
-        assert_eq!(format!("{}", s1), name);
     }
 
     // Test serialization and deserialization via `serde_json`
@@ -148,14 +147,15 @@ mod tests {
     #[test]
     fn test_utils() {
         let s1 = make_symbol(0u32);
+
+        assert!(is_expr_type::<Symbol>(&s1));
+        assert!(!is_zero_expr(&s1));
+        assert!(!is_one_expr(&s1));
+
         let s2 = make_symbol(0u32);
         let s3 = make_symbol(10u32);
 
         assert!(Arc::ptr_eq(&s1, &s2));
         assert!(!Arc::ptr_eq(&s1, &s3));
-
-        assert!(is_expr_type::<Symbol>(&s1));
-        assert!(!is_zero_expr(&s1));
-        assert!(!is_one_expr(&s1));
     }
 }

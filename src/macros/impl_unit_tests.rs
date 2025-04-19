@@ -64,15 +64,16 @@ macro_rules! test_nullary_oper {
         #[test]
         fn test_utils() {
             let op1 = $make_expr($oper_name);
+
+            assert!(is_expr_type::<$type_name>(&op1));
+            assert!(!is_zero_expr(&op1));
+            assert!(!is_one_expr(&op1));
+
             let op2 = $make_expr($oper_name);
             let op3 = $make_expr("");
 
             assert!(Arc::ptr_eq(&op1, &op2));
             assert!(!Arc::ptr_eq(&op1, &op3));
-
-            assert!(is_expr_type::<$type_name>(&op1));
-            assert!(!is_zero_expr(&op1));
-            assert!(!is_one_expr(&op1));
         }
     };
 
@@ -301,6 +302,11 @@ macro_rules! test_exch_corr {
                 Some(density.clone()),
                 Some(overlap.clone()),
             );
+
+            assert!(is_expr_type::<$type_name>(&op1));
+            assert!(!is_zero_expr(&op1));
+            assert!(!is_one_expr(&op1));
+
             let op2 = $make_expr(
                 $oper_name,
                 Some(weight.clone()),
@@ -318,10 +324,6 @@ macro_rules! test_exch_corr {
             assert!(!Arc::ptr_eq(&op1, &op4));
             assert!(!Arc::ptr_eq(&op1, &op5));
             assert!(!Arc::ptr_eq(&op1, &op6));
-
-            assert!(is_expr_type::<$type_name>(&op1));
-            assert!(!is_zero_expr(&op1));
-            assert!(!is_one_expr(&op1));
         }
     };
 }
@@ -351,6 +353,11 @@ macro_rules! test_unary_oper_properties {
             let density = make_wfn_parameter("");
             let arg_2el = make_two_elec_operator("op(2el)", Some(density.clone()));
             let op1 = $type_name::new(arg_2el.clone()).unwrap();
+
+            assert!(is_expr_type::<$type_name>(&op1));
+            assert!(!crate::utils::is_zero_expr(&op1));
+            assert!(!is_one_expr(&op1));
+
             let op2 = $type_name::new(arg_2el).unwrap();
             let op3 = $type_name::new(make_two_elec_operator("", Some(density))).unwrap();
             let op4 = $type_name::new(make_two_elec_operator("op(2el)", None)).unwrap();
@@ -358,10 +365,6 @@ macro_rules! test_unary_oper_properties {
             assert!(Arc::ptr_eq(&op1, &op2));
             assert!(!Arc::ptr_eq(&op1, &op3));
             assert!(!Arc::ptr_eq(&op1, &op4));
-
-            assert!(is_expr_type::<$type_name>(&op1));
-            assert!(!is_zero_expr(&op1));
-            assert!(!is_one_expr(&op1));
         }
     };
 }
@@ -375,7 +378,7 @@ macro_rules! test_transpose {
         #[test]
         fn test_impl_expr() {
             let op0 = $type_name::new(ZeroOperator::new()).unwrap();
-            assert!(is_zero_expr(&op0));
+            assert!(crate::utils::is_zero_expr(&op0));
 
             let arg_2el = make_two_elec_operator("", None);
             let op1 = $type_name::new(arg_2el.clone()).unwrap();

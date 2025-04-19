@@ -138,7 +138,7 @@ mod tests {
     use crate::perturbations::pert_multichain::test_utils::{
         make_pert_multichain, make_super_multichain,
     };
-    use crate::utils::{downcast_from_arc, is_expr_type, is_one_expr, is_zero_expr};
+    use crate::utils::{downcast_from_arc, is_one_expr, is_zero_expr};
 
     test_struct_safety!(TemporumOverlap);
 
@@ -193,14 +193,15 @@ mod tests {
     fn test_utils() {
         let deps = make_pert_multichain(2u32, 8u32, 1u32, 10u32);
         let op1 = TemporumOverlap::builder(deps.clone()).build().unwrap();
+
+        assert!(is_expr_type::<TemporumOverlap>(&op1));
+        assert!(!is_zero_expr(&op1));
+        assert!(!is_one_expr(&op1));
+
         let op2 = TemporumOverlap::builder(deps.clone()).build().unwrap();
         let op3 = TemporumOverlap::builder(make_super_multichain(&deps, 1u32)).build().unwrap();
 
         assert!(Arc::ptr_eq(&op1, &op2));
         assert!(!Arc::ptr_eq(&op1, &op3));
-
-        assert!(is_expr_type::<TemporumOverlap>(&op1));
-        assert!(!is_zero_expr(&op1));
-        assert!(!is_one_expr(&op1));
     }
 }

@@ -4,7 +4,7 @@ use typetag;
 
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{
-    Add, HermitianTranspose, MatrixMul, Mul, Number, Power, Transpose, ZeroOperator,
+    Add, DotProduct, HermitianTranspose, MatrixMul, Mul, Number, Power, Transpose, ZeroOperator,
 };
 use crate::utils::{downcast_from_arc, downcast_from_ref, intern_expr, is_expr_type, is_one_expr};
 
@@ -34,6 +34,8 @@ impl Conjugate {
             return Ok(argument);
         } else if let Some(conj) = downcast_from_arc::<Conjugate>(&argument) {
             return Ok(conj.argument.clone());
+        } else if let Some(product) = downcast_from_arc::<DotProduct>(&argument) {
+            return product.conjugate();
         } else if let Some(trans) = downcast_from_arc::<Transpose>(&argument) {
             return HermitianTranspose::new(trans.argument().clone());
         } else if let Some(herm) = downcast_from_arc::<HermitianTranspose>(&argument) {

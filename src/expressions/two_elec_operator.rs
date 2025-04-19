@@ -231,7 +231,7 @@ mod tests {
     use crate::perturbations::pert_multichain::test_utils::{
         make_pert_multichain, make_super_multichain,
     };
-    use crate::utils::{downcast_from_arc, is_expr_type, is_one_expr, is_zero_expr};
+    use crate::utils::{downcast_from_arc, is_one_expr};
 
     test_struct_safety!(TwoElecOperator);
 
@@ -341,6 +341,11 @@ mod tests {
     fn test_utils() {
         let density = make_wfn_parameter("");
         let op1 = make_two_elec_operator(DEFAULT_OPER_NAME, Some(density.clone()));
+
+        assert!(is_expr_type::<TwoElecOperator>(&op1));
+        assert!(!is_zero_expr(&op1));
+        assert!(!is_one_expr(&op1));
+
         let op2 = make_two_elec_operator(DEFAULT_OPER_NAME, Some(density));
         let op3 = make_two_elec_operator("", Some(make_wfn_parameter("density")));
         let op4 = make_two_elec_operator(DEFAULT_OPER_NAME, Some(make_wfn_parameter("density")));
@@ -348,9 +353,5 @@ mod tests {
         assert!(Arc::ptr_eq(&op1, &op2));
         assert!(!Arc::ptr_eq(&op1, &op3));
         assert!(!Arc::ptr_eq(&op1, &op4));
-
-        assert!(is_expr_type::<TwoElecOperator>(&op1));
-        assert!(!is_zero_expr(&op1));
-        assert!(!is_one_expr(&op1));
     }
 }

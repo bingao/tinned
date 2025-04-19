@@ -109,3 +109,82 @@ impl std::fmt::Display for Power {
         write!(f, "({})^{}", self.base, self.exponent)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::expressions::symbol::test_utils::make_symbol;
+    use crate::utils::{is_expr_type, is_one_expr, is_zero_expr};
+
+    test_struct_safety!(Power);
+
+    test_thread_interning!({ Power::new(make_symbol(0u32), 4).unwrap() });
+
+    #[test]
+    fn test_impl_expr() {
+        let x1 = make_symbol(2u32);
+        let op1 = Power::new(x1.clone(), 0).unwrap();
+        assert!(is_one_expr(&op1));
+
+        let op2 = Power::new(x1.clone(), 1).unwrap();
+        assert_eq!(&op2, &x1);
+
+        let exponent: i64 = rand::random_range(2..=16);
+        let op3 = Power::new(x1.clone(), exponent).unwrap();
+
+        let op = downcast_from_arc::<Power>(&op3).unwrap();
+        assert_eq!(
+            op,
+            &Power {
+                base: x1.clone(),
+                exponent,
+            }
+        );
+        assert_eq!(op.base(), &x1);
+        assert_eq!(op.exponent(), exponent);
+
+        assert_eq!(op3.hash_key(), format!("Power({}; {})", x1.hash_key(), exponent));
+        assert!(op3.is_scalar());
+        assert_eq!(format!("{}", op3), format!("({})^{}", x1, exponent));
+
+        let x2 = make_symbol(2u32);
+
+        let op4 = Power::new(x1.clone(), exponent).unwrap();
+        let op5 = Power::new(x2.clone(), exponent).unwrap();
+        let op6 = Power::new(x2.clone(), rand::random_range(-16..=16) as i64).unwrap();
+
+        assert_eq!(&op3, &op4);
+        assert_ne!(&op3, &op5);
+        assert_ne!(&op3, &op6);
+    }
+
+    #[test]
+    fn test_serialization() {
+        let op = Power::new(make_symbol(2u32), rand::random_range(2..=16) as i64).unwrap();
+        let json = serde_json::to_string(&op).unwrap();
+        let deserialized: Arc<dyn Expr> = serde_json::from_str(&json).unwrap();
+        assert_eq!(&op, &deserialized);
+    }
+
+    #[test]
+    fn test_utils() {
+        let x1 = make_symbol(2u32);
+        let x2 = make_symbol(2u32);
+        let exponent: i64 = rand::random_range(2..=16);
+        let op1 = Power::new(x1.clone(), exponent).unwrap();
+
+        assert!(is_expr_type::<Power>(&op1));
+        assert!(!is_zero_expr(&op1));
+        assert!(!is_one_expr(&op1));
+
+        let op2 = Power::new(x1.clone(), exponent).unwrap();
+        let op3 = Power::new(x2.clone(), exponent).unwrap();
+        let op4 = Power::new(x1, -exponent).unwrap();
+        let op5 = Power::new(x2, -exponent).unwrap();
+
+        assert!(Arc::ptr_eq(&op1, &op2));
+        assert!(!Arc::ptr_eq(&op1, &op3));
+        assert!(!Arc::ptr_eq(&op1, &op4));
+        assert!(!Arc::ptr_eq(&op1, &op5));
+    }
+}

@@ -630,48 +630,14 @@ mod tests {
     #[test]
     fn test_utils() {
         let n1: i64 = random_range(-100..=100);
-        let int = Number::from_i64(n1);
-        let int1 = Number::Integer(n1).into();
-        let int2 = Number::from_i64(n1 + 1);
-
-        assert!(Arc::ptr_eq(&int, &int1));
-        assert!(!Arc::ptr_eq(&int, &int2));
-
-        let f1: f64 = random_range(-100.0..=100.0);
-        let real = Number::from_f64(f1);
-        let real1 = Number::Real(f1).into();
-        let real2 = Number::from_f64(f1 + 1.0);
-
-        assert!(Arc::ptr_eq(&real, &real1));
-        assert!(!Arc::ptr_eq(&real, &real2));
-
-        let f2: f64 = random_range(-100.0..=100.0);
-        let cmplx = Number::from_complex(Complex64::new(f1, f2));
-        let cmplx1 = Number::Complex(Complex64::new(f1, f2)).into();
-        let cmplx2 = Number::from_complex(Complex64::new(f1 + 1.0, f2));
-
-        assert!(Arc::ptr_eq(&cmplx, &cmplx1));
-        assert!(!Arc::ptr_eq(&cmplx, &cmplx2));
-
         let n2: i64 = random_range(1..=100);
+        let f1: f64 = random_range(-100.0..=100.0);
+        let f2: f64 = random_range(-100.0..=100.0);
+
+        let int = Number::from_i64(n1);
+        let real = Number::from_f64(f1);
+        let cmplx = Number::from_complex(Complex64::new(f1, f2));
         let frac = Number::from_rational(Rational64::new(n1, n2));
-        let frac1 = Number::Fraction(Rational64::new(n1, n2)).into();
-        let frac2 = Number::from_rational(Rational64::new(n1 + 1, n2));
-
-        assert!(Arc::ptr_eq(&frac, &frac1));
-        assert!(!Arc::ptr_eq(&frac, &frac2));
-
-        let mut num = downcast_from_arc::<Number>(&int).unwrap();
-        assert_eq!(num, &Number::Integer(n1));
-
-        num = downcast_from_arc::<Number>(&real).unwrap();
-        assert_eq!(num, &Number::Real(f1));
-
-        num = downcast_from_arc::<Number>(&cmplx).unwrap();
-        assert_eq!(num, &Number::Complex(Complex64::new(f1, f2)));
-
-        num = downcast_from_arc::<Number>(&frac).unwrap();
-        assert_eq!(num, &Number::Fraction(Rational64::new(n1, n2)));
 
         assert!(is_expr_type::<Number>(&int));
         assert!(is_expr_type::<Number>(&real));
@@ -687,5 +653,41 @@ mod tests {
         assert_eq!(is_one_expr(&real), f1 == 1.0);
         assert_eq!(is_one_expr(&cmplx), f1 == 1.0 && f2 == 0.0);
         assert_eq!(is_one_expr(&frac), n1 == n2);
+
+        let mut num = downcast_from_arc::<Number>(&int).unwrap();
+        assert_eq!(num, &Number::Integer(n1));
+
+        num = downcast_from_arc::<Number>(&real).unwrap();
+        assert_eq!(num, &Number::Real(f1));
+
+        num = downcast_from_arc::<Number>(&cmplx).unwrap();
+        assert_eq!(num, &Number::Complex(Complex64::new(f1, f2)));
+
+        num = downcast_from_arc::<Number>(&frac).unwrap();
+        assert_eq!(num, &Number::Fraction(Rational64::new(n1, n2)));
+
+        let int1 = Number::Integer(n1).into();
+        let int2 = Number::from_i64(n1 + 1);
+
+        assert!(Arc::ptr_eq(&int, &int1));
+        assert!(!Arc::ptr_eq(&int, &int2));
+
+        let real1 = Number::Real(f1).into();
+        let real2 = Number::from_f64(f1 + 1.0);
+
+        assert!(Arc::ptr_eq(&real, &real1));
+        assert!(!Arc::ptr_eq(&real, &real2));
+
+        let cmplx1 = Number::Complex(Complex64::new(f1, f2)).into();
+        let cmplx2 = Number::from_complex(Complex64::new(f1 + 1.0, f2));
+
+        assert!(Arc::ptr_eq(&cmplx, &cmplx1));
+        assert!(!Arc::ptr_eq(&cmplx, &cmplx2));
+
+        let frac1 = Number::Fraction(Rational64::new(n1, n2)).into();
+        let frac2 = Number::from_rational(Rational64::new(n1 + 1, n2));
+
+        assert!(Arc::ptr_eq(&frac, &frac1));
+        assert!(!Arc::ptr_eq(&frac, &frac2));
     }
 }

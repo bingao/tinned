@@ -88,14 +88,13 @@ mod tests {
     use crate::expressions::number::test_utils::make_number_complex;
     use crate::expressions::two_elec_operator::test_utils::make_two_elec_operator;
     use crate::expressions::wfn_parameter::test_utils::make_wfn_parameter;
-    use crate::utils::{downcast_from_arc, is_expr_type, is_one_expr, is_zero_expr};
 
     test_unary_oper_properties!(Trace);
 
     #[test]
     fn test_impl_expr() {
         let op0 = Trace::new(ZeroOperator::new()).unwrap();
-        assert!(is_zero_expr(&op0));
+        assert!(crate::utils::is_zero_expr(&op0));
 
         let arg_2el = make_two_elec_operator("", None);
         let op1 = Trace::new(arg_2el.clone()).unwrap();

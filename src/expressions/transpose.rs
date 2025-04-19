@@ -66,7 +66,6 @@ mod tests {
     use crate::expressions::symbol::test_utils::make_symbol;
     use crate::expressions::two_elec_operator::test_utils::make_two_elec_operator;
     use crate::expressions::wfn_parameter::test_utils::make_wfn_parameter;
-    use crate::utils::{downcast_from_arc, is_expr_type, is_one_expr, is_zero_expr};
 
     test_transpose!(Transpose, HermitianTranspose, false, "{arg}^T");
 }

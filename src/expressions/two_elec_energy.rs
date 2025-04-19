@@ -343,7 +343,7 @@ mod tests {
     use crate::perturbations::pert_multichain::test_utils::{
         make_pert_multichain, make_super_multichain,
     };
-    use crate::utils::{downcast_from_arc, is_expr_type, is_one_expr, is_zero_expr};
+    use crate::utils::{downcast_from_arc, is_one_expr};
 
     test_struct_safety!(TwoElecEnergy);
 
@@ -484,12 +484,16 @@ mod tests {
         if inner_density.hash_key() > outer_density.hash_key() {
             std::mem::swap(&mut inner_density, &mut outer_density);
         }
-
         let op1 = make_two_elec_energy(
             DEFAULT_OPER_NAME,
             Some(inner_density.clone()),
             Some(outer_density.clone()),
         );
+
+        assert!(is_expr_type::<TwoElecEnergy>(&op1));
+        assert!(!is_zero_expr(&op1));
+        assert!(!is_one_expr(&op1));
+
         let op2 = make_two_elec_energy(
             DEFAULT_OPER_NAME,
             Some(inner_density.clone()),
@@ -519,9 +523,5 @@ mod tests {
         assert!(!Arc::ptr_eq(&op1, &op5));
         assert!(!Arc::ptr_eq(&op1, &op6));
         assert_eq!(&op1, &op6);
-
-        assert!(is_expr_type::<TwoElecEnergy>(&op1));
-        assert!(!is_zero_expr(&op1));
-        assert!(!is_one_expr(&op1));
     }
 }

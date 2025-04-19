@@ -95,14 +95,13 @@ mod tests {
     #[test]
     fn test_utils() {
         let z1 = ZeroOperator::new();
-        let z2 = ZeroOperator::new();
-
-        // Interning check
-        assert!(Arc::ptr_eq(&z1, &z2));
 
         assert!(is_expr_type::<ZeroOperator>(&z1));
-
         assert!(is_zero_expr(&z1));
         assert!(!is_one_expr(&z1));
+
+        let z2 = ZeroOperator::new();
+
+        assert!(Arc::ptr_eq(&z1, &z2));
     }
 }
