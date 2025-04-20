@@ -184,8 +184,8 @@ mod tests {
 
         let op2 = Power::new(x1.clone(), exponent).unwrap();
         let op3 = Power::new(x2.clone(), exponent).unwrap();
-        let op4 = Power::new(x1, -exponent).unwrap();
-        let op5 = Power::new(x2, -exponent).unwrap();
+        let op4 = Power::new(x1.clone(), -exponent).unwrap();
+        let op5 = Power::new(x2.clone(), -exponent).unwrap();
 
         assert!(Arc::ptr_eq(&op1, &op2));
         assert!(!Arc::ptr_eq(&op1, &op3));

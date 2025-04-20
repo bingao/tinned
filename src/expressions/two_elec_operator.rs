@@ -311,14 +311,14 @@ mod tests {
             .dependencies(deps.clone())
             .build()
             .unwrap();
-        let op6 = TwoElecOperator::builder(DEFAULT_OPER_NAME, density)
+        let op6 = TwoElecOperator::builder(DEFAULT_OPER_NAME, density.clone())
             .dependencies(make_super_multichain(&deriv, 2u32))
             .derivative(deriv.clone())
             .build()
             .unwrap();
         let op7 = TwoElecOperator::builder(DEFAULT_OPER_NAME, make_wfn_parameter("density"))
-            .dependencies(deps)
-            .derivative(deriv)
+            .dependencies(deps.clone())
+            .derivative(deriv.clone())
             .build()
             .unwrap();
 

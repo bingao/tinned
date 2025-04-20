@@ -331,9 +331,9 @@ mod tests {
         let coef_psi1 = make_symbol(4u32);
         let coef_psi2 = make_symbol(4u32);
         let op8 = DotProduct::new(
-            MatrixMul::new(vec![coef_psi1.clone(), psi1]).unwrap(),
+            MatrixMul::new(vec![coef_psi1.clone(), psi1.clone()]).unwrap(),
             use_hermitian,
-            MatrixMul::new(vec![coef_psi2.clone(), psi2]).unwrap(),
+            MatrixMul::new(vec![coef_psi2.clone(), psi2.clone()]).unwrap(),
             allow_braket_swap,
         )
         .unwrap();
@@ -341,7 +341,12 @@ mod tests {
         assert!(is_expr_type::<Mul>(&op8));
         assert_eq!(
             &op8,
-            &Mul::new(vec![Conjugate::new(coef_psi1).unwrap(), coef_psi2, op1]).unwrap()
+            &Mul::new(vec![
+                Conjugate::new(coef_psi1.clone()).unwrap(),
+                coef_psi2.clone(),
+                op1.clone(),
+            ])
+            .unwrap()
         );
     }
 

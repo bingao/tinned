@@ -125,12 +125,11 @@ impl_mul_traits!(Mul, DEFAULT_HASH_DELIMITER, DEFAULT_FMT_DELIMITER, true);
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::expressions::add::Add;
     use crate::expressions::number::test_utils::{
         make_number_complex, make_number_f64, make_number_i64, make_number_rational,
     };
     use crate::expressions::symbol::test_utils::make_symbol;
-    use crate::expressions::symbol::Symbol;
+    use crate::expressions::{Add, Symbol};
     use crate::utils::{is_expr_type, is_one_expr};
     use num_complex::Complex64;
     use num_rational::Rational64;
@@ -276,8 +275,13 @@ mod tests {
                 x.clone()
             ])
             .unwrap(),
-            &Mul::new(vec![coef1.clone(), coef2, coef3, Power::new(x.clone(), 3).unwrap()])
-                .unwrap()
+            &Mul::new(vec![
+                coef1.clone(),
+                coef2.clone(),
+                coef3.clone(),
+                Power::new(x.clone(), 3).unwrap(),
+            ])
+            .unwrap()
         );
 
         // - No polynomial multiplication and expansion, e.g. keeping (x + y) * 2 as-is
@@ -285,7 +289,7 @@ mod tests {
         let mul6 = Mul::new(vec![coef1, factor.clone(), factor.clone(), factor.clone()]).unwrap();
         mul = downcast_from_arc::<Mul>(&mul6).unwrap();
 
-        assert_eq!(mul.factors(), vec![Power::new(factor, 3).unwrap()]);
+        assert_eq!(mul.factors(), vec![Power::new(factor.clone(), 3).unwrap()]);
     }
 
     #[test]
@@ -318,8 +322,8 @@ mod tests {
         let coef2 = make_number_rational(256u32);
         let op1 = Mul::new(vec![coef1.clone(), symbol1.clone(), symbol2.clone()]).unwrap();
         let op2 = Mul::new(vec![symbol2.clone(), symbol1.clone(), coef1.clone()]).unwrap();
-        let op3 = Mul::new(vec![coef2, symbol1.clone(), symbol2]).unwrap();
-        let op4 = Mul::new(vec![coef1, symbol1]).unwrap();
+        let op3 = Mul::new(vec![coef2.clone(), symbol1.clone(), symbol2.clone()]).unwrap();
+        let op4 = Mul::new(vec![coef1.clone(), symbol1.clone()]).unwrap();
 
         assert!(Arc::ptr_eq(&op, &op1));
         assert!(Arc::ptr_eq(&op, &op2));

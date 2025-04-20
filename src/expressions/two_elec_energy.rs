@@ -447,7 +447,7 @@ mod tests {
             .dependencies(deps.clone())
             .build()
             .unwrap();
-        let op6 = TwoElecEnergy::builder(DEFAULT_OPER_NAME, inner_density)
+        let op6 = TwoElecEnergy::builder(DEFAULT_OPER_NAME, inner_density.clone())
             .outer_density(outer_density.clone())
             .allow_density_swap(true)
             .dependencies(make_super_multichain(&deriv, 2u32))
@@ -456,8 +456,8 @@ mod tests {
             .unwrap();
         let op7 = TwoElecEnergy::builder(DEFAULT_OPER_NAME, make_wfn_parameter("density"))
             .allow_density_swap(true)
-            .dependencies(deps)
-            .derivative(deriv)
+            .dependencies(deps.clone())
+            .derivative(deriv.clone())
             .build()
             .unwrap();
 
@@ -511,8 +511,8 @@ mod tests {
 
         let op = downcast_from_arc::<TwoElecEnergy>(&op1).unwrap();
         let op6 = op
-            .builder_from_inner_density(outer_density)
-            .outer_density(inner_density)
+            .builder_from_inner_density(outer_density.clone())
+            .outer_density(inner_density.clone())
             .allow_density_swap(false)
             .build()
             .unwrap();

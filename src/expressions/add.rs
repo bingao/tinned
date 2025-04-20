@@ -122,3 +122,178 @@ const DEFAULT_HASH_DELIMITER: &str = ";";
 const DEFAULT_FMT_DELIMITER: &str = " + ";
 
 impl_add_traits!(Add, DEFAULT_HASH_DELIMITER, DEFAULT_FMT_DELIMITER, true);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::expressions::number::test_utils::{
+        make_number_complex, make_number_f64, make_number_i64, make_number_rational,
+    };
+    use crate::expressions::symbol::test_utils::make_symbol;
+    use crate::expressions::{Power, Symbol};
+    use crate::utils::{is_expr_type, is_one_expr, is_zero_expr};
+    use num_complex::Complex64;
+    use num_rational::Rational64;
+
+    test_struct_safety!(Add);
+
+    test_thread_interning!({
+        Add::new(vec![
+            Number::one(),
+            Number::from_f64(3.14),
+            Number::from_complex(Complex64::new(0.0, -1.0)),
+            Number::from_rational(Rational64::new(22, 7)),
+            Symbol::new("x"),
+            Mul::new(vec![Number::from_f64(3.14), Symbol::new("x")]).unwrap(),
+            Power::new(Symbol::new("y"), 2).unwrap(),
+        ])
+        .unwrap()
+    });
+
+    #[test]
+    fn test_impl_expr() {
+        let coef1 = make_number_complex(64u32);
+        let x = Symbol::new("x");
+        let y = Symbol::new("y");
+        let z = Symbol::new("z");
+        let add1 = Add::new(vec![coef1.clone(), x.clone(), y.clone(), z.clone()]).unwrap();
+
+        assert!(is_expr_type::<Add>(&add1));
+
+        let coef1_cast = downcast_from_arc::<Number>(&coef1).unwrap();
+        let add = downcast_from_arc::<Add>(&add1).unwrap();
+        let mut asc_terms = vec![coef1.clone(), x.clone(), y.clone(), z.clone()];
+        let mut desc_terms = vec![coef1.clone(), x.clone(), y.clone(), z.clone()];
+
+        asc_terms.sort_by_key(|f| f.fast_hash());
+        desc_terms.sort_by_key(|f| std::cmp::Reverse(f.fast_hash()));
+
+        // - Sort terms based on hash values
+        assert_eq!(
+            add,
+            &Add {
+                terms: asc_terms.clone()
+            }
+        );
+        assert_eq!(add.terms(), &asc_terms);
+        assert_ne!(add.terms(), &desc_terms);
+
+        assert_eq!(
+            add1.hash_key(),
+            format!("Add({})", join_exprs_for_hash(&asc_terms, DEFAULT_HASH_DELIMITER))
+        );
+        assert!(add1.is_scalar());
+        assert_eq!(
+            format!("{}", add1),
+            format!("({})", join_exprs_for_display(&asc_terms, DEFAULT_FMT_DELIMITER))
+        );
+
+        let add2 = Add::new(vec![coef1.clone(), x.clone(), y.clone(), z.clone()]).unwrap();
+        let add3 = Add::new(vec![x.clone(), y.clone(), z.clone()]).unwrap();
+        let add4 = Add::new(vec![coef1.clone(), x.clone(), y.clone()]).unwrap();
+
+        assert_eq!(&add1, &add2);
+        assert_ne!(&add1, &add3);
+        assert_ne!(&add1, &add4);
+
+        // - Remove empty Add([]) -> 0
+        assert_eq!(&Add::new(vec![]).unwrap(), &Number::zero());
+
+        // - Remove redundant Add([x]) -> x
+        assert_eq!(&Add::new(vec![x.clone()]).unwrap(), &x);
+
+        // - Identities: x + 0 = x
+        assert_eq!(&Add::new(vec![x.clone(), Number::zero()]).unwrap(), &x);
+
+        // - Numeric simplifications: 3 + 5 -> 8
+        let coef2 = make_number_complex(64u32);
+        let coef3 = make_number_complex(64u32);
+        let add5 = Add::new(vec![coef1.clone(), coef2.clone(), coef3.clone()]).unwrap();
+
+        assert!(is_expr_type::<Number>(&add5));
+
+        let num = downcast_from_arc::<Number>(&add5).unwrap();
+        let coef2_cast = downcast_from_arc::<Number>(&coef2).unwrap();
+        let coef3_cast = downcast_from_arc::<Number>(&coef3).unwrap();
+
+        assert_eq!(num, &coef1_cast.add(&coef2_cast.add(&coef3_cast)));
+
+        // - Combine like terms: 2*x*y + 3*x*y -> 5*x*y
+        assert_eq!(
+            &Add::new(vec![
+                Mul::new(vec![coef1.clone(), x.clone(), y.clone()]).unwrap(),
+                Mul::new(vec![coef2.clone(), x.clone(), y.clone()]).unwrap(),
+                Mul::new(vec![coef3.clone(), x.clone(), y.clone()]).unwrap(),
+            ])
+            .unwrap(),
+            &Mul::new(vec![
+                Add::new(vec![coef1.clone(), coef2.clone(), coef3.clone()]).unwrap(),
+                x.clone(),
+                y.clone(),
+            ])
+            .unwrap()
+        );
+
+        // - Flatten nested Add: (x + 2) + (x + 3) -> 2x + 5
+        assert_eq!(
+            &Add::new(vec![
+                Add::new(vec![
+                    Add::new(vec![coef1.clone(), x.clone()]).unwrap(),
+                    Add::new(vec![coef2.clone(), x.clone()]).unwrap(),
+                ])
+                .unwrap(),
+                coef3.clone(),
+                x.clone()
+            ])
+            .unwrap(),
+            &Add::new(vec![
+                coef1.clone(),
+                coef2.clone(),
+                coef3.clone(),
+                Mul::new(vec![x.clone(), Number::from_i64(3)]).unwrap(),
+            ])
+            .unwrap()
+        );
+    }
+
+    #[test]
+    fn test_serialization() {
+        let op = Add::new(vec![
+            make_number_i64(256u32),
+            make_number_f64(64u32),
+            make_number_complex(64u32),
+            make_number_rational(256u32),
+            make_symbol(4u32),
+            Mul::new(vec![make_number_f64(64u32), make_symbol(4u32)]).unwrap(),
+            Power::new(make_symbol(4u32), rand::random_range(-256..=256) as i64).unwrap(),
+            Mul::new(vec![make_number_complex(64u32), make_symbol(4u32)]).unwrap(),
+        ])
+        .unwrap();
+        let json = serde_json::to_string(&op).unwrap();
+        let deserialized: Arc<dyn Expr> = serde_json::from_str(&json).unwrap();
+        assert_eq!(&op, &deserialized);
+    }
+
+    #[test]
+    fn test_utils() {
+        let coef1 = make_number_complex(64u32);
+        let symbol1 = make_symbol(4u32);
+        let symbol2 = make_symbol(4u32);
+        let op = Add::new(vec![coef1.clone(), symbol1.clone(), symbol2.clone()]).unwrap();
+
+        assert!(is_expr_type::<Add>(&op));
+        assert!(!is_zero_expr(&op));
+        assert!(!is_one_expr(&op));
+
+        let coef2 = make_number_rational(256u32);
+        let op1 = Add::new(vec![coef1.clone(), symbol1.clone(), symbol2.clone()]).unwrap();
+        let op2 = Add::new(vec![symbol2.clone(), symbol1.clone(), coef1.clone()]).unwrap();
+        let op3 = Add::new(vec![coef2.clone(), symbol1.clone(), symbol2.clone()]).unwrap();
+        let op4 = Add::new(vec![coef1.clone(), symbol1.clone()]).unwrap();
+
+        assert!(Arc::ptr_eq(&op, &op1));
+        assert!(Arc::ptr_eq(&op, &op2));
+        assert!(!Arc::ptr_eq(&op, &op3));
+        assert!(!Arc::ptr_eq(&op, &op4));
+    }
+}

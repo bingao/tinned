@@ -201,7 +201,7 @@ mod tests {
             )
         );
 
-        let op3 = TemporumOperator::builder(argument).on_ket(!on_ket).build().unwrap();
+        let op3 = TemporumOperator::builder(argument.clone()).on_ket(!on_ket).build().unwrap();
         let op4 = TemporumOperator::builder(make_wfn_parameter("")).build().unwrap();
 
         assert_ne!(&op1, &op3);
