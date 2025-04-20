@@ -415,7 +415,7 @@ mod tests {
                 inner_density.hash_key(),
                 outer_density.hash_key(),
                 deps.hash_key(),
-                deriv.hash_key()
+                deriv.hash_key(),
             )
         );
         assert!(op1.is_scalar());

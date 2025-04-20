@@ -152,18 +152,18 @@ mod tests {
 
     #[test]
     fn test_impl_expr() {
-        let coef1 = make_number_complex(64u32);
+        let c1 = make_number_complex(64u32);
         let x = Symbol::new("x");
         let y = Symbol::new("y");
         let z = Symbol::new("z");
-        let add1 = Add::new(vec![coef1.clone(), x.clone(), y.clone(), z.clone()]).unwrap();
+        let add1 = Add::new(vec![c1.clone(), x.clone(), y.clone(), z.clone()]).unwrap();
 
         assert!(is_expr_type::<Add>(&add1));
 
-        let coef1_cast = downcast_from_arc::<Number>(&coef1).unwrap();
+        let c1_cast = downcast_from_arc::<Number>(&c1).unwrap();
         let add = downcast_from_arc::<Add>(&add1).unwrap();
-        let mut asc_terms = vec![coef1.clone(), x.clone(), y.clone(), z.clone()];
-        let mut desc_terms = vec![coef1.clone(), x.clone(), y.clone(), z.clone()];
+        let mut asc_terms = vec![c1.clone(), x.clone(), y.clone(), z.clone()];
+        let mut desc_terms = vec![c1.clone(), x.clone(), y.clone(), z.clone()];
 
         asc_terms.sort_by_key(|f| f.fast_hash());
         desc_terms.sort_by_key(|f| std::cmp::Reverse(f.fast_hash()));
@@ -188,9 +188,9 @@ mod tests {
             format!("({})", join_exprs_for_display(&asc_terms, DEFAULT_FMT_DELIMITER))
         );
 
-        let add2 = Add::new(vec![coef1.clone(), x.clone(), y.clone(), z.clone()]).unwrap();
+        let add2 = Add::new(vec![c1.clone(), x.clone(), y.clone(), z.clone()]).unwrap();
         let add3 = Add::new(vec![x.clone(), y.clone(), z.clone()]).unwrap();
-        let add4 = Add::new(vec![coef1.clone(), x.clone(), y.clone()]).unwrap();
+        let add4 = Add::new(vec![c1.clone(), x.clone(), y.clone()]).unwrap();
 
         assert_eq!(&add1, &add2);
         assert_ne!(&add1, &add3);
@@ -206,28 +206,28 @@ mod tests {
         assert_eq!(&Add::new(vec![x.clone(), Number::zero()]).unwrap(), &x);
 
         // - Numeric simplifications: 3 + 5 -> 8
-        let coef2 = make_number_complex(64u32);
-        let coef3 = make_number_complex(64u32);
-        let add5 = Add::new(vec![coef1.clone(), coef2.clone(), coef3.clone()]).unwrap();
+        let c2 = make_number_complex(64u32);
+        let c3 = make_number_complex(64u32);
+        let add5 = Add::new(vec![c1.clone(), c2.clone(), c3.clone()]).unwrap();
 
         assert!(is_expr_type::<Number>(&add5));
 
         let num = downcast_from_arc::<Number>(&add5).unwrap();
-        let coef2_cast = downcast_from_arc::<Number>(&coef2).unwrap();
-        let coef3_cast = downcast_from_arc::<Number>(&coef3).unwrap();
+        let c2_cast = downcast_from_arc::<Number>(&c2).unwrap();
+        let c3_cast = downcast_from_arc::<Number>(&c3).unwrap();
 
-        assert_eq!(num, &coef1_cast.add(&coef2_cast.add(&coef3_cast)));
+        assert_eq!(num, &c1_cast.add(&c2_cast.add(&c3_cast)));
 
         // - Combine like terms: 2*x*y + 3*x*y -> 5*x*y
         assert_eq!(
             &Add::new(vec![
-                Mul::new(vec![coef1.clone(), x.clone(), y.clone()]).unwrap(),
-                Mul::new(vec![coef2.clone(), x.clone(), y.clone()]).unwrap(),
-                Mul::new(vec![coef3.clone(), x.clone(), y.clone()]).unwrap(),
+                Mul::new(vec![c1.clone(), x.clone(), y.clone()]).unwrap(),
+                Mul::new(vec![c2.clone(), x.clone(), y.clone()]).unwrap(),
+                Mul::new(vec![c3.clone(), x.clone(), y.clone()]).unwrap(),
             ])
             .unwrap(),
             &Mul::new(vec![
-                Add::new(vec![coef1.clone(), coef2.clone(), coef3.clone()]).unwrap(),
+                Add::new(vec![c1.clone(), c2.clone(), c3.clone()]).unwrap(),
                 x.clone(),
                 y.clone(),
             ])
@@ -238,18 +238,18 @@ mod tests {
         assert_eq!(
             &Add::new(vec![
                 Add::new(vec![
-                    Add::new(vec![coef1.clone(), x.clone()]).unwrap(),
-                    Add::new(vec![coef2.clone(), x.clone()]).unwrap(),
+                    Add::new(vec![c1.clone(), x.clone()]).unwrap(),
+                    Add::new(vec![c2.clone(), x.clone()]).unwrap(),
                 ])
                 .unwrap(),
-                coef3.clone(),
+                c3.clone(),
                 x.clone()
             ])
             .unwrap(),
             &Add::new(vec![
-                coef1.clone(),
-                coef2.clone(),
-                coef3.clone(),
+                c1.clone(),
+                c2.clone(),
+                c3.clone(),
                 Mul::new(vec![x.clone(), Number::from_i64(3)]).unwrap(),
             ])
             .unwrap()
@@ -276,20 +276,20 @@ mod tests {
 
     #[test]
     fn test_utils() {
-        let coef1 = make_number_complex(64u32);
-        let symbol1 = make_symbol(4u32);
-        let symbol2 = make_symbol(4u32);
-        let op = Add::new(vec![coef1.clone(), symbol1.clone(), symbol2.clone()]).unwrap();
+        let c1 = make_number_complex(64u32);
+        let s1 = make_symbol(4u32);
+        let s2 = make_symbol(4u32);
+        let op = Add::new(vec![c1.clone(), s1.clone(), s2.clone()]).unwrap();
 
         assert!(is_expr_type::<Add>(&op));
         assert!(!is_zero_expr(&op));
         assert!(!is_one_expr(&op));
 
-        let coef2 = make_number_rational(256u32);
-        let op1 = Add::new(vec![coef1.clone(), symbol1.clone(), symbol2.clone()]).unwrap();
-        let op2 = Add::new(vec![symbol2.clone(), symbol1.clone(), coef1.clone()]).unwrap();
-        let op3 = Add::new(vec![coef2.clone(), symbol1.clone(), symbol2.clone()]).unwrap();
-        let op4 = Add::new(vec![coef1.clone(), symbol1.clone()]).unwrap();
+        let c2 = make_number_rational(256u32);
+        let op1 = Add::new(vec![c1.clone(), s1.clone(), s2.clone()]).unwrap();
+        let op2 = Add::new(vec![s2.clone(), s1.clone(), c1.clone()]).unwrap();
+        let op3 = Add::new(vec![c2.clone(), s1.clone(), s2.clone()]).unwrap();
+        let op4 = Add::new(vec![c1.clone(), s1.clone()]).unwrap();
 
         assert!(Arc::ptr_eq(&op, &op1));
         assert!(Arc::ptr_eq(&op, &op2));

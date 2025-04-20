@@ -150,15 +150,15 @@ mod tests {
 
     #[test]
     fn test_impl_expr() {
-        let coef1 = make_number_complex(64u32);
+        let c1 = make_number_complex(64u32);
         let x = Symbol::new("x");
         let y = Symbol::new("y");
         let z = Symbol::new("z");
-        let mul1 = Mul::new(vec![coef1.clone(), x.clone(), y.clone(), z.clone()]).unwrap();
+        let mul1 = Mul::new(vec![c1.clone(), x.clone(), y.clone(), z.clone()]).unwrap();
 
         assert!(is_expr_type::<Mul>(&mul1));
 
-        let coef1_cast = downcast_from_arc::<Number>(&coef1).unwrap();
+        let c1_cast = downcast_from_arc::<Number>(&c1).unwrap();
         let mut mul = downcast_from_arc::<Mul>(&mul1).unwrap();
         let mut asc_factors = vec![x.clone(), y.clone(), z.clone()];
         let mut desc_factors = vec![x.clone(), y.clone(), z.clone()];
@@ -170,11 +170,11 @@ mod tests {
         assert_eq!(
             mul,
             &Mul {
-                coefficient: coef1_cast.clone(),
+                coefficient: c1_cast.clone(),
                 factors: asc_factors.clone(),
             }
         );
-        assert_eq!(mul.coefficient(), coef1_cast);
+        assert_eq!(mul.coefficient(), c1_cast);
         assert_eq!(mul.factors(), &asc_factors);
         assert_ne!(mul.factors(), &desc_factors);
 
@@ -182,13 +182,13 @@ mod tests {
             mul1.hash_key(),
             format!(
                 "Mul({}{}{})",
-                coef1_cast.hash_key(),
+                c1_cast.hash_key(),
                 DEFAULT_HASH_DELIMITER,
-                join_exprs_for_hash(&asc_factors, DEFAULT_HASH_DELIMITER)
+                join_exprs_for_hash(&asc_factors, DEFAULT_HASH_DELIMITER),
             )
         );
         assert!(mul1.is_scalar());
-        if coef1_cast.is_one() {
+        if c1_cast.is_one() {
             assert_eq!(
                 format!("{}", mul1),
                 format!("{}", join_exprs_for_display(&asc_factors, DEFAULT_FMT_DELIMITER))
@@ -198,16 +198,16 @@ mod tests {
                 format!("{}", mul1),
                 format!(
                     "{}{}{}",
-                    coef1_cast,
+                    c1_cast,
                     DEFAULT_FMT_DELIMITER,
-                    join_exprs_for_display(&asc_factors, DEFAULT_FMT_DELIMITER)
+                    join_exprs_for_display(&asc_factors, DEFAULT_FMT_DELIMITER),
                 )
             );
         }
 
-        let mul2 = Mul::new(vec![coef1.clone(), x.clone(), y.clone(), z.clone()]).unwrap();
+        let mul2 = Mul::new(vec![c1.clone(), x.clone(), y.clone(), z.clone()]).unwrap();
         let mul3 = Mul::new(vec![x.clone(), y.clone(), z.clone()]).unwrap();
-        let mul4 = Mul::new(vec![coef1.clone(), x.clone(), y.clone()]).unwrap();
+        let mul4 = Mul::new(vec![c1.clone(), x.clone(), y.clone()]).unwrap();
 
         assert_eq!(&mul1, &mul2);
         assert_ne!(&mul1, &mul3);
@@ -250,44 +250,39 @@ mod tests {
         assert_eq!(&Mul::new(vec![x.clone(), Number::zero()]).unwrap(), &Number::zero());
 
         // - Numeric simplifications, e.g. 3 * 2 -> 6, (1/2) * 4 -> 2, 3 * 0 -> 0
-        let coef2 = make_number_complex(64u32);
-        let coef3 = make_number_complex(64u32);
-        let mul5 = Mul::new(vec![coef1.clone(), coef2.clone(), coef3.clone()]).unwrap();
+        let c2 = make_number_complex(64u32);
+        let c3 = make_number_complex(64u32);
+        let mul5 = Mul::new(vec![c1.clone(), c2.clone(), c3.clone()]).unwrap();
 
         assert!(is_expr_type::<Number>(&mul5));
 
         let num = downcast_from_arc::<Number>(&mul5).unwrap();
-        let coef2_cast = downcast_from_arc::<Number>(&coef2).unwrap();
-        let coef3_cast = downcast_from_arc::<Number>(&coef3).unwrap();
+        let c2_cast = downcast_from_arc::<Number>(&c2).unwrap();
+        let c3_cast = downcast_from_arc::<Number>(&c3).unwrap();
 
-        assert_eq!(num, &coef1_cast.mul(&coef2_cast.mul(&coef3_cast)));
+        assert_eq!(num, &c1_cast.mul(&c2_cast.mul(&c3_cast)));
 
         // - Flatten nested Mul
         // - Series multiplication, e.g. ((2 * x) * (3 * x)) * x -> 6 * x^3
         assert_eq!(
             &Mul::new(vec![
                 Mul::new(vec![
-                    Mul::new(vec![coef1.clone(), x.clone()]).unwrap(),
-                    Mul::new(vec![coef2.clone(), x.clone()]).unwrap(),
+                    Mul::new(vec![c1.clone(), x.clone()]).unwrap(),
+                    Mul::new(vec![c2.clone(), x.clone()]).unwrap(),
                 ])
                 .unwrap(),
-                coef3.clone(),
+                c3.clone(),
                 x.clone()
             ])
             .unwrap(),
-            &Mul::new(vec![
-                coef1.clone(),
-                coef2.clone(),
-                coef3.clone(),
-                Power::new(x.clone(), 3).unwrap(),
-            ])
-            .unwrap()
+            &Mul::new(vec![c1.clone(), c2.clone(), c3.clone(), Power::new(x.clone(), 3).unwrap(),])
+                .unwrap()
         );
 
         // - No polynomial multiplication and expansion, e.g. keeping (x + y) * 2 as-is
         let factor = Add::new(vec![x.clone(), y.clone()]).unwrap();
         let mul6 =
-            Mul::new(vec![coef1.clone(), factor.clone(), factor.clone(), factor.clone()]).unwrap();
+            Mul::new(vec![c1.clone(), factor.clone(), factor.clone(), factor.clone()]).unwrap();
         mul = downcast_from_arc::<Mul>(&mul6).unwrap();
 
         assert_eq!(mul.factors(), vec![Power::new(factor.clone(), 3).unwrap()]);
@@ -311,20 +306,20 @@ mod tests {
 
     #[test]
     fn test_utils() {
-        let coef1 = make_number_complex(64u32);
-        let symbol1 = make_symbol(4u32);
-        let symbol2 = make_symbol(4u32);
-        let op = Mul::new(vec![coef1.clone(), symbol1.clone(), symbol2.clone()]).unwrap();
+        let c1 = make_number_complex(64u32);
+        let s1 = make_symbol(4u32);
+        let s2 = make_symbol(4u32);
+        let op = Mul::new(vec![c1.clone(), s1.clone(), s2.clone()]).unwrap();
 
         assert!(is_expr_type::<Mul>(&op));
         assert!(!is_zero_expr(&op));
         assert!(!is_one_expr(&op));
 
-        let coef2 = make_number_rational(256u32);
-        let op1 = Mul::new(vec![coef1.clone(), symbol1.clone(), symbol2.clone()]).unwrap();
-        let op2 = Mul::new(vec![symbol2.clone(), symbol1.clone(), coef1.clone()]).unwrap();
-        let op3 = Mul::new(vec![coef2.clone(), symbol1.clone(), symbol2.clone()]).unwrap();
-        let op4 = Mul::new(vec![coef1.clone(), symbol1.clone()]).unwrap();
+        let c2 = make_number_rational(256u32);
+        let op1 = Mul::new(vec![c1.clone(), s1.clone(), s2.clone()]).unwrap();
+        let op2 = Mul::new(vec![s2.clone(), s1.clone(), c1.clone()]).unwrap();
+        let op3 = Mul::new(vec![c2.clone(), s1.clone(), s2.clone()]).unwrap();
+        let op4 = Mul::new(vec![c1.clone(), s1.clone()]).unwrap();
 
         assert!(Arc::ptr_eq(&op, &op1));
         assert!(Arc::ptr_eq(&op, &op2));

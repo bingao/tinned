@@ -168,7 +168,7 @@ mod tests {
             format!(
                 "TemporumOverlap([{}]; [{}])",
                 deps.hash_key(),
-                PertMultichain::new().hash_key()
+                PertMultichain::new().hash_key(),
             )
         );
         assert!(!op1.is_scalar());

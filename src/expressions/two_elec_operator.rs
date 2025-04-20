@@ -288,7 +288,7 @@ mod tests {
                 DEFAULT_OPER_NAME,
                 density.hash_key(),
                 deps.hash_key(),
-                deriv.hash_key()
+                deriv.hash_key(),
             )
         );
         assert!(!op1.is_scalar());

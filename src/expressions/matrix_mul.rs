@@ -121,15 +121,15 @@ mod tests {
 
     #[test]
     fn test_impl_expr() {
-        let coef1 = make_number_complex(64u32);
-        let coef2 = make_symbol(4u32);
+        let c1 = make_number_complex(64u32);
+        let c2 = make_symbol(4u32);
         let op_a = make_wfn_parameter("");
         let op_b = make_wfn_parameter("");
         let op_c = make_two_elec_operator("", None);
 
         let mul1 = MatrixMul::new(vec![
-            coef1.clone(),
-            coef2.clone(),
+            c1.clone(),
+            c2.clone(),
             op_a.clone(),
             MatrixAdd::new(vec![op_a.clone(), op_b.clone()]).unwrap(),
             MatrixAdd::new(vec![op_b.clone(), op_c.clone()]).unwrap(),
@@ -140,7 +140,7 @@ mod tests {
         assert!(is_expr_type::<MatrixMul>(&mul1));
 
         let mut mul = downcast_from_arc::<MatrixMul>(&mul1).unwrap();
-        let expected_coef = Mul::new(vec![coef1.clone(), coef2.clone()]).unwrap();
+        let expected_coef = Mul::new(vec![c1.clone(), c2.clone()]).unwrap();
         let expected_factors = vec![
             op_a.clone(),
             MatrixAdd::new(vec![op_a.clone(), op_b.clone()]).unwrap(),
@@ -165,7 +165,7 @@ mod tests {
                 "MatrixMul({}{}{})",
                 expected_coef.hash_key(),
                 DEFAULT_HASH_DELIMITER,
-                join_exprs_for_hash(&expected_factors, DEFAULT_HASH_DELIMITER)
+                join_exprs_for_hash(&expected_factors, DEFAULT_HASH_DELIMITER),
             )
         );
         assert!(!mul1.is_scalar());
@@ -182,25 +182,25 @@ mod tests {
                     "{}{}{}",
                     expected_coef,
                     DEFAULT_FMT_DELIMITER,
-                    join_exprs_for_display(&expected_factors, DEFAULT_FMT_DELIMITER)
+                    join_exprs_for_display(&expected_factors, DEFAULT_FMT_DELIMITER),
                 )
             );
         }
 
         let mul2 = MatrixMul::new(vec![
-            coef1.clone(),
+            c1.clone(),
             op_a.clone(),
             MatrixAdd::new(vec![op_a.clone(), op_b.clone()]).unwrap(),
             MatrixAdd::new(vec![op_b.clone(), op_c.clone()]).unwrap(),
             op_c.clone(),
-            coef2.clone(),
+            c2.clone(),
         ])
         .unwrap();
         let mul3 = MatrixMul::new(vec![
-            coef1.clone(),
+            c1.clone(),
             op_a.clone(),
             MatrixMul::new(vec![
-                coef2.clone(),
+                c2.clone(),
                 MatrixAdd::new(vec![op_a.clone(), op_b.clone()]).unwrap(),
             ])
             .unwrap(),
@@ -246,13 +246,13 @@ mod tests {
         assert_eq!(
             &MatrixMul::new(vec![
                 MatrixMul::new(vec![
-                    coef1.clone(),
+                    c1.clone(),
                     op_a.clone(),
                     MatrixMul::new(vec![op_b.clone(), op_c.clone()]).unwrap(),
                 ])
                 .unwrap(),
                 MatrixMul::new(vec![
-                    coef2.clone(),
+                    c2.clone(),
                     op_a.clone(),
                     MatrixMul::new(vec![op_c.clone(), op_b.clone()]).unwrap(),
                 ])
@@ -262,7 +262,7 @@ mod tests {
             ])
             .unwrap(),
             &MatrixMul::new(vec![
-                Mul::new(vec![coef1.clone(), coef2.clone()]).unwrap(),
+                Mul::new(vec![c1.clone(), c2.clone()]).unwrap(),
                 op_a.clone(),
                 op_b.clone(),
                 op_c.clone(),
@@ -277,12 +277,16 @@ mod tests {
 
         // - No polynomial multiplication and expansion, e.g. keeping (A + B) * 2 as-is
         let factor = MatrixAdd::new(vec![op_a.clone(), op_b.clone()]).unwrap();
-        let mul5 =
-            MatrixMul::new(vec![coef1.clone(), factor.clone(), factor.clone(), factor.clone()])
-                .unwrap();
+        let mul5 = MatrixMul::new(vec![c1.clone(), factor.clone(), factor.clone(), factor.clone()])
+            .unwrap();
         mul = downcast_from_arc::<MatrixMul>(&mul5).unwrap();
 
         assert_eq!(mul.factors(), vec![factor.clone(), factor.clone(), factor.clone()]);
+
+        assert_eq!(
+            &MatrixMul::new(vec![c1.clone(), c2.clone()]).unwrap(),
+            &Mul::new(vec![c1.clone(), c2.clone()]).unwrap()
+        );
     }
 
     #[test]
@@ -302,15 +306,15 @@ mod tests {
 
     #[test]
     fn test_utils() {
-        let coef1 = make_number_complex(64u32);
-        let coef2 = make_symbol(4u32);
+        let c1 = make_number_complex(64u32);
+        let c2 = make_symbol(4u32);
         let op_a = make_wfn_parameter("");
         let op_b = make_wfn_parameter("");
         let op_c = make_two_elec_operator("", None);
 
         let mul = MatrixMul::new(vec![
-            coef1.clone(),
-            coef2.clone(),
+            c1.clone(),
+            c2.clone(),
             op_a.clone(),
             MatrixAdd::new(vec![op_a.clone(), op_b.clone()]).unwrap(),
             MatrixAdd::new(vec![op_b.clone(), op_c.clone()]).unwrap(),
@@ -323,8 +327,8 @@ mod tests {
         assert!(!is_one_expr(&mul));
 
         let mul1 = MatrixMul::new(vec![
-            coef1.clone(),
-            coef2.clone(),
+            c1.clone(),
+            c2.clone(),
             op_a.clone(),
             MatrixAdd::new(vec![op_a.clone(), op_b.clone()]).unwrap(),
             MatrixAdd::new(vec![op_b.clone(), op_c.clone()]).unwrap(),
@@ -332,18 +336,18 @@ mod tests {
         ])
         .unwrap();
         let mul2 = MatrixMul::new(vec![
-            coef1.clone(),
+            c1.clone(),
             op_a.clone(),
-            coef2.clone(),
+            c2.clone(),
             MatrixAdd::new(vec![op_b.clone(), op_a.clone()]).unwrap(),
             MatrixAdd::new(vec![op_c.clone(), op_b.clone()]).unwrap(),
             op_c.clone(),
         ])
         .unwrap();
         let mul3 = MatrixMul::new(vec![
-            coef1.clone(),
+            c1.clone(),
             op_a.clone(),
-            coef2.clone(),
+            c2.clone(),
             MatrixAdd::new(vec![op_b.clone(), op_a.clone()]).unwrap(),
             op_c.clone(),
             MatrixAdd::new(vec![op_c.clone(), op_b.clone()]).unwrap(),

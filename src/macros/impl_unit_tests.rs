@@ -123,7 +123,7 @@ macro_rules! test_nullary_oper {
                 stringify!($type_name),
                 $oper_name,
                 deps.hash_key(),
-                $deriv.hash_key()
+                $deriv.hash_key(),
             )
         );
         assert_eq!(op1.is_scalar(), $is_scalar);

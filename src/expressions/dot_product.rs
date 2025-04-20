@@ -137,7 +137,7 @@ impl Expr for DotProduct {
             "DotProduct({}; {}; {})",
             self.bra.hash_key(),
             self.ket.hash_key(),
-            self.allow_braket_swap
+            self.allow_braket_swap,
         )
     }
 

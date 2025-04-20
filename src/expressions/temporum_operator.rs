@@ -143,7 +143,7 @@ impl std::fmt::Display for TemporumOperator {
             } else {
                 "-i*dt"
             },
-            self.argument
+            self.argument,
         )
     }
 }
@@ -197,7 +197,7 @@ mod tests {
                 } else {
                     "-i*dt"
                 },
-                argument
+                argument,
             )
         );
 

@@ -147,15 +147,15 @@ mod tests {
 
     #[test]
     fn test_impl_expr() {
-        let coef1 = make_number_complex(64u32);
-        let coef2 = make_symbol(4u32);
+        let c1 = make_number_complex(64u32);
+        let c2 = make_symbol(4u32);
         let op_a = make_wfn_parameter("");
         let op_b = make_wfn_parameter("");
         let op_c = make_two_elec_operator("", None);
 
         let add1 = MatrixAdd::new(vec![
-            MatrixMul::new(vec![coef1.clone(), op_a.clone()]).unwrap(),
-            MatrixMul::new(vec![coef2.clone(), op_b.clone()]).unwrap(),
+            MatrixMul::new(vec![c1.clone(), op_a.clone()]).unwrap(),
+            MatrixMul::new(vec![c2.clone(), op_b.clone()]).unwrap(),
             op_c.clone(),
         ])
         .unwrap();
@@ -164,8 +164,8 @@ mod tests {
 
         let add = downcast_from_arc::<MatrixAdd>(&add1).unwrap();
         let mut asc_terms = vec![
-            MatrixMul::new(vec![coef1.clone(), op_a.clone()]).unwrap(),
-            MatrixMul::new(vec![coef2.clone(), op_b.clone()]).unwrap(),
+            MatrixMul::new(vec![c1.clone(), op_a.clone()]).unwrap(),
+            MatrixMul::new(vec![c2.clone(), op_b.clone()]).unwrap(),
             op_c.clone(),
         ];
 
@@ -191,21 +191,21 @@ mod tests {
         );
 
         let add2 = MatrixAdd::new(vec![
-            MatrixMul::new(vec![coef1.clone(), op_a.clone()]).unwrap(),
-            MatrixMul::new(vec![coef2.clone(), op_b.clone()]).unwrap(),
+            MatrixMul::new(vec![c1.clone(), op_a.clone()]).unwrap(),
+            MatrixMul::new(vec![c2.clone(), op_b.clone()]).unwrap(),
             op_c.clone(),
         ])
         .unwrap();
         let add3 = MatrixAdd::new(vec![
             op_a.clone(),
             MatrixMul::new(vec![
-                Add::new(vec![coef1.clone(), Number::from_i64(-1)]).unwrap(),
+                Add::new(vec![c1.clone(), Number::from_i64(-1)]).unwrap(),
                 op_a.clone(),
             ])
             .unwrap(),
             op_b.clone(),
             MatrixMul::new(vec![
-                Add::new(vec![coef2.clone(), Number::from_i64(-1)]).unwrap(),
+                Add::new(vec![c2.clone(), Number::from_i64(-1)]).unwrap(),
                 op_b.clone(),
             ])
             .unwrap(),
@@ -214,7 +214,7 @@ mod tests {
         .unwrap();
         let add4 = MatrixAdd::new(vec![
             op_a.clone(),
-            MatrixMul::new(vec![coef2.clone(), op_b.clone()]).unwrap(),
+            MatrixMul::new(vec![c2.clone(), op_b.clone()]).unwrap(),
             op_c.clone(),
         ])
         .unwrap();
@@ -237,13 +237,13 @@ mod tests {
 
         assert_eq!(
             &MatrixAdd::new(vec![
-                MatrixMul::new(vec![coef1.clone(), op_a.clone(), op_b.clone()]).unwrap(),
-                MatrixMul::new(vec![coef2.clone(), op_a.clone(), op_b.clone()]).unwrap(),
+                MatrixMul::new(vec![c1.clone(), op_a.clone(), op_b.clone()]).unwrap(),
+                MatrixMul::new(vec![c2.clone(), op_a.clone(), op_b.clone()]).unwrap(),
                 MatrixMul::new(vec![coef3.clone(), op_a.clone(), op_b.clone()]).unwrap(),
             ])
             .unwrap(),
             &MatrixMul::new(vec![
-                Add::new(vec![coef1.clone(), coef2.clone(), coef3.clone()]).unwrap(),
+                Add::new(vec![c1.clone(), c2.clone(), coef3.clone()]).unwrap(),
                 op_a.clone(),
                 op_b.clone(),
             ])
@@ -295,15 +295,15 @@ mod tests {
 
     #[test]
     fn test_utils() {
-        let coef1 = make_number_complex(64u32);
-        let coef2 = make_symbol(4u32);
+        let c1 = make_number_complex(64u32);
+        let c2 = make_symbol(4u32);
         let op_a = make_wfn_parameter("");
         let op_b = make_wfn_parameter("");
         let op_c = make_two_elec_operator("", None);
 
         let add = MatrixAdd::new(vec![
-            MatrixMul::new(vec![coef1.clone(), op_a.clone()]).unwrap(),
-            MatrixMul::new(vec![coef2.clone(), op_b.clone()]).unwrap(),
+            MatrixMul::new(vec![c1.clone(), op_a.clone()]).unwrap(),
+            MatrixMul::new(vec![c2.clone(), op_b.clone()]).unwrap(),
             op_c.clone(),
         ])
         .unwrap();
@@ -313,20 +313,20 @@ mod tests {
         assert!(!is_one_expr(&add));
 
         let add1 = MatrixAdd::new(vec![
-            MatrixMul::new(vec![coef1.clone(), op_a.clone()]).unwrap(),
-            MatrixMul::new(vec![coef2.clone(), op_b.clone()]).unwrap(),
+            MatrixMul::new(vec![c1.clone(), op_a.clone()]).unwrap(),
+            MatrixMul::new(vec![c2.clone(), op_b.clone()]).unwrap(),
             op_c.clone(),
         ])
         .unwrap();
         let add2 = MatrixAdd::new(vec![
             op_c.clone(),
-            MatrixMul::new(vec![coef2.clone(), op_b.clone()]).unwrap(),
-            MatrixMul::new(vec![coef1.clone(), op_a.clone()]).unwrap(),
+            MatrixMul::new(vec![c2.clone(), op_b.clone()]).unwrap(),
+            MatrixMul::new(vec![c1.clone(), op_a.clone()]).unwrap(),
         ])
         .unwrap();
         let add3 = MatrixAdd::new(vec![
             op_a.clone(),
-            MatrixMul::new(vec![coef2.clone(), op_b.clone()]).unwrap(),
+            MatrixMul::new(vec![c2.clone(), op_b.clone()]).unwrap(),
             op_c.clone(),
         ])
         .unwrap();
