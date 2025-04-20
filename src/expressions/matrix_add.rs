@@ -124,7 +124,6 @@ mod tests {
     use crate::expressions::two_elec_operator::test_utils::make_two_elec_operator;
     use crate::expressions::wfn_parameter::test_utils::make_wfn_parameter;
     use crate::expressions::Symbol;
-    use crate::utils::{is_expr_type, is_one_expr, is_zero_expr};
     use num_complex::Complex64;
 
     test_struct_safety!(MatrixAdd);

@@ -285,8 +285,9 @@ mod tests {
         );
 
         // - No polynomial multiplication and expansion, e.g. keeping (x + y) * 2 as-is
-        let factor = Add::new(vec![x, y]).unwrap();
-        let mul6 = Mul::new(vec![coef1, factor.clone(), factor.clone(), factor.clone()]).unwrap();
+        let factor = Add::new(vec![x.clone(), y.clone()]).unwrap();
+        let mul6 =
+            Mul::new(vec![coef1.clone(), factor.clone(), factor.clone(), factor.clone()]).unwrap();
         mul = downcast_from_arc::<Mul>(&mul6).unwrap();
 
         assert_eq!(mul.factors(), vec![Power::new(factor.clone(), 3).unwrap()]);

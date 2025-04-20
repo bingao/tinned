@@ -91,3 +91,267 @@ const DEFAULT_HASH_DELIMITER: &str = ";";
 const DEFAULT_FMT_DELIMITER: &str = " * ";
 
 impl_mul_traits!(MatrixMul, DEFAULT_HASH_DELIMITER, DEFAULT_FMT_DELIMITER, false);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::expressions::number::test_utils::make_number_complex;
+    use crate::expressions::symbol::test_utils::make_symbol;
+    use crate::expressions::two_elec_operator::test_utils::make_two_elec_operator;
+    use crate::expressions::wfn_parameter::test_utils::make_wfn_parameter;
+    use crate::expressions::{MatrixAdd, Symbol};
+    use num_complex::Complex64;
+
+    test_struct_safety!(MatrixMul);
+
+    test_thread_interning!({
+        MatrixMul::new(vec![
+            Symbol::new("w"),
+            Number::from_complex(Complex64::new(0.0, -1.0)),
+            make_wfn_parameter("psi"),
+            make_two_elec_operator("op(2el)", Some(make_wfn_parameter("phi"))),
+            MatrixAdd::new(vec![
+                make_wfn_parameter("phi"),
+                make_two_elec_operator("op(2el)", Some(make_wfn_parameter("psi"))),
+            ])
+            .unwrap(),
+        ])
+        .unwrap()
+    });
+
+    #[test]
+    fn test_impl_expr() {
+        let coef1 = make_number_complex(64u32);
+        let coef2 = make_symbol(4u32);
+        let op_a = make_wfn_parameter("");
+        let op_b = make_wfn_parameter("");
+        let op_c = make_two_elec_operator("", None);
+
+        let mul1 = MatrixMul::new(vec![
+            coef1.clone(),
+            coef2.clone(),
+            op_a.clone(),
+            MatrixAdd::new(vec![op_a.clone(), op_b.clone()]).unwrap(),
+            MatrixAdd::new(vec![op_b.clone(), op_c.clone()]).unwrap(),
+            op_c.clone(),
+        ])
+        .unwrap();
+
+        assert!(is_expr_type::<MatrixMul>(&mul1));
+
+        let mut mul = downcast_from_arc::<MatrixMul>(&mul1).unwrap();
+        let expected_coef = Mul::new(vec![coef1.clone(), coef2.clone()]).unwrap();
+        let expected_factors = vec![
+            op_a.clone(),
+            MatrixAdd::new(vec![op_a.clone(), op_b.clone()]).unwrap(),
+            MatrixAdd::new(vec![op_b.clone(), op_c.clone()]).unwrap(),
+            op_c.clone(),
+        ];
+
+        // - Order of input terms is preserved
+        assert_eq!(
+            mul,
+            &MatrixMul {
+                coefficient: expected_coef.clone(),
+                factors: expected_factors.clone(),
+            }
+        );
+        assert_eq!(mul.coefficient(), &expected_coef);
+        assert_eq!(mul.factors(), &expected_factors);
+
+        assert_eq!(
+            mul1.hash_key(),
+            format!(
+                "MatrixMul({}{}{})",
+                expected_coef.hash_key(),
+                DEFAULT_HASH_DELIMITER,
+                join_exprs_for_hash(&expected_factors, DEFAULT_HASH_DELIMITER)
+            )
+        );
+        assert!(!mul1.is_scalar());
+
+        if is_one_expr(&expected_coef) {
+            assert_eq!(
+                format!("{}", mul1),
+                format!("{}", join_exprs_for_display(&expected_factors, DEFAULT_FMT_DELIMITER))
+            );
+        } else {
+            assert_eq!(
+                format!("{}", mul1),
+                format!(
+                    "{}{}{}",
+                    expected_coef,
+                    DEFAULT_FMT_DELIMITER,
+                    join_exprs_for_display(&expected_factors, DEFAULT_FMT_DELIMITER)
+                )
+            );
+        }
+
+        let mul2 = MatrixMul::new(vec![
+            coef1.clone(),
+            op_a.clone(),
+            MatrixAdd::new(vec![op_a.clone(), op_b.clone()]).unwrap(),
+            MatrixAdd::new(vec![op_b.clone(), op_c.clone()]).unwrap(),
+            op_c.clone(),
+            coef2.clone(),
+        ])
+        .unwrap();
+        let mul3 = MatrixMul::new(vec![
+            coef1.clone(),
+            op_a.clone(),
+            MatrixMul::new(vec![
+                coef2.clone(),
+                MatrixAdd::new(vec![op_a.clone(), op_b.clone()]).unwrap(),
+            ])
+            .unwrap(),
+            MatrixAdd::new(vec![op_b.clone(), op_c.clone()]).unwrap(),
+            op_c.clone(),
+        ])
+        .unwrap();
+        let mul4 = MatrixMul::new(vec![
+            op_a.clone(),
+            MatrixAdd::new(vec![op_a.clone(), op_b.clone()]).unwrap(),
+            MatrixAdd::new(vec![op_b.clone(), op_c.clone()]).unwrap(),
+            op_c.clone(),
+        ])
+        .unwrap();
+
+        assert_eq!(&mul1, &mul2);
+        assert_eq!(&mul1, &mul3);
+        assert_ne!(&mul1, &mul4);
+
+        mul = downcast_from_arc::<MatrixMul>(&mul4).unwrap();
+
+        assert!(is_one_expr(mul.coefficient()));
+
+        // - Remove empty MatrixMul([]) -> op(0)
+        assert_eq!(&MatrixMul::new(vec![]).unwrap(), &ZeroOperator::new());
+
+        // - Remove redundant MatrixMul([A]) -> A
+        assert_eq!(&MatrixMul::new(vec![op_a.clone()]).unwrap(), &op_a);
+
+        // - Identities, ensure A * 0 = op(0), A * op(0) = op(0)
+        assert_eq!(
+            &MatrixMul::new(vec![op_a.clone(), Number::zero()]).unwrap(),
+            &ZeroOperator::new()
+        );
+        assert_eq!(
+            &MatrixMul::new(vec![op_a.clone(), ZeroOperator::new()]).unwrap(),
+            &ZeroOperator::new()
+        );
+
+        // - Flatten nested MatrixMul
+        // - Numeric simplifications, e.g. 3 * 2 -> 6, (1/2) * 4 -> 2, 3 * 0 -> 0
+        // - Series multiplication, e.g. ((2 * A) * (3 * A)) * A -> 6 * A * A * A
+        assert_eq!(
+            &MatrixMul::new(vec![
+                MatrixMul::new(vec![
+                    coef1.clone(),
+                    op_a.clone(),
+                    MatrixMul::new(vec![op_b.clone(), op_c.clone()]).unwrap(),
+                ])
+                .unwrap(),
+                MatrixMul::new(vec![
+                    coef2.clone(),
+                    op_a.clone(),
+                    MatrixMul::new(vec![op_c.clone(), op_b.clone()]).unwrap(),
+                ])
+                .unwrap(),
+                op_a.clone(),
+                op_b.clone(),
+            ])
+            .unwrap(),
+            &MatrixMul::new(vec![
+                Mul::new(vec![coef1.clone(), coef2.clone()]).unwrap(),
+                op_a.clone(),
+                op_b.clone(),
+                op_c.clone(),
+                op_a.clone(),
+                op_c.clone(),
+                op_b.clone(),
+                op_a.clone(),
+                op_b.clone(),
+            ])
+            .unwrap()
+        );
+
+        // - No polynomial multiplication and expansion, e.g. keeping (A + B) * 2 as-is
+        let factor = MatrixAdd::new(vec![op_a.clone(), op_b.clone()]).unwrap();
+        let mul5 =
+            MatrixMul::new(vec![coef1.clone(), factor.clone(), factor.clone(), factor.clone()])
+                .unwrap();
+        mul = downcast_from_arc::<MatrixMul>(&mul5).unwrap();
+
+        assert_eq!(mul.factors(), vec![factor.clone(), factor.clone(), factor.clone()]);
+    }
+
+    #[test]
+    fn test_serialization() {
+        let op = MatrixMul::new(vec![
+            make_symbol(4u32),
+            make_number_complex(64u32),
+            make_wfn_parameter(""),
+            make_two_elec_operator("", None),
+            MatrixAdd::new(vec![make_wfn_parameter(""), make_two_elec_operator("", None)]).unwrap(),
+        ])
+        .unwrap();
+        let json = serde_json::to_string(&op).unwrap();
+        let deserialized: Arc<dyn Expr> = serde_json::from_str(&json).unwrap();
+        assert_eq!(&op, &deserialized);
+    }
+
+    #[test]
+    fn test_utils() {
+        let coef1 = make_number_complex(64u32);
+        let coef2 = make_symbol(4u32);
+        let op_a = make_wfn_parameter("");
+        let op_b = make_wfn_parameter("");
+        let op_c = make_two_elec_operator("", None);
+
+        let mul = MatrixMul::new(vec![
+            coef1.clone(),
+            coef2.clone(),
+            op_a.clone(),
+            MatrixAdd::new(vec![op_a.clone(), op_b.clone()]).unwrap(),
+            MatrixAdd::new(vec![op_b.clone(), op_c.clone()]).unwrap(),
+            op_c.clone(),
+        ])
+        .unwrap();
+
+        assert!(is_expr_type::<MatrixMul>(&mul));
+        assert!(!is_zero_expr(&mul));
+        assert!(!is_one_expr(&mul));
+
+        let mul1 = MatrixMul::new(vec![
+            coef1.clone(),
+            coef2.clone(),
+            op_a.clone(),
+            MatrixAdd::new(vec![op_a.clone(), op_b.clone()]).unwrap(),
+            MatrixAdd::new(vec![op_b.clone(), op_c.clone()]).unwrap(),
+            op_c.clone(),
+        ])
+        .unwrap();
+        let mul2 = MatrixMul::new(vec![
+            coef1.clone(),
+            op_a.clone(),
+            coef2.clone(),
+            MatrixAdd::new(vec![op_b.clone(), op_a.clone()]).unwrap(),
+            MatrixAdd::new(vec![op_c.clone(), op_b.clone()]).unwrap(),
+            op_c.clone(),
+        ])
+        .unwrap();
+        let mul3 = MatrixMul::new(vec![
+            coef1.clone(),
+            op_a.clone(),
+            coef2.clone(),
+            MatrixAdd::new(vec![op_b.clone(), op_a.clone()]).unwrap(),
+            op_c.clone(),
+            MatrixAdd::new(vec![op_c.clone(), op_b.clone()]).unwrap(),
+        ])
+        .unwrap();
+
+        assert!(Arc::ptr_eq(&mul, &mul1));
+        assert!(Arc::ptr_eq(&mul, &mul2));
+        assert!(!Arc::ptr_eq(&mul, &mul3));
+    }
+}
