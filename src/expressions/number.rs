@@ -231,13 +231,18 @@ impl Expr for Number {
 
 impl PartialEq for Number {
     fn eq(&self, other: &Self) -> bool {
+        const ULPS_TOLERANCE: i64 = 6;
+        const REAL_EPSILON: f64 = 1e-12;
+        const CMPLX_EPSILON: f64 = 6e-11;
+
         match (self, other) {
             (Number::Integer(a), Number::Integer(b)) => a == b,
             (Number::Real(a), Number::Real(b)) => {
-                approx_eq!(f64, *a, *b, ulps = 4)
+                approx_eq!(f64, *a, *b, ulps = ULPS_TOLERANCE, epsilon = REAL_EPSILON)
             },
             (Number::Complex(a), Number::Complex(b)) => {
-                approx_eq!(f64, a.re, b.re, ulps = 4) && approx_eq!(f64, a.im, b.im, ulps = 4)
+                approx_eq!(f64, a.re, b.re, ulps = ULPS_TOLERANCE, epsilon = CMPLX_EPSILON)
+                    && approx_eq!(f64, a.im, b.im, ulps = ULPS_TOLERANCE, epsilon = CMPLX_EPSILON)
             },
             (Number::Fraction(a), Number::Fraction(b)) => a == b,
             _ => false,

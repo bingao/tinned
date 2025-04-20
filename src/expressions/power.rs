@@ -129,33 +129,38 @@ mod tests {
         let op2 = Power::new(x1.clone(), 1).unwrap();
         assert_eq!(&op2, &x1);
 
-        let exponent: i64 = rand::random_range(2..=16);
-        let op3 = Power::new(x1.clone(), exponent).unwrap();
+        let exponent1: i64 = rand::random_range(2..=16);
+        let op3 = Power::new(x1.clone(), exponent1).unwrap();
 
         let op = downcast_from_arc::<Power>(&op3).unwrap();
         assert_eq!(
             op,
             &Power {
                 base: x1.clone(),
-                exponent,
+                exponent: exponent1,
             }
         );
         assert_eq!(op.base(), &x1);
-        assert_eq!(op.exponent(), exponent);
+        assert_eq!(op.exponent(), exponent1);
 
-        assert_eq!(op3.hash_key(), format!("Power({}; {})", x1.hash_key(), exponent));
+        assert_eq!(op3.hash_key(), format!("Power({}; {})", x1.hash_key(), exponent1));
         assert!(op3.is_scalar());
-        assert_eq!(format!("{}", op3), format!("({})^{}", x1, exponent));
+        assert_eq!(format!("{}", op3), format!("({})^{}", x1, exponent1));
 
         let x2 = make_symbol(2u32);
+        let exponent2: i64 = rand::random_range(-32..=32);
 
-        let op4 = Power::new(x1.clone(), exponent).unwrap();
-        let op5 = Power::new(x2.clone(), exponent).unwrap();
-        let op6 = Power::new(x2.clone(), rand::random_range(-16..=16) as i64).unwrap();
+        let op4 = Power::new(x1.clone(), exponent1).unwrap();
+        let op5 = Power::new(x2.clone(), exponent1).unwrap();
+        let op6 = Power::new(x2.clone(), exponent2).unwrap();
 
         assert_eq!(&op3, &op4);
         assert_ne!(&op3, &op5);
         assert_ne!(&op3, &op6);
+
+        let op7 = Power::new(op3.clone(), exponent2).unwrap();
+
+        assert_eq!(&op7, &Power::new(x1.clone(), exponent1 * exponent2).unwrap());
     }
 
     #[test]

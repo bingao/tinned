@@ -6,6 +6,7 @@ use crate::core::{Expr, TinnedError};
 use crate::expressions::{Mul, Number, ZeroOperator};
 use crate::utils::{
     downcast_from_arc, downcast_from_ref, intern_expr, is_expr_type, is_one_expr, is_zero_expr,
+    join_exprs_for_display, join_exprs_for_hash,
 };
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -86,4 +87,7 @@ impl MatrixMul {
     }
 }
 
-impl_mul_traits!(MatrixMul, false);
+const DEFAULT_HASH_DELIMITER: &str = ";";
+const DEFAULT_FMT_DELIMITER: &str = " * ";
+
+impl_mul_traits!(MatrixMul, DEFAULT_HASH_DELIMITER, DEFAULT_FMT_DELIMITER, false);

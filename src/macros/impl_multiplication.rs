@@ -1,5 +1,5 @@
 macro_rules! impl_mul_traits {
-    ($type_name:ident, $is_scalar:tt) => {
+    ($type_name:ident, $hash_delimiter:ident, $fmt_delimiter:ident, $is_scalar:tt) => {
         #[typetag::serde]
         impl Expr for $type_name {
             #[inline]
@@ -9,12 +9,12 @@ macro_rules! impl_mul_traits {
 
             #[inline]
             fn hash_key(&self) -> String {
-                let keys: Vec<String> = self.factors.iter().map(|f| f.hash_key()).collect();
                 format!(
-                    "{}({}; {})",
+                    "{}({}{}{})",
                     stringify!($type_name),
                     self.coefficient.hash_key(),
-                    keys.join(",")
+                    $hash_delimiter,
+                    join_exprs_for_hash(&self.factors, $hash_delimiter),
                 )
             }
 
@@ -45,7 +45,8 @@ macro_rules! impl_mul_traits {
                 let diff_factors: Vec<Arc<dyn Expr>> =
                     self.factors.iter().map(|f| f.differentiate(s)).collect::<Result<_, _>>()?;
 
-                let result = impl_mul_traits!(@finalize_differentiation self diff_factors s $is_scalar);
+                let result
+                    = impl_mul_traits!(@finalize_differentiation self diff_factors s $is_scalar);
 
                 result
             }
@@ -62,25 +63,20 @@ macro_rules! impl_mul_traits {
         impl std::fmt::Display for $type_name {
             // Format: coefficient * factor1 * factor2 * ..., omit coefficient if one
             fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-                let wrote_coef = impl_mul_traits!(@non_one_coefficient self.coefficient, $is_scalar);
+                let wrote_coef
+                    = impl_mul_traits!(@non_one_coefficient self.coefficient, $is_scalar);
 
                 if wrote_coef {
-                    write!(f, "{}", self.coefficient)?;
+                    write!(
+                        f,
+                        "{}{}{}",
+                        self.coefficient,
+                        $fmt_delimiter,
+                        join_exprs_for_display(&self.factors, $fmt_delimiter),
+                    )
+                } else {
+                    write!(f, "{}", join_exprs_for_display(&self.factors, $fmt_delimiter))
                 }
-
-                if let Some((first, rest)) = self.factors().split_first() {
-                    if wrote_coef {
-                        write!(f, " * {}", first)?;
-                    } else {
-                        write!(f, "{}", first)?;
-                    }
-
-                    for factor in rest {
-                        write!(f, " * {}", factor)?;
-                    }
-                }
-
-                Ok(())
             }
         }
     };

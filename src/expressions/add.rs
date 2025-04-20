@@ -6,7 +6,8 @@ use typetag;
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{Mul, Number};
 use crate::utils::{
-    downcast_from_arc, downcast_from_ref, intern_expr, invalid_expression_error, unreachable_error,
+    downcast_from_arc, downcast_from_ref, intern_expr, invalid_expression_error,
+    join_exprs_for_display, join_exprs_for_hash, unreachable_error,
 };
 
 // Addition Expression
@@ -117,4 +118,7 @@ impl Add {
     }
 }
 
-impl_add_traits!(Add, true);
+const DEFAULT_HASH_DELIMITER: &str = ";";
+const DEFAULT_FMT_DELIMITER: &str = " + ";
+
+impl_add_traits!(Add, DEFAULT_HASH_DELIMITER, DEFAULT_FMT_DELIMITER, true);

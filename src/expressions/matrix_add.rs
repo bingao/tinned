@@ -7,7 +7,7 @@ use crate::core::{Expr, TinnedError};
 use crate::expressions::{Add, MatrixMul, Number, ZeroOperator};
 use crate::utils::{
     downcast_from_arc, downcast_from_ref, intern_expr, invalid_expression_error, is_expr_type,
-    is_one_expr, is_zero_expr, unreachable_error,
+    is_one_expr, is_zero_expr, join_exprs_for_display, join_exprs_for_hash, unreachable_error,
 };
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -111,4 +111,7 @@ impl MatrixAdd {
     }
 }
 
-impl_add_traits!(MatrixAdd, false);
+const DEFAULT_HASH_DELIMITER: &str = ";";
+const DEFAULT_FMT_DELIMITER: &str = " + ";
+
+impl_add_traits!(MatrixAdd, DEFAULT_HASH_DELIMITER, DEFAULT_FMT_DELIMITER, false);

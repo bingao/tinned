@@ -1,5 +1,5 @@
 macro_rules! impl_add_traits {
-    ($type_name:ident, $is_scalar:literal) => {
+    ($type_name:ident, $hash_delimiter:ident, $fmt_delimiter:ident, $is_scalar:literal) => {
         #[typetag::serde]
         impl Expr for $type_name {
             #[inline]
@@ -9,8 +9,11 @@ macro_rules! impl_add_traits {
 
             #[inline]
             fn hash_key(&self) -> String {
-                let keys: Vec<String> = self.terms.iter().map(|t| t.hash_key()).collect();
-                format!("{}({})", stringify!($type_name), keys.join("+"))
+                format!(
+                    "{}({})",
+                    stringify!($type_name),
+                    join_exprs_for_hash(&self.terms, $hash_delimiter),
+                )
             }
 
             #[inline]
@@ -59,15 +62,7 @@ macro_rules! impl_add_traits {
 
         impl std::fmt::Display for $type_name {
             fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-                f.write_str("(")?;
-                let mut iter = self.terms.iter();
-                if let Some(first) = iter.next() {
-                    write!(f, "{}", first)?;
-                    for term in iter {
-                        write!(f, " + {}", term)?;
-                    }
-                }
-                f.write_str(")")
+                write!(f, "({})", join_exprs_for_display(&self.terms, $fmt_delimiter))
             }
         }
     };
