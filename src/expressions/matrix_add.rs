@@ -115,3 +115,225 @@ const DEFAULT_HASH_DELIMITER: &str = ";";
 const DEFAULT_FMT_DELIMITER: &str = " + ";
 
 impl_add_traits!(MatrixAdd, DEFAULT_HASH_DELIMITER, DEFAULT_FMT_DELIMITER, false);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::expressions::number::test_utils::make_number_complex;
+    use crate::expressions::symbol::test_utils::make_symbol;
+    use crate::expressions::two_elec_operator::test_utils::make_two_elec_operator;
+    use crate::expressions::wfn_parameter::test_utils::make_wfn_parameter;
+    use crate::expressions::Symbol;
+    use crate::utils::{is_expr_type, is_one_expr, is_zero_expr};
+    use num_complex::Complex64;
+
+    test_struct_safety!(MatrixAdd);
+
+    test_thread_interning!({
+        MatrixAdd::new(vec![
+            MatrixMul::new(vec![
+                Number::from_complex(Complex64::new(0.0, -1.0)),
+                make_wfn_parameter("psi"),
+            ])
+            .unwrap(),
+            make_wfn_parameter("phi"),
+            MatrixMul::new(vec![
+                Symbol::new("w"),
+                make_two_elec_operator("op(2el)", Some(make_wfn_parameter("psi"))),
+            ])
+            .unwrap(),
+        ])
+        .unwrap()
+    });
+
+    #[test]
+    fn test_impl_expr() {
+        let coef1 = make_number_complex(64u32);
+        let coef2 = make_symbol(4u32);
+        let op_a = make_wfn_parameter("");
+        let op_b = make_wfn_parameter("");
+        let op_c = make_two_elec_operator("", None);
+
+        let add1 = MatrixAdd::new(vec![
+            MatrixMul::new(vec![coef1.clone(), op_a.clone()]).unwrap(),
+            MatrixMul::new(vec![coef2.clone(), op_b.clone()]).unwrap(),
+            op_c.clone(),
+        ])
+        .unwrap();
+
+        assert!(is_expr_type::<MatrixAdd>(&add1));
+
+        let add = downcast_from_arc::<MatrixAdd>(&add1).unwrap();
+        let mut asc_terms = vec![
+            MatrixMul::new(vec![coef1.clone(), op_a.clone()]).unwrap(),
+            MatrixMul::new(vec![coef2.clone(), op_b.clone()]).unwrap(),
+            op_c.clone(),
+        ];
+
+        asc_terms.sort_by_key(|f| f.fast_hash());
+
+        // - Sort terms based on hash values
+        assert_eq!(
+            add,
+            &MatrixAdd {
+                terms: asc_terms.clone()
+            }
+        );
+        assert_eq!(add.terms(), &asc_terms);
+
+        assert_eq!(
+            add1.hash_key(),
+            format!("MatrixAdd({})", join_exprs_for_hash(&asc_terms, DEFAULT_HASH_DELIMITER))
+        );
+        assert!(!add1.is_scalar());
+        assert_eq!(
+            format!("{}", add1),
+            format!("({})", join_exprs_for_display(&asc_terms, DEFAULT_FMT_DELIMITER))
+        );
+
+        let add2 = MatrixAdd::new(vec![
+            MatrixMul::new(vec![coef1.clone(), op_a.clone()]).unwrap(),
+            MatrixMul::new(vec![coef2.clone(), op_b.clone()]).unwrap(),
+            op_c.clone(),
+        ])
+        .unwrap();
+        let add3 = MatrixAdd::new(vec![
+            op_a.clone(),
+            MatrixMul::new(vec![
+                Add::new(vec![coef1.clone(), Number::from_i64(-1)]).unwrap(),
+                op_a.clone(),
+            ])
+            .unwrap(),
+            op_b.clone(),
+            MatrixMul::new(vec![
+                Add::new(vec![coef2.clone(), Number::from_i64(-1)]).unwrap(),
+                op_b.clone(),
+            ])
+            .unwrap(),
+            op_c.clone(),
+        ])
+        .unwrap();
+        let add4 = MatrixAdd::new(vec![
+            op_a.clone(),
+            MatrixMul::new(vec![coef2.clone(), op_b.clone()]).unwrap(),
+            op_c.clone(),
+        ])
+        .unwrap();
+
+        assert_eq!(&add1, &add2);
+        assert_eq!(&add1, &add3);
+        assert_ne!(&add1, &add4);
+
+        // - Remove empty MatrixAdd([]) -> op(0)
+        assert_eq!(&MatrixAdd::new(vec![]).unwrap(), &ZeroOperator::new());
+
+        // - Remove redundant MatrixAdd([A]) -> A
+        assert_eq!(&MatrixAdd::new(vec![op_a.clone()]).unwrap(), &op_a);
+
+        // - Identities: A + op(0) = A
+        assert_eq!(&MatrixAdd::new(vec![op_a.clone(), ZeroOperator::new()]).unwrap(), &op_a);
+
+        // - Combine like terms: 2*A*B + 3*A*B -> 5*A*B
+        let coef3 = make_number_complex(64u32);
+
+        assert_eq!(
+            &MatrixAdd::new(vec![
+                MatrixMul::new(vec![coef1.clone(), op_a.clone(), op_b.clone()]).unwrap(),
+                MatrixMul::new(vec![coef2.clone(), op_a.clone(), op_b.clone()]).unwrap(),
+                MatrixMul::new(vec![coef3.clone(), op_a.clone(), op_b.clone()]).unwrap(),
+            ])
+            .unwrap(),
+            &MatrixMul::new(vec![
+                Add::new(vec![coef1.clone(), coef2.clone(), coef3.clone()]).unwrap(),
+                op_a.clone(),
+                op_b.clone(),
+            ])
+            .unwrap()
+        );
+
+        // - Flatten nested MatrixAdd: (A + B) + (A + C) -> 2A + B + C
+        assert_eq!(
+            &MatrixAdd::new(vec![
+                MatrixAdd::new(vec![
+                    MatrixAdd::new(vec![
+                        op_a.clone(),
+                        MatrixMul::new(vec![op_b.clone(), op_c.clone()]).unwrap(),
+                    ])
+                    .unwrap(),
+                    MatrixAdd::new(vec![
+                        op_a.clone(),
+                        MatrixMul::new(vec![op_c.clone(), op_b.clone()]).unwrap(),
+                    ])
+                    .unwrap(),
+                ])
+                .unwrap(),
+                op_a.clone(),
+                op_b.clone(),
+            ])
+            .unwrap(),
+            &MatrixAdd::new(vec![
+                MatrixMul::new(vec![Number::from_i64(3), op_a.clone()]).unwrap(),
+                MatrixMul::new(vec![op_b.clone(), op_c.clone()]).unwrap(),
+                MatrixMul::new(vec![op_c.clone(), op_b.clone()]).unwrap(),
+                op_b.clone(),
+            ])
+            .unwrap()
+        );
+    }
+
+    #[test]
+    fn test_serialization() {
+        let op = MatrixAdd::new(vec![
+            MatrixMul::new(vec![make_number_complex(64u32), make_wfn_parameter("")]).unwrap(),
+            make_wfn_parameter(""),
+            MatrixMul::new(vec![make_symbol(4u32), make_two_elec_operator("", None)]).unwrap(),
+        ])
+        .unwrap();
+        let json = serde_json::to_string(&op).unwrap();
+        let deserialized: Arc<dyn Expr> = serde_json::from_str(&json).unwrap();
+        assert_eq!(&op, &deserialized);
+    }
+
+    #[test]
+    fn test_utils() {
+        let coef1 = make_number_complex(64u32);
+        let coef2 = make_symbol(4u32);
+        let op_a = make_wfn_parameter("");
+        let op_b = make_wfn_parameter("");
+        let op_c = make_two_elec_operator("", None);
+
+        let add = MatrixAdd::new(vec![
+            MatrixMul::new(vec![coef1.clone(), op_a.clone()]).unwrap(),
+            MatrixMul::new(vec![coef2.clone(), op_b.clone()]).unwrap(),
+            op_c.clone(),
+        ])
+        .unwrap();
+
+        assert!(is_expr_type::<MatrixAdd>(&add));
+        assert!(!is_zero_expr(&add));
+        assert!(!is_one_expr(&add));
+
+        let add1 = MatrixAdd::new(vec![
+            MatrixMul::new(vec![coef1.clone(), op_a.clone()]).unwrap(),
+            MatrixMul::new(vec![coef2.clone(), op_b.clone()]).unwrap(),
+            op_c.clone(),
+        ])
+        .unwrap();
+        let add2 = MatrixAdd::new(vec![
+            op_c.clone(),
+            MatrixMul::new(vec![coef2.clone(), op_b.clone()]).unwrap(),
+            MatrixMul::new(vec![coef1.clone(), op_a.clone()]).unwrap(),
+        ])
+        .unwrap();
+        let add3 = MatrixAdd::new(vec![
+            op_a.clone(),
+            MatrixMul::new(vec![coef2.clone(), op_b.clone()]).unwrap(),
+            op_c.clone(),
+        ])
+        .unwrap();
+
+        assert!(Arc::ptr_eq(&add, &add1));
+        assert!(Arc::ptr_eq(&add, &add2));
+        assert!(!Arc::ptr_eq(&add, &add3));
+    }
+}
