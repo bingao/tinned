@@ -200,22 +200,24 @@ macro_rules! test_nullary_oper {
             let len_pert_name: u32 = 2;
             let mut deriv = make_pert_multichain(len_pert_name, 8u32, 1u32, 10u32);
             let deps = make_super_multichain(&deriv, 1u32);
-            let op1 = $type_name::builder($oper_name)
+            let op = $type_name::builder($oper_name)
                 .dependencies(deps.clone())
                 .derivative(deriv.clone())
                 .build()
                 .unwrap();
 
             let p: Arc<Perturbation> = deps.keys().first().cloned().unwrap();
-            let diff_op1 = op1.differentiate(&p).unwrap();
+            let diff_op = op.differentiate(&p).unwrap();
             deriv.insert(&p);
 
-            let op = downcast_from_arc::<$type_name>(&diff_op1).unwrap();
-            assert_eq!(op.derivative(), &deriv);
+            let diff_cast = downcast_from_arc::<$type_name>(&diff_op).unwrap();
+            assert_eq!(diff_cast.derivative(), &deriv);
 
-            assert!(is_zero_expr(&diff_op1.differentiate(&p).unwrap()));
-            assert!(is_zero_expr(&op1.differentiate(
-                &make_perturbation_symbol(len_pert_name + 1u32, 4u32)).unwrap()));
+            assert!(is_zero_expr(&diff_op.differentiate(&p).unwrap()));
+
+            assert!(is_zero_expr(
+                &op.differentiate(&make_perturbation_symbol(len_pert_name + 1u32, 4u32)).unwrap()
+            ));
         }
     };
 
@@ -224,14 +226,14 @@ macro_rules! test_nullary_oper {
         fn test_differentiation() {
             let len_pert_name: u32 = 2;
             let mut deriv = make_pert_multichain(len_pert_name, 8u32, 1u32, 10u32);
-            let op1 = $type_name::builder($oper_name).derivative(deriv.clone()).build().unwrap();
+            let op = $type_name::builder($oper_name).derivative(deriv.clone()).build().unwrap();
 
             let p = make_perturbation_symbol(len_pert_name + 1u32, 4u32);
-            let diff_op1 = op1.differentiate(&p).unwrap();
+            let diff_op = op.differentiate(&p).unwrap();
             deriv.insert(&p);
 
-            let op = downcast_from_arc::<$type_name>(&diff_op1).unwrap();
-            assert_eq!(op.derivative(), &deriv);
+            let diff_cast = downcast_from_arc::<$type_name>(&diff_op).unwrap();
+            assert_eq!(diff_cast.derivative(), &deriv);
         }
     };
 }
@@ -334,7 +336,7 @@ macro_rules! test_exch_corr {
             let weight = make_non_elec_function("");
             let density = make_wfn_parameter("");
             let overlap = make_one_elec_operator("");
-            let op1 = $make_expr(
+            let op = $make_expr(
                 $oper_name,
                 Some(weight.clone()),
                 Some(density.clone()),
@@ -342,31 +344,31 @@ macro_rules! test_exch_corr {
             );
 
             let mut p = make_perturbation_symbol(4u32, 4u32);
-            let mut diff_op1 = op1.differentiate(&p).unwrap();
+            let mut diff_op = op.differentiate(&p).unwrap();
             let mut deriv = PertMultichain::new();
             deriv.insert(&p);
 
-            let mut op = downcast_from_arc::<$type_name>(&diff_op1).unwrap();
+            let mut diff_cast = downcast_from_arc::<$type_name>(&diff_op).unwrap();
 
-            assert_eq!(op.derivative(), &deriv);
+            assert_eq!(diff_cast.derivative(), &deriv);
 
             let $grid_expr_name =
                 $build_grid_expr(weight.clone(), density.clone(), overlap.clone()).unwrap();
             let mut diff_grid_expr = $grid_expr_name.differentiate(&p).unwrap();
 
-            assert_eq!(op.$grid_expr_name(), &diff_grid_expr);
+            assert_eq!(diff_cast.$grid_expr_name(), &diff_grid_expr);
 
             // The second order differentiation
             p = make_perturbation_symbol(4u32, 4u32);
-            diff_op1 = diff_op1.differentiate(&p).unwrap();
+            diff_op = diff_op.differentiate(&p).unwrap();
             deriv.insert(&p);
-            op = downcast_from_arc::<$type_name>(&diff_op1).unwrap();
+            diff_cast = downcast_from_arc::<$type_name>(&diff_op).unwrap();
 
-            assert_eq!(op.derivative(), &deriv);
+            assert_eq!(diff_cast.derivative(), &deriv);
 
             diff_grid_expr = diff_grid_expr.differentiate(&p).unwrap();
 
-            assert_eq!(op.$grid_expr_name(), &diff_grid_expr);
+            assert_eq!(diff_cast.$grid_expr_name(), &diff_grid_expr);
         }
 
         #[test]

@@ -126,11 +126,15 @@ impl_add_traits!(Add, DEFAULT_HASH_DELIMITER, DEFAULT_FMT_DELIMITER, true);
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::expressions::exch_corr_energy::test_utils::make_exch_corr_energy;
     use crate::expressions::number::test_utils::{
         make_number_complex, make_number_f64, make_number_i64, make_number_rational,
     };
     use crate::expressions::symbol::test_utils::make_symbol;
-    use crate::expressions::{Power, Symbol};
+    use crate::expressions::two_elec_energy::test_utils::make_two_elec_energy;
+    use crate::expressions::wfn_parameter::test_utils::make_wfn_parameter;
+    use crate::expressions::{Power, Symbol, Trace};
+    use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
     use crate::utils::{is_expr_type, is_one_expr, is_zero_expr};
     use num_complex::Complex64;
     use num_rational::Rational64;
@@ -251,6 +255,26 @@ mod tests {
                 c2.clone(),
                 c3.clone(),
                 Mul::new(vec![x.clone(), Number::from_i64(3)]).unwrap(),
+            ])
+            .unwrap()
+        );
+    }
+
+    #[test]
+    fn test_differentiation() {
+        let op_a = Trace::new(make_wfn_parameter("")).unwrap();
+        let op_b = make_two_elec_energy("", None, None);
+        let op_c = make_exch_corr_energy("", None, None, None);
+        let add = Add::new(vec![op_a.clone(), op_b.clone(), op_c.clone()]).unwrap();
+
+        let p = make_perturbation_symbol(4u32, 4u32);
+
+        assert_eq!(
+            &add.differentiate(&p).unwrap(),
+            &Add::new(vec![
+                op_a.differentiate(&p).unwrap(),
+                op_b.differentiate(&p).unwrap(),
+                op_c.differentiate(&p).unwrap()
             ])
             .unwrap()
         );

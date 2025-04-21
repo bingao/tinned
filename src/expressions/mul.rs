@@ -125,11 +125,15 @@ impl_mul_traits!(Mul, DEFAULT_HASH_DELIMITER, DEFAULT_FMT_DELIMITER, true);
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::expressions::exch_corr_energy::test_utils::make_exch_corr_energy;
     use crate::expressions::number::test_utils::{
         make_number_complex, make_number_f64, make_number_i64, make_number_rational,
     };
+    use crate::expressions::one_elec_operator::test_utils::make_one_elec_operator;
     use crate::expressions::symbol::test_utils::make_symbol;
-    use crate::expressions::{Add, Symbol};
+    use crate::expressions::two_elec_energy::test_utils::make_two_elec_energy;
+    use crate::expressions::{Add, Symbol, Trace};
+    use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
     use crate::utils::{is_expr_type, is_one_expr};
     use num_complex::Complex64;
     use num_rational::Rational64;
@@ -286,6 +290,34 @@ mod tests {
         mul = downcast_from_arc::<Mul>(&mul6).unwrap();
 
         assert_eq!(mul.factors(), vec![Power::new(factor.clone(), 3).unwrap()]);
+    }
+
+    #[test]
+    fn test_differentiation() {
+        let coef = make_number_complex(64u32);
+        let op_a = Trace::new(make_one_elec_operator("")).unwrap();
+        let op_b = make_two_elec_energy("", None, None);
+        let op_c = make_exch_corr_energy("", None, None, None);
+        let mul = Mul::new(vec![coef.clone(), op_a.clone(), op_b.clone(), op_c.clone()]).unwrap();
+
+        let p = make_perturbation_symbol(4u32, 4u32);
+        let diff_mul = mul.differentiate(&p).unwrap();
+        let diff_coef = coef.differentiate(&p).unwrap();
+        let diff_a = op_a.differentiate(&p).unwrap();
+        let diff_b = op_b.differentiate(&p).unwrap();
+        let diff_c = op_c.differentiate(&p).unwrap();
+
+        assert_eq!(
+            &diff_mul,
+            &Add::new(vec![
+                Mul::new(vec![diff_coef.clone(), op_a.clone(), op_b.clone(), op_c.clone()])
+                    .unwrap(),
+                Mul::new(vec![coef.clone(), diff_a.clone(), op_b.clone(), op_c.clone()]).unwrap(),
+                Mul::new(vec![coef.clone(), op_a.clone(), diff_b.clone(), op_c.clone()]).unwrap(),
+                Mul::new(vec![coef.clone(), op_a.clone(), op_b.clone(), diff_c.clone()]).unwrap(),
+            ])
+            .unwrap()
+        );
     }
 
     #[test]

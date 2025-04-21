@@ -131,6 +131,7 @@ mod tests {
     use crate::expressions::symbol::test_utils::make_symbol;
     use crate::expressions::wfn_parameter::test_utils::make_wfn_parameter;
     use crate::expressions::{Power, Symbol};
+    use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
     use crate::utils::is_zero_expr;
     use num_complex::Complex64;
     use num_rational::Rational64;
@@ -287,6 +288,32 @@ mod tests {
         );
 
         assert_eq!(&Conjugate::new(ZeroOperator::new()).unwrap(), &ZeroOperator::new());
+    }
+
+    #[test]
+    fn test_differentiation() {
+        let mut argument = make_wfn_parameter("");
+        let mut op = Conjugate::new(argument.clone()).unwrap();
+        let p = make_perturbation_symbol(4u32, 4u32);
+
+        assert_eq!(
+            &op.differentiate(&p).unwrap(),
+            &Conjugate::new(argument.differentiate(&p).unwrap()).unwrap()
+        );
+
+        argument =
+            DotProduct::new(make_wfn_parameter(""), true, make_wfn_parameter(""), false).unwrap();
+        op = Conjugate::new(argument.clone()).unwrap();
+
+        assert_eq!(
+            &op.differentiate(&p).unwrap(),
+            &Conjugate::new(argument.differentiate(&p).unwrap()).unwrap()
+        );
+
+        assert_eq!(
+            &Conjugate::new(make_symbol(4u32)).unwrap().differentiate(&p).unwrap(),
+            &Number::zero()
+        );
     }
 
     #[test]

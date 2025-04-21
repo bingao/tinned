@@ -15,6 +15,7 @@ pub struct TemporumOverlap {
 }
 
 impl TemporumOverlap {
+    // Note: `dependencies` is the perturbation dependencies of Sb and Sk
     #[inline]
     pub fn builder(dependencies: PertMultichain) -> TemporumOverlapBuilder {
         TemporumOverlapBuilder {
@@ -137,6 +138,7 @@ mod tests {
     use crate::perturbations::pert_multichain::test_utils::{
         make_pert_multichain, make_super_multichain,
     };
+    use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
     use crate::utils::{downcast_from_arc, is_one_expr, is_zero_expr};
 
     test_struct_safety!(TemporumOverlap);
@@ -176,6 +178,33 @@ mod tests {
         let op2 = TemporumOverlap::builder(make_super_multichain(&deps, 1u32)).build().unwrap();
 
         assert_ne!(&op1, &op2);
+    }
+
+    #[test]
+    fn test_differentiation() {
+        let len_pert_name: u32 = 2;
+        let deps = make_pert_multichain(len_pert_name, 8u32, 1u32, 10u32);
+        let op = TemporumOverlap::builder(deps.clone()).build().unwrap();
+
+        let p: Arc<Perturbation> = deps.keys().first().cloned().unwrap();
+        let mut diff_op = op.differentiate(&p).unwrap();
+        let mut deriv = PertMultichain::new();
+        deriv.insert(&p);
+
+        let diff_cast = downcast_from_arc::<TemporumOverlap>(&diff_op).unwrap();
+
+        assert_eq!(diff_cast.derivative(), &deriv);
+
+        let max_order = deps.get_order(&p);
+        for _ in 1..=2 * max_order + 1 {
+            diff_op = diff_op.differentiate(&p).unwrap();
+        }
+
+        assert_eq!(&diff_op, &ZeroOperator::new());
+
+        assert!(is_zero_expr(
+            &op.differentiate(&make_perturbation_symbol(len_pert_name + 1u32, 4u32)).unwrap()
+        ));
     }
 
     #[test]

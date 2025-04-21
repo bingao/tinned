@@ -95,11 +95,14 @@ impl_mul_traits!(MatrixMul, DEFAULT_HASH_DELIMITER, DEFAULT_FMT_DELIMITER, false
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::expressions::exch_corr_energy::test_utils::make_exch_corr_energy;
     use crate::expressions::number::test_utils::make_number_complex;
+    use crate::expressions::one_elec_operator::test_utils::make_one_elec_operator;
     use crate::expressions::symbol::test_utils::make_symbol;
     use crate::expressions::two_elec_operator::test_utils::make_two_elec_operator;
     use crate::expressions::wfn_parameter::test_utils::make_wfn_parameter;
     use crate::expressions::{MatrixAdd, Symbol};
+    use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
     use num_complex::Complex64;
 
     test_struct_safety!(MatrixMul);
@@ -124,7 +127,7 @@ mod tests {
         let c1 = make_number_complex(64u32);
         let c2 = make_symbol(4u32);
         let op_a = make_wfn_parameter("");
-        let op_b = make_wfn_parameter("");
+        let op_b = make_one_elec_operator("");
         let op_c = make_two_elec_operator("", None);
 
         let mul1 = MatrixMul::new(vec![
@@ -290,12 +293,44 @@ mod tests {
     }
 
     #[test]
+    fn test_differentiation() {
+        let coef = make_exch_corr_energy("", None, None, None);
+        let op_a = make_wfn_parameter("");
+        let op_b = make_one_elec_operator("");
+        let op_c = make_two_elec_operator("", None);
+        let mul =
+            MatrixMul::new(vec![coef.clone(), op_a.clone(), op_b.clone(), op_c.clone()]).unwrap();
+
+        let p = make_perturbation_symbol(4u32, 4u32);
+        let diff_mul = mul.differentiate(&p).unwrap();
+        let diff_coef = coef.differentiate(&p).unwrap();
+        let diff_a = op_a.differentiate(&p).unwrap();
+        let diff_b = op_b.differentiate(&p).unwrap();
+        let diff_c = op_c.differentiate(&p).unwrap();
+
+        assert_eq!(
+            &diff_mul,
+            &MatrixAdd::new(vec![
+                MatrixMul::new(vec![diff_coef.clone(), op_a.clone(), op_b.clone(), op_c.clone()])
+                    .unwrap(),
+                MatrixMul::new(vec![coef.clone(), diff_a.clone(), op_b.clone(), op_c.clone()])
+                    .unwrap(),
+                MatrixMul::new(vec![coef.clone(), op_a.clone(), diff_b.clone(), op_c.clone()])
+                    .unwrap(),
+                MatrixMul::new(vec![coef.clone(), op_a.clone(), op_b.clone(), diff_c.clone()])
+                    .unwrap(),
+            ])
+            .unwrap()
+        );
+    }
+
+    #[test]
     fn test_serialization() {
         let op = MatrixMul::new(vec![
             make_symbol(4u32),
             make_number_complex(64u32),
             make_wfn_parameter(""),
-            make_two_elec_operator("", None),
+            make_one_elec_operator(""),
             MatrixAdd::new(vec![make_wfn_parameter(""), make_two_elec_operator("", None)]).unwrap(),
         ])
         .unwrap();
@@ -309,7 +344,7 @@ mod tests {
         let c1 = make_number_complex(64u32);
         let c2 = make_symbol(4u32);
         let op_a = make_wfn_parameter("");
-        let op_b = make_wfn_parameter("");
+        let op_b = make_one_elec_operator("");
         let op_c = make_two_elec_operator("", None);
 
         let mul = MatrixMul::new(vec![

@@ -153,6 +153,7 @@ mod tests {
     use super::*;
     use crate::expressions::one_elec_operator::test_utils::make_one_elec_operator;
     use crate::expressions::wfn_parameter::test_utils::make_wfn_parameter;
+    use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
     use crate::utils::{downcast_from_arc, is_one_expr};
 
     test_struct_safety!(TemporumOperator);
@@ -206,6 +207,32 @@ mod tests {
 
         assert_ne!(&op1, &op3);
         assert_ne!(&op1, &op4);
+    }
+
+    #[test]
+    fn test_differentiation() {
+        let on_ket = true;
+        let mut argument = make_one_elec_operator("");
+        let op1 = TemporumOperator::builder(argument.clone()).on_ket(on_ket).build().unwrap();
+
+        let p = make_perturbation_symbol(4u32, 4u32);
+        let diff_op1 = op1.differentiate(&p).unwrap();
+        let diff_arg = argument.differentiate(&p).unwrap();
+
+        if is_zero_expr(&diff_arg) {
+            assert!(is_zero_expr(&diff_op1));
+        } else {
+            let diff_cast = downcast_from_arc::<TemporumOperator>(&diff_op1).unwrap();
+
+            assert_eq!(diff_cast.argument(), &diff_arg);
+        }
+
+        argument = make_wfn_parameter("");
+        let op2 = TemporumOperator::builder(argument.clone()).build().unwrap();
+        let diff_op2 = op2.differentiate(&p).unwrap();
+        let diff_cast = downcast_from_arc::<TemporumOperator>(&diff_op2).unwrap();
+
+        assert_eq!(diff_cast.argument(), &argument.differentiate(&p).unwrap());
     }
 
     #[test]

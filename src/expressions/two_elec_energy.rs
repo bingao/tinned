@@ -342,6 +342,7 @@ mod tests {
     use crate::perturbations::pert_multichain::test_utils::{
         make_pert_multichain, make_super_multichain,
     };
+    use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
     use crate::utils::{downcast_from_arc, is_one_expr};
 
     test_struct_safety!(TwoElecEnergy);
@@ -465,6 +466,67 @@ mod tests {
         assert_ne!(&op1, &op5);
         assert_ne!(&op1, &op6);
         assert_ne!(&op1, &op7);
+    }
+
+    #[test]
+    fn test_differentiation() {
+        let inner_density = make_wfn_parameter("");
+        let outer_density = make_wfn_parameter("");
+        let len_pert_name: u32 = 2;
+        let deps = make_pert_multichain(len_pert_name, 8u32, 1u32, 10u32);
+        let op = TwoElecEnergy::builder(DEFAULT_OPER_NAME, inner_density.clone())
+            .outer_density(outer_density.clone())
+            .dependencies(deps.clone())
+            .build()
+            .unwrap();
+
+        let mut p: Arc<Perturbation> = deps.keys().first().cloned().unwrap();
+        let mut diff_op = op.differentiate(&p).unwrap();
+        let mut deriv = PertMultichain::new();
+        deriv.insert(&p);
+
+        assert_eq!(
+            &diff_op,
+            &Add::new(vec![
+                TwoElecEnergy::builder(DEFAULT_OPER_NAME, inner_density.clone())
+                    .outer_density(outer_density.clone())
+                    .dependencies(deps.clone())
+                    .derivative(deriv.clone())
+                    .build()
+                    .unwrap(),
+                TwoElecEnergy::builder(DEFAULT_OPER_NAME, inner_density.differentiate(&p).unwrap())
+                    .outer_density(outer_density.clone())
+                    .dependencies(deps.clone())
+                    .build()
+                    .unwrap(),
+                TwoElecEnergy::builder(DEFAULT_OPER_NAME, inner_density.clone())
+                    .outer_density(outer_density.differentiate(&p).unwrap())
+                    .dependencies(deps.clone())
+                    .build()
+                    .unwrap(),
+            ])
+            .unwrap()
+        );
+
+        p = make_perturbation_symbol(len_pert_name + 1u32, 4u32);
+        diff_op = op.differentiate(&p).unwrap();
+
+        assert_eq!(
+            &diff_op,
+            &Add::new(vec![
+                TwoElecEnergy::builder(DEFAULT_OPER_NAME, inner_density.differentiate(&p).unwrap())
+                    .outer_density(outer_density.clone())
+                    .dependencies(deps.clone())
+                    .build()
+                    .unwrap(),
+                TwoElecEnergy::builder(DEFAULT_OPER_NAME, inner_density.clone())
+                    .outer_density(outer_density.differentiate(&p).unwrap())
+                    .dependencies(deps.clone())
+                    .build()
+                    .unwrap(),
+            ])
+            .unwrap()
+        );
     }
 
     #[test]

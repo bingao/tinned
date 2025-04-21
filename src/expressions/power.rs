@@ -113,7 +113,9 @@ impl std::fmt::Display for Power {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::expressions::exch_corr_energy::test_utils::make_exch_corr_energy;
     use crate::expressions::symbol::test_utils::make_symbol;
+    use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
     use crate::utils::{is_expr_type, is_one_expr, is_zero_expr};
 
     test_struct_safety!(Power);
@@ -161,6 +163,41 @@ mod tests {
         let op7 = Power::new(op3.clone(), exponent2).unwrap();
 
         assert_eq!(&op7, &Power::new(x1.clone(), exponent1 * exponent2).unwrap());
+    }
+
+    #[test]
+    fn test_differentiation() {
+        let mut op = Power::new(make_symbol(2u32), rand::random_range(2..=16) as i64).unwrap();
+        let p = make_perturbation_symbol(4u32, 4u32);
+
+        assert!(is_zero_expr(&op.differentiate(&p).unwrap()));
+
+        let base = make_exch_corr_energy("", None, None, None);
+        let mut exponent: i64 = rand::random_range(2..=16);
+        op = Power::new(base.clone(), exponent).unwrap();
+
+        assert_eq!(
+            &op.differentiate(&p).unwrap(),
+            &crate::expressions::Mul::new(vec![
+                Number::from_i64(exponent),
+                Power::new(base.clone(), exponent - 1).unwrap(),
+                base.differentiate(&p).unwrap(),
+            ])
+            .unwrap()
+        );
+
+        exponent = rand::random_range(-16..=-1);
+        op = Power::new(base.clone(), exponent).unwrap();
+
+        assert_eq!(
+            &op.differentiate(&p).unwrap(),
+            &crate::expressions::Mul::new(vec![
+                Number::from_i64(exponent),
+                Power::new(base.clone(), exponent - 1).unwrap(),
+                base.differentiate(&p).unwrap(),
+            ])
+            .unwrap()
+        );
     }
 
     #[test]
