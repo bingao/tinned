@@ -313,6 +313,7 @@ pub mod test_utils {
 mod tests {
     use super::test_utils::*;
     use super::*;
+    use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
     use crate::utils::{downcast_from_arc, is_expr_type, is_one_expr, is_zero_expr};
     use num_integer::Integer;
     use rand::random_range;
@@ -605,6 +606,21 @@ mod tests {
         assert_eq!(format!("{}", real), f1.to_string());
         assert_eq!(format!("{}", cmplx), format!("{f1} + {f2}i"));
         assert_eq!(format!("{}", frac), format!("{new_n1}/{new_n2}"));
+    }
+
+    #[test]
+    fn test_differentiation() {
+        let int = make_number_i64(100u32);
+        let real = make_number_f64(100u32);
+        let cmplx = make_number_complex(100u32);
+        let frac = make_number_rational(100u32);
+
+        let p = make_perturbation_symbol(4u32, 4u32);
+
+        assert_eq!(&int.differentiate(&p).unwrap(), &Number::zero());
+        assert_eq!(&real.differentiate(&p).unwrap(), &Number::zero());
+        assert_eq!(&cmplx.differentiate(&p).unwrap(), &Number::zero());
+        assert_eq!(&frac.differentiate(&p).unwrap(), &Number::zero());
     }
 
     // Test serialization and deserialization via `serde_json`

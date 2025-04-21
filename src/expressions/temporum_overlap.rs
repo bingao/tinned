@@ -106,8 +106,7 @@ impl Expr for TemporumOverlap {
             return Ok(diff_braket);
         }
 
-        let mut new_deriv = self.derivative.clone();
-        new_deriv.insert(s);
+        let new_deriv = self.derivative.clone_with_insert(s);
 
         Ok(intern_expr(Arc::new(Self {
             braket: diff_braket,

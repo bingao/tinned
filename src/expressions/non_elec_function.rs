@@ -46,6 +46,7 @@ mod tests {
     use crate::perturbations::pert_multichain::test_utils::{
         make_pert_multichain, make_super_multichain,
     };
+    use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
     use crate::utils::{downcast_from_arc, is_expr_type, is_one_expr, is_zero_expr};
 
     test_nullary_oper!(NonElecFunction, DEFAULT_FUN_NAME, make_non_elec_function, true, true);

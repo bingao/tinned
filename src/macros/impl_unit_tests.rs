@@ -53,6 +53,8 @@ macro_rules! test_nullary_oper {
             );
         }
 
+        test_nullary_oper!(@test_nullary_differentiation $type_name, $oper_name, $has_deps);
+
         #[test]
         fn test_serialization() {
             let op = $make_expr("");
@@ -191,6 +193,47 @@ macro_rules! test_nullary_oper {
         assert_ne!(&op1, &op4);
         assert_ne!(&op1, &op5);
     };
+
+    (@test_nullary_differentiation $type_name:ident, $oper_name:ident, true) => {
+        #[test]
+        fn test_differentiation() {
+            let len_pert_name: u32 = 2;
+            let mut deriv = make_pert_multichain(len_pert_name, 8u32, 1u32, 10u32);
+            let deps = make_super_multichain(&deriv, 1u32);
+            let op1 = $type_name::builder($oper_name)
+                .dependencies(deps.clone())
+                .derivative(deriv.clone())
+                .build()
+                .unwrap();
+
+            let p: Arc<Perturbation> = deps.keys().first().cloned().unwrap();
+            let diff_op1 = op1.differentiate(&p).unwrap();
+            deriv.insert(&p);
+
+            let op = downcast_from_arc::<$type_name>(&diff_op1).unwrap();
+            assert_eq!(op.derivative(), &deriv);
+
+            assert!(is_zero_expr(&diff_op1.differentiate(&p).unwrap()));
+            assert!(is_zero_expr(&op1.differentiate(
+                &make_perturbation_symbol(len_pert_name + 1u32, 4u32)).unwrap()));
+        }
+    };
+
+    (@test_nullary_differentiation $type_name:ident, $oper_name:ident, false) => {
+        #[test]
+        fn test_differentiation() {
+            let len_pert_name: u32 = 2;
+            let mut deriv = make_pert_multichain(len_pert_name, 8u32, 1u32, 10u32);
+            let op1 = $type_name::builder($oper_name).derivative(deriv.clone()).build().unwrap();
+
+            let p = make_perturbation_symbol(len_pert_name + 1u32, 4u32);
+            let diff_op1 = op1.differentiate(&p).unwrap();
+            deriv.insert(&p);
+
+            let op = downcast_from_arc::<$type_name>(&diff_op1).unwrap();
+            assert_eq!(op.derivative(), &deriv);
+        }
+    };
 }
 
 // Test ExchCorrEnergy and ExchCorrPotential
@@ -283,6 +326,49 @@ macro_rules! test_exch_corr {
             assert_ne!(&op1, &op6);
         }
 
+        // This unit test will not check the correctness of differentiation on
+        // XC energy or potenital at grid points, i.e. `$grid_expr_name`. That
+        // will be checked in some integration tests.
+        #[test]
+        fn test_differentiation() {
+            let weight = make_non_elec_function("");
+            let density = make_wfn_parameter("");
+            let overlap = make_one_elec_operator("");
+            let op1 = $make_expr(
+                $oper_name,
+                Some(weight.clone()),
+                Some(density.clone()),
+                Some(overlap.clone()),
+            );
+
+            let mut p = make_perturbation_symbol(4u32, 4u32);
+            let mut diff_op1 = op1.differentiate(&p).unwrap();
+            let mut deriv = PertMultichain::new();
+            deriv.insert(&p);
+
+            let mut op = downcast_from_arc::<$type_name>(&diff_op1).unwrap();
+
+            assert_eq!(op.derivative(), &deriv);
+
+            let $grid_expr_name =
+                $build_grid_expr(weight.clone(), density.clone(), overlap.clone()).unwrap();
+            let mut diff_grid_expr = $grid_expr_name.differentiate(&p).unwrap();
+
+            assert_eq!(op.$grid_expr_name(), &diff_grid_expr);
+
+            // The second order differentiation
+            p = make_perturbation_symbol(4u32, 4u32);
+            diff_op1 = diff_op1.differentiate(&p).unwrap();
+            deriv.insert(&p);
+            op = downcast_from_arc::<$type_name>(&diff_op1).unwrap();
+
+            assert_eq!(op.derivative(), &deriv);
+
+            diff_grid_expr = diff_grid_expr.differentiate(&p).unwrap();
+
+            assert_eq!(op.$grid_expr_name(), &diff_grid_expr);
+        }
+
         #[test]
         fn test_serialization() {
             let op = $make_expr("", None, None, None);
@@ -328,7 +414,8 @@ macro_rules! test_exch_corr {
     };
 }
 
-// Test interning, serialization and utils for Trace, Transpose and HermitianTranspose
+// Test common properties for Trace, Transpose and HermitianTranspose, such as
+// interning, differentiation, serialization and utils, etc.
 #[allow(unused_macros)]
 macro_rules! test_unary_oper_properties {
     ($type_name:ident) => {
@@ -339,6 +426,17 @@ macro_rules! test_unary_oper_properties {
             Some(make_wfn_parameter("wfn"))
         ))
         .unwrap());
+
+        #[test]
+        fn test_differentiation() {
+            let argument = make_two_elec_operator("", None);
+            let op = $type_name::new(argument.clone()).unwrap();
+            let p = make_perturbation_symbol(4u32, 4u32);
+            let diff_op = &op.differentiate(&p).unwrap();
+            let diff_cast = downcast_from_arc::<$type_name>(&diff_op).unwrap();
+
+            assert_eq!(diff_cast.argument(), &argument.differentiate(&p).unwrap());
+        }
 
         #[test]
         fn test_serialization() {

@@ -150,12 +150,9 @@ impl Expr for TwoElecOperator {
 
     fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
         let diff_density = self.density.differentiate(s)?;
-
         let term1 = self.builder_from_density(diff_density).build()?;
 
-        let mut new_deriv = self.derivative.clone();
-        new_deriv.insert(s);
-
+        let new_deriv = self.derivative.clone_with_insert(s);
         let term2 = self.builder_from_derivative(new_deriv).build()?;
 
         if is_zero_expr(&term2) {

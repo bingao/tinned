@@ -231,13 +231,12 @@ impl Expr for TwoElecEnergy {
                 .build()?,
         ];
 
-        let mut new_deriv = self.derivative.clone();
-        new_deriv.insert(s);
-
+        let new_deriv = self.derivative.clone_with_insert(s);
         let diff_oper = self
             .builder_from_derivative(new_deriv)
             .allow_density_swap(self.allow_density_swap)
             .build()?;
+
         if !is_zero_expr(&diff_oper) {
             terms.push(diff_oper);
         }

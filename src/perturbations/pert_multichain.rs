@@ -22,6 +22,15 @@ impl PertMultichain {
         PertMultichain(Arc::new(Mutex::new(map)))
     }
 
+    /// Creates a new perturbation multichain by deeply cloning the underlying
+    /// `BTreeMap` and inserting a given perturbation.
+    #[inline]
+    pub fn clone_with_insert(&self, p: &Arc<Perturbation>) -> Self {
+        let mut map = self.get_map_clone();
+        *map.entry(p.clone()).or_insert(0) += 1;
+        Self::from_map(map)
+    }
+
     /// Returns true if the perturbation multichain is empty.
     #[inline]
     pub fn is_empty(&self) -> bool {
@@ -323,6 +332,19 @@ mod tests {
         assert!(!c1.is_subchain(&c2));
         assert!(!c2.is_superchain(&c1));
         assert!(!c2.is_subchain(&c1));
+    }
+
+    #[test]
+    fn test_clone_with_insert() {
+        let mut c1 = make_pert_multichain(2u32, 8u32, 0u32, 10u32);
+        let p = make_perturbation_symbol(2u32, 4u32);
+        let c2 = c1.clone_with_insert(&p);
+
+        assert!(c1.is_superchain(&c2));
+
+        c1.insert(&p);
+
+        assert_eq!(c1, c2);
     }
 
     #[test]

@@ -103,6 +103,7 @@ pub mod test_utils {
 mod tests {
     use super::test_utils::*;
     use super::*;
+    use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
     use crate::utils::{downcast_from_arc, is_expr_type, is_one_expr, is_zero_expr};
 
     test_struct_safety!(Symbol);
@@ -132,6 +133,13 @@ mod tests {
         let s3 = make_symbol(3u32);
         assert_eq!(&s1, &s2);
         assert_ne!(&s1, &s3);
+    }
+
+    #[test]
+    fn test_differentiation() {
+        let s = make_symbol(10u32);
+        let p = make_perturbation_symbol(4u32, 4u32);
+        assert_eq!(&s.differentiate(&p).unwrap(), &crate::expressions::Number::zero());
     }
 
     // Test serialization and deserialization via `serde_json`

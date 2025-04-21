@@ -88,6 +88,7 @@ mod tests {
     use crate::expressions::number::test_utils::make_number_complex;
     use crate::expressions::two_elec_operator::test_utils::make_two_elec_operator;
     use crate::expressions::wfn_parameter::test_utils::make_wfn_parameter;
+    use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
 
     test_unary_oper_properties!(Trace);
 

@@ -141,8 +141,8 @@ macro_rules! impl_exch_corr_traits {
 
             fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
                 let diff_expr = self.$grid_expr_name.differentiate(s)?;
-                let mut new_deriv = self.derivative.clone();
-                new_deriv.insert(s);
+
+                let new_deriv = self.derivative.clone_with_insert(s);
 
                 Ok(intern_expr(Arc::new(Self {
                     name: self.name.clone(),

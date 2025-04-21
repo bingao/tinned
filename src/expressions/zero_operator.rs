@@ -61,6 +61,7 @@ impl std::fmt::Display for ZeroOperator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
     use crate::utils::{downcast_from_arc, is_expr_type, is_one_expr, is_zero_expr};
 
     test_struct_safety!(ZeroOperator);
@@ -82,6 +83,13 @@ mod tests {
 
         let z2 = ZeroOperator::new();
         assert_eq!(&z1, &z2);
+    }
+
+    #[test]
+    fn test_differentiation() {
+        let z = ZeroOperator::new();
+        let p = make_perturbation_symbol(4u32, 4u32);
+        assert_eq!(&z.differentiate(&p).unwrap(), &ZeroOperator::new());
     }
 
     #[test]

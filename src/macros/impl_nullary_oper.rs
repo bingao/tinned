@@ -196,8 +196,7 @@ macro_rules! impl_nullary_oper_traits {
             #[inline]
             fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError>
             {
-                let mut new_deriv = self.derivative.clone();
-                new_deriv.insert(s);
+                let new_deriv = self.derivative.clone_with_insert(s);
 
                 self.builder_from(new_deriv).build()
             }

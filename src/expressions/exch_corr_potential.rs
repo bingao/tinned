@@ -49,6 +49,7 @@ mod tests {
     use crate::expressions::non_elec_function::test_utils::make_non_elec_function;
     use crate::expressions::one_elec_operator::test_utils::make_one_elec_operator;
     use crate::expressions::wfn_parameter::test_utils::make_wfn_parameter;
+    use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
     use crate::utils::{downcast_from_arc, is_expr_type, is_one_expr, is_zero_expr};
 
     test_exch_corr!(
