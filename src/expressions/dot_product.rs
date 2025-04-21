@@ -37,27 +37,13 @@ impl DotProduct {
             ));
         }
 
-        if is_expr_type::<ZeroOperator>(&bra) || is_expr_type::<ZeroOperator>(&ket) {
-            return Ok(Number::zero());
-        }
-
-        let mut bra = if use_hermitian {
+        let bra = if use_hermitian {
             HermitianTranspose::new(bra)?
         } else {
             Transpose::new(bra)?
         };
 
-        let mut coefficients = Vec::new();
-
-        bra = Self::strip_matrixmul_coefficient(bra, &mut coefficients)?;
-        let ket = Self::strip_matrixmul_coefficient(ket, &mut coefficients)?;
-
-        if coefficients.is_empty() {
-            Self::make_dot_product(bra, ket, allow_braket_swap)
-        } else {
-            coefficients.push(Self::make_dot_product(bra, ket, allow_braket_swap)?);
-            Mul::new(coefficients)
-        }
+        Self::make_dot_product(bra, ket, allow_braket_swap)
     }
 
     // Helper function to strip scalar coefficient from a MatrixMul expression
@@ -81,23 +67,38 @@ impl DotProduct {
         ket: Arc<dyn Expr>,
         allow_braket_swap: bool,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
-        if allow_braket_swap {
-            let trans_ket = Transpose::new(ket.clone())?;
-            if bra.hash_key() > trans_ket.hash_key() {
-                let trans_bra = Transpose::new(bra)?;
-                return Ok(intern_expr(Arc::new(Self {
-                    bra: trans_ket,
-                    ket: trans_bra,
-                    allow_braket_swap,
-                })));
-            }
+        if is_expr_type::<ZeroOperator>(&bra) || is_expr_type::<ZeroOperator>(&ket) {
+            return Ok(Number::zero());
         }
 
-        Ok(intern_expr(Arc::new(Self {
+        let mut coefficients = Vec::new();
+
+        let bra = Self::strip_matrixmul_coefficient(bra, &mut coefficients)?;
+        let ket = Self::strip_matrixmul_coefficient(ket, &mut coefficients)?;
+
+        let (bra, ket) = if allow_braket_swap {
+            let trans_ket = Transpose::new(ket.clone())?;
+            if bra.hash_key() > trans_ket.hash_key() {
+                (trans_ket, Transpose::new(bra)?)
+            } else {
+                (bra, ket)
+            }
+        } else {
+            (bra, ket)
+        };
+
+        let product = intern_expr(Arc::new(Self {
             bra,
             ket,
             allow_braket_swap,
-        })))
+        }));
+
+        if coefficients.is_empty() {
+            Ok(product)
+        } else {
+            coefficients.push(product);
+            Mul::new(coefficients)
+        }
     }
 
     #[inline]
@@ -119,6 +120,7 @@ impl DotProduct {
     pub fn conjugate(&self) -> Result<Arc<dyn Expr>, TinnedError> {
         let bra = Conjugate::new(self.bra.clone())?;
         let ket = Conjugate::new(self.ket.clone())?;
+
         Self::make_dot_product(bra, ket, self.allow_braket_swap)
     }
 }
