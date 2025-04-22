@@ -4,7 +4,7 @@ use typetag;
 
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{
-    Conjugate, HermitianTranspose, MatrixMul, Mul, Number, Transpose, ZeroOperator,
+    Add, Conjugate, HermitianTranspose, MatrixMul, Mul, Number, Transpose, ZeroOperator,
 };
 use crate::utils::{
     downcast_from_arc, downcast_from_ref, intern_expr, invalid_expression_error, is_expr_type,
@@ -169,7 +169,10 @@ impl Expr for DotProduct {
         let diff_bra = self.bra.differentiate(s)?;
         let diff_ket = self.ket.differentiate(s)?;
 
-        Self::make_dot_product(diff_bra, diff_ket, self.allow_braket_swap)
+        Add::new(vec![
+            Self::make_dot_product(diff_bra, self.ket.clone(), self.allow_braket_swap)?,
+            Self::make_dot_product(self.bra.clone(), diff_ket, self.allow_braket_swap)?,
+        ])
     }
 }
 
@@ -216,6 +219,7 @@ mod tests {
     use super::*;
     use crate::expressions::symbol::test_utils::make_symbol;
     use crate::expressions::wfn_parameter::test_utils::make_wfn_parameter;
+    use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
     use crate::utils::is_zero_expr;
 
     test_struct_safety!(DotProduct);
@@ -347,6 +351,44 @@ mod tests {
                 Conjugate::new(coef_psi1.clone()).unwrap(),
                 coef_psi2.clone(),
                 op1.clone(),
+            ])
+            .unwrap()
+        );
+    }
+
+    #[test]
+    fn test_differentiation() {
+        let psi1 = make_wfn_parameter("");
+        let psi2 = make_wfn_parameter("");
+        let op = DotProduct::new(psi1.clone(), true, psi2.clone(), true).unwrap();
+        let p = make_perturbation_symbol(4u32, 4u32);
+        let mut diff_op = op.differentiate(&p).unwrap();
+        let diff_psi1 = psi1.differentiate(&p).unwrap();
+        let diff_psi2 = psi2.differentiate(&p).unwrap();
+
+        assert_eq!(
+            &diff_op,
+            &Add::new(vec![
+                DotProduct::new(diff_psi1.clone(), true, psi2.clone(), true).unwrap(),
+                DotProduct::new(psi1.clone(), true, diff_psi2.clone(), true).unwrap(),
+            ])
+            .unwrap()
+        );
+
+        diff_op = diff_op.differentiate(&p).unwrap();
+
+        assert_eq!(
+            &diff_op,
+            &Add::new(vec![
+                DotProduct::new(diff_psi1.differentiate(&p).unwrap(), true, psi2.clone(), true)
+                    .unwrap(),
+                Mul::new(vec![
+                    Number::from_i64(2),
+                    DotProduct::new(diff_psi1.clone(), true, diff_psi2.clone(), true).unwrap()
+                ])
+                .unwrap(),
+                DotProduct::new(psi1.clone(), true, diff_psi2.differentiate(&p).unwrap(), true)
+                    .unwrap(),
             ])
             .unwrap()
         );
