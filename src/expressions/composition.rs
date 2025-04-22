@@ -72,6 +72,7 @@ impl Expr for Composition {
         &self,
         s: &Arc<crate::perturbations::Perturbation>,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
+        // Differentiation using the chain rule in calculus
         let diff_outer = Self::new(self.name.clone(), self.order + 1, self.inner.clone());
         let diff_inner = self.inner.differentiate(s)?;
 
@@ -100,8 +101,10 @@ impl std::fmt::Display for Composition {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::expressions::exch_corr_energy::test_utils::make_exch_corr_energy;
     use crate::expressions::symbol::test_utils::{make_symbol, random_alphanumeric};
-    use crate::expressions::Power;
+    use crate::expressions::{Mul, Power};
+    use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
     use crate::utils::{downcast_from_arc, is_expr_type, is_one_expr, is_zero_expr};
 
     test_struct_safety!(Composition);
@@ -154,6 +157,28 @@ mod tests {
         assert_ne!(&op1, &op3);
         assert_ne!(&op1, &op4);
         assert_ne!(&op1, &op5);
+    }
+
+    #[test]
+    fn test_differentiation() {
+        let name = random_alphanumeric(4u32);
+        let order: u32 = rand::random_range(2..=16);
+        let base = make_exch_corr_energy("", None, None, None);
+        let exponent: i64 = rand::random_range(2..=16);
+        let inner = Power::new(base.clone(), exponent).unwrap();
+        let op = Composition::new(name.clone(), order, inner.clone());
+
+        let p = make_perturbation_symbol(4u32, 4u32);
+        let diff_op = op.differentiate(&p).unwrap();
+
+        assert_eq!(
+            &diff_op,
+            &Mul::new(vec![
+                Composition::new(name.clone(), order + 1, inner.clone()),
+                inner.differentiate(&p).unwrap(),
+            ])
+            .unwrap()
+        );
     }
 
     #[test]
