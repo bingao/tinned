@@ -76,6 +76,22 @@ impl PertMultichain {
         submap.iter().all(|(p, &order)| map.get(p).copied().unwrap_or(0) >= order)
     }
 
+    /// Similar to the function `is_subchain` but takes the `subchain` in a
+    /// vector of `Arc<Perturbation>`.
+    pub fn is_subchain_vec(&self, subchain: &[Arc<Perturbation>]) -> bool {
+        let submap: BTreeMap<_, u32> = {
+            let mut pert_map = BTreeMap::new();
+            for pert in subchain {
+                *pert_map.entry(pert.clone()).or_insert(0) += 1;
+            }
+            pert_map
+        };
+
+        let map = self.0.lock().unwrap().clone();
+
+        submap.iter().all(|(p, &order)| map.get(p).copied().unwrap_or(0) >= order)
+    }
+
     /// Returns true if `chain` is a sub-multichain of `superchain`. That is,
     /// all perturbations in `chain` appear in `superchain` with at least the
     /// same order.
@@ -187,6 +203,17 @@ pub mod test_utils {
         }
 
         PertMultichain::from_map(map)
+    }
+
+    #[inline]
+    pub fn make_pert_vec(len_name: u32, val_range: u32) -> Vec<Arc<Perturbation>> {
+        vec![
+            make_perturbation_i64(len_name, val_range),
+            make_perturbation_f64(len_name, val_range),
+            make_perturbation_complex(len_name, val_range),
+            make_perturbation_rational(len_name, val_range),
+            make_perturbation_symbol(len_name, val_range),
+        ]
     }
 
     #[inline]
@@ -332,6 +359,10 @@ mod tests {
         assert!(!c1.is_subchain(&c2));
         assert!(!c2.is_superchain(&c1));
         assert!(!c2.is_subchain(&c1));
+
+        let c3 = c1.keys();
+
+        assert!(c1.is_subchain_vec(&c3));
     }
 
     #[test]
