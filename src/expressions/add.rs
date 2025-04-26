@@ -87,8 +87,8 @@ impl Add {
         let mut simplified_terms: Vec<Arc<dyn Expr>> = Vec::with_capacity(merged.len());
 
         for (expr, coef) in merged.into_values() {
-            if !coef.is_zero() {
-                if coef.is_one() {
+            if !coef.is_zero(None) {
+                if coef.is_one(None) {
                     simplified_terms.push(expr);
                 } else {
                     simplified_terms.push(Mul::new(vec![coef.into(), expr])?);
@@ -96,7 +96,7 @@ impl Add {
             }
         }
 
-        if !constant.is_zero() {
+        if !constant.is_zero(None) {
             simplified_terms.push(intern_expr(Arc::new(constant)));
         }
 
@@ -306,8 +306,8 @@ mod tests {
         let op = Add::new(vec![c1.clone(), s1.clone(), s2.clone()]).unwrap();
 
         assert!(is_expr_type::<Add>(&op));
-        assert!(!is_zero_expr(&op));
-        assert!(!is_one_expr(&op));
+        assert!(!is_zero_expr(&op, None));
+        assert!(!is_one_expr(&op, None));
 
         let c2 = make_number_rational(256u32);
         let op1 = Add::new(vec![c1.clone(), s1.clone(), s2.clone()]).unwrap();

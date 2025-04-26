@@ -126,7 +126,7 @@ mod tests {
     fn test_impl_expr() {
         let x1 = make_symbol(2u32);
         let op1 = Power::new(x1.clone(), 0).unwrap();
-        assert!(is_one_expr(&op1));
+        assert!(is_one_expr(&op1, None));
 
         let op2 = Power::new(x1.clone(), 1).unwrap();
         assert_eq!(&op2, &x1);
@@ -170,7 +170,7 @@ mod tests {
         let mut op = Power::new(make_symbol(2u32), rand::random_range(2..=16) as i64).unwrap();
         let p = make_perturbation_symbol(4u32, 4u32);
 
-        assert!(is_zero_expr(&op.differentiate(&p).unwrap()));
+        assert!(is_zero_expr(&op.differentiate(&p).unwrap(), None));
 
         let base = make_exch_corr_energy("", None, None, None);
         let mut exponent: i64 = rand::random_range(2..=16);
@@ -216,8 +216,8 @@ mod tests {
         let op1 = Power::new(x1.clone(), exponent).unwrap();
 
         assert!(is_expr_type::<Power>(&op1));
-        assert!(!is_zero_expr(&op1));
-        assert!(!is_one_expr(&op1));
+        assert!(!is_zero_expr(&op1, None));
+        assert!(!is_one_expr(&op1, None));
 
         let op2 = Power::new(x1.clone(), exponent).unwrap();
         let op3 = Power::new(x2.clone(), exponent).unwrap();

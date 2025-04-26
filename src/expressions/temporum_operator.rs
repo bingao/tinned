@@ -8,10 +8,11 @@ use crate::utils::{
     downcast_from_ref, intern_expr, invalid_expression_error, is_expr_type, is_zero_expr,
 };
 
-/// A TemporumOperator is a non-scalar operator acting on a ket or a bra
+/// A TemporumOperator represents i*d/dt (forward) or -i*d/dt (backward) acting
+/// on an `argument`.
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct TemporumOperator {
-    on_ket: bool,
+    is_forward: bool,
     argument: Arc<dyn Expr>,
 }
 
@@ -19,7 +20,7 @@ impl TemporumOperator {
     #[inline]
     pub fn builder(argument: Arc<dyn Expr>) -> TemporumOperatorBuilder {
         TemporumOperatorBuilder {
-            on_ket: true,
+            is_forward: true,
             argument,
         }
     }
@@ -27,14 +28,14 @@ impl TemporumOperator {
     #[inline]
     fn builder_from(&self, argument: Arc<dyn Expr>) -> TemporumOperatorBuilder {
         TemporumOperatorBuilder {
-            on_ket: self.on_ket,
+            is_forward: self.is_forward,
             argument,
         }
     }
 
     #[inline]
-    pub fn on_ket(&self) -> bool {
-        self.on_ket
+    pub fn is_forward(&self) -> bool {
+        self.is_forward
     }
 
     #[inline]
@@ -45,14 +46,14 @@ impl TemporumOperator {
 
 #[derive(Debug)]
 pub struct TemporumOperatorBuilder {
-    on_ket: bool,
+    is_forward: bool,
     argument: Arc<dyn Expr>,
 }
 
 impl TemporumOperatorBuilder {
     #[inline]
-    pub fn on_ket(mut self, on_ket: bool) -> Self {
-        self.on_ket = on_ket;
+    pub fn is_forward(mut self, is_forward: bool) -> Self {
+        self.is_forward = is_forward;
         self
     }
 
@@ -68,7 +69,7 @@ impl TemporumOperatorBuilder {
             || is_expr_type::<WfnParameter>(&self.argument)
         {
             Ok(intern_expr(Arc::new(TemporumOperator {
-                on_ket: self.on_ket,
+                is_forward: self.is_forward,
                 argument: self.argument,
             })))
         } else {
@@ -89,7 +90,7 @@ impl Expr for TemporumOperator {
 
     #[inline]
     fn hash_key(&self) -> String {
-        format!("TemporumOperator({}; {})", self.on_ket, self.argument.hash_key())
+        format!("TemporumOperator({}; {})", self.is_forward, self.argument.hash_key())
     }
 
     #[inline]
@@ -117,7 +118,7 @@ impl Expr for TemporumOperator {
     ) -> Result<Arc<dyn Expr>, TinnedError> {
         let diff_arg = self.argument.differentiate(s)?;
 
-        if is_zero_expr(&diff_arg) {
+        if is_zero_expr(&diff_arg, None) {
             Ok(ZeroOperator::new())
         } else {
             self.builder_from(diff_arg).build()
@@ -127,7 +128,7 @@ impl Expr for TemporumOperator {
 
 impl PartialEq for TemporumOperator {
     fn eq(&self, other: &Self) -> bool {
-        self.on_ket == other.on_ket && &self.argument == &other.argument
+        self.is_forward == other.is_forward && &self.argument == &other.argument
     }
 }
 
@@ -138,10 +139,10 @@ impl std::fmt::Display for TemporumOperator {
         write!(
             f,
             "{}({})",
-            if self.on_ket {
-                "i*dt"
+            if self.is_forward {
+                "i*d/dt"
             } else {
-                "-i*dt"
+                "-i*d/dt"
             },
             self.argument,
         )
@@ -158,26 +159,27 @@ mod tests {
 
     test_struct_safety!(TemporumOperator);
 
-    test_thread_interning!(TemporumOperator::builder(make_one_elec_operator("1el"))
-        .build()
-        .unwrap());
+    test_thread_interning!(
+        TemporumOperator::builder(make_one_elec_operator("1el")).build().unwrap()
+    );
 
     #[test]
     fn test_impl_expr() {
-        let on_ket = true;
+        let is_forward = true;
         let argument = make_one_elec_operator("");
-        let op1 = TemporumOperator::builder(argument.clone()).on_ket(on_ket).build().unwrap();
+        let op1 =
+            TemporumOperator::builder(argument.clone()).is_forward(is_forward).build().unwrap();
 
         let op = downcast_from_arc::<TemporumOperator>(&op1).unwrap();
         assert_eq!(
             op,
             &TemporumOperator {
-                on_ket,
+                is_forward,
                 argument: argument.clone()
             }
         );
 
-        assert_eq!(op.on_ket(), on_ket);
+        assert_eq!(op.is_forward(), is_forward);
         assert_eq!(op.argument(), &argument.clone());
 
         let op2 = op.builder_from(argument.clone()).build().unwrap();
@@ -186,23 +188,24 @@ mod tests {
 
         assert_eq!(
             op1.hash_key(),
-            format!("TemporumOperator({}; {})", on_ket, argument.hash_key())
+            format!("TemporumOperator({}; {})", is_forward, argument.hash_key())
         );
         assert!(!op1.is_scalar());
         assert_eq!(
             format!("{}", op1),
             format!(
                 "{}({})",
-                if on_ket {
-                    "i*dt"
+                if is_forward {
+                    "i*d/dt"
                 } else {
-                    "-i*dt"
+                    "-i*d/dt"
                 },
                 argument,
             )
         );
 
-        let op3 = TemporumOperator::builder(argument.clone()).on_ket(!on_ket).build().unwrap();
+        let op3 =
+            TemporumOperator::builder(argument.clone()).is_forward(!is_forward).build().unwrap();
         let op4 = TemporumOperator::builder(make_wfn_parameter("")).build().unwrap();
 
         assert_ne!(&op1, &op3);
@@ -211,16 +214,17 @@ mod tests {
 
     #[test]
     fn test_differentiation() {
-        let on_ket = true;
+        let is_forward = true;
         let mut argument = make_one_elec_operator("");
-        let op1 = TemporumOperator::builder(argument.clone()).on_ket(on_ket).build().unwrap();
+        let op1 =
+            TemporumOperator::builder(argument.clone()).is_forward(is_forward).build().unwrap();
 
         let p = make_perturbation_symbol(4u32, 4u32);
         let diff_op1 = op1.differentiate(&p).unwrap();
         let diff_arg = argument.differentiate(&p).unwrap();
 
-        if is_zero_expr(&diff_arg) {
-            assert!(is_zero_expr(&diff_op1));
+        if is_zero_expr(&diff_arg, None) {
+            assert!(is_zero_expr(&diff_op1, None));
         } else {
             let diff_cast = downcast_from_arc::<TemporumOperator>(&diff_op1).unwrap();
 
@@ -253,8 +257,8 @@ mod tests {
         let op1 = TemporumOperator::builder(make_one_elec_operator("1el")).build().unwrap();
 
         assert!(is_expr_type::<TemporumOperator>(&op1));
-        assert!(!is_zero_expr(&op1));
-        assert!(!is_one_expr(&op1));
+        assert!(!is_zero_expr(&op1, None));
+        assert!(!is_one_expr(&op1, None));
 
         let op2 = TemporumOperator::builder(make_one_elec_operator("1el")).build().unwrap();
         let op3 = TemporumOperator::builder(make_one_elec_operator("")).build().unwrap();

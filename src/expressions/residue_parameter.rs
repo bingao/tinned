@@ -392,8 +392,8 @@ mod tests {
         .unwrap();
 
         assert!(is_expr_type::<ResidueParameter>(&op1));
-        assert!(!is_zero_expr(&op1));
-        assert!(!is_one_expr(&op1));
+        assert!(!is_zero_expr(&op1, None));
+        assert!(!is_one_expr(&op1, None));
 
         let op2 = ResidueParameter::builder(
             perturbations.clone(),

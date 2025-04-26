@@ -51,22 +51,40 @@ impl Number {
     }
 
     #[inline]
-    pub fn is_zero(&self) -> bool {
+    pub fn is_zero(&self, epsilon: Option<f64>) -> bool {
         match self {
             Number::Integer(n) => *n == 0,
-            Number::Real(n) => *n == 0.0,
+            Number::Real(n) => match epsilon {
+                Some(eps) => approx_eq!(f64, *n, 0.0, epsilon = eps),
+                None => *n == 0.0,
+            },
+            Number::Complex(c) => match epsilon {
+                Some(eps) => {
+                    approx_eq!(f64, c.re, 0.0, epsilon = eps)
+                        && approx_eq!(f64, c.im, 0.0, epsilon = eps)
+                },
+                None => c.re == 0.0 && c.im == 0.0,
+            },
             Number::Fraction(n) => *n == Rational64::from_integer(0),
-            Number::Complex(c) => c.re == 0.0 && c.im == 0.0,
         }
     }
 
     #[inline]
-    pub fn is_one(&self) -> bool {
+    pub fn is_one(&self, epsilon: Option<f64>) -> bool {
         match self {
             Number::Integer(n) => *n == 1,
-            Number::Real(n) => *n == 1.0,
+            Number::Real(n) => match epsilon {
+                Some(eps) => approx_eq!(f64, *n, 1.0, epsilon = eps),
+                None => *n == 1.0,
+            },
+            Number::Complex(c) => match epsilon {
+                Some(eps) => {
+                    approx_eq!(f64, c.re, 1.0, epsilon = eps)
+                        && approx_eq!(f64, c.im, 0.0, epsilon = eps)
+                },
+                None => c.re == 1.0 && c.im == 0.0,
+            },
             Number::Fraction(n) => *n == Rational64::from_integer(1),
-            Number::Complex(c) => c.re == 1.0 && c.im == 0.0,
         }
     }
 
@@ -328,23 +346,52 @@ mod tests {
     // Basic structure and methods
     #[test]
     fn test_struct() {
-        assert!(Number::Integer(0).is_zero());
-        assert!(Number::Real(0.0).is_zero());
-        assert!(Number::Complex(Complex64::new(0.0, 0.0)).is_zero());
-        assert!(Number::Fraction(Rational64::new(0, 1)).is_zero());
-        assert!(!Number::Integer(1).is_zero());
-        assert!(!Number::Real(1.0).is_zero());
-        assert!(!Number::Complex(Complex64::new(1.0, 0.0)).is_zero());
-        assert!(!Number::Fraction(Rational64::new(1, 1)).is_zero());
+        assert!(Number::Integer(0).is_zero(None));
+        assert!(Number::Real(0.0).is_zero(None));
+        assert!(Number::Complex(Complex64::new(0.0, 0.0)).is_zero(None));
+        assert!(Number::Fraction(Rational64::new(0, 1)).is_zero(None));
+        assert!(!Number::Integer(1).is_zero(None));
+        assert!(!Number::Real(1.0).is_zero(None));
+        assert!(!Number::Complex(Complex64::new(1.0, 0.0)).is_zero(None));
+        assert!(!Number::Fraction(Rational64::new(1, 1)).is_zero(None));
 
-        assert!(Number::Integer(1).is_one());
-        assert!(Number::Real(1.0).is_one());
-        assert!(Number::Complex(Complex64::new(1.0, 0.0)).is_one());
-        assert!(Number::Fraction(Rational64::new(1, 1)).is_one());
-        assert!(!Number::Integer(0).is_one());
-        assert!(!Number::Real(0.0).is_one());
-        assert!(!Number::Complex(Complex64::new(0.0, 0.0)).is_one());
-        assert!(!Number::Fraction(Rational64::new(0, 1)).is_one());
+        assert!(Number::Integer(1).is_one(None));
+        assert!(Number::Real(1.0).is_one(None));
+        assert!(Number::Complex(Complex64::new(1.0, 0.0)).is_one(None));
+        assert!(Number::Fraction(Rational64::new(1, 1)).is_one(None));
+        assert!(!Number::Integer(0).is_one(None));
+        assert!(!Number::Real(0.0).is_one(None));
+        assert!(!Number::Complex(Complex64::new(0.0, 0.0)).is_one(None));
+        assert!(!Number::Fraction(Rational64::new(0, 1)).is_one(None));
+
+        let epsilon = 1e-12;
+        let mut real = Number::Real(0.5 * epsilon);
+        let mut cmplx = Number::Complex(Complex64::new(0.5 * epsilon, -0.5 * epsilon));
+
+        assert!(!real.is_zero(None));
+        assert!(!cmplx.is_zero(None));
+        assert!(real.is_zero(Some(epsilon)));
+        assert!(cmplx.is_zero(Some(epsilon)));
+
+        real = Number::Real(5.0 * epsilon);
+        cmplx = Number::Complex(Complex64::new(5.0 * epsilon, -5.0 * epsilon));
+
+        assert!(!real.is_zero(Some(epsilon)));
+        assert!(!cmplx.is_zero(Some(epsilon)));
+
+        real = Number::Real(1.0 + 0.5 * epsilon);
+        cmplx = Number::Complex(Complex64::new(1.0 + 0.5 * epsilon, -0.5 * epsilon));
+
+        assert!(!real.is_one(None));
+        assert!(!cmplx.is_one(None));
+        assert!(real.is_one(Some(epsilon)));
+        assert!(cmplx.is_one(Some(epsilon)));
+
+        real = Number::Real(1.0 + 5.0 * epsilon);
+        cmplx = Number::Complex(Complex64::new(1.0 + 5.0 * epsilon, -5.0 * epsilon));
+
+        assert!(!real.is_one(Some(epsilon)));
+        assert!(!cmplx.is_one(Some(epsilon)));
 
         let n1: i64 = random_range(-100..=100);
         let f1: f64 = random_range(-100.0..=100.0);
@@ -665,15 +712,15 @@ mod tests {
         assert!(is_expr_type::<Number>(&cmplx));
         assert!(is_expr_type::<Number>(&frac));
 
-        assert_eq!(is_zero_expr(&int), n1 == 0);
-        assert_eq!(is_zero_expr(&real), f1 == 0.0);
-        assert_eq!(is_zero_expr(&cmplx), f1 == 0.0 && f2 == 0.0);
-        assert_eq!(is_zero_expr(&frac), n1 == 0);
+        assert_eq!(is_zero_expr(&int, None), n1 == 0);
+        assert_eq!(is_zero_expr(&real, None), f1 == 0.0);
+        assert_eq!(is_zero_expr(&cmplx, None), f1 == 0.0 && f2 == 0.0);
+        assert_eq!(is_zero_expr(&frac, None), n1 == 0);
 
-        assert_eq!(is_one_expr(&int), n1 == 1);
-        assert_eq!(is_one_expr(&real), f1 == 1.0);
-        assert_eq!(is_one_expr(&cmplx), f1 == 1.0 && f2 == 0.0);
-        assert_eq!(is_one_expr(&frac), n1 == n2);
+        assert_eq!(is_one_expr(&int, None), n1 == 1);
+        assert_eq!(is_one_expr(&real, None), f1 == 1.0);
+        assert_eq!(is_one_expr(&cmplx, None), f1 == 1.0 && f2 == 0.0);
+        assert_eq!(is_one_expr(&frac, None), n1 == n2);
 
         let mut num = downcast_from_arc::<Number>(&int).unwrap();
         assert_eq!(num, &Number::Integer(n1));

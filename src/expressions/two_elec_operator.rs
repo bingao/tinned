@@ -155,7 +155,7 @@ impl Expr for TwoElecOperator {
         let new_deriv = self.derivative.clone_with_insert(s);
         let term2 = self.builder_from_derivative(new_deriv).build()?;
 
-        if is_zero_expr(&term2) {
+        if is_zero_expr(&term2, None) {
             return Ok(term1);
         }
 
@@ -246,7 +246,7 @@ mod tests {
             .build()
             .unwrap();
 
-        assert!(is_zero_expr(&op0));
+        assert!(is_zero_expr(&op0, None));
 
         let deps = make_super_multichain(&deriv, 1u32);
         let op1 = TwoElecOperator::builder(DEFAULT_OPER_NAME, density.clone())
@@ -384,8 +384,8 @@ mod tests {
         let op1 = make_two_elec_operator(DEFAULT_OPER_NAME, Some(density.clone()));
 
         assert!(is_expr_type::<TwoElecOperator>(&op1));
-        assert!(!is_zero_expr(&op1));
-        assert!(!is_one_expr(&op1));
+        assert!(!is_zero_expr(&op1, None));
+        assert!(!is_one_expr(&op1, None));
 
         let op2 = make_two_elec_operator(DEFAULT_OPER_NAME, Some(density));
         let op3 = make_two_elec_operator("", Some(make_wfn_parameter("density")));

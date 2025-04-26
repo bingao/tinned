@@ -32,7 +32,7 @@ impl Transpose {
         } else if let Some(herm) = downcast_from_arc::<HermitianTranspose>(&argument) {
             return Conjugate::new(herm.argument().clone());
         } else if let Some(matmul) = downcast_from_arc::<MatrixMul>(&argument) {
-            if is_one_expr(matmul.coefficient()) {
+            if is_one_expr(matmul.coefficient(), None) {
                 return Ok(intern_expr(Arc::new(Self {
                     argument,
                 })));

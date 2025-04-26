@@ -3,6 +3,8 @@ use std::sync::{Arc, Mutex};
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
+use crate::core::{Expr, TinnedError};
+use crate::expressions::{Add, Mul, Number};
 use crate::perturbations::Perturbation;
 
 /// Perturbation multichain: unique perturbations with associated differentiation orders.
@@ -42,6 +44,27 @@ impl PertMultichain {
     pub fn get_order(&self, p: &Arc<Perturbation>) -> u32 {
         let map = self.0.lock().unwrap();
         *map.get(p).unwrap_or(&0)
+    }
+
+    /// Returns sum of all perturbations' frequencies
+    pub fn sum_frequencies(&self) -> Result<Arc<dyn Expr>, TinnedError> {
+        let map = self.0.lock().unwrap();
+
+        let mut terms = Vec::new();
+
+        for (pert, &order) in map.iter() {
+            let freq = pert.frequency().clone();
+
+            let weighted_freq = if order == 1 {
+                freq
+            } else {
+                Mul::new(vec![Number::from_i64(order as i64), freq])?
+            };
+
+            terms.push(weighted_freq);
+        }
+
+        Add::new(terms)
     }
 
     /// Returns all perturbations in the multichain and meanwhile preserves the order.

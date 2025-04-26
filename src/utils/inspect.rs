@@ -22,12 +22,12 @@ pub fn is_expr_type<T: Any>(expr: &Arc<dyn Expr>) -> bool {
 }
 
 #[inline]
-pub fn is_zero_expr(expr: &Arc<dyn Expr>) -> bool {
+pub fn is_zero_expr(expr: &Arc<dyn Expr>, epsilon: Option<f64>) -> bool {
     expr.as_any().downcast_ref::<ZeroOperator>().is_some()
-        || downcast_from_arc::<Number>(expr).map_or(false, |n| n.is_zero())
+        || downcast_from_arc::<Number>(expr).map_or(false, |n| n.is_zero(epsilon))
 }
 
 #[inline]
-pub fn is_one_expr(expr: &Arc<dyn Expr>) -> bool {
-    downcast_from_arc::<Number>(expr).map_or(false, |n| n.is_one())
+pub fn is_one_expr(expr: &Arc<dyn Expr>, epsilon: Option<f64>) -> bool {
+    downcast_from_arc::<Number>(expr).map_or(false, |n| n.is_one(epsilon))
 }

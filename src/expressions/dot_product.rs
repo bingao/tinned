@@ -53,7 +53,7 @@ impl DotProduct {
         coefficients: &mut Vec<Arc<dyn Expr>>,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
         if let Some(matmul) = downcast_from_arc::<MatrixMul>(&expr) {
-            if !is_one_expr(matmul.coefficient()) {
+            if !is_one_expr(matmul.coefficient(), None) {
                 coefficients.push(matmul.coefficient().clone());
                 return MatrixMul::new(matmul.factors().to_vec());
             }
@@ -236,11 +236,11 @@ mod tests {
         let mut op0 =
             DotProduct::new(ZeroOperator::new(), use_hermitian, psi1.clone(), allow_braket_swap)
                 .unwrap();
-        assert!(is_zero_expr(&op0));
+        assert!(is_zero_expr(&op0, None));
 
         op0 = DotProduct::new(psi1.clone(), !use_hermitian, ZeroOperator::new(), allow_braket_swap)
             .unwrap();
-        assert!(is_zero_expr(&op0));
+        assert!(is_zero_expr(&op0, None));
 
         let psi2 = make_wfn_parameter("");
         let op1 =
@@ -410,8 +410,8 @@ mod tests {
         let op = DotProduct::new(psi1.clone(), true, psi2.clone(), true).unwrap();
 
         assert!(is_expr_type::<DotProduct>(&op));
-        assert!(!is_zero_expr(&op));
-        assert!(!is_one_expr(&op));
+        assert!(!is_zero_expr(&op, None));
+        assert!(!is_one_expr(&op, None));
 
         let op1 = DotProduct::new(psi1.clone(), true, psi2.clone(), true).unwrap();
         let op2 = DotProduct::new(psi1.clone(), true, psi2.clone(), false).unwrap();

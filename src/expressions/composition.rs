@@ -201,8 +201,8 @@ mod tests {
         let op1 = Composition::new(name.clone(), order, inner.clone());
 
         assert!(is_expr_type::<Composition>(&op1));
-        assert!(!is_zero_expr(&op1));
-        assert!(!is_one_expr(&op1));
+        assert!(!is_zero_expr(&op1, None));
+        assert!(!is_one_expr(&op1, None));
 
         let op2 = Composition::new(name.clone(), order, inner.clone());
         let op3 = Composition::new(random_alphanumeric(2u32), order, inner.clone());

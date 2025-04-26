@@ -86,7 +86,7 @@ macro_rules! impl_mul_traits {
 
         for (i, diff) in $diff_factors.iter().enumerate() {
             // Skip derivative = 0 to avoid 0 * others = 0
-            if is_zero_expr(diff) {
+            if is_zero_expr(diff, None) {
                 continue;
             }
 
@@ -107,7 +107,7 @@ macro_rules! impl_mul_traits {
 
         for (i, diff) in $diff_factors.iter().enumerate() {
             // Skip derivative = 0 to avoid 0 * others = 0
-            if is_zero_expr(diff) {
+            if is_zero_expr(diff, None) {
                 continue;
             }
 
@@ -122,7 +122,7 @@ macro_rules! impl_mul_traits {
 
         let diff_coef = $self.coefficient.differentiate($s)?;
         // If coefficient's derivative is non-zero, append it as one result
-        if !is_zero_expr(&diff_coef) {
+        if !is_zero_expr(&diff_coef, None) {
             let mut new_terms = $self.factors.clone();
             new_terms.push(diff_coef);
             results.push(Self::new(new_terms)?);
@@ -131,7 +131,9 @@ macro_rules! impl_mul_traits {
         crate::expressions::MatrixAdd::new(results)
     }};
 
-    (@non_one_coefficient $coefficient:expr, true) => { !$coefficient.is_one() };
+    (@non_one_coefficient $coefficient:expr, true) => { !$coefficient.is_one(None) };
 
-    (@non_one_coefficient $coefficient:expr, false) => { !crate::utils::is_one_expr(&$coefficient) };
+    (@non_one_coefficient $coefficient:expr, false) => {
+        !crate::utils::is_one_expr(&$coefficient, None)
+    };
 }

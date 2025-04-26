@@ -84,8 +84,8 @@ impl MatrixAdd {
 
         for (expr, all_coef) in merged.into_values() {
             let coef = Add::new(all_coef)?;
-            if !is_zero_expr(&coef) {
-                if is_one_expr(&coef) {
+            if !is_zero_expr(&coef, None) {
+                if is_one_expr(&coef, None) {
                     simplified_terms.push(expr);
                 } else {
                     simplified_terms.push(MatrixMul::new(vec![coef, expr])?);
@@ -119,12 +119,12 @@ impl_add_traits!(MatrixAdd, DEFAULT_HASH_DELIMITER, DEFAULT_FMT_DELIMITER, false
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::expressions::Symbol;
     use crate::expressions::number::test_utils::make_number_complex;
     use crate::expressions::one_elec_operator::test_utils::make_one_elec_operator;
     use crate::expressions::symbol::test_utils::make_symbol;
     use crate::expressions::two_elec_operator::test_utils::make_two_elec_operator;
     use crate::expressions::wfn_parameter::test_utils::make_wfn_parameter;
-    use crate::expressions::Symbol;
     use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
     use num_complex::Complex64;
 
@@ -332,8 +332,8 @@ mod tests {
         .unwrap();
 
         assert!(is_expr_type::<MatrixAdd>(&add));
-        assert!(!is_zero_expr(&add));
-        assert!(!is_one_expr(&add));
+        assert!(!is_zero_expr(&add, None));
+        assert!(!is_one_expr(&add, None));
 
         let add1 = MatrixAdd::new(vec![
             MatrixMul::new(vec![c1.clone(), op_a.clone()]).unwrap(),

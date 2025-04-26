@@ -43,7 +43,7 @@ macro_rules! impl_add_traits {
 
                 for term in &self.terms {
                     let diff = term.differentiate(s)?;
-                    if !crate::utils::is_zero_expr(&diff) {
+                    if !crate::utils::is_zero_expr(&diff, None) {
                         diff_terms.push(diff);
                     }
                 }

@@ -42,10 +42,10 @@ impl TemporumOverlap {
 // Helper function to build `braket` with given dependencies
 fn build_braket(deps: &PertMultichain) -> Result<Arc<dyn Expr>, TinnedError> {
     let bra = OneElecOperator::builder("Sb").dependencies(deps.clone()).build()?;
-    let dt_bra = TemporumOperator::builder(bra).on_ket(false).build()?;
+    let dt_bra = TemporumOperator::builder(bra).is_forward(false).build()?;
 
     let ket = OneElecOperator::builder("Sk").dependencies(deps.clone()).build()?;
-    let dt_ket = TemporumOperator::builder(ket).on_ket(true).build()?;
+    let dt_ket = TemporumOperator::builder(ket).is_forward(true).build()?;
 
     MatrixMul::new(vec![dt_bra, dt_ket])
 }
@@ -143,9 +143,9 @@ mod tests {
 
     test_struct_safety!(TemporumOverlap);
 
-    test_thread_interning!(TemporumOverlap::builder(make_pert_multichain(0u32, 0u32, 1u32, 0u32))
-        .build()
-        .unwrap());
+    test_thread_interning!(
+        TemporumOverlap::builder(make_pert_multichain(0u32, 0u32, 1u32, 0u32)).build().unwrap()
+    );
 
     #[test]
     fn test_impl_expr() {
@@ -203,7 +203,8 @@ mod tests {
         assert_eq!(&diff_op, &ZeroOperator::new());
 
         assert!(is_zero_expr(
-            &op.differentiate(&make_perturbation_symbol(len_pert_name + 1u32, 4u32)).unwrap()
+            &op.differentiate(&make_perturbation_symbol(len_pert_name + 1u32, 4u32)).unwrap(),
+            None,
         ));
     }
 
@@ -223,8 +224,8 @@ mod tests {
         let op1 = TemporumOverlap::builder(deps.clone()).build().unwrap();
 
         assert!(is_expr_type::<TemporumOverlap>(&op1));
-        assert!(!is_zero_expr(&op1));
-        assert!(!is_one_expr(&op1));
+        assert!(!is_zero_expr(&op1, None));
+        assert!(!is_one_expr(&op1, None));
 
         let op2 = TemporumOverlap::builder(deps.clone()).build().unwrap();
         let op3 = TemporumOverlap::builder(make_super_multichain(&deps, 1u32)).build().unwrap();

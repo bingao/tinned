@@ -105,8 +105,8 @@ mod tests {
         let z1 = ZeroOperator::new();
 
         assert!(is_expr_type::<ZeroOperator>(&z1));
-        assert!(is_zero_expr(&z1));
-        assert!(!is_one_expr(&z1));
+        assert!(is_zero_expr(&z1, None));
+        assert!(!is_one_expr(&z1, None));
 
         let z2 = ZeroOperator::new();
 

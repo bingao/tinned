@@ -55,9 +55,9 @@ impl Mul {
                     }
                 }
             } else if let Some(num) = downcast_from_arc::<Number>(expr) {
-                if num.is_zero() {
+                if num.is_zero(None) {
                     return Ok(true); // Multiplication by 0 -> entire result is zero
-                } else if !num.is_one() {
+                } else if !num.is_one(None) {
                     *coefficient = coefficient.mul(num);
                 }
             } else if let Some(pow) = downcast_from_arc::<Power>(expr) {
@@ -97,7 +97,7 @@ impl Mul {
 
         match simplified_factors.len() {
             0 => Ok(coefficient.into()),
-            1 if coefficient.is_one() => Ok(simplified_factors.pop().unwrap()),
+            1 if coefficient.is_one(None) => Ok(simplified_factors.pop().unwrap()),
             _ => Ok(intern_expr(Arc::new(Self {
                 coefficient,
                 factors: simplified_factors,
@@ -192,7 +192,7 @@ mod tests {
             )
         );
         assert!(mul1.is_scalar());
-        if c1_cast.is_one() {
+        if c1_cast.is_one(None) {
             assert_eq!(
                 format!("{}", mul1),
                 format!("{}", join_exprs_for_display(&asc_factors, DEFAULT_FMT_DELIMITER))
@@ -344,8 +344,8 @@ mod tests {
         let op = Mul::new(vec![c1.clone(), s1.clone(), s2.clone()]).unwrap();
 
         assert!(is_expr_type::<Mul>(&op));
-        assert!(!is_zero_expr(&op));
-        assert!(!is_one_expr(&op));
+        assert!(!is_zero_expr(&op, None));
+        assert!(!is_one_expr(&op, None));
 
         let c2 = make_number_rational(256u32);
         let op1 = Mul::new(vec![c1.clone(), s1.clone(), s2.clone()]).unwrap();

@@ -237,7 +237,7 @@ impl Expr for TwoElecEnergy {
             .allow_density_swap(self.allow_density_swap)
             .build()?;
 
-        if !is_zero_expr(&diff_oper) {
+        if !is_zero_expr(&diff_oper, None) {
             terms.push(diff_oper);
         }
 
@@ -364,7 +364,7 @@ mod tests {
             .build()
             .unwrap();
 
-        assert!(is_zero_expr(&op0));
+        assert!(is_zero_expr(&op0, None));
 
         let deps = make_super_multichain(&deriv, 1u32);
         let op1 = TwoElecEnergy::builder(DEFAULT_OPER_NAME, inner_density.clone())
@@ -552,8 +552,8 @@ mod tests {
         );
 
         assert!(is_expr_type::<TwoElecEnergy>(&op1));
-        assert!(!is_zero_expr(&op1));
-        assert!(!is_one_expr(&op1));
+        assert!(!is_zero_expr(&op1, None));
+        assert!(!is_one_expr(&op1, None));
 
         let op2 = make_two_elec_energy(
             DEFAULT_OPER_NAME,

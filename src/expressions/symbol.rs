@@ -157,8 +157,8 @@ mod tests {
         let s1 = make_symbol(0u32);
 
         assert!(is_expr_type::<Symbol>(&s1));
-        assert!(!is_zero_expr(&s1));
-        assert!(!is_one_expr(&s1));
+        assert!(!is_zero_expr(&s1, None));
+        assert!(!is_one_expr(&s1, None));
 
         let s2 = make_symbol(0u32);
         let s3 = make_symbol(10u32);

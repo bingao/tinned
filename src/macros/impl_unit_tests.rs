@@ -68,8 +68,8 @@ macro_rules! test_nullary_oper {
             let op1 = $make_expr($oper_name);
 
             assert!(is_expr_type::<$type_name>(&op1));
-            assert!(!is_zero_expr(&op1));
-            assert!(!is_one_expr(&op1));
+            assert!(!is_zero_expr(&op1, None));
+            assert!(!is_one_expr(&op1, None));
 
             let op2 = $make_expr($oper_name);
             let op3 = $make_expr("");
@@ -91,7 +91,7 @@ macro_rules! test_nullary_oper {
             .build()
             .unwrap();
 
-        assert!(is_zero_expr(&op0));
+        assert!(is_zero_expr(&op0, None));
 
         let deps = make_super_multichain(&$deriv, 1u32);
         let op1 = $type_name::builder($oper_name)
@@ -213,10 +213,11 @@ macro_rules! test_nullary_oper {
             let diff_cast = downcast_from_arc::<$type_name>(&diff_op).unwrap();
             assert_eq!(diff_cast.derivative(), &deriv);
 
-            assert!(is_zero_expr(&diff_op.differentiate(&p).unwrap()));
+            assert!(is_zero_expr(&diff_op.differentiate(&p).unwrap(), None));
 
             assert!(is_zero_expr(
-                &op.differentiate(&make_perturbation_symbol(len_pert_name + 1u32, 4u32)).unwrap()
+                &op.differentiate(&make_perturbation_symbol(len_pert_name + 1u32, 4u32)).unwrap(),
+                None,
             ));
         }
     };
@@ -392,8 +393,8 @@ macro_rules! test_exch_corr {
             );
 
             assert!(is_expr_type::<$type_name>(&op1));
-            assert!(!is_zero_expr(&op1));
-            assert!(!is_one_expr(&op1));
+            assert!(!is_zero_expr(&op1, None));
+            assert!(!is_one_expr(&op1, None));
 
             let op2 = $make_expr(
                 $oper_name,
@@ -423,11 +424,10 @@ macro_rules! test_unary_oper_properties {
     ($type_name:ident) => {
         test_struct_safety!($type_name);
 
-        test_thread_interning!($type_name::new(make_two_elec_operator(
-            "op(2el)",
-            Some(make_wfn_parameter("wfn"))
-        ))
-        .unwrap());
+        test_thread_interning!(
+            $type_name::new(make_two_elec_operator("op(2el)", Some(make_wfn_parameter("wfn"))))
+                .unwrap()
+        );
 
         #[test]
         fn test_differentiation() {
@@ -455,8 +455,8 @@ macro_rules! test_unary_oper_properties {
             let op1 = $type_name::new(arg_2el.clone()).unwrap();
 
             assert!(is_expr_type::<$type_name>(&op1));
-            assert!(!crate::utils::is_zero_expr(&op1));
-            assert!(!is_one_expr(&op1));
+            assert!(!crate::utils::is_zero_expr(&op1, None));
+            assert!(!is_one_expr(&op1, None));
 
             let op2 = $type_name::new(arg_2el).unwrap();
             let op3 = $type_name::new(make_two_elec_operator("", Some(density))).unwrap();
@@ -478,7 +478,7 @@ macro_rules! test_transpose {
         #[test]
         fn test_impl_expr() {
             let op0 = $type_name::new(ZeroOperator::new()).unwrap();
-            assert!(crate::utils::is_zero_expr(&op0));
+            assert!(crate::utils::is_zero_expr(&op0, None));
 
             let arg_2el = make_two_elec_operator("", None);
             let op1 = $type_name::new(arg_2el.clone()).unwrap();

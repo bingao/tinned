@@ -50,7 +50,7 @@ impl Trace {
                 argument: new_mul,
             }));
 
-            if is_one_expr(coef) {
+            if is_one_expr(coef, None) {
                 Ok(result)
             } else {
                 Mul::new(vec![coef.clone(), result])
@@ -95,7 +95,7 @@ mod tests {
     #[test]
     fn test_impl_expr() {
         let op0 = Trace::new(ZeroOperator::new()).unwrap();
-        assert!(crate::utils::is_zero_expr(&op0));
+        assert!(crate::utils::is_zero_expr(&op0, None));
 
         let arg_2el = make_two_elec_operator("", None);
         let op1 = Trace::new(arg_2el.clone()).unwrap();

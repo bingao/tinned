@@ -38,7 +38,7 @@ impl MatrixMul {
             // may need to check if their dimensions match
             if term.is_scalar() {
                 if let Some(num) = downcast_from_arc::<Number>(term) {
-                    if num.is_zero() {
+                    if num.is_zero(None) {
                         return Ok(ZeroOperator::new());
                     }
                 }
@@ -68,7 +68,7 @@ impl MatrixMul {
         match all_factors.len() {
             // Return a pure scalar expression
             0 => Ok(coefficient),
-            1 if is_one_expr(&coefficient) => Ok(all_factors.pop().unwrap()),
+            1 if is_one_expr(&coefficient, None) => Ok(all_factors.pop().unwrap()),
             _ => Ok(intern_expr(Arc::new(Self {
                 coefficient,
                 factors: all_factors,
@@ -173,7 +173,7 @@ mod tests {
         );
         assert!(!mul1.is_scalar());
 
-        if is_one_expr(&expected_coef) {
+        if is_one_expr(&expected_coef, None) {
             assert_eq!(
                 format!("{}", mul1),
                 format!("{}", join_exprs_for_display(&expected_factors, DEFAULT_FMT_DELIMITER))
@@ -225,7 +225,7 @@ mod tests {
 
         mul = downcast_from_arc::<MatrixMul>(&mul4).unwrap();
 
-        assert!(is_one_expr(mul.coefficient()));
+        assert!(is_one_expr(mul.coefficient(), None));
 
         // - Remove empty MatrixMul([]) -> op(0)
         assert_eq!(&MatrixMul::new(vec![]).unwrap(), &ZeroOperator::new());
@@ -358,8 +358,8 @@ mod tests {
         .unwrap();
 
         assert!(is_expr_type::<MatrixMul>(&mul));
-        assert!(!is_zero_expr(&mul));
-        assert!(!is_one_expr(&mul));
+        assert!(!is_zero_expr(&mul, None));
+        assert!(!is_one_expr(&mul, None));
 
         let mul1 = MatrixMul::new(vec![
             c1.clone(),

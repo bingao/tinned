@@ -41,7 +41,7 @@ impl Conjugate {
         } else if let Some(herm) = downcast_from_arc::<HermitianTranspose>(&argument) {
             return Transpose::new(herm.argument().clone());
         } else if let Some(matmul) = downcast_from_arc::<MatrixMul>(&argument) {
-            if is_one_expr(matmul.coefficient()) {
+            if is_one_expr(matmul.coefficient(), None) {
                 return Ok(intern_expr(Arc::new(Self {
                     argument,
                 })));
@@ -341,8 +341,8 @@ mod tests {
         let op1 = Conjugate::new(s1.clone()).unwrap();
 
         assert!(is_expr_type::<Conjugate>(&op1));
-        assert!(!is_zero_expr(&op1));
-        assert!(!is_one_expr(&op1));
+        assert!(!is_zero_expr(&op1, None));
+        assert!(!is_one_expr(&op1, None));
 
         let s2 = make_symbol(8u32);
         let op2 = Conjugate::new(s1.clone()).unwrap();
