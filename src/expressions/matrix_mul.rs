@@ -5,8 +5,8 @@ use typetag;
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{Mul, Number, ZeroOperator};
 use crate::utils::{
-    downcast_from_arc, downcast_from_ref, intern_expr, is_expr_type, is_one_expr, is_zero_expr,
-    join_exprs_for_display, join_exprs_for_hash,
+    downcast_from_arc, downcast_from_ref, generic_expression_error, intern_expr, is_expr_type,
+    is_one_expr, is_zero_expr, multi_expression_format, multi_expression_hash,
 };
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -168,7 +168,7 @@ mod tests {
                 "MatrixMul({}{}{})",
                 expected_coef.hash_key(),
                 DEFAULT_HASH_DELIMITER,
-                join_exprs_for_hash(&expected_factors, DEFAULT_HASH_DELIMITER),
+                multi_expression_hash(&expected_factors, DEFAULT_HASH_DELIMITER),
             )
         );
         assert!(!mul1.is_scalar());
@@ -176,7 +176,7 @@ mod tests {
         if is_one_expr(&expected_coef, None) {
             assert_eq!(
                 format!("{}", mul1),
-                format!("{}", join_exprs_for_display(&expected_factors, DEFAULT_FMT_DELIMITER))
+                format!("{}", multi_expression_format(&expected_factors, DEFAULT_FMT_DELIMITER))
             );
         } else {
             assert_eq!(
@@ -185,7 +185,7 @@ mod tests {
                     "{}{}{}",
                     expected_coef,
                     DEFAULT_FMT_DELIMITER,
-                    join_exprs_for_display(&expected_factors, DEFAULT_FMT_DELIMITER),
+                    multi_expression_format(&expected_factors, DEFAULT_FMT_DELIMITER),
                 )
             );
         }

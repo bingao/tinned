@@ -34,14 +34,14 @@ impl NumberTolerance {
     }
 
     #[inline]
-    pub fn max_error(&self, a: f64, b: f64) -> f64 {
+    pub fn max_abs_error(&self, a: f64, b: f64) -> f64 {
         self.abs_error.max(a.abs().max(b.abs()) * self.rel_error)
     }
 }
 
 // Default values
 static NUMBER_TOLERANCE: Lazy<RwLock<NumberTolerance>> =
-    Lazy::new(|| RwLock::new(NumberTolerance::new(0.0, 1.0e-14)));
+    Lazy::new(|| RwLock::new(NumberTolerance::new(0.0, 1.0e-12)));
 
 /// Helper to get a *copy* of current tolerance (thread-safe)
 #[inline]

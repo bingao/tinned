@@ -7,8 +7,9 @@ use crate::core::{Expr, TinnedError};
 use crate::expressions::{Add, MatrixMul, Number, ZeroOperator};
 use crate::utils::operations::group_and_sort_terms;
 use crate::utils::{
-    downcast_from_arc, downcast_from_ref, intern_expr, invalid_expression_error, is_expr_type,
-    is_one_expr, is_zero_expr, join_exprs_for_display, join_exprs_for_hash, unreachable_error,
+    downcast_from_arc, downcast_from_ref, expression_error, generic_expression_error, intern_expr,
+    is_expr_type, is_one_expr, is_zero_expr, multi_expression_format, multi_expression_hash,
+    unreachable_error,
 };
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -33,7 +34,11 @@ impl MatrixAdd {
             merged: &mut HashMap<u64, (Arc<dyn Expr>, Vec<Arc<dyn Expr>>)>,
         ) -> Result<(), TinnedError> {
             if expr.is_scalar() {
-                return Err(invalid_expression_error("MatrixAdd::new()", &expr));
+                return Err(expression_error(
+                    "MatrixAdd::new::collect_terms() get a scalar expr",
+                    expr,
+                    None,
+                ));
             }
 
             if is_expr_type::<ZeroOperator>(expr) {
@@ -46,7 +51,8 @@ impl MatrixAdd {
                 if matmul.factors().is_empty() {
                     return Err(unreachable_error(
                         "MatrixAdd::new() got MatrixMul with empty factors",
-                        &expr,
+                        expr,
+                        None,
                     ));
                 }
                 let base_expr = if matmul.factors().len() == 1 {
@@ -182,12 +188,15 @@ mod tests {
 
         assert_eq!(
             add1.hash_key(),
-            format!("MatrixAdd({})", join_exprs_for_hash(&expected_terms, DEFAULT_HASH_DELIMITER))
+            format!(
+                "MatrixAdd({})",
+                multi_expression_hash(&expected_terms, DEFAULT_HASH_DELIMITER)
+            )
         );
         assert!(!add1.is_scalar());
         assert_eq!(
             format!("{}", add1),
-            format!("({})", join_exprs_for_display(&expected_terms, DEFAULT_FMT_DELIMITER))
+            format!("({})", multi_expression_format(&expected_terms, DEFAULT_FMT_DELIMITER))
         );
 
         let add2 = MatrixAdd::new(vec![

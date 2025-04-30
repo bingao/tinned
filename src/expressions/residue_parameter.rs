@@ -6,8 +6,8 @@ use crate::core::{Expr, TinnedError};
 use crate::expressions::{LagMultiplier, WfnParameter, ZeroOperator};
 use crate::perturbations::Perturbation;
 use crate::utils::{
-    downcast_from_arc, downcast_from_ref, intern_expr, invalid_expression_error, is_expr_type,
-    join_perts_for_display, join_perts_for_hash,
+    downcast_from_arc, downcast_from_ref, expression_error, generic_expression_error, intern_expr,
+    is_expr_type, multi_perturbation_format, multi_perturbation_hash,
 };
 
 /// A ResidueParameter is a perturbed parameter with the sum of frequencies of
@@ -82,9 +82,10 @@ impl ResidueParameterBuilder {
         };
 
         let derivative = derivative_opt.ok_or_else(|| {
-            invalid_expression_error(
+            expression_error(
                 "ResidueParameterBuilder: parameter must be a WfnParameter or LagMultiplier",
                 &self.parameter,
+                None,
             )
         })?;
 
@@ -114,7 +115,7 @@ impl Expr for ResidueParameter {
     fn hash_key(&self) -> String {
         format!(
             "ResidueParameter([{}]; {}; {}; {})",
-            join_perts_for_hash(&self.perturbations, ";"),
+            multi_perturbation_hash(&self.perturbations, ";"),
             self.positive_frequency,
             self.excited_state.hash_key(),
             self.parameter.hash_key(),
@@ -141,7 +142,9 @@ impl Expr for ResidueParameter {
     }
 
     fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
-        let diff_param = self.parameter.differentiate(s)?;
+        let diff_param = self.parameter.differentiate(s).map_err(|e| {
+            generic_expression_error("Differentiation failed", self, Some(Box::new(e)))
+        })?;
 
         if is_expr_type::<ZeroOperator>(&diff_param) {
             return Ok(ZeroOperator::new());
@@ -172,7 +175,7 @@ impl std::fmt::Display for ResidueParameter {
         write!(
             f,
             "lim([{}]; {}{})({})",
-            join_perts_for_display(&self.perturbations, ";"),
+            multi_perturbation_format(&self.perturbations, ";"),
             if self.positive_frequency {
                 "-"
             } else {
@@ -255,7 +258,7 @@ mod tests {
             op2.hash_key(),
             format!(
                 "ResidueParameter([{}]; {}; {}; {})",
-                join_perts_for_hash(&perturbations, ";"),
+                multi_perturbation_hash(&perturbations, ";"),
                 positive_frequency,
                 excited_state.hash_key(),
                 parameter.hash_key()
@@ -266,7 +269,7 @@ mod tests {
             format!("{}", op2),
             format!(
                 "lim([{}]; {}{})({})",
-                join_perts_for_display(&perturbations, ";"),
+                multi_perturbation_format(&perturbations, ";"),
                 if positive_frequency {
                     "-"
                 } else {

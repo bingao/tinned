@@ -74,7 +74,13 @@ impl Expr for Composition {
     ) -> Result<Arc<dyn Expr>, TinnedError> {
         // Differentiation using the chain rule in calculus
         let diff_outer = Self::new(self.name.clone(), self.order + 1, self.inner.clone());
-        let diff_inner = self.inner.differentiate(s)?;
+        let diff_inner = self.inner.differentiate(s).map_err(|e| {
+            crate::utils::generic_expression_error(
+                "Differentiation failed",
+                self,
+                Some(Box::new(e)),
+            )
+        })?;
 
         crate::expressions::Mul::new(vec![diff_outer, diff_inner])
     }

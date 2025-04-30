@@ -7,8 +7,8 @@ use crate::expressions::{
     Add, Conjugate, HermitianTranspose, MatrixMul, Mul, Number, Transpose, ZeroOperator,
 };
 use crate::utils::{
-    downcast_from_arc, downcast_from_ref, intern_expr, invalid_expression_error, is_expr_type,
-    is_one_expr,
+    downcast_from_arc, downcast_from_ref, expression_error, generic_expression_error, intern_expr,
+    is_expr_type, is_one_expr,
 };
 
 /// Dot product of a bra and a ket (inner product)
@@ -27,13 +27,14 @@ impl DotProduct {
         allow_braket_swap: bool,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
         if bra.is_scalar() || ket.is_scalar() {
-            return Err(invalid_expression_error(
+            return Err(expression_error(
                 "DotProduct::new() - both arguments must be non-scalar",
                 if bra.is_scalar() {
                     &bra
                 } else {
                     &ket
                 },
+                None,
             ));
         }
 
@@ -166,8 +167,12 @@ impl Expr for DotProduct {
         &self,
         s: &Arc<crate::perturbations::Perturbation>,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
-        let diff_bra = self.bra.differentiate(s)?;
-        let diff_ket = self.ket.differentiate(s)?;
+        let diff_bra = self.bra.differentiate(s).map_err(|e| {
+            generic_expression_error("Differentiation failed", self, Some(Box::new(e)))
+        })?;
+        let diff_ket = self.ket.differentiate(s).map_err(|e| {
+            generic_expression_error("Differentiation failed", self, Some(Box::new(e)))
+        })?;
 
         Add::new(vec![
             Self::make_dot_product(diff_bra, self.ket.clone(), self.allow_braket_swap)?,

@@ -5,7 +5,8 @@ use typetag;
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{OneElecOperator, WfnParameter, ZeroOperator};
 use crate::utils::{
-    downcast_from_ref, intern_expr, invalid_expression_error, is_expr_type, is_zero_expr,
+    downcast_from_ref, expression_error, generic_expression_error, intern_expr, is_expr_type,
+    is_zero_expr,
 };
 
 /// A TemporumOperator represents i*d/dt (forward) or -i*d/dt (backward) acting
@@ -59,9 +60,10 @@ impl TemporumOperatorBuilder {
 
     pub fn build(self) -> Result<Arc<dyn Expr>, TinnedError> {
         if self.argument.is_scalar() {
-            return Err(invalid_expression_error(
+            return Err(expression_error(
                 "TemporumOperatorBuilder::build() - scalar argument",
                 &self.argument,
+                None,
             ));
         }
 
@@ -73,9 +75,10 @@ impl TemporumOperatorBuilder {
                 argument: self.argument,
             })))
         } else {
-            Err(invalid_expression_error(
+            Err(expression_error(
                 "TemporumOperatorBuilder::build() - unsupported argument type",
                 &self.argument,
+                None,
             ))
         }
     }
@@ -116,7 +119,9 @@ impl Expr for TemporumOperator {
         &self,
         s: &Arc<crate::perturbations::Perturbation>,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
-        let diff_arg = self.argument.differentiate(s)?;
+        let diff_arg = self.argument.differentiate(s).map_err(|e| {
+            generic_expression_error("Differentiation failed", self, Some(Box::new(e)))
+        })?;
 
         if is_zero_expr(&diff_arg, None) {
             Ok(ZeroOperator::new())

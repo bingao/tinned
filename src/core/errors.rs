@@ -1,50 +1,39 @@
-/// Custom error type for the Tinned symbolic algebra library
-#[derive(Debug, Clone)]
+use std::error::Error;
+
+#[derive(Debug, thiserror::Error)]
 pub enum TinnedError {
-    /// Encounter an invalid expression
-    InvalidExpression {
+    #[error("Expression error: {message} in expression: {expression}")]
+    ExpressionError {
         message: &'static str,
         expression: String,
+
+        #[source]
+        source: Option<Box<dyn Error + Send + Sync>>,
     },
 
-    /// Division by zero
-    DivisionByZero,
+    #[error("Perturbation error: {message} in perturbation: {perturbation}")]
+    PerturbationError {
+        message: &'static str,
+        perturbation: String,
 
-    /// Error that a code path should never be hit under correct logic
+        #[source]
+        source: Option<Box<dyn Error + Send + Sync>>,
+    },
+
+    #[error("Unreachable code: {message} in expression: {expression}")]
     Unreachable {
         message: &'static str,
         expression: String,
+
+        #[source]
+        source: Option<Box<dyn Error + Send + Sync>>,
     },
 
-    /// Unimplemented behavior
-    NotYetImplemented(String),
+    #[error("{message}")]
+    GenericError {
+        message: String,
 
-    /// Generic message error
-    Message(String),
+        #[source]
+        source: Option<Box<dyn Error + Send + Sync>>,
+    },
 }
-
-impl std::fmt::Display for TinnedError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self {
-            TinnedError::InvalidExpression {
-                message,
-                expression,
-            } => {
-                write!(f, "Invalid expression: {} encountered: {}", expression, message)
-            },
-            TinnedError::DivisionByZero => f.write_str("Division by zero encountered"),
-            TinnedError::Unreachable {
-                message,
-                expression,
-            } => {
-                write!(f, "Unreachable error: {} in expression: {}", message, expression)
-            },
-            TinnedError::NotYetImplemented(feature) => {
-                write!(f, "Feature not implemented: {}", feature)
-            },
-            TinnedError::Message(msg) => write!(f, "{}", msg),
-        }
-    }
-}
-
-impl std::error::Error for TinnedError {}

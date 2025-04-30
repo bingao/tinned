@@ -47,6 +47,7 @@ impl PertMultichain {
     }
 
     /// Returns sum of all perturbations' frequencies
+    #[inline]
     pub fn sum_frequencies(&self) -> Result<Arc<dyn Expr>, TinnedError> {
         let map = self.0.lock().unwrap();
 
@@ -68,6 +69,7 @@ impl PertMultichain {
     }
 
     /// Returns all perturbations in the multichain and meanwhile preserves the order.
+    #[inline]
     pub fn keys(&self) -> Vec<Arc<Perturbation>> {
         let map = self.0.lock().unwrap();
         map.keys().cloned().collect()
@@ -101,6 +103,7 @@ impl PertMultichain {
 
     /// Similar to the function `is_subchain` but takes the `subchain` in a
     /// vector of `Arc<Perturbation>`.
+    #[inline]
     pub fn is_subchain_vec(&self, subchain: &[Arc<Perturbation>]) -> bool {
         let submap: BTreeMap<_, u32> = {
             let mut pert_map = BTreeMap::new();
@@ -124,6 +127,16 @@ impl PertMultichain {
         let supermap = superchain.0.lock().unwrap().clone();
 
         map.iter().all(|(p, &order)| supermap.get(p).copied().unwrap_or(0) >= order)
+    }
+
+    /// Checks if two `PertMultichains` share any common `Arc<Perturbation>`
+    /// keys (i.e., their keys intersect).
+    #[inline]
+    pub fn has_overlap(&self, other: &PertMultichain) -> bool {
+        let self_map = self.0.lock().unwrap();
+        let other_map = other.0.lock().unwrap();
+
+        self_map.keys().any(|k| other_map.contains_key(k))
     }
 
     /// Generates a compact string suitable for hashing a perturbation multichain.

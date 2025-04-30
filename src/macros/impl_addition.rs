@@ -12,7 +12,7 @@ macro_rules! impl_add_traits {
                 format!(
                     "{}({})",
                     stringify!($type_name),
-                    join_exprs_for_hash(&self.terms, $hash_delimiter),
+                    multi_expression_hash(&self.terms, $hash_delimiter),
                 )
             }
 
@@ -42,7 +42,9 @@ macro_rules! impl_add_traits {
                 let mut diff_terms = Vec::new();
 
                 for term in &self.terms {
-                    let diff = term.differentiate(s)?;
+                    let diff = term.differentiate(s).map_err(|e| {
+                        generic_expression_error("Differentiation failed", self, Some(Box::new(e)))
+                    })?;
                     if !crate::utils::is_zero_expr(&diff, None) {
                         diff_terms.push(diff);
                     }
@@ -62,7 +64,7 @@ macro_rules! impl_add_traits {
 
         impl std::fmt::Display for $type_name {
             fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-                write!(f, "({})", join_exprs_for_display(&self.terms, $fmt_delimiter))
+                write!(f, "({})", multi_expression_format(&self.terms, $fmt_delimiter))
             }
         }
     };

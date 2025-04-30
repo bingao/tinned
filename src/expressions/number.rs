@@ -8,7 +8,7 @@ use num_traits::{ToPrimitive, Zero};
 use typetag;
 
 use crate::core::{Expr, TinnedError};
-use crate::utils::{NumberTolerance, get_number_tolerance, intern_expr, message_error};
+use crate::utils::{NumberTolerance, generic_error, get_number_tolerance, intern_expr};
 
 // Define an enum to store different number types
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -92,56 +92,56 @@ impl Number {
         match (self, other) {
             (Integer(a), Integer(b)) => a == b,
             (Integer(a), Real(b)) => {
-                approx_eq!(f64, *a as f64, *b, epsilon = tol.max_error(*a as f64, *b))
+                approx_eq!(f64, *a as f64, *b, epsilon = tol.max_abs_error(*a as f64, *b))
             },
             (Integer(a), Complex(b)) => {
-                approx_eq!(f64, *a as f64, b.re, epsilon = tol.max_error(*a as f64, b.re))
-                    && approx_eq!(f64, 0.0, b.im, epsilon = tol.max_error(0.0, b.im))
+                approx_eq!(f64, *a as f64, b.re, epsilon = tol.max_abs_error(*a as f64, b.re))
+                    && approx_eq!(f64, 0.0, b.im, epsilon = tol.max_abs_error(0.0, b.im))
             },
             (Integer(a), Fraction(b)) => Rational64::from_integer(*a) == *b,
 
             (Real(a), Integer(b)) => {
-                approx_eq!(f64, *a, *b as f64, epsilon = tol.max_error(*a, *b as f64))
+                approx_eq!(f64, *a, *b as f64, epsilon = tol.max_abs_error(*a, *b as f64))
             },
             (Real(a), Real(b)) => {
-                approx_eq!(f64, *a, *b, epsilon = tol.max_error(*a, *b))
+                approx_eq!(f64, *a, *b, epsilon = tol.max_abs_error(*a, *b))
             },
             (Real(a), Complex(b)) => {
-                approx_eq!(f64, *a, b.re, epsilon = tol.max_error(*a, b.re))
-                    && approx_eq!(f64, 0.0, b.im, epsilon = tol.max_error(0.0, b.im))
+                approx_eq!(f64, *a, b.re, epsilon = tol.max_abs_error(*a, b.re))
+                    && approx_eq!(f64, 0.0, b.im, epsilon = tol.max_abs_error(0.0, b.im))
             },
             (Real(a), Fraction(b)) => {
                 let b_f64 = b.to_f64().unwrap_or_else(|| panic!("Failed to convert {} to f64", b));
-                approx_eq!(f64, *a, b_f64, epsilon = tol.max_error(*a, b_f64))
+                approx_eq!(f64, *a, b_f64, epsilon = tol.max_abs_error(*a, b_f64))
             },
 
             (Complex(a), Integer(b)) => {
-                approx_eq!(f64, a.re, *b as f64, epsilon = tol.max_error(a.re, *b as f64))
-                    && approx_eq!(f64, a.im, 0.0, epsilon = tol.max_error(a.im, 0.0))
+                approx_eq!(f64, a.re, *b as f64, epsilon = tol.max_abs_error(a.re, *b as f64))
+                    && approx_eq!(f64, a.im, 0.0, epsilon = tol.max_abs_error(a.im, 0.0))
             },
             (Complex(a), Real(b)) => {
-                approx_eq!(f64, a.re, *b, epsilon = tol.max_error(a.re, *b))
-                    && approx_eq!(f64, a.im, 0.0, epsilon = tol.max_error(a.im, 0.0))
+                approx_eq!(f64, a.re, *b, epsilon = tol.max_abs_error(a.re, *b))
+                    && approx_eq!(f64, a.im, 0.0, epsilon = tol.max_abs_error(a.im, 0.0))
             },
             (Complex(a), Complex(b)) => {
-                approx_eq!(f64, a.re, b.re, epsilon = tol.max_error(a.re, b.re))
-                    && approx_eq!(f64, a.im, b.im, epsilon = tol.max_error(a.im, b.im))
+                approx_eq!(f64, a.re, b.re, epsilon = tol.max_abs_error(a.re, b.re))
+                    && approx_eq!(f64, a.im, b.im, epsilon = tol.max_abs_error(a.im, b.im))
             },
             (Complex(a), Fraction(b)) => {
                 let b_f64 = b.to_f64().unwrap_or_else(|| panic!("Failed to convert {} to f64", b));
-                approx_eq!(f64, a.re, b_f64, epsilon = tol.max_error(a.re, b_f64))
-                    && approx_eq!(f64, a.im, 0.0, epsilon = tol.max_error(a.im, 0.0))
+                approx_eq!(f64, a.re, b_f64, epsilon = tol.max_abs_error(a.re, b_f64))
+                    && approx_eq!(f64, a.im, 0.0, epsilon = tol.max_abs_error(a.im, 0.0))
             },
 
             (Fraction(a), Integer(b)) => *a == Rational64::from_integer(*b),
             (Fraction(a), Real(b)) => {
                 let a_f64 = a.to_f64().unwrap_or_else(|| panic!("Failed to convert {} to f64", a));
-                approx_eq!(f64, a_f64, *b, epsilon = tol.max_error(a_f64, *b))
+                approx_eq!(f64, a_f64, *b, epsilon = tol.max_abs_error(a_f64, *b))
             },
             (Fraction(a), Complex(b)) => {
                 let a_f64 = a.to_f64().unwrap_or_else(|| panic!("Failed to convert {} to f64", a));
-                approx_eq!(f64, a_f64, b.re, epsilon = tol.max_error(a_f64, b.re))
-                    && approx_eq!(f64, 0.0, b.im, epsilon = tol.max_error(0.0, b.im))
+                approx_eq!(f64, a_f64, b.re, epsilon = tol.max_abs_error(a_f64, b.re))
+                    && approx_eq!(f64, 0.0, b.im, epsilon = tol.max_abs_error(0.0, b.im))
             },
             (Fraction(a), Fraction(b)) => *a == *b,
         }
@@ -240,7 +240,7 @@ impl Number {
                 } else {
                     // Negative power: promote to Fraction
                     if *n == 0 {
-                        Err(message_error("Cannot raise zero integer to negative power"))
+                        Err(generic_error("Cannot raise zero integer to negative power", None))
                     } else {
                         Ok(Fraction(
                             Rational64::from_integer(1)
@@ -252,7 +252,7 @@ impl Number {
 
             Real(f) => {
                 if *f == 0.0 && exp < 0 {
-                    Err(message_error("Cannot raise zero real number to negative power"))
+                    Err(generic_error("Cannot raise zero real number to negative power", None))
                 } else {
                     Ok(Real(f.powi(exp as i32)))
                 }
@@ -260,7 +260,7 @@ impl Number {
 
             Complex(z) => {
                 if z.re == 0.0 && z.im == 0.0 && exp < 0 {
-                    Err(message_error("Cannot raise zero complex number to negative power"))
+                    Err(generic_error("Cannot raise zero complex number to negative power", None))
                 } else {
                     Ok(Complex(z.powi(exp as i32)))
                 }
@@ -268,7 +268,7 @@ impl Number {
 
             Fraction(r) => {
                 if r.is_zero() && exp < 0 {
-                    Err(message_error("Cannot raise zero fraction to negative power"))
+                    Err(generic_error("Cannot raise zero fraction to negative power", None))
                 } else if exp >= 0 {
                     Ok(Fraction(r.pow(exp as i32)))
                 } else {

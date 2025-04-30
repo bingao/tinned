@@ -5,7 +5,7 @@ use typetag;
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{MatrixMul, OneElecOperator, TemporumOperator, ZeroOperator};
 use crate::perturbations::{PertMultichain, Perturbation};
-use crate::utils::{downcast_from_ref, intern_expr, is_expr_type};
+use crate::utils::{downcast_from_ref, generic_expression_error, intern_expr, is_expr_type};
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct TemporumOverlap {
@@ -102,7 +102,10 @@ impl Expr for TemporumOverlap {
     }
 
     fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
-        let diff_braket = self.braket.differentiate(s)?;
+        let diff_braket = self.braket.differentiate(s).map_err(|e| {
+            generic_expression_error("Differentiation failed", self, Some(Box::new(e)))
+        })?;
+
         if is_expr_type::<ZeroOperator>(&diff_braket) {
             return Ok(diff_braket);
         }

@@ -7,8 +7,8 @@ use crate::core::{Expr, TinnedError};
 use crate::expressions::{Number, Power};
 use crate::utils::operations::group_and_sort_terms;
 use crate::utils::{
-    downcast_from_arc, downcast_from_ref, intern_expr, invalid_expression_error, is_zero_expr,
-    join_exprs_for_display, join_exprs_for_hash,
+    downcast_from_arc, downcast_from_ref, expression_error, generic_expression_error, intern_expr,
+    is_zero_expr, multi_expression_format, multi_expression_hash,
 };
 
 // Multiplication Expression
@@ -45,7 +45,11 @@ impl Mul {
             power_map: &mut HashMap<u64, (Arc<dyn Expr>, i64)>,
         ) -> Result<bool, TinnedError> {
             if !expr.is_scalar() {
-                return Err(invalid_expression_error("Mul::new()", &expr));
+                return Err(expression_error(
+                    "Mul::new::collect_terms() got a non-scalar expr",
+                    expr,
+                    None,
+                ));
             }
 
             if let Some(mul) = downcast_from_arc::<Mul>(expr) {
@@ -184,14 +188,14 @@ mod tests {
                 "Mul({}{}{})",
                 c1_cast.hash_key(),
                 DEFAULT_HASH_DELIMITER,
-                join_exprs_for_hash(&expected_factors, DEFAULT_HASH_DELIMITER),
+                multi_expression_hash(&expected_factors, DEFAULT_HASH_DELIMITER),
             )
         );
         assert!(mul1.is_scalar());
         if c1_cast.is_one(None) {
             assert_eq!(
                 format!("{}", mul1),
-                format!("{}", join_exprs_for_display(&expected_factors, DEFAULT_FMT_DELIMITER))
+                format!("{}", multi_expression_format(&expected_factors, DEFAULT_FMT_DELIMITER))
             );
         } else {
             assert_eq!(
@@ -200,7 +204,7 @@ mod tests {
                     "{}{}{}",
                     c1_cast,
                     DEFAULT_FMT_DELIMITER,
-                    join_exprs_for_display(&expected_factors, DEFAULT_FMT_DELIMITER),
+                    multi_expression_format(&expected_factors, DEFAULT_FMT_DELIMITER),
                 )
             );
         }
@@ -260,6 +264,7 @@ mod tests {
         let c2_cast = downcast_from_arc::<Number>(&c2).unwrap();
         let c3_cast = downcast_from_arc::<Number>(&c3).unwrap();
 
+        // This may fail if we use a relative error 1e-13
         assert_eq!(num, &c1_cast.mul(&c2_cast.mul(&c3_cast)));
 
         // - Flatten nested Mul

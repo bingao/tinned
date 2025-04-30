@@ -6,7 +6,9 @@ use typetag;
 
 use crate::core::{Expr, TinnedError};
 use crate::perturbations::{PertMultichain, Perturbation};
-use crate::utils::{build_xc_density, downcast_from_ref, intern_expr, validate_xc_inputs};
+use crate::utils::{
+    build_xc_density, downcast_from_ref, generic_expression_error, intern_expr, validate_xc_inputs,
+};
 
 fn build_xc_energy(
     grid_weight: Arc<dyn Expr>,

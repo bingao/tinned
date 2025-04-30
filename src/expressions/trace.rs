@@ -7,8 +7,8 @@ use crate::expressions::{
     Add, Conjugate, HermitianTranspose, MatrixAdd, MatrixMul, Mul, Number, Transpose, ZeroOperator,
 };
 use crate::utils::{
-    downcast_from_arc, downcast_from_ref, intern_expr, invalid_expression_error, is_expr_type,
-    is_one_expr,
+    downcast_from_arc, downcast_from_ref, expression_error, generic_expression_error, intern_expr,
+    is_expr_type, is_one_expr,
 };
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -19,7 +19,7 @@ pub struct Trace {
 impl Trace {
     pub fn new(argument: Arc<dyn Expr>) -> Result<Arc<dyn Expr>, TinnedError> {
         if argument.is_scalar() {
-            return Err(invalid_expression_error("Trace::new()", &argument));
+            return Err(expression_error("Trace::new() got a scalar argument", &argument, None));
         }
 
         if is_expr_type::<ZeroOperator>(&argument) {

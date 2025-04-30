@@ -6,7 +6,8 @@ use crate::core::{Expr, TinnedError};
 use crate::expressions::{MatrixAdd, WfnParameter, ZeroOperator};
 use crate::perturbations::{PertMultichain, Perturbation};
 use crate::utils::{
-    downcast_from_ref, intern_expr, invalid_expression_error, is_expr_type, is_zero_expr,
+    downcast_from_ref, expression_error, generic_expression_error, intern_expr, is_expr_type,
+    is_zero_expr,
 };
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -103,9 +104,10 @@ impl TwoElecOperatorBuilder {
                 Ok(ZeroOperator::new())
             }
         } else {
-            Err(invalid_expression_error(
+            Err(expression_error(
                 "TwoElecOperatorBuilder::build() - density must be WfnParameter",
                 &self.density,
+                None,
             ))
         }
     }
@@ -149,7 +151,9 @@ impl Expr for TwoElecOperator {
     }
 
     fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
-        let diff_density = self.density.differentiate(s)?;
+        let diff_density = self.density.differentiate(s).map_err(|e| {
+            generic_expression_error("Differentiation failed", self, Some(Box::new(e)))
+        })?;
         let term1 = self.builder_from_density(diff_density).build()?;
 
         let new_deriv = self.derivative.clone_with_insert(s);

@@ -35,7 +35,10 @@ macro_rules! impl_unary_expr_traits {
                 &self,
                 s: &Arc<crate::perturbations::Perturbation>,
             ) -> Result<Arc<dyn Expr>, TinnedError> {
-                let diff_arg = self.argument.differentiate(s)?;
+                let diff_arg = self.argument.differentiate(s).map_err(|e| {
+                    generic_expression_error("Differentiation failed", self, Some(Box::new(e)))
+                })?;
+
                 Self::new(diff_arg)
             }
         }

@@ -14,7 +14,7 @@ macro_rules! impl_mul_traits {
                     stringify!($type_name),
                     self.coefficient.hash_key(),
                     $hash_delimiter,
-                    join_exprs_for_hash(&self.factors, $hash_delimiter),
+                    multi_expression_hash(&self.factors, $hash_delimiter),
                 )
             }
 
@@ -42,8 +42,14 @@ macro_rules! impl_mul_traits {
                 s: &Arc<crate::perturbations::Perturbation>,
             ) -> Result<Arc<dyn Expr>, TinnedError> {
                 // Precompute the derivative of each factor and store it
+                let with_context = |f: &Arc<dyn Expr>| {
+                    f.differentiate(s).map_err(|e| {
+                        generic_expression_error("Differentiation failed", self, Some(Box::new(e)))
+                    })
+                };
+
                 let diff_factors: Vec<Arc<dyn Expr>> =
-                    self.factors.iter().map(|f| f.differentiate(s)).collect::<Result<_, _>>()?;
+                    self.factors.iter().map(with_context).collect::<Result<_, _>>()?;
 
                 let result
                     = impl_mul_traits!(@finalize_differentiation self diff_factors s $is_scalar);
@@ -72,10 +78,10 @@ macro_rules! impl_mul_traits {
                         "{}{}{}",
                         self.coefficient,
                         $fmt_delimiter,
-                        join_exprs_for_display(&self.factors, $fmt_delimiter),
+                        multi_expression_format(&self.factors, $fmt_delimiter),
                     )
                 } else {
-                    write!(f, "{}", join_exprs_for_display(&self.factors, $fmt_delimiter))
+                    write!(f, "{}", multi_expression_format(&self.factors, $fmt_delimiter))
                 }
             }
         }
@@ -120,7 +126,10 @@ macro_rules! impl_mul_traits {
             results.push(Self::new(new_terms)?);
         }
 
-        let diff_coef = $self.coefficient.differentiate($s)?;
+        let diff_coef = $self
+            .coefficient
+            .differentiate($s)
+            .map_err(|e| generic_expression_error("Differentiation failed", $self, Some(Box::new(e))))?;
         // If coefficient's derivative is non-zero, append it as one result
         if !is_zero_expr(&diff_coef, None) {
             let mut new_terms = $self.factors.clone();

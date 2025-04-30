@@ -9,6 +9,7 @@ pub mod utils;
 pub use core::*;
 pub use expressions::*;
 pub use perturbations::*;
+pub use utils::*;
 
 //EliminationVisitor, ExistAnyVisitor, FindAllVisitor, KeepVisitor, RemoveVisitor, ReplaceVisitor, TemporumCleaner, ZerosRemover
 

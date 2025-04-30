@@ -7,8 +7,8 @@ use crate::core::{Expr, TinnedError};
 use crate::expressions::{Mul, Number};
 use crate::utils::operations::group_and_sort_terms;
 use crate::utils::{
-    downcast_from_arc, downcast_from_ref, intern_expr, invalid_expression_error,
-    join_exprs_for_display, join_exprs_for_hash, unreachable_error,
+    downcast_from_arc, downcast_from_ref, expression_error, generic_expression_error, intern_expr,
+    multi_expression_format, multi_expression_hash, unreachable_error,
 };
 
 // Addition Expression
@@ -38,7 +38,11 @@ impl Add {
             merged: &mut HashMap<u64, (Arc<dyn Expr>, Number)>,
         ) -> Result<(), TinnedError> {
             if !expr.is_scalar() {
-                return Err(invalid_expression_error("Add::new()", &expr));
+                return Err(expression_error(
+                    "Add::new::collect_terms() got a non-scalar expr",
+                    expr,
+                    None,
+                ));
             }
 
             if let Some(num) = downcast_from_arc::<Number>(expr) {
@@ -49,7 +53,11 @@ impl Add {
                 }
             } else if let Some(mul) = downcast_from_arc::<Mul>(expr) {
                 if mul.factors().is_empty() {
-                    return Err(unreachable_error("Add::new() got Mul with empty factors", expr));
+                    return Err(unreachable_error(
+                        "Add::new::collect_terms() got Mul with empty factors",
+                        expr,
+                        None,
+                    ));
                 }
 
                 let base_expr = if mul.factors().len() == 1 {
@@ -180,12 +188,12 @@ mod tests {
 
         assert_eq!(
             add1.hash_key(),
-            format!("Add({})", join_exprs_for_hash(&expected_terms, DEFAULT_HASH_DELIMITER))
+            format!("Add({})", multi_expression_hash(&expected_terms, DEFAULT_HASH_DELIMITER))
         );
         assert!(add1.is_scalar());
         assert_eq!(
             format!("{}", add1),
-            format!("({})", join_exprs_for_display(&expected_terms, DEFAULT_FMT_DELIMITER))
+            format!("({})", multi_expression_format(&expected_terms, DEFAULT_FMT_DELIMITER))
         );
 
         let add2 = Add::new(vec![c1.clone(), x.clone(), y.clone(), z.clone()]).unwrap();

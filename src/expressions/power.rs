@@ -4,7 +4,9 @@ use typetag;
 
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{Mul, Number};
-use crate::utils::{downcast_from_arc, downcast_from_ref, intern_expr, invalid_expression_error};
+use crate::utils::{
+    downcast_from_arc, downcast_from_ref, expression_error, generic_expression_error, intern_expr,
+};
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Power {
@@ -15,7 +17,7 @@ pub struct Power {
 impl Power {
     pub fn new(base: Arc<dyn Expr>, exponent: i64) -> Result<Arc<dyn Expr>, TinnedError> {
         if !base.is_scalar() {
-            return Err(invalid_expression_error("Power::new() - base must be scalar", &base));
+            return Err(expression_error("Power::new() - base must be scalar", &base, None));
         }
 
         match exponent {
@@ -102,7 +104,9 @@ impl Expr for Power {
         s: &Arc<crate::perturbations::Perturbation>,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
         let new_exp = self.exponent - 1;
-        let diff_base = self.base.differentiate(s)?;
+        let diff_base = self.base.differentiate(s).map_err(|e| {
+            generic_expression_error("Differentiation failed", self, Some(Box::new(e)))
+        })?;
 
         crate::expressions::Mul::new(vec![
             Number::from_i64(self.exponent),
@@ -227,7 +231,7 @@ mod tests {
     #[test]
     fn test_utils() {
         let x1 = make_symbol(2u32);
-        let x2 = make_symbol(2u32);
+        let x2 = make_symbol(4u32);
         let exponent: i64 = rand::random_range(2..=16);
         let op1 = Power::new(x1.clone(), exponent).unwrap();
 

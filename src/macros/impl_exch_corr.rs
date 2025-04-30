@@ -140,7 +140,9 @@ macro_rules! impl_exch_corr_traits {
             }
 
             fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
-                let diff_expr = self.$grid_expr_name.differentiate(s)?;
+                let diff_expr = self.$grid_expr_name.differentiate(s).map_err(|e| {
+                    generic_expression_error("Differentiation failed", self, Some(Box::new(e)))
+                })?;
 
                 let new_deriv = self.derivative.clone_with_insert(s);
 

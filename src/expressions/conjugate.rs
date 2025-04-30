@@ -103,7 +103,13 @@ impl Expr for Conjugate {
         &self,
         s: &Arc<crate::perturbations::Perturbation>,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
-        let diff_arg = self.argument.differentiate(s)?;
+        let diff_arg = self.argument.differentiate(s).map_err(|e| {
+            crate::utils::generic_expression_error(
+                "Differentiation failed",
+                self,
+                Some(Box::new(e)),
+            )
+        })?;
         Self::new(diff_arg)
     }
 }

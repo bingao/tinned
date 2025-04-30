@@ -6,7 +6,8 @@ use crate::core::{Expr, TinnedError};
 use crate::expressions::{Add, Number, WfnParameter};
 use crate::perturbations::{PertMultichain, Perturbation};
 use crate::utils::{
-    downcast_from_ref, intern_expr, invalid_expression_error, is_expr_type, is_zero_expr,
+    downcast_from_ref, expression_error, generic_expression_error, intern_expr, is_expr_type,
+    is_zero_expr,
 };
 
 /// allow_density_swap means we allow inner_density and outer_density to be
@@ -140,16 +141,18 @@ impl TwoElecEnergyBuilder {
         let outer = self.outer_density.unwrap_or_else(|| self.inner_density.clone());
 
         if !is_expr_type::<WfnParameter>(&self.inner_density) {
-            return Err(invalid_expression_error(
+            return Err(expression_error(
                 "TwoElecEnergyBuilder::build() - inner_density must be WfnParameter",
                 &self.inner_density,
+                None,
             ));
         }
 
         if !is_expr_type::<WfnParameter>(&outer) {
-            return Err(invalid_expression_error(
+            return Err(expression_error(
                 "TwoElecEnergyBuilder::build() - outer_density must be WfnParameter",
                 &outer,
+                None,
             ));
         }
 
@@ -219,8 +222,12 @@ impl Expr for TwoElecEnergy {
     }
 
     fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
-        let diff_inner = self.inner_density.differentiate(s)?;
-        let diff_outer = self.outer_density.differentiate(s)?;
+        let diff_inner = self.inner_density.differentiate(s).map_err(|e| {
+            generic_expression_error("Differentiation failed", self, Some(Box::new(e)))
+        })?;
+        let diff_outer = self.outer_density.differentiate(s).map_err(|e| {
+            generic_expression_error("Differentiation failed", self, Some(Box::new(e)))
+        })?;
 
         let mut terms = vec![
             self.builder_from_inner_density(diff_inner)
