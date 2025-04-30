@@ -217,7 +217,7 @@ macro_rules! test_nullary_oper {
 
             assert!(is_zero_expr(
                 &op.differentiate(&make_perturbation_symbol(len_pert_name + 1u32, 4u32)).unwrap(),
-                None,
+                None
             ));
         }
     };

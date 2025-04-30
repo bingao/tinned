@@ -5,6 +5,7 @@ use typetag;
 
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{Add, MatrixMul, Number, ZeroOperator};
+use crate::utils::operations::group_and_sort_terms;
 use crate::utils::{
     downcast_from_arc, downcast_from_ref, intern_expr, invalid_expression_error, is_expr_type,
     is_one_expr, is_zero_expr, join_exprs_for_display, join_exprs_for_hash, unreachable_error,
@@ -22,7 +23,7 @@ impl MatrixAdd {
     // - Remove empty MatrixAdd([]) -> op(0)
     // - Combine like terms: 2*A*B + 3*A*B -> 5*A*B
     // - Identities: A + op(0) = A
-    // - Sort terms based on hash values
+    // - Sort terms based on type names and hash values
     pub fn new(terms: Vec<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
         let mut merged: HashMap<u64, (Arc<dyn Expr>, Vec<Arc<dyn Expr>>)> = HashMap::new();
 
@@ -80,7 +81,7 @@ impl MatrixAdd {
             collect_terms(term, &mut merged)?;
         }
 
-        let mut simplified_terms = Vec::new();
+        let mut simplified_terms: Vec<Arc<dyn Expr>> = Vec::with_capacity(merged.len());
 
         for (expr, all_coef) in merged.into_values() {
             let coef = Add::new(all_coef)?;
@@ -93,15 +94,14 @@ impl MatrixAdd {
             }
         }
 
-        match simplified_terms.len() {
+        let mut sorted_terms = group_and_sort_terms(simplified_terms);
+
+        match sorted_terms.len() {
             0 => Ok(ZeroOperator::new()),
-            1 => Ok(simplified_terms.pop().unwrap()),
-            _ => {
-                simplified_terms.sort_by_key(|term| term.fast_hash());
-                Ok(intern_expr(Arc::new(Self {
-                    terms: simplified_terms,
-                })))
-            },
+            1 => Ok(sorted_terms.pop().unwrap()),
+            _ => Ok(intern_expr(Arc::new(Self {
+                terms: sorted_terms,
+            }))),
         }
     }
 
@@ -165,31 +165,29 @@ mod tests {
         assert!(is_expr_type::<MatrixAdd>(&add1));
 
         let add = downcast_from_arc::<MatrixAdd>(&add1).unwrap();
-        let mut asc_terms = vec![
+        let expected_terms = group_and_sort_terms(vec![
             MatrixMul::new(vec![c1.clone(), op_a.clone()]).unwrap(),
             MatrixMul::new(vec![c2.clone(), op_b.clone()]).unwrap(),
             op_c.clone(),
-        ];
+        ]);
 
-        asc_terms.sort_by_key(|f| f.fast_hash());
-
-        // - Sort terms based on hash values
+        // - Sort terms based on type names and hash values
         assert_eq!(
             add,
             &MatrixAdd {
-                terms: asc_terms.clone()
+                terms: expected_terms.clone()
             }
         );
-        assert_eq!(add.terms(), &asc_terms);
+        assert_eq!(add.terms(), &expected_terms);
 
         assert_eq!(
             add1.hash_key(),
-            format!("MatrixAdd({})", join_exprs_for_hash(&asc_terms, DEFAULT_HASH_DELIMITER))
+            format!("MatrixAdd({})", join_exprs_for_hash(&expected_terms, DEFAULT_HASH_DELIMITER))
         );
         assert!(!add1.is_scalar());
         assert_eq!(
             format!("{}", add1),
-            format!("({})", join_exprs_for_display(&asc_terms, DEFAULT_FMT_DELIMITER))
+            format!("({})", join_exprs_for_display(&expected_terms, DEFAULT_FMT_DELIMITER))
         );
 
         let add2 = MatrixAdd::new(vec![

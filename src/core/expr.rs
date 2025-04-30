@@ -1,4 +1,5 @@
 use std::cmp::Ordering;
+use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
 use std::hash::{Hash, Hasher};
 //use log::warn;
 use std::sync::Arc;
@@ -9,8 +10,13 @@ use crate::core::TinnedError;
 
 // Base Expression Trait
 #[typetag::serde]
-pub trait Expr: std::fmt::Debug + Send + Sync {
+pub trait Expr: Debug + Send + Sync {
     fn as_any(&self) -> &dyn std::any::Any;
+
+    #[inline]
+    fn type_name(&self) -> &'static str {
+        std::any::type_name::<Self>()
+    }
 
     fn hash_key(&self) -> String;
 
@@ -27,7 +33,7 @@ pub trait Expr: std::fmt::Debug + Send + Sync {
     // Compare equality for concrete expression types
     fn eq_expr(&self, other: &dyn Expr) -> bool;
 
-    fn fmt_expr(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result;
+    fn fmt_expr(&self, f: &mut Formatter) -> FmtResult;
 
     fn differentiate(
         &self,
@@ -66,8 +72,8 @@ impl Ord for dyn Expr {
     }
 }
 
-impl std::fmt::Display for dyn Expr {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+impl Display for dyn Expr {
+    fn fmt(&self, f: &mut Formatter) -> FmtResult {
         self.fmt_expr(f)
     }
 }

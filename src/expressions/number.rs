@@ -3,12 +3,12 @@ use std::sync::Arc;
 use float_cmp::approx_eq;
 use num_complex::Complex64;
 use num_rational::Rational64;
-use num_traits::ToPrimitive;
+use num_traits::{ToPrimitive, Zero};
 
 use typetag;
 
 use crate::core::{Expr, TinnedError};
-use crate::utils::intern_expr;
+use crate::utils::{NumberTolerance, get_number_tolerance, intern_expr, message_error};
 
 // Define an enum to store different number types
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -21,23 +21,23 @@ pub enum Number {
 
 impl Number {
     #[inline]
-    pub fn from_i64(value: i64) -> Arc<dyn Expr> {
-        intern_expr(Arc::new(Number::Integer(value)))
+    pub fn from_i64(n: i64) -> Arc<dyn Expr> {
+        intern_expr(Arc::new(Number::Integer(n)))
     }
 
     #[inline]
-    pub fn from_f64(value: f64) -> Arc<dyn Expr> {
-        intern_expr(Arc::new(Number::Real(value)))
+    pub fn from_f64(f: f64) -> Arc<dyn Expr> {
+        intern_expr(Arc::new(Number::Real(f)))
     }
 
     #[inline]
-    pub fn from_complex(value: Complex64) -> Arc<dyn Expr> {
-        intern_expr(Arc::new(Number::Complex(value)))
+    pub fn from_complex(z: Complex64) -> Arc<dyn Expr> {
+        intern_expr(Arc::new(Number::Complex(z)))
     }
 
     #[inline]
-    pub fn from_rational(value: Rational64) -> Arc<dyn Expr> {
-        intern_expr(Arc::new(Number::Fraction(value)))
+    pub fn from_rational(r: Rational64) -> Arc<dyn Expr> {
+        intern_expr(Arc::new(Number::Fraction(r)))
     }
 
     #[inline]
@@ -51,41 +51,18 @@ impl Number {
     }
 
     #[inline]
-    pub fn is_zero(&self, epsilon: Option<f64>) -> bool {
-        match self {
-            Number::Integer(n) => *n == 0,
-            Number::Real(n) => match epsilon {
-                Some(eps) => approx_eq!(f64, *n, 0.0, epsilon = eps),
-                None => *n == 0.0,
-            },
-            Number::Complex(c) => match epsilon {
-                Some(eps) => {
-                    approx_eq!(f64, c.re, 0.0, epsilon = eps)
-                        && approx_eq!(f64, c.im, 0.0, epsilon = eps)
-                },
-                None => c.re == 0.0 && c.im == 0.0,
-            },
-            Number::Fraction(n) => *n == Rational64::from_integer(0),
-        }
+    pub fn minus_one() -> Arc<dyn Expr> {
+        intern_expr(Arc::new(Number::Integer(-1)))
     }
 
     #[inline]
-    pub fn is_one(&self, epsilon: Option<f64>) -> bool {
-        match self {
-            Number::Integer(n) => *n == 1,
-            Number::Real(n) => match epsilon {
-                Some(eps) => approx_eq!(f64, *n, 1.0, epsilon = eps),
-                None => *n == 1.0,
-            },
-            Number::Complex(c) => match epsilon {
-                Some(eps) => {
-                    approx_eq!(f64, c.re, 1.0, epsilon = eps)
-                        && approx_eq!(f64, c.im, 0.0, epsilon = eps)
-                },
-                None => c.re == 1.0 && c.im == 0.0,
-            },
-            Number::Fraction(n) => *n == Rational64::from_integer(1),
-        }
+    pub fn is_zero(&self, num_tol: Option<NumberTolerance>) -> bool {
+        self.approx_eq_number(&Number::Integer(0), num_tol)
+    }
+
+    #[inline]
+    pub fn is_one(&self, num_tol: Option<NumberTolerance>) -> bool {
+        self.approx_eq_number(&Number::Integer(1), num_tol)
     }
 
     #[inline]
@@ -97,39 +74,99 @@ impl Number {
     }
 
     #[inline]
+    pub fn negate(&self) -> Number {
+        match self {
+            Number::Integer(n) => Number::Integer(-n),
+            Number::Real(f) => Number::Real(-f),
+            Number::Complex(z) => Number::Complex(Complex64::new(-z.re, -z.im)),
+            Number::Fraction(r) => Number::Fraction(Rational64::new(-r.numer(), *r.denom())),
+        }
+    }
+
+    #[inline]
+    pub fn approx_eq_number(&self, other: &Number, num_tol: Option<NumberTolerance>) -> bool {
+        use Number::*;
+
+        let tol = num_tol.unwrap_or_else(|| get_number_tolerance());
+
+        match (self, other) {
+            (Integer(a), Integer(b)) => a == b,
+            (Integer(a), Real(b)) => {
+                approx_eq!(f64, *a as f64, *b, epsilon = tol.max_error(*a as f64, *b))
+            },
+            (Integer(a), Complex(b)) => {
+                approx_eq!(f64, *a as f64, b.re, epsilon = tol.max_error(*a as f64, b.re))
+                    && approx_eq!(f64, 0.0, b.im, epsilon = tol.max_error(0.0, b.im))
+            },
+            (Integer(a), Fraction(b)) => Rational64::from_integer(*a) == *b,
+
+            (Real(a), Integer(b)) => {
+                approx_eq!(f64, *a, *b as f64, epsilon = tol.max_error(*a, *b as f64))
+            },
+            (Real(a), Real(b)) => {
+                approx_eq!(f64, *a, *b, epsilon = tol.max_error(*a, *b))
+            },
+            (Real(a), Complex(b)) => {
+                approx_eq!(f64, *a, b.re, epsilon = tol.max_error(*a, b.re))
+                    && approx_eq!(f64, 0.0, b.im, epsilon = tol.max_error(0.0, b.im))
+            },
+            (Real(a), Fraction(b)) => {
+                let b_f64 = b.to_f64().unwrap_or_else(|| panic!("Failed to convert {} to f64", b));
+                approx_eq!(f64, *a, b_f64, epsilon = tol.max_error(*a, b_f64))
+            },
+
+            (Complex(a), Integer(b)) => {
+                approx_eq!(f64, a.re, *b as f64, epsilon = tol.max_error(a.re, *b as f64))
+                    && approx_eq!(f64, a.im, 0.0, epsilon = tol.max_error(a.im, 0.0))
+            },
+            (Complex(a), Real(b)) => {
+                approx_eq!(f64, a.re, *b, epsilon = tol.max_error(a.re, *b))
+                    && approx_eq!(f64, a.im, 0.0, epsilon = tol.max_error(a.im, 0.0))
+            },
+            (Complex(a), Complex(b)) => {
+                approx_eq!(f64, a.re, b.re, epsilon = tol.max_error(a.re, b.re))
+                    && approx_eq!(f64, a.im, b.im, epsilon = tol.max_error(a.im, b.im))
+            },
+            (Complex(a), Fraction(b)) => {
+                let b_f64 = b.to_f64().unwrap_or_else(|| panic!("Failed to convert {} to f64", b));
+                approx_eq!(f64, a.re, b_f64, epsilon = tol.max_error(a.re, b_f64))
+                    && approx_eq!(f64, a.im, 0.0, epsilon = tol.max_error(a.im, 0.0))
+            },
+
+            (Fraction(a), Integer(b)) => *a == Rational64::from_integer(*b),
+            (Fraction(a), Real(b)) => {
+                let a_f64 = a.to_f64().unwrap_or_else(|| panic!("Failed to convert {} to f64", a));
+                approx_eq!(f64, a_f64, *b, epsilon = tol.max_error(a_f64, *b))
+            },
+            (Fraction(a), Complex(b)) => {
+                let a_f64 = a.to_f64().unwrap_or_else(|| panic!("Failed to convert {} to f64", a));
+                approx_eq!(f64, a_f64, b.re, epsilon = tol.max_error(a_f64, b.re))
+                    && approx_eq!(f64, 0.0, b.im, epsilon = tol.max_error(0.0, b.im))
+            },
+            (Fraction(a), Fraction(b)) => *a == *b,
+        }
+    }
+
+    #[inline]
     pub fn add(&self, other: &Number) -> Number {
         use Number::*;
 
         match (self, other) {
             (Integer(a), Integer(b)) => Integer(a + b),
-
-            (Integer(a), Fraction(b)) => Fraction(*b + Rational64::from(*a)),
-            (Fraction(a), Integer(b)) => Fraction(*a + Rational64::from(*b)),
-            (Fraction(a), Fraction(b)) => Fraction(*a + *b),
-
             (Integer(a), Real(b)) => Real(*a as f64 + *b),
+            (Integer(a), Complex(b)) => Complex(Complex64::new(*a as f64, 0.0) + *b),
+            (Integer(a), Fraction(b)) => Fraction(*b + Rational64::from_integer(*a)),
+
             (Real(a), Integer(b)) => Real(*a + *b as f64),
             (Real(a), Real(b)) => Real(*a + *b),
-
-            (Integer(a), Complex(b)) => Complex(Complex64::new(*a as f64, 0.0) + *b),
-            (Complex(a), Integer(b)) => Complex(*a + Complex64::new(*b as f64, 0.0)),
-
+            (Real(a), Complex(b)) => Complex(Complex64::new(*a, 0.0) + *b),
             (Real(a), Fraction(b)) => {
                 Real(*a + b.to_f64().unwrap_or_else(|| panic!("Failed to convert {} to f64", b)))
             },
-            (Fraction(a), Real(b)) => {
-                Real(a.to_f64().unwrap_or_else(|| panic!("Failed to convert {} to f64", a)) + *b)
-            },
 
-            (Real(a), Complex(b)) => Complex(Complex64::new(*a, 0.0) + *b),
+            (Complex(a), Integer(b)) => Complex(*a + Complex64::new(*b as f64, 0.0)),
             (Complex(a), Real(b)) => Complex(*a + Complex64::new(*b, 0.0)),
-
-            (Fraction(a), Complex(b)) => Complex(
-                Complex64::new(
-                    a.to_f64().unwrap_or_else(|| panic!("Failed to convert {} to f64", a)),
-                    0.0,
-                ) + *b,
-            ),
+            (Complex(a), Complex(b)) => Complex(*a + *b),
             (Complex(a), Fraction(b)) => Complex(
                 *a + Complex64::new(
                     b.to_f64().unwrap_or_else(|| panic!("Failed to convert {} to f64", b)),
@@ -137,7 +174,17 @@ impl Number {
                 ),
             ),
 
-            (Complex(a), Complex(b)) => Complex(*a + *b),
+            (Fraction(a), Integer(b)) => Fraction(*a + Rational64::from_integer(*b)),
+            (Fraction(a), Real(b)) => {
+                Real(a.to_f64().unwrap_or_else(|| panic!("Failed to convert {} to f64", a)) + *b)
+            },
+            (Fraction(a), Complex(b)) => Complex(
+                Complex64::new(
+                    a.to_f64().unwrap_or_else(|| panic!("Failed to convert {} to f64", a)),
+                    0.0,
+                ) + *b,
+            ),
+            (Fraction(a), Fraction(b)) => Fraction(*a + *b),
         }
     }
 
@@ -147,34 +194,20 @@ impl Number {
 
         match (self, other) {
             (Integer(a), Integer(b)) => Integer(a * b),
-
-            (Integer(a), Fraction(b)) => Fraction(*b * Rational64::from(*a)),
-            (Fraction(a), Integer(b)) => Fraction(*a * Rational64::from(*b)),
-            (Fraction(a), Fraction(b)) => Fraction(*a * *b),
-
             (Integer(a), Real(b)) => Real(*a as f64 * *b),
+            (Integer(a), Complex(b)) => Complex(Complex64::new(*a as f64, 0.0) * *b),
+            (Integer(a), Fraction(b)) => Fraction(*b * Rational64::from_integer(*a)),
+
             (Real(a), Integer(b)) => Real(*a * *b as f64),
             (Real(a), Real(b)) => Real(*a * *b),
-
-            (Integer(a), Complex(b)) => Complex(Complex64::new(*a as f64, 0.0) * *b),
-            (Complex(a), Integer(b)) => Complex(*a * Complex64::new(*b as f64, 0.0)),
-
+            (Real(a), Complex(b)) => Complex(Complex64::new(*a, 0.0) * *b),
             (Real(a), Fraction(b)) => {
                 Real(*a * b.to_f64().unwrap_or_else(|| panic!("Failed to convert {} to f64", b)))
             },
-            (Fraction(a), Real(b)) => {
-                Real(a.to_f64().unwrap_or_else(|| panic!("Failed to convert {} to f64", a)) * *b)
-            },
 
-            (Real(a), Complex(b)) => Complex(Complex64::new(*a, 0.0) * *b),
+            (Complex(a), Integer(b)) => Complex(*a * Complex64::new(*b as f64, 0.0)),
             (Complex(a), Real(b)) => Complex(*a * Complex64::new(*b, 0.0)),
-
-            (Fraction(a), Complex(b)) => Complex(
-                Complex64::new(
-                    a.to_f64().unwrap_or_else(|| panic!("Failed to convert {} to f64", a)),
-                    0.0,
-                ) * *b,
-            ),
+            (Complex(a), Complex(b)) => Complex(*a * *b),
             (Complex(a), Fraction(b)) => Complex(
                 *a * Complex64::new(
                     b.to_f64().unwrap_or_else(|| panic!("Failed to convert {} to f64", b)),
@@ -182,7 +215,66 @@ impl Number {
                 ),
             ),
 
-            (Complex(a), Complex(b)) => Complex(*a * *b),
+            (Fraction(a), Integer(b)) => Fraction(*a * Rational64::from_integer(*b)),
+            (Fraction(a), Real(b)) => {
+                Real(a.to_f64().unwrap_or_else(|| panic!("Failed to convert {} to f64", a)) * *b)
+            },
+            (Fraction(a), Complex(b)) => Complex(
+                Complex64::new(
+                    a.to_f64().unwrap_or_else(|| panic!("Failed to convert {} to f64", a)),
+                    0.0,
+                ) * *b,
+            ),
+            (Fraction(a), Fraction(b)) => Fraction(*a * *b),
+        }
+    }
+
+    #[inline]
+    pub fn pow_i64(&self, exp: i64) -> Result<Number, TinnedError> {
+        use Number::*;
+
+        match self {
+            Integer(n) => {
+                if exp >= 0 {
+                    Ok(Integer(n.pow(exp as u32)))
+                } else {
+                    // Negative power: promote to Fraction
+                    if *n == 0 {
+                        Err(message_error("Cannot raise zero integer to negative power"))
+                    } else {
+                        Ok(Fraction(
+                            Rational64::from_integer(1)
+                                / Rational64::from_integer(n.pow((-exp) as u32)),
+                        ))
+                    }
+                }
+            },
+
+            Real(f) => {
+                if *f == 0.0 && exp < 0 {
+                    Err(message_error("Cannot raise zero real number to negative power"))
+                } else {
+                    Ok(Real(f.powi(exp as i32)))
+                }
+            },
+
+            Complex(z) => {
+                if z.re == 0.0 && z.im == 0.0 && exp < 0 {
+                    Err(message_error("Cannot raise zero complex number to negative power"))
+                } else {
+                    Ok(Complex(z.powi(exp as i32)))
+                }
+            },
+
+            Fraction(r) => {
+                if r.is_zero() && exp < 0 {
+                    Err(message_error("Cannot raise zero fraction to negative power"))
+                } else if exp >= 0 {
+                    Ok(Fraction(r.pow(exp as i32)))
+                } else {
+                    Ok(Fraction(r.recip().pow((-exp) as i32)))
+                }
+            },
         }
     }
 }
@@ -213,9 +305,9 @@ impl Expr for Number {
     fn hash_key(&self) -> String {
         match self {
             Number::Integer(n) => format!("Integer({})", n),
-            Number::Real(r) => format!("Real({})", r),
-            Number::Complex(c) => format!("Complex({})", c),
-            Number::Fraction(f) => format!("Fraction({}/{})", f.numer(), f.denom()),
+            Number::Real(f) => format!("Real({})", f),
+            Number::Complex(z) => format!("Complex({})", z),
+            Number::Fraction(r) => format!("Fraction({}/{})", r.numer(), r.denom()),
         }
     }
 
@@ -249,22 +341,7 @@ impl Expr for Number {
 
 impl PartialEq for Number {
     fn eq(&self, other: &Self) -> bool {
-        const ULPS_TOLERANCE: i64 = 6;
-        const REAL_EPSILON: f64 = 1e-12;
-        const CMPLX_EPSILON: f64 = 6e-11;
-
-        match (self, other) {
-            (Number::Integer(a), Number::Integer(b)) => a == b,
-            (Number::Real(a), Number::Real(b)) => {
-                approx_eq!(f64, *a, *b, ulps = ULPS_TOLERANCE, epsilon = REAL_EPSILON)
-            },
-            (Number::Complex(a), Number::Complex(b)) => {
-                approx_eq!(f64, a.re, b.re, ulps = ULPS_TOLERANCE, epsilon = CMPLX_EPSILON)
-                    && approx_eq!(f64, a.im, b.im, ulps = ULPS_TOLERANCE, epsilon = CMPLX_EPSILON)
-            },
-            (Number::Fraction(a), Number::Fraction(b)) => a == b,
-            _ => false,
-        }
+        self.approx_eq_number(other, None)
     }
 }
 
@@ -275,7 +352,7 @@ impl std::fmt::Display for Number {
         match self {
             Number::Integer(n) => write!(f, "{}", n),
             Number::Real(r) => write!(f, "{}", r),
-            Number::Complex(c) => write!(f, "{} + {}i", c.re, c.im),
+            Number::Complex(z) => write!(f, "{} + {}i", z.re, z.im),
             Number::Fraction(r) => write!(f, "{}/{}", r.numer(), r.denom()),
         }
     }
@@ -364,34 +441,29 @@ mod tests {
         assert!(!Number::Complex(Complex64::new(0.0, 0.0)).is_one(None));
         assert!(!Number::Fraction(Rational64::new(0, 1)).is_one(None));
 
-        let epsilon = 1e-12;
-        let mut real = Number::Real(0.5 * epsilon);
-        let mut cmplx = Number::Complex(Complex64::new(0.5 * epsilon, -0.5 * epsilon));
+        let mut real = Number::Real(-0.0);
+        let mut cmplx = Number::Complex(Complex64::new(0.0, -0.0));
 
-        assert!(!real.is_zero(None));
-        assert!(!cmplx.is_zero(None));
-        assert!(real.is_zero(Some(epsilon)));
-        assert!(cmplx.is_zero(Some(epsilon)));
+        assert!(real.is_zero(None));
+        assert!(cmplx.is_zero(None));
 
-        real = Number::Real(5.0 * epsilon);
-        cmplx = Number::Complex(Complex64::new(5.0 * epsilon, -5.0 * epsilon));
+        let abs_error: f64 = 0.0;
+        let rel_error: f64 = 1e-12;
+        let tol = NumberTolerance::new(abs_error, rel_error);
+        let tight_tol = NumberTolerance::new(abs_error, 0.25 * rel_error);
+        real = Number::Real(1.0 + 0.5 * rel_error);
+        cmplx = Number::Complex(Complex64::new(1.0 + 0.5 * rel_error, -0.0));
 
-        assert!(!real.is_zero(Some(epsilon)));
-        assert!(!cmplx.is_zero(Some(epsilon)));
+        assert!(!real.is_one(Some(tight_tol.clone())));
+        assert!(!cmplx.is_one(Some(tight_tol.clone())));
+        assert!(real.is_one(Some(tol.clone())));
+        assert!(cmplx.is_one(Some(tol.clone())));
 
-        real = Number::Real(1.0 + 0.5 * epsilon);
-        cmplx = Number::Complex(Complex64::new(1.0 + 0.5 * epsilon, -0.5 * epsilon));
+        real = Number::Real(1.0 + 5.0 * rel_error);
+        cmplx = Number::Complex(Complex64::new(1.0 + 5.0 * rel_error, -0.0));
 
-        assert!(!real.is_one(None));
-        assert!(!cmplx.is_one(None));
-        assert!(real.is_one(Some(epsilon)));
-        assert!(cmplx.is_one(Some(epsilon)));
-
-        real = Number::Real(1.0 + 5.0 * epsilon);
-        cmplx = Number::Complex(Complex64::new(1.0 + 5.0 * epsilon, -5.0 * epsilon));
-
-        assert!(!real.is_one(Some(epsilon)));
-        assert!(!cmplx.is_one(Some(epsilon)));
+        assert!(!real.is_one(Some(tol.clone())));
+        assert!(!cmplx.is_one(Some(tol.clone())));
 
         let n1: i64 = random_range(-100..=100);
         let f1: f64 = random_range(-100.0..=100.0);
@@ -427,7 +499,7 @@ mod tests {
         assert!(Number::Fraction(Rational64::new(n1, n2)).is_scalar());
 
         assert_eq!(Number::Integer(n1), Number::Integer(n1));
-        assert_ne!(Number::Integer(n1), Number::Real(n1 as f64)); // they are different variants
+        assert_eq!(Number::Integer(n1), Number::Real(n1 as f64));
         assert_eq!(Number::Real(f1), Number::Real(ulps_up_f64(f1, 3)));
         assert_eq!(Number::Real(f1), Number::Real(ulps_down_f64(f1, 3)));
         assert_eq!(
@@ -605,6 +677,28 @@ mod tests {
         );
     }
 
+    #[test]
+    fn test_pow_i64() {
+        assert_eq!(Number::Integer(2).pow_i64(3).unwrap(), Number::Integer(8));
+        assert_eq!(
+            Number::Integer(2).pow_i64(-2).unwrap(),
+            Number::Fraction(Rational64::new(1, 4))
+        );
+        assert_eq!(Number::Real(2.0).pow_i64(2).unwrap(), Number::Real(4.0));
+        assert_eq!(
+            Number::Complex(Complex64::new(0.0, 1.0)).pow_i64(2).unwrap(),
+            Number::Complex(Complex64::new(-1.0, 0.0))
+        );
+        assert_eq!(
+            Number::Complex(Complex64::new(0.0, 1.0)).pow_i64(-3).unwrap(),
+            Number::Complex(Complex64::new(0.0, 1.0))
+        );
+        assert_eq!(
+            Number::Fraction(Rational64::new(1, 2)).pow_i64(2).unwrap(),
+            Number::Fraction(Rational64::new(1, 4))
+        );
+    }
+
     // Implementation for Expr
     #[test]
     fn test_impl_expr() {
@@ -641,13 +735,6 @@ mod tests {
         assert_eq!(&real, &Number::from_f64(f1));
         assert_eq!(&cmplx, &Number::from_complex(Complex64::new(f1, f2)));
         assert_eq!(&frac, &Number::from_rational(Rational64::new(n1, n2)));
-
-        assert_ne!(&int, &real.clone());
-        assert_ne!(&int, &cmplx.clone());
-        assert_ne!(&int, &frac.clone());
-        assert_ne!(&real, &cmplx.clone());
-        assert_ne!(&real, &frac.clone());
-        assert_ne!(&cmplx, &frac.clone());
 
         assert_eq!(format!("{}", int), n1.to_string());
         assert_eq!(format!("{}", real), f1.to_string());

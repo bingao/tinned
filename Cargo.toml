@@ -13,6 +13,7 @@ num-traits = "0.2"
 serde = { version = "1.0", features = ["derive", "rc"] }
 serde_json = "1.0"
 typetag = "0.2"
+once_cell = "1.21.3"
 
 [dev-dependencies]
 num-integer = "0.1"

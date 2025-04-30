@@ -103,8 +103,11 @@ pub mod test_utils {
 mod tests {
     use super::test_utils::*;
     use super::*;
+    use crate::expressions::Add;
     use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
-    use crate::utils::{downcast_from_arc, is_expr_type, is_one_expr, is_zero_expr};
+    use crate::utils::{
+        downcast_from_arc, is_expr_type, is_one_expr, is_zero_expr, negate_expr, subtract_exprs,
+    };
 
     test_struct_safety!(Symbol);
 
@@ -165,5 +168,11 @@ mod tests {
 
         assert!(Arc::ptr_eq(&s1, &s2));
         assert!(!Arc::ptr_eq(&s1, &s3));
+
+        assert!(is_zero_expr(
+            &Add::new(vec![s1.clone(), negate_expr(s1.clone()).unwrap()]).unwrap(),
+            None
+        ));
+        assert!(is_zero_expr(&subtract_exprs(s1.clone(), s2.clone()).unwrap(), None));
     }
 }

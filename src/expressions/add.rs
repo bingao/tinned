@@ -5,6 +5,7 @@ use typetag;
 
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{Mul, Number};
+use crate::utils::operations::group_and_sort_terms;
 use crate::utils::{
     downcast_from_arc, downcast_from_ref, intern_expr, invalid_expression_error,
     join_exprs_for_display, join_exprs_for_hash, unreachable_error,
@@ -24,7 +25,7 @@ impl Add {
     // - Numeric simplifications: 3 + 5 -> 8
     // - Combine like terms: 2*x*y + 3*x*y -> 5*x*y
     // - Identities: x + 0 = x
-    // - Sort terms based on hash values
+    // - Sort terms based on type names and hash values
     pub fn new(terms: Vec<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
         let mut constant = Number::Integer(0);
         // Key: fast hash of term (u64), Value: (expr, accumulated coefficient)
@@ -100,15 +101,14 @@ impl Add {
             simplified_terms.push(intern_expr(Arc::new(constant)));
         }
 
-        match simplified_terms.len() {
+        let mut sorted_terms = group_and_sort_terms(simplified_terms);
+
+        match sorted_terms.len() {
             0 => Ok(Number::zero()),
-            1 => Ok(simplified_terms.pop().unwrap()),
-            _ => {
-                simplified_terms.sort_by_key(|term| term.fast_hash());
-                Ok(intern_expr(Arc::new(Self {
-                    terms: simplified_terms,
-                })))
-            },
+            1 => Ok(sorted_terms.pop().unwrap()),
+            _ => Ok(intern_expr(Arc::new(Self {
+                terms: sorted_terms,
+            }))),
         }
     }
 
@@ -166,30 +166,26 @@ mod tests {
 
         let c1_cast = downcast_from_arc::<Number>(&c1).unwrap();
         let add = downcast_from_arc::<Add>(&add1).unwrap();
-        let mut asc_terms = vec![c1.clone(), x.clone(), y.clone(), z.clone()];
-        let mut desc_terms = vec![c1.clone(), x.clone(), y.clone(), z.clone()];
+        let expected_terms =
+            group_and_sort_terms(vec![c1.clone(), x.clone(), y.clone(), z.clone()]);
 
-        asc_terms.sort_by_key(|f| f.fast_hash());
-        desc_terms.sort_by_key(|f| std::cmp::Reverse(f.fast_hash()));
-
-        // - Sort terms based on hash values
+        // - Sort terms based on type names and hash values
         assert_eq!(
             add,
             &Add {
-                terms: asc_terms.clone()
+                terms: expected_terms.clone()
             }
         );
-        assert_eq!(add.terms(), &asc_terms);
-        assert_ne!(add.terms(), &desc_terms);
+        assert_eq!(add.terms(), &expected_terms);
 
         assert_eq!(
             add1.hash_key(),
-            format!("Add({})", join_exprs_for_hash(&asc_terms, DEFAULT_HASH_DELIMITER))
+            format!("Add({})", join_exprs_for_hash(&expected_terms, DEFAULT_HASH_DELIMITER))
         );
         assert!(add1.is_scalar());
         assert_eq!(
             format!("{}", add1),
-            format!("({})", join_exprs_for_display(&asc_terms, DEFAULT_FMT_DELIMITER))
+            format!("({})", join_exprs_for_display(&expected_terms, DEFAULT_FMT_DELIMITER))
         );
 
         let add2 = Add::new(vec![c1.clone(), x.clone(), y.clone(), z.clone()]).unwrap();

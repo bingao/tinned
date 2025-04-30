@@ -3,7 +3,7 @@ use std::sync::Arc;
 use typetag;
 
 use crate::core::{Expr, TinnedError};
-use crate::expressions::Number;
+use crate::expressions::{Mul, Number};
 use crate::utils::{downcast_from_arc, downcast_from_ref, intern_expr, invalid_expression_error};
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -22,6 +22,10 @@ impl Power {
             0 => Ok(Number::one()),
             1 => Ok(base),
             _ => {
+                if let Some(num) = downcast_from_arc::<Number>(&base) {
+                    return Ok(num.pow_i64(exponent)?.into());
+                }
+
                 // Flatten nested powers: (x^a)^b -> x^(a * b)
                 if let Some(inner) = downcast_from_arc::<Power>(&base) {
                     let combined_exp = inner.exponent * exponent;
@@ -29,6 +33,18 @@ impl Power {
                         base: inner.base.clone(),
                         exponent: combined_exp,
                     })));
+                }
+
+                // If `base` is a `Mul`, handle its coefficient separately
+                if let Some(mul) = downcast_from_arc::<Mul>(&base) {
+                    if !mul.coefficient().is_one(None) {
+                        let coeff_power = mul.coefficient().pow_i64(exponent)?.into();
+                        let factors_power = intern_expr(Arc::new(Self {
+                            base: Mul::new(mul.factors().to_vec())?,
+                            exponent,
+                        }));
+                        return Mul::new(vec![coeff_power, factors_power]);
+                    }
                 }
 
                 Ok(intern_expr(Arc::new(Self {

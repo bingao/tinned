@@ -17,3 +17,8 @@ pub fn unreachable_error(message: &'static str, expr: &Arc<dyn Expr>) -> TinnedE
         expression: format!("{}", expr),
     }
 }
+
+#[inline]
+pub fn message_error(message: &'static str) -> TinnedError {
+    TinnedError::Message(message.to_string())
+}

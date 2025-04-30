@@ -296,10 +296,24 @@ mod tests {
 
         keys = chain.keys();
 
-        let mut expected_keys: Vec<Arc<Perturbation>> = vec![p1, p2, p3, p4, p5];
+        let mut expected_keys: Vec<Arc<Perturbation>> =
+            vec![p1.clone(), p2.clone(), p3.clone(), p4.clone(), p5.clone()];
         expected_keys.sort();
 
         assert_eq!(keys, expected_keys);
+
+        let sum_freq = chain.sum_frequencies().unwrap();
+        let expected_sum = Add::new(vec![
+            p1.frequency().clone(),
+            p1.frequency().clone(),
+            p2.frequency().clone(),
+            p3.frequency().clone(),
+            p4.frequency().clone(),
+            p5.frequency().clone(),
+        ])
+        .unwrap();
+
+        assert_eq!(&sum_freq, &expected_sum);
     }
 
     #[test]

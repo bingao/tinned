@@ -5,6 +5,7 @@ use typetag;
 
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{Number, Power};
+use crate::utils::operations::group_and_sort_terms;
 use crate::utils::{
     downcast_from_arc, downcast_from_ref, intern_expr, invalid_expression_error, is_zero_expr,
     join_exprs_for_display, join_exprs_for_hash,
@@ -28,7 +29,7 @@ impl Mul {
     // - Identities, ensure x * 1 = x, x * 0 = 0
     // - No polynomial multiplication and expansion, e.g. keeping (x + y) * 2 as-is
     // - Series multiplication, e.g. ((2 * x) * (3 * x)) * x -> 6 * x^3
-    // - Sort terms based on hash values
+    // - Sort factors based on type names and hash values
     pub fn new(terms: Vec<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
         if terms.is_empty() {
             return Ok(Number::zero());
@@ -93,14 +94,14 @@ impl Mul {
             }
         }
 
-        simplified_factors.sort_by_key(|f| f.fast_hash());
+        let mut sorted_factors = group_and_sort_terms(simplified_factors);
 
-        match simplified_factors.len() {
+        match sorted_factors.len() {
             0 => Ok(coefficient.into()),
-            1 if coefficient.is_one(None) => Ok(simplified_factors.pop().unwrap()),
+            1 if coefficient.is_one(None) => Ok(sorted_factors.pop().unwrap()),
             _ => Ok(intern_expr(Arc::new(Self {
                 coefficient,
-                factors: simplified_factors,
+                factors: sorted_factors,
             }))),
         }
     }
@@ -164,23 +165,18 @@ mod tests {
 
         let c1_cast = downcast_from_arc::<Number>(&c1).unwrap();
         let mut mul = downcast_from_arc::<Mul>(&mul1).unwrap();
-        let mut asc_factors = vec![x.clone(), y.clone(), z.clone()];
-        let mut desc_factors = vec![x.clone(), y.clone(), z.clone()];
+        let expected_factors = group_and_sort_terms(vec![x.clone(), y.clone(), z.clone()]);
 
-        asc_factors.sort_by_key(|f| f.fast_hash());
-        desc_factors.sort_by_key(|f| std::cmp::Reverse(f.fast_hash()));
-
-        // - Sort terms based on hash values
+        // - Sort factors based on hash values
         assert_eq!(
             mul,
             &Mul {
                 coefficient: c1_cast.clone(),
-                factors: asc_factors.clone(),
+                factors: expected_factors.clone(),
             }
         );
         assert_eq!(mul.coefficient(), c1_cast);
-        assert_eq!(mul.factors(), &asc_factors);
-        assert_ne!(mul.factors(), &desc_factors);
+        assert_eq!(mul.factors(), &expected_factors);
 
         assert_eq!(
             mul1.hash_key(),
@@ -188,14 +184,14 @@ mod tests {
                 "Mul({}{}{})",
                 c1_cast.hash_key(),
                 DEFAULT_HASH_DELIMITER,
-                join_exprs_for_hash(&asc_factors, DEFAULT_HASH_DELIMITER),
+                join_exprs_for_hash(&expected_factors, DEFAULT_HASH_DELIMITER),
             )
         );
         assert!(mul1.is_scalar());
         if c1_cast.is_one(None) {
             assert_eq!(
                 format!("{}", mul1),
-                format!("{}", join_exprs_for_display(&asc_factors, DEFAULT_FMT_DELIMITER))
+                format!("{}", join_exprs_for_display(&expected_factors, DEFAULT_FMT_DELIMITER))
             );
         } else {
             assert_eq!(
@@ -204,7 +200,7 @@ mod tests {
                     "{}{}{}",
                     c1_cast,
                     DEFAULT_FMT_DELIMITER,
-                    join_exprs_for_display(&asc_factors, DEFAULT_FMT_DELIMITER),
+                    join_exprs_for_display(&expected_factors, DEFAULT_FMT_DELIMITER),
                 )
             );
         }
