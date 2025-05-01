@@ -5,9 +5,8 @@ use typetag;
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{MatrixAdd, WfnParameter, ZeroOperator};
 use crate::perturbations::{PertMultichain, Perturbation};
-use crate::utils::{
-    downcast_from_ref, expression_error, generic_expression_error, intern_expr, is_expr_type,
-    is_zero_expr,
+use crate::public::{
+    downcast_from_ref, expression_error, generic_expression_error, is_expr_type, is_zero_expr,
 };
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -94,7 +93,7 @@ impl TwoElecOperatorBuilder {
     pub fn build(self) -> Result<Arc<dyn Expr>, TinnedError> {
         if is_expr_type::<WfnParameter>(&self.density) {
             if self.dependencies.is_subchain(&self.derivative) {
-                Ok(intern_expr(Arc::new(TwoElecOperator {
+                Ok(crate::internal::intern_expr(Arc::new(TwoElecOperator {
                     name: self.name,
                     density: self.density,
                     dependencies: self.dependencies,
@@ -233,7 +232,7 @@ mod tests {
         make_pert_multichain, make_super_multichain,
     };
     use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
-    use crate::utils::{downcast_from_arc, is_one_expr};
+    use crate::public::{downcast_from_arc, is_one_expr};
 
     test_struct_safety!(TwoElecOperator);
 

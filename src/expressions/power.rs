@@ -4,8 +4,9 @@ use typetag;
 
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{Mul, Number};
-use crate::utils::{
-    downcast_from_arc, downcast_from_ref, expression_error, generic_expression_error, intern_expr,
+use crate::internal::intern_expr;
+use crate::public::{
+    downcast_from_arc, downcast_from_ref, expression_error, generic_expression_error,
 };
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -136,7 +137,7 @@ mod tests {
     use crate::expressions::exch_corr_energy::test_utils::make_exch_corr_energy;
     use crate::expressions::symbol::test_utils::make_symbol;
     use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
-    use crate::utils::{is_expr_type, is_one_expr, is_zero_expr};
+    use crate::public::{is_expr_type, is_one_expr, is_zero_expr};
 
     test_struct_safety!(Power);
 

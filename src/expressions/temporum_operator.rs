@@ -4,9 +4,8 @@ use typetag;
 
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{OneElecOperator, WfnParameter, ZeroOperator};
-use crate::utils::{
-    downcast_from_ref, expression_error, generic_expression_error, intern_expr, is_expr_type,
-    is_zero_expr,
+use crate::public::{
+    downcast_from_ref, expression_error, generic_expression_error, is_expr_type, is_zero_expr,
 };
 
 /// A TemporumOperator represents i*d/dt (forward) or -i*d/dt (backward) acting
@@ -70,7 +69,7 @@ impl TemporumOperatorBuilder {
         if is_expr_type::<OneElecOperator>(&self.argument)
             || is_expr_type::<WfnParameter>(&self.argument)
         {
-            Ok(intern_expr(Arc::new(TemporumOperator {
+            Ok(crate::internal::intern_expr(Arc::new(TemporumOperator {
                 is_forward: self.is_forward,
                 argument: self.argument,
             })))
@@ -160,7 +159,7 @@ mod tests {
     use crate::expressions::one_elec_operator::test_utils::make_one_elec_operator;
     use crate::expressions::wfn_parameter::test_utils::make_wfn_parameter;
     use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
-    use crate::utils::{downcast_from_arc, is_one_expr};
+    use crate::public::{downcast_from_arc, is_one_expr};
 
     test_struct_safety!(TemporumOperator);
 

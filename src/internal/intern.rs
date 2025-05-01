@@ -14,7 +14,7 @@ macro_rules! define_interner {
         }
 
         #[inline]
-        pub fn $fn_name(obj: Arc<$ty>) -> Arc<$ty> {
+        pub(crate) fn $fn_name(obj: Arc<$ty>) -> Arc<$ty> {
             let key = obj.hash_key();
 
             match $map_name.entry(key) {

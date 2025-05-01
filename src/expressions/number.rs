@@ -8,7 +8,8 @@ use num_traits::{ToPrimitive, Zero};
 use typetag;
 
 use crate::core::{Expr, TinnedError};
-use crate::utils::{NumberTolerance, generic_error, get_number_tolerance, intern_expr};
+use crate::internal::intern_expr;
+use crate::public::{NumberTolerance, downcast_from_ref, generic_error, get_number_tolerance};
 
 // Define an enum to store different number types
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -283,14 +284,14 @@ impl Number {
 impl From<Number> for Arc<dyn Expr> {
     #[inline]
     fn from(num: Number) -> Self {
-        crate::utils::intern_expr(Arc::new(num))
+        intern_expr(Arc::new(num))
     }
 }
 
 impl From<&Number> for Arc<dyn Expr> {
     #[inline]
     fn from(num: &Number) -> Self {
-        crate::utils::intern_expr(Arc::new(num.clone()))
+        intern_expr(Arc::new(num.clone()))
     }
 }
 
@@ -318,7 +319,7 @@ impl Expr for Number {
 
     #[inline]
     fn eq_expr(&self, other: &dyn Expr) -> bool {
-        if let Some(num) = crate::utils::downcast_from_ref::<Number>(other) {
+        if let Some(num) = downcast_from_ref::<Number>(other) {
             self == num
         } else {
             false
@@ -409,7 +410,7 @@ mod tests {
     use super::test_utils::*;
     use super::*;
     use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
-    use crate::utils::{downcast_from_arc, is_expr_type, is_one_expr, is_zero_expr};
+    use crate::public::{downcast_from_arc, is_expr_type, is_one_expr, is_zero_expr};
     use num_integer::Integer;
     use rand::random_range;
 

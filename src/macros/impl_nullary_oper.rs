@@ -116,7 +116,7 @@ macro_rules! impl_nullary_oper_type {
         #[inline]
         pub fn build(self) -> Result<Arc<dyn Expr>, TinnedError> {
             if self.dependencies.is_subchain(&self.derivative) {
-                Ok(crate::utils::intern_expr(Arc::new($type_name {
+                Ok(crate::internal::intern_expr(Arc::new($type_name {
                     name: self.name,
                     dependencies: self.dependencies,
                     derivative: self.derivative,
@@ -137,7 +137,7 @@ macro_rules! impl_nullary_oper_type {
         #[inline]
         pub fn build(self) -> Result<Arc<dyn Expr>, TinnedError> {
             if self.dependencies.is_subchain(&self.derivative) {
-                Ok(crate::utils::intern_expr(Arc::new($type_name {
+                Ok(crate::internal::intern_expr(Arc::new($type_name {
                     name: self.name,
                     dependencies: self.dependencies,
                     derivative: self.derivative,
@@ -155,7 +155,7 @@ macro_rules! impl_nullary_oper_type {
     (@impl_builder_methods $type_name:ident, false, false) => {
         #[inline]
         pub fn build(self) -> Result<Arc<dyn Expr>, TinnedError> {
-            Ok(crate::utils::intern_expr(Arc::new($type_name {
+            Ok(crate::internal::intern_expr(Arc::new($type_name {
                 name: self.name,
                 derivative: self.derivative,
             })))
@@ -181,7 +181,7 @@ macro_rules! impl_nullary_oper_traits {
 
             #[inline]
             fn eq_expr(&self, other: &dyn Expr) -> bool {
-                if let Some(op) = crate::utils::downcast_from_ref::<$type_name>(other) {
+                if let Some(op) = crate::public::downcast_from_ref::<$type_name>(other) {
                     impl_nullary_oper_traits!(@impl_eq_expr $has_deps, self, op)
                 } else {
                     false

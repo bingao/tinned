@@ -143,6 +143,6 @@ macro_rules! impl_mul_traits {
     (@non_one_coefficient $coefficient:expr, true) => { !$coefficient.is_one(None) };
 
     (@non_one_coefficient $coefficient:expr, false) => {
-        !crate::utils::is_one_expr(&$coefficient, None)
+        !crate::public::is_one_expr(&$coefficient, None)
     };
 }

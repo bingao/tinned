@@ -5,10 +5,11 @@ use typetag;
 
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{Number, Power};
-use crate::utils::operations::group_and_sort_terms;
-use crate::utils::{
-    downcast_from_arc, downcast_from_ref, expression_error, generic_expression_error, intern_expr,
-    is_zero_expr, multi_expression_format, multi_expression_hash,
+use crate::internal::{
+    intern_expr, multi_expression_format, multi_expression_hash, sort_multi_expressions,
+};
+use crate::public::{
+    downcast_from_arc, downcast_from_ref, expression_error, generic_expression_error, is_zero_expr,
 };
 
 // Multiplication Expression
@@ -98,7 +99,7 @@ impl Mul {
             }
         }
 
-        let mut sorted_factors = group_and_sort_terms(simplified_factors);
+        let mut sorted_factors = sort_multi_expressions(&simplified_factors);
 
         match sorted_factors.len() {
             0 => Ok(coefficient.into()),
@@ -139,7 +140,7 @@ mod tests {
     use crate::expressions::two_elec_energy::test_utils::make_two_elec_energy;
     use crate::expressions::{Add, Symbol, Trace};
     use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
-    use crate::utils::{is_expr_type, is_one_expr};
+    use crate::public::{is_expr_type, is_one_expr};
     use num_complex::Complex64;
     use num_rational::Rational64;
 
@@ -169,7 +170,7 @@ mod tests {
 
         let c1_cast = downcast_from_arc::<Number>(&c1).unwrap();
         let mut mul = downcast_from_arc::<Mul>(&mul1).unwrap();
-        let expected_factors = group_and_sort_terms(vec![x.clone(), y.clone(), z.clone()]);
+        let expected_factors = sort_multi_expressions(&vec![x.clone(), y.clone(), z.clone()]);
 
         // - Sort factors based on hash values
         assert_eq!(

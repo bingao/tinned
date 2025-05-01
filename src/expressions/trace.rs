@@ -6,9 +6,10 @@ use crate::core::{Expr, TinnedError};
 use crate::expressions::{
     Add, Conjugate, HermitianTranspose, MatrixAdd, MatrixMul, Mul, Number, Transpose, ZeroOperator,
 };
-use crate::utils::{
-    downcast_from_arc, downcast_from_ref, expression_error, generic_expression_error, intern_expr,
-    is_expr_type, is_one_expr,
+use crate::internal::intern_expr;
+use crate::public::{
+    downcast_from_arc, downcast_from_ref, expression_error, generic_expression_error, is_expr_type,
+    is_one_expr,
 };
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -95,7 +96,7 @@ mod tests {
     #[test]
     fn test_impl_expr() {
         let op0 = Trace::new(ZeroOperator::new()).unwrap();
-        assert!(crate::utils::is_zero_expr(&op0, None));
+        assert!(crate::public::is_zero_expr(&op0, None));
 
         let arg_2el = make_two_elec_operator("", None);
         let op1 = Trace::new(arg_2el.clone()).unwrap();

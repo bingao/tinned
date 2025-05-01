@@ -13,7 +13,7 @@ pub struct Symbol {
 impl Symbol {
     #[inline]
     pub fn new(name: impl Into<String>) -> Arc<dyn Expr> {
-        crate::utils::intern_expr(Arc::new(Self {
+        crate::internal::intern_expr(Arc::new(Self {
             name: name.into(),
         }))
     }
@@ -43,7 +43,7 @@ impl Expr for Symbol {
 
     #[inline]
     fn eq_expr(&self, other: &dyn Expr) -> bool {
-        if let Some(s) = crate::utils::downcast_from_ref::<Symbol>(other) {
+        if let Some(s) = crate::public::downcast_from_ref::<Symbol>(other) {
             self.name == s.name
         } else {
             false
@@ -105,7 +105,7 @@ mod tests {
     use super::*;
     use crate::expressions::Add;
     use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
-    use crate::utils::{
+    use crate::public::{
         downcast_from_arc, is_expr_type, is_one_expr, is_zero_expr, negate_expr, subtract_exprs,
     };
 

@@ -5,10 +5,12 @@ use typetag;
 
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{Mul, Number};
-use crate::utils::operations::group_and_sort_terms;
-use crate::utils::{
-    downcast_from_arc, downcast_from_ref, expression_error, generic_expression_error, intern_expr,
-    multi_expression_format, multi_expression_hash, unreachable_error,
+use crate::internal::{
+    intern_expr, multi_expression_format, multi_expression_hash, sort_multi_expressions,
+};
+use crate::public::{
+    downcast_from_arc, downcast_from_ref, expression_error, generic_expression_error,
+    unreachable_error,
 };
 
 // Addition Expression
@@ -109,7 +111,7 @@ impl Add {
             simplified_terms.push(intern_expr(Arc::new(constant)));
         }
 
-        let mut sorted_terms = group_and_sort_terms(simplified_terms);
+        let mut sorted_terms = sort_multi_expressions(&simplified_terms);
 
         match sorted_terms.len() {
             0 => Ok(Number::zero()),
@@ -143,7 +145,7 @@ mod tests {
     use crate::expressions::wfn_parameter::test_utils::make_wfn_parameter;
     use crate::expressions::{Power, Symbol, Trace};
     use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
-    use crate::utils::{is_expr_type, is_one_expr, is_zero_expr};
+    use crate::public::{is_expr_type, is_one_expr, is_zero_expr};
     use num_complex::Complex64;
     use num_rational::Rational64;
 
@@ -175,7 +177,7 @@ mod tests {
         let c1_cast = downcast_from_arc::<Number>(&c1).unwrap();
         let add = downcast_from_arc::<Add>(&add1).unwrap();
         let expected_terms =
-            group_and_sort_terms(vec![c1.clone(), x.clone(), y.clone(), z.clone()]);
+            sort_multi_expressions(&vec![c1.clone(), x.clone(), y.clone(), z.clone()]);
 
         // - Sort terms based on type names and hash values
         assert_eq!(

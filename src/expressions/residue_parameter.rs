@@ -4,10 +4,10 @@ use typetag;
 
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{LagMultiplier, WfnParameter, ZeroOperator};
+use crate::internal::{intern_expr, multi_perturbation_format, multi_perturbation_hash};
 use crate::perturbations::Perturbation;
-use crate::utils::{
-    downcast_from_arc, downcast_from_ref, expression_error, generic_expression_error, intern_expr,
-    is_expr_type, multi_perturbation_format, multi_perturbation_hash,
+use crate::public::{
+    downcast_from_arc, downcast_from_ref, expression_error, generic_expression_error, is_expr_type,
 };
 
 /// A ResidueParameter is a perturbed parameter with the sum of frequencies of
@@ -194,7 +194,7 @@ mod tests {
     //use crate::expressions::wfn_parameter::test_utils::make_wfn_parameter;
     use crate::perturbations::pert_multichain::test_utils::{make_pert_multichain, make_pert_vec};
     use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
-    use crate::utils::{is_one_expr, is_zero_expr};
+    use crate::public::{is_one_expr, is_zero_expr};
 
     test_struct_safety!(ResidueParameter);
 

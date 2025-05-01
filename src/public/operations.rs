@@ -1,10 +1,9 @@
-use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use crate::core::{Expr, TinnedError};
-use crate::expressions::{Add, MatrixAdd, MatrixMul, Mul, Number};
+use crate::expressions::{Add, MatrixAdd, MatrixMul, Mul, Number, Power};
 use crate::perturbations::Perturbation;
-use crate::utils::{downcast_from_arc, expression_error, multi_expression_error};
+use crate::public::{downcast_from_arc, expression_error, multi_expression_error};
 
 #[inline]
 pub fn negate_expr(expr: Arc<dyn Expr>) -> Result<Arc<dyn Expr>, TinnedError> {
@@ -37,6 +36,14 @@ pub fn subtract_exprs(
     }
 }
 
+#[inline]
+pub fn divide_exprs(
+    numerator: Arc<dyn Expr>,
+    denominator: Arc<dyn Expr>,
+) -> Result<Arc<dyn Expr>, TinnedError> {
+    Mul::new(vec![numerator, Power::new(denominator, -1)?])
+}
+
 /// Performs high-order differentiation
 #[inline]
 pub fn differentiate_expr(
@@ -51,25 +58,4 @@ pub fn differentiate_expr(
     }
 
     Ok(deriv)
-}
-
-/// Sorts a list of expressions by grouping them by `type_id`
-/// and sorting within each group by `fast_hash()`.
-#[inline]
-pub(crate) fn group_and_sort_terms(terms: Vec<Arc<dyn Expr>>) -> Vec<Arc<dyn Expr>> {
-    // Group terms by type names
-    let mut grouped: BTreeMap<&'static str, Vec<Arc<dyn Expr>>> = BTreeMap::new();
-
-    for term in terms {
-        grouped.entry(term.type_name()).or_default().push(term);
-    }
-
-    // Now flatten: within each group, sort by `fast_hash()`
-    let mut sorted = Vec::new();
-    for mut group in grouped.into_values() {
-        group.sort_by_key(|term| term.fast_hash());
-        sorted.extend(group);
-    }
-
-    sorted
 }

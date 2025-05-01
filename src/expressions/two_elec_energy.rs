@@ -5,9 +5,8 @@ use typetag;
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{Add, Number, WfnParameter};
 use crate::perturbations::{PertMultichain, Perturbation};
-use crate::utils::{
-    downcast_from_ref, expression_error, generic_expression_error, intern_expr, is_expr_type,
-    is_zero_expr,
+use crate::public::{
+    downcast_from_ref, expression_error, generic_expression_error, is_expr_type, is_zero_expr,
 };
 
 /// allow_density_swap means we allow inner_density and outer_density to be
@@ -160,7 +159,7 @@ impl TwoElecEnergyBuilder {
             return Ok(Number::zero());
         }
 
-        Ok(intern_expr(Arc::new(TwoElecEnergy {
+        Ok(crate::internal::intern_expr(Arc::new(TwoElecEnergy {
             name: self.name,
             inner_density: self.inner_density,
             outer_density: outer,
@@ -350,7 +349,7 @@ mod tests {
         make_pert_multichain, make_super_multichain,
     };
     use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
-    use crate::utils::{downcast_from_arc, is_one_expr};
+    use crate::public::{downcast_from_arc, is_one_expr};
 
     test_struct_safety!(TwoElecEnergy);
 

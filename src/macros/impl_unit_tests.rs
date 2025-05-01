@@ -455,7 +455,7 @@ macro_rules! test_unary_oper_properties {
             let op1 = $type_name::new(arg_2el.clone()).unwrap();
 
             assert!(is_expr_type::<$type_name>(&op1));
-            assert!(!crate::utils::is_zero_expr(&op1, None));
+            assert!(!crate::public::is_zero_expr(&op1, None));
             assert!(!is_one_expr(&op1, None));
 
             let op2 = $type_name::new(arg_2el).unwrap();
@@ -478,7 +478,7 @@ macro_rules! test_transpose {
         #[test]
         fn test_impl_expr() {
             let op0 = $type_name::new(ZeroOperator::new()).unwrap();
-            assert!(crate::utils::is_zero_expr(&op0, None));
+            assert!(crate::public::is_zero_expr(&op0, None));
 
             let arg_2el = make_two_elec_operator("", None);
             let op1 = $type_name::new(arg_2el.clone()).unwrap();

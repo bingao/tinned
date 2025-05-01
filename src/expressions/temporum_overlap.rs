@@ -4,8 +4,9 @@ use typetag;
 
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{MatrixMul, OneElecOperator, TemporumOperator, ZeroOperator};
+use crate::internal::intern_expr;
 use crate::perturbations::{PertMultichain, Perturbation};
-use crate::utils::{downcast_from_ref, generic_expression_error, intern_expr, is_expr_type};
+use crate::public::{downcast_from_ref, generic_expression_error, is_expr_type};
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct TemporumOverlap {
@@ -142,7 +143,7 @@ mod tests {
         make_pert_multichain, make_super_multichain,
     };
     use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
-    use crate::utils::{downcast_from_arc, is_one_expr, is_zero_expr};
+    use crate::public::{downcast_from_arc, is_one_expr, is_zero_expr};
 
     test_struct_safety!(TemporumOverlap);
 

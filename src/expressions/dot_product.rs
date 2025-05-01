@@ -6,9 +6,10 @@ use crate::core::{Expr, TinnedError};
 use crate::expressions::{
     Add, Conjugate, HermitianTranspose, MatrixMul, Mul, Number, Transpose, ZeroOperator,
 };
-use crate::utils::{
-    downcast_from_arc, downcast_from_ref, expression_error, generic_expression_error, intern_expr,
-    is_expr_type, is_one_expr,
+use crate::internal::intern_expr;
+use crate::public::{
+    downcast_from_arc, downcast_from_ref, expression_error, generic_expression_error, is_expr_type,
+    is_one_expr,
 };
 
 /// Dot product of a bra and a ket (inner product)
@@ -225,7 +226,7 @@ mod tests {
     use crate::expressions::symbol::test_utils::make_symbol;
     use crate::expressions::wfn_parameter::test_utils::make_wfn_parameter;
     use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
-    use crate::utils::is_zero_expr;
+    use crate::public::is_zero_expr;
 
     test_struct_safety!(DotProduct);
 

@@ -45,7 +45,7 @@ macro_rules! impl_add_traits {
                     let diff = term.differentiate(s).map_err(|e| {
                         generic_expression_error("Differentiation failed", self, Some(Box::new(e)))
                     })?;
-                    if !crate::utils::is_zero_expr(&diff, None) {
+                    if !crate::public::is_zero_expr(&diff, None) {
                         diff_terms.push(diff);
                     }
                 }

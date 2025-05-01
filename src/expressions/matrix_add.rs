@@ -5,11 +5,12 @@ use typetag;
 
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{Add, MatrixMul, Number, ZeroOperator};
-use crate::utils::operations::group_and_sort_terms;
-use crate::utils::{
-    downcast_from_arc, downcast_from_ref, expression_error, generic_expression_error, intern_expr,
-    is_expr_type, is_one_expr, is_zero_expr, multi_expression_format, multi_expression_hash,
-    unreachable_error,
+use crate::internal::{
+    intern_expr, multi_expression_format, multi_expression_hash, sort_multi_expressions,
+};
+use crate::public::{
+    downcast_from_arc, downcast_from_ref, expression_error, generic_expression_error, is_expr_type,
+    is_one_expr, is_zero_expr, unreachable_error,
 };
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -100,7 +101,7 @@ impl MatrixAdd {
             }
         }
 
-        let mut sorted_terms = group_and_sort_terms(simplified_terms);
+        let mut sorted_terms = sort_multi_expressions(&simplified_terms);
 
         match sorted_terms.len() {
             0 => Ok(ZeroOperator::new()),
@@ -171,7 +172,7 @@ mod tests {
         assert!(is_expr_type::<MatrixAdd>(&add1));
 
         let add = downcast_from_arc::<MatrixAdd>(&add1).unwrap();
-        let expected_terms = group_and_sort_terms(vec![
+        let expected_terms = sort_multi_expressions(&vec![
             MatrixMul::new(vec![c1.clone(), op_a.clone()]).unwrap(),
             MatrixMul::new(vec![c2.clone(), op_b.clone()]).unwrap(),
             op_c.clone(),

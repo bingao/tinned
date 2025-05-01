@@ -2,12 +2,12 @@ use std::sync::Arc;
 
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{Composition, MatrixMul, Trace, WfnParameter};
-use crate::utils::{expression_error, is_expr_type};
+use crate::public::{expression_error, is_expr_type};
 
 // Helper function to validate the density matrix, grid weight and overlap
 // distribution
 #[inline]
-pub fn validate_xc_inputs(
+pub(crate) fn validate_xc_inputs(
     density_matrix: &Arc<dyn Expr>,
     grid_weight: &Arc<dyn Expr>,
     overlap_distribution: &Arc<dyn Expr>,
@@ -41,7 +41,7 @@ pub fn validate_xc_inputs(
 
 // Helper function to compute XC energy density
 #[inline]
-pub fn build_xc_density(
+pub(crate) fn build_xc_density(
     name: impl Into<String>,
     density_matrix: Arc<dyn Expr>,
     overlap_distribution: Arc<dyn Expr>,

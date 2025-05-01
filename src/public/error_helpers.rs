@@ -2,8 +2,8 @@ use std::error::Error;
 use std::sync::Arc;
 
 use crate::core::{Expr, TinnedError};
+use crate::internal::{multi_expression_format, multi_perturbation_format};
 use crate::perturbations::Perturbation;
-use crate::utils::{multi_expression_format, multi_perturbation_format};
 
 #[inline]
 pub fn multi_expression_error(

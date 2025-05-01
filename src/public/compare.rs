@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::core::Expr;
 use crate::expressions::{Number, ZeroOperator};
-use crate::utils::{NumberTolerance, downcast_from_arc};
+use crate::public::{NumberTolerance, downcast_from_arc};
 
 #[inline]
 pub fn is_zero_expr(expr: &Arc<dyn Expr>, num_tol: Option<NumberTolerance>) -> bool {

@@ -14,7 +14,7 @@ pub struct Composition {
 impl Composition {
     #[inline]
     pub fn new(name: impl Into<String>, order: u32, inner: Arc<dyn Expr>) -> Arc<dyn Expr> {
-        crate::utils::intern_expr(Arc::new(Self {
+        crate::internal::intern_expr(Arc::new(Self {
             name: name.into(),
             order,
             inner,
@@ -56,7 +56,7 @@ impl Expr for Composition {
 
     #[inline]
     fn eq_expr(&self, other: &dyn Expr) -> bool {
-        if let Some(comp) = crate::utils::downcast_from_ref::<Composition>(other) {
+        if let Some(comp) = crate::public::downcast_from_ref::<Composition>(other) {
             self == comp
         } else {
             false
@@ -75,7 +75,7 @@ impl Expr for Composition {
         // Differentiation using the chain rule in calculus
         let diff_outer = Self::new(self.name.clone(), self.order + 1, self.inner.clone());
         let diff_inner = self.inner.differentiate(s).map_err(|e| {
-            crate::utils::generic_expression_error(
+            crate::public::generic_expression_error(
                 "Differentiation failed",
                 self,
                 Some(Box::new(e)),
@@ -111,7 +111,7 @@ mod tests {
     use crate::expressions::symbol::test_utils::{make_symbol, random_alphanumeric};
     use crate::expressions::{Mul, Power};
     use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
-    use crate::utils::{downcast_from_arc, is_expr_type, is_one_expr, is_zero_expr};
+    use crate::public::{downcast_from_arc, is_expr_type, is_one_expr, is_zero_expr};
 
     test_struct_safety!(Composition);
 

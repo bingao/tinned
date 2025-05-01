@@ -5,10 +5,9 @@ use std::sync::Arc;
 use typetag;
 
 use crate::core::{Expr, TinnedError};
+use crate::internal::{build_xc_density, intern_expr, validate_xc_inputs};
 use crate::perturbations::{PertMultichain, Perturbation};
-use crate::utils::{
-    build_xc_density, downcast_from_ref, generic_expression_error, intern_expr, validate_xc_inputs,
-};
+use crate::public::{downcast_from_ref, generic_expression_error};
 
 fn build_xc_energy(
     grid_weight: Arc<dyn Expr>,
@@ -47,7 +46,7 @@ mod tests {
     use crate::expressions::one_elec_operator::test_utils::make_one_elec_operator;
     use crate::expressions::wfn_parameter::test_utils::make_wfn_parameter;
     use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
-    use crate::utils::{downcast_from_arc, is_expr_type, is_one_expr, is_zero_expr};
+    use crate::public::{downcast_from_arc, is_expr_type, is_one_expr, is_zero_expr};
 
     test_exch_corr!(
         ExchCorrEnergy,

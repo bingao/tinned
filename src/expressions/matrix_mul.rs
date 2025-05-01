@@ -4,9 +4,10 @@ use typetag;
 
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{Mul, Number, ZeroOperator};
-use crate::utils::{
-    downcast_from_arc, downcast_from_ref, generic_expression_error, intern_expr, is_expr_type,
-    is_one_expr, is_zero_expr, multi_expression_format, multi_expression_hash,
+use crate::internal::{intern_expr, multi_expression_format, multi_expression_hash};
+use crate::public::{
+    downcast_from_arc, downcast_from_ref, generic_expression_error, is_expr_type, is_one_expr,
+    is_zero_expr,
 };
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]

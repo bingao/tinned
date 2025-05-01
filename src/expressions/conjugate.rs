@@ -6,7 +6,8 @@ use crate::core::{Expr, TinnedError};
 use crate::expressions::{
     Add, DotProduct, HermitianTranspose, MatrixMul, Mul, Number, Power, Transpose, ZeroOperator,
 };
-use crate::utils::{downcast_from_arc, downcast_from_ref, intern_expr, is_expr_type, is_one_expr};
+use crate::internal::intern_expr;
+use crate::public::{downcast_from_arc, downcast_from_ref, is_expr_type, is_one_expr};
 
 /// Represents complex conjugation of an expression.
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -104,7 +105,7 @@ impl Expr for Conjugate {
         s: &Arc<crate::perturbations::Perturbation>,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
         let diff_arg = self.argument.differentiate(s).map_err(|e| {
-            crate::utils::generic_expression_error(
+            crate::public::generic_expression_error(
                 "Differentiation failed",
                 self,
                 Some(Box::new(e)),
@@ -138,7 +139,7 @@ mod tests {
     use crate::expressions::wfn_parameter::test_utils::make_wfn_parameter;
     use crate::expressions::{Power, Symbol};
     use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
-    use crate::utils::is_zero_expr;
+    use crate::public::is_zero_expr;
     use num_complex::Complex64;
     use num_rational::Rational64;
 

@@ -10,7 +10,7 @@ pub struct ZeroOperator;
 impl ZeroOperator {
     #[inline]
     pub fn new() -> Arc<dyn Expr> {
-        crate::utils::intern_expr(Arc::new(Self))
+        crate::internal::intern_expr(Arc::new(Self))
     }
 }
 
@@ -62,7 +62,7 @@ impl std::fmt::Display for ZeroOperator {
 mod tests {
     use super::*;
     use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
-    use crate::utils::{downcast_from_arc, is_expr_type, is_one_expr, is_zero_expr};
+    use crate::public::{downcast_from_arc, is_expr_type, is_one_expr, is_zero_expr};
 
     test_struct_safety!(ZeroOperator);
 

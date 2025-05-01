@@ -16,7 +16,7 @@ pub struct Perturbation {
 impl Perturbation {
     #[inline]
     pub fn new(name: impl Into<String>, frequency: Arc<dyn Expr>) -> Arc<Self> {
-        crate::utils::intern_pert(Arc::new(Self {
+        crate::internal::intern_pert(Arc::new(Self {
             name: name.into(),
             frequency,
         }))
