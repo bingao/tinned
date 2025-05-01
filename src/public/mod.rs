@@ -11,4 +11,6 @@ pub use error_helpers::{
 };
 pub use inspect::{downcast_from_arc, downcast_from_ref, is_expr_type};
 pub use number_tolerance::{NumberTolerance, get_number_tolerance, set_number_tolerance};
-pub use operations::{differentiate_expr, divide_exprs, negate_expr, subtract_exprs};
+pub use operations::{
+    differentiate_expr, divide_exprs, negate_expr, subtract_exprs, sum_pert_frequencies,
+};

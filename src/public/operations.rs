@@ -59,3 +59,13 @@ pub fn differentiate_expr(
 
     Ok(deriv)
 }
+
+/// Returns sum of frequencies of a list of perturbations
+#[inline]
+pub fn sum_pert_frequencies(
+    perturbations: &[Arc<Perturbation>],
+) -> Result<Arc<dyn Expr>, TinnedError> {
+    let terms: Vec<_> = perturbations.iter().map(|p| p.frequency().clone()).collect();
+
+    Add::new(terms)
+}
