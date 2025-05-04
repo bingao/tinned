@@ -3,7 +3,7 @@ use std::sync::Arc;
 use typetag;
 
 use crate::core::{Expr, TinnedError};
-use crate::expressions::{Add, Number, WfnParameter};
+use crate::expressions::{Add, Number, TwoElecOperator, WfnParameter};
 use crate::perturbations::{PertMultichain, Perturbation};
 use crate::public::{
     downcast_from_ref, expression_error, generic_expression_error, is_expr_type, is_zero_expr,
@@ -35,7 +35,19 @@ impl TwoElecEnergy {
     }
 
     #[inline]
-    fn builder_from_inner_density(&self, inner_density: Arc<dyn Expr>) -> TwoElecEnergyBuilder {
+    pub fn builder_from_operator(two_elec_op: &TwoElecOperator) -> TwoElecEnergyBuilder {
+        TwoElecEnergyBuilder {
+            name: two_elec_op.name().into(),
+            inner_density: two_elec_op.density().clone(),
+            outer_density: Some(two_elec_op.density().clone()),
+            allow_density_swap: true,
+            dependencies: two_elec_op.dependencies().clone(),
+            derivative: two_elec_op.derivative().clone(),
+        }
+    }
+
+    #[inline]
+    fn builder_with_inner_density(&self, inner_density: Arc<dyn Expr>) -> TwoElecEnergyBuilder {
         TwoElecEnergyBuilder {
             name: self.name.clone(),
             inner_density,
@@ -47,7 +59,7 @@ impl TwoElecEnergy {
     }
 
     #[inline]
-    fn builder_from_outer_density(&self, outer_density: Arc<dyn Expr>) -> TwoElecEnergyBuilder {
+    fn builder_with_outer_density(&self, outer_density: Arc<dyn Expr>) -> TwoElecEnergyBuilder {
         TwoElecEnergyBuilder {
             name: self.name.clone(),
             inner_density: self.inner_density.clone(),
@@ -59,7 +71,7 @@ impl TwoElecEnergy {
     }
 
     #[inline]
-    fn builder_from_derivative(&self, derivative: PertMultichain) -> TwoElecEnergyBuilder {
+    fn builder_with_derivative(&self, derivative: PertMultichain) -> TwoElecEnergyBuilder {
         TwoElecEnergyBuilder {
             name: self.name.clone(),
             inner_density: self.inner_density.clone(),
@@ -229,17 +241,17 @@ impl Expr for TwoElecEnergy {
         })?;
 
         let mut terms = vec![
-            self.builder_from_inner_density(diff_inner)
+            self.builder_with_inner_density(diff_inner)
                 .allow_density_swap(self.allow_density_swap)
                 .build()?,
-            self.builder_from_outer_density(diff_outer)
+            self.builder_with_outer_density(diff_outer)
                 .allow_density_swap(self.allow_density_swap)
                 .build()?,
         ];
 
         let new_deriv = self.derivative.clone_with_insert(s);
         let diff_oper = self
-            .builder_from_derivative(new_deriv)
+            .builder_with_derivative(new_deriv)
             .allow_density_swap(self.allow_density_swap)
             .build()?;
 
@@ -401,15 +413,15 @@ mod tests {
         assert_eq!(op.dependencies(), &deps);
         assert_eq!(op.derivative(), &deriv);
 
-        let mut op2 = op.builder_from_inner_density(inner_density.clone()).build().unwrap();
+        let mut op2 = op.builder_with_inner_density(inner_density.clone()).build().unwrap();
         assert!(Arc::ptr_eq(&op1, &op2));
         assert_eq!(&op1, &op2);
 
-        op2 = op.builder_from_outer_density(outer_density.clone()).build().unwrap();
+        op2 = op.builder_with_outer_density(outer_density.clone()).build().unwrap();
         assert!(Arc::ptr_eq(&op1, &op2));
         assert_eq!(&op1, &op2);
 
-        op2 = op.builder_from_derivative(deriv.clone()).build().unwrap();
+        op2 = op.builder_with_derivative(deriv.clone()).build().unwrap();
         assert!(Arc::ptr_eq(&op1, &op2));
         assert_eq!(&op1, &op2);
 
@@ -578,7 +590,7 @@ mod tests {
 
         let op = downcast_from_arc::<TwoElecEnergy>(&op1).unwrap();
         let op6 = op
-            .builder_from_inner_density(outer_density.clone())
+            .builder_with_inner_density(outer_density.clone())
             .outer_density(inner_density.clone())
             .allow_density_swap(false)
             .build()

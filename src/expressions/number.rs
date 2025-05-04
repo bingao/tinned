@@ -57,6 +57,11 @@ impl Number {
     }
 
     #[inline]
+    pub fn one_half() -> Arc<dyn Expr> {
+        intern_expr(Arc::new(Number::Fraction(Rational64::new(1, 2))))
+    }
+
+    #[inline]
     pub fn is_zero(&self, num_tol: Option<NumberTolerance>) -> bool {
         self.approx_eq_number(&Number::Integer(0), num_tol)
     }

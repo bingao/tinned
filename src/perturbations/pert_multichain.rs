@@ -81,6 +81,21 @@ impl PertMultichain {
         self.0.lock().unwrap().clone()
     }
 
+    /// Returns a cloned vector of the perturbation multichain.
+    #[inline]
+    pub fn to_vec(&self) -> Vec<Arc<Perturbation>> {
+        let map = self.0.lock().unwrap();
+        let mut result = Vec::new();
+
+        for (pert, &count) in map.iter() {
+            if count > 0 {
+                result.extend(std::iter::repeat(pert.clone()).take(count as usize));
+            }
+        }
+
+        result
+    }
+
     /// Inserts a perturbation into the multichain, or increases the order by 1
     /// if the perturbation already exists in the multichain.
     #[inline]

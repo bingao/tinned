@@ -1,4 +1,5 @@
 use std::cmp::Ordering;
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
 use std::hash::{Hash, Hasher};
 //use log::warn;
@@ -8,19 +9,22 @@ use typetag;
 
 use crate::core::TinnedError;
 
-// Base Expression Trait
+// Base Expression trait
 #[typetag::serde]
 pub trait Expr: Debug + Send + Sync {
+    //
     fn as_any(&self) -> &dyn std::any::Any;
 
+    //
     #[inline]
     fn type_name(&self) -> &'static str {
         std::any::type_name::<Self>()
     }
 
+    //
     fn hash_key(&self) -> String;
 
-    // Precompute Hashes for Faster Sorting
+    // Precomputes hashes for faster sorting
     #[inline]
     fn fast_hash(&self) -> u64 {
         let mut hasher = std::collections::hash_map::DefaultHasher::new();
@@ -28,17 +32,48 @@ pub trait Expr: Debug + Send + Sync {
         hasher.finish()
     }
 
+    // Returns if the concrete expression type is scalar
     fn is_scalar(&self) -> bool;
 
-    // Compare equality for concrete expression types
+    // Compares equality for concrete expression types
     fn eq_expr(&self, other: &dyn Expr) -> bool;
 
+    //
     fn fmt_expr(&self, f: &mut Formatter) -> FmtResult;
 
+    //    // Helper function to clean `TemporumOperator` and unperturbed
+    //    // `TemporumOverlap` objects in `x`
+    //    fn clean_temporum(&self) -> Result<Arc<dyn Expr>, TinnedError>;
+
+    // Differentiate with respect to a `Perturbation`
     fn differentiate(
         &self,
         s: &Arc<crate::perturbations::Perturbation>,
     ) -> Result<Arc<dyn Expr>, TinnedError>;
+
+    //    // Helper function to eliminate a given response `parameter`'s derivatives
+    //    // from `x`. Maximum order of derivatives to be eliminated is the length of
+    //    // `perturbations`, and minimum order is specified by `min_order`. For wave
+    //    // function parameters, it should be greater than the floor function of the
+    //    // half length of `perturbations`, and for multipliers, it should be greater
+    //    // than or equal to the ceiling function of the half length of
+    //    // `perturbations` according to J. Chem. Phys. 129, 214103 (2008).
+    //    fn eliminate(
+    //        &self,
+    //        parameter: &Arc<dyn Expr>,
+    //        perturbations: &[Arc<Perturbation>],
+    //        min_order: u32,
+    //    ) -> Result<Arc<dyn Expr>, TinnedError>;
+    //
+    //    // Find a given `s` and all its differentiated ones
+    //    fn find_all(&self, s: &Arc<dyn Expr>) -> BTreeMap<u32, HashSet<Arc<dyn Expr>>>;
+    //
+    //    // Helper function to remove given `symbols` from `x`
+    //    fn remove(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError>;
+    //
+    //    // Helper function to replace Tinned objects and their derivatives with
+    //    // SymEngine `Basic` symbols and corresponding derivatives
+    //    fn replace(&self, map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>) -> Arc<dyn Expr>;
 }
 
 impl Hash for dyn Expr {
