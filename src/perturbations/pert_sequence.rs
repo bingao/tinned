@@ -6,6 +6,12 @@ pub trait PertSequence {
     fn ordered_perturbations(&self) -> Vec<Arc<Perturbation>>;
 }
 
+impl PertSequence for &[Arc<Perturbation>] {
+    fn ordered_perturbations(&self) -> Vec<Arc<Perturbation>> {
+        self.to_vec()
+    }
+}
+
 impl PertSequence for Vec<Arc<Perturbation>> {
     fn ordered_perturbations(&self) -> Vec<Arc<Perturbation>> {
         self.clone()
