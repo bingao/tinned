@@ -3,13 +3,14 @@ use std::sync::Arc;
 use typetag;
 
 use crate::core::{Expr, TinnedError};
-use crate::expressions::{MatrixMul, OneElecOperator, TemporumOperator, ZeroOperator};
+use crate::expressions::{Add, Mul, Number, MatrixAdd, MatrixMul, OneElecOperator, TemporumOperator, ZeroOperator};
 use crate::internal::intern_expr;
 use crate::perturbations::{PertMultichain, Perturbation};
-use crate::public::{downcast_from_ref, generic_expression_error, is_expr_type};
+use crate::public::{NumberTolerance, downcast_from_ref, generic_expression_error, is_expr_type, downcast_from_arc, unreachable_error};
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct TemporumOverlap {
+    is_zero_strength: bool,
     braket: Arc<dyn Expr>,
     dependencies: PertMultichain,
     derivative: PertMultichain,
@@ -22,6 +23,11 @@ impl TemporumOverlap {
         TemporumOverlapBuilder {
             dependencies,
         }
+    }
+
+    #[inline]
+    pub fn is_zero_strength(&self) -> bool {
+        self.is_zero_strength
     }
 
     #[inline]
@@ -38,15 +44,89 @@ impl TemporumOverlap {
     pub fn derivative(&self) -> &PertMultichain {
         &self.derivative
     }
+
+    // Returns frequency factor, bra and ket of all terms in `braket`. The
+    // frequency factor is computed by using Equation (62), J. Comput. Chem.
+    // 2024; 45: 2136-2152.
+    pub fn at_zero_strength(
+        &self,
+        num_tol: Option<NumberTolerance>,
+    ) -> Result<Vec<(Arc<dyn Expr>, Arc<dyn Expr>, Arc<dyn Expr>)>, TinnedError> {
+        let terms = if let Some(matadd) = downcast_from_arc::<MatrixAdd>(&self.braket) {
+            matadd.terms()
+        } else {
+            std::slice::from_ref(&self.braket)
+        };
+
+        let mut result = Vec::new();
+
+        for term in terms {
+            let matmul = downcast_from_arc::<MatrixMul>(term).ok_or_else(|| {
+                unreachable_error("Unexpected term inside braket", term, None)
+            })?;
+
+            let factors = matmul.factors();
+            if factors.len() != 2 {
+                return Err(unreachable_error(
+                    "Unexpected number of factors of term inside braket",
+                    term,
+                    None,
+                ));
+            }
+
+            if self.is_zero_strength {
+                result.push((
+                    matmul.coefficient().clone(),
+                    factors[0].clone(),
+                    factors[1].clone(),
+                ));
+            } else {
+                let bra = downcast_from_arc::<TemporumOperator>(&factors[0]).ok_or_else(|| {
+                    unreachable_error(
+                        "Unexpected first factor of term inside braket",
+                        &factors[0],
+                        None,
+                    )
+                })?;
+
+                let ket = downcast_from_arc::<TemporumOperator>(&factors[1]).ok_or_else(|| {
+                    unreachable_error(
+                        "Unexpected second factor of term inside braket",
+                        &factors[1],
+                        None,
+                    )
+                })?;
+
+                let frequency = Mul::new(vec![
+                    Add::new(vec![bra.frequency(), ket.frequency()])?,
+                    matmul.coefficient().clone(),
+                    Number::one_half(),
+                ])?;
+
+                if is_zero_expr(&frequency, num_tol) {
+                    continue;
+                }
+
+                result.push((
+                    frequency,
+                    bra.argument().clone(),
+                    ket.argument().clone(),
+                ));
+            }
+        }
+
+        Ok(result)
+    }
 }
 
-// Helper function to build `braket` with given dependencies
+// Helper function to build `braket` with given dependencies, by following
+// Equation (62), J. Comput. Chem. 2024; 45: 2136-2152.
 fn build_braket(deps: &PertMultichain) -> Result<Arc<dyn Expr>, TinnedError> {
     let bra = OneElecOperator::builder("Sb").dependencies(deps.clone()).build()?;
-    let dt_bra = TemporumOperator::builder(bra).is_forward(false).build()?;
+    let dt_bra = TemporumOperator::builder(bra).is_forward(true).build()?;
 
     let ket = OneElecOperator::builder("Sk").dependencies(deps.clone()).build()?;
-    let dt_ket = TemporumOperator::builder(ket).is_forward(true).build()?;
+    let dt_ket = TemporumOperator::builder(ket).is_forward(false).build()?;
 
     MatrixMul::new(vec![dt_bra, dt_ket])
 }
@@ -59,6 +139,7 @@ pub struct TemporumOverlapBuilder {
 impl TemporumOverlapBuilder {
     pub fn build(self) -> Result<Arc<dyn Expr>, TinnedError> {
         Ok(intern_expr(Arc::new(TemporumOverlap {
+            is_zero_strength: false,
             braket: build_braket(&self.dependencies)?,
             dependencies: self.dependencies,
             derivative: PertMultichain::new(),
@@ -77,7 +158,8 @@ impl Expr for TemporumOverlap {
     fn hash_key(&self) -> String {
         // We remove braket here, to be consistent with PartialEq
         format!(
-            "TemporumOverlap([{}]; [{}])",
+            "TemporumOverlap({}; [{}]; [{}])",
+            self.is_zero_strength,
             self.dependencies.hash_key(),
             self.derivative.hash_key(),
         )
@@ -86,6 +168,11 @@ impl Expr for TemporumOverlap {
     #[inline]
     fn is_scalar(&self) -> bool {
         false
+    }
+
+    #[inline]
+    fn clone_expr(&self) -> Self {
+        self.clone()
     }
 
     #[inline]
@@ -102,6 +189,37 @@ impl Expr for TemporumOverlap {
         write!(f, "{self}")
     }
 
+    // `TemporumOverlap` will disappear if it is unperturbed or all
+    // perturbations have zero frequency
+    fn clean_temporum(
+        &self,
+        num_tol: Option<NumberTolerance>,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        if self.is_zero_strength {
+            return Ok(Arc::new(self.clone_expr()));
+        } else if self.derivative.is_empty() {
+            return Ok(ZeroOperator::new());
+        }
+
+        let triplets = self.at_zero_strength(num_tol)?;
+
+        if triplets.is_emtpy() {
+            return Ok(ZeroOperator::new());
+        }
+
+        let mut terms: Vec<Arc<dyn Expr>> = Vec::with_capacity(triplets.len());
+        for triplet in triplets {
+            terms.push(MatrixMul::new(vec![triplet.0, triplet.1, triplet.2])?);
+        }
+
+        Ok(intern_expr(Arc::new(Self {
+            is_zero_strength: true,
+            braket: MatrixAdd::new(terms)?,
+            dependencies: self.dependencies.clone(),
+            derivative: self.derivative.clone(),
+        })))
+    }
+
     fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
         let diff_braket = self.braket.differentiate(s).map_err(|e| {
             generic_expression_error("Differentiation failed", self, Some(Box::new(e)))
@@ -114,6 +232,7 @@ impl Expr for TemporumOverlap {
         let new_deriv = self.derivative.clone_with_insert(s);
 
         Ok(intern_expr(Arc::new(Self {
+            is_zero_strength: self.is_zero_strength,
             braket: diff_braket,
             dependencies: self.dependencies.clone(),
             derivative: new_deriv,
@@ -124,7 +243,7 @@ impl Expr for TemporumOverlap {
 impl PartialEq for TemporumOverlap {
     fn eq(&self, other: &Self) -> bool {
         // We do not need to compare braket
-        self.dependencies == other.dependencies && self.derivative == other.derivative
+        self.is_zero_strength == other.is_zero_strength && self.dependencies == other.dependencies && self.derivative == other.derivative
     }
 }
 
@@ -160,6 +279,7 @@ mod tests {
         assert_eq!(
             op,
             &TemporumOverlap {
+                is_zero_strength: false,
                 braket: build_braket(&deps).unwrap(),
                 dependencies: deps.clone(),
                 derivative: PertMultichain::new(),
@@ -171,7 +291,8 @@ mod tests {
         assert_eq!(
             op1.hash_key(),
             format!(
-                "TemporumOverlap([{}]; [{}])",
+                "TemporumOverlap({}; [{}]; [{}])",
+                false,
                 deps.hash_key(),
                 PertMultichain::new().hash_key(),
             )

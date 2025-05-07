@@ -1,5 +1,11 @@
 macro_rules! impl_mul_traits {
-    ($type_name:ident, $hash_delimiter:ident, $fmt_delimiter:ident, $is_scalar:tt) => {
+    (
+        $type_name:ident,
+        $is_scalar:tt,
+        $build_zero_expr:ident,
+        $hash_delimiter:ident,
+        $fmt_delimiter:ident
+    ) => {
         #[typetag::serde]
         impl Expr for $type_name {
             #[inline]
@@ -24,6 +30,11 @@ macro_rules! impl_mul_traits {
             }
 
             #[inline]
+            fn clone_expr(&self) -> Self {
+                self.clone()
+            }
+
+            #[inline]
             fn eq_expr(&self, other: &dyn Expr) -> bool {
                 if let Some(mul) = downcast_from_ref::<$type_name>(other) {
                     self == mul
@@ -37,6 +48,37 @@ macro_rules! impl_mul_traits {
                 write!(f, "{self}")
             }
 
+            fn clean_temporum(
+                &self,
+                num_tol: Option<NumberTolerance>,
+            ) -> Result<Arc<dyn Expr>, TinnedError> {
+                let mut new_factors = Vec::with_capacity(self.factors.len() + 1);
+                new_factors.push(
+                    impl_mul_traits!(@clone_coefficient self.coefficient, $is_scalar)
+                );
+                let mut new_mul = false;
+
+                for factor in &self.factors {
+                    let new_factor = factor.clean_temporum(num_tol).map_err(|e| {
+                        generic_expression_error("clean_temporum() failed", self, Some(Box::new(e)))
+                    })?;
+                    if is_zero_expr(&new_factor, num_tol) {
+                        return Ok($build_zero_expr());
+                    } else {
+                        if !new_mul {
+                            new_mul = new_factor != factor;
+                        }
+                        new_factors.push(new_factor);
+                    }
+                }
+
+                if new_mul {
+                    Self::new(new_factors)
+                } else {
+                    Ok(Arc::new(self.clone_expr()))
+                }
+            }
+
             fn differentiate(
                 &self,
                 s: &Arc<crate::perturbations::Perturbation>,
@@ -44,7 +86,7 @@ macro_rules! impl_mul_traits {
                 // Precompute the derivative of each factor and store it
                 let with_context = |f: &Arc<dyn Expr>| {
                     f.differentiate(s).map_err(|e| {
-                        generic_expression_error("Differentiation failed", self, Some(Box::new(e)))
+                        generic_expression_error("differentiate() failed", self, Some(Box::new(e)))
                     })
                 };
 
@@ -88,7 +130,7 @@ macro_rules! impl_mul_traits {
     };
 
     (@finalize_differentiation $self:ident $diff_factors:ident $s:ident true) => {{
-        let mut results = Vec::new();
+        let mut results = Vec::with_capacity($diff_factors.len());
 
         for (i, diff) in $diff_factors.iter().enumerate() {
             // Skip derivative = 0 to avoid 0 * others = 0
@@ -105,11 +147,11 @@ macro_rules! impl_mul_traits {
             results.push(Self::new(new_terms)?);
         }
 
-        crate::expressions::Add::new(results)
+        Add::new(results)
     }};
 
     (@finalize_differentiation $self:ident $diff_factors:ident $s:ident false) => {{
-        let mut results = Vec::new();
+        let mut results = Vec::with_capacity($diff_factors.len());
 
         for (i, diff) in $diff_factors.iter().enumerate() {
             // Skip derivative = 0 to avoid 0 * others = 0
@@ -129,7 +171,13 @@ macro_rules! impl_mul_traits {
         let diff_coef = $self
             .coefficient
             .differentiate($s)
-            .map_err(|e| generic_expression_error("Differentiation failed", $self, Some(Box::new(e))))?;
+            .map_err(|e| {
+                generic_expression_error(
+                    "differentiate() on coefficient failed",
+                    $self,
+                    Some(Box::new(e)),
+                )
+            })?;
         // If coefficient's derivative is non-zero, append it as one result
         if !is_zero_expr(&diff_coef, None) {
             let mut new_terms = $self.factors.clone();
@@ -137,12 +185,14 @@ macro_rules! impl_mul_traits {
             results.push(Self::new(new_terms)?);
         }
 
-        crate::expressions::MatrixAdd::new(results)
+        MatrixAdd::new(results)
     }};
 
     (@non_one_coefficient $coefficient:expr, true) => { !$coefficient.is_one(None) };
 
-    (@non_one_coefficient $coefficient:expr, false) => {
-        !crate::public::is_one_expr(&$coefficient, None)
-    };
+    (@non_one_coefficient $coefficient:expr, false) => { !is_one_expr(&$coefficient, None) };
+
+    (@clone_coefficient $coefficient:expr, true) => { $coefficient.into() };
+
+    (@clone_coefficient $coefficient:expr, false) => { $coefficient.clone() };
 }

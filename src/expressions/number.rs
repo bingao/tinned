@@ -323,6 +323,11 @@ impl Expr for Number {
     }
 
     #[inline]
+    fn clone_expr(&self) -> Self {
+        self.clone()
+    }
+
+    #[inline]
     fn eq_expr(&self, other: &dyn Expr) -> bool {
         if let Some(num) = downcast_from_ref::<Number>(other) {
             self == num
@@ -336,6 +341,7 @@ impl Expr for Number {
         write!(f, "{self}")
     }
 
+    #[allow(unused_variables)]
     #[inline]
     fn differentiate(
         &self,

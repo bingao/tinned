@@ -32,6 +32,11 @@ impl Expr for ZeroOperator {
     }
 
     #[inline]
+    fn clone_expr(&self) -> Self {
+        self.clone()
+    }
+
+    #[inline]
     fn eq_expr(&self, other: &dyn Expr) -> bool {
         other.as_any().downcast_ref::<ZeroOperator>().is_some()
     }

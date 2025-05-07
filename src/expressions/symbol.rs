@@ -42,6 +42,11 @@ impl Expr for Symbol {
     }
 
     #[inline]
+    fn clone_expr(&self) -> Self {
+        self.clone()
+    }
+
+    #[inline]
     fn eq_expr(&self, other: &dyn Expr) -> bool {
         if let Some(s) = crate::public::downcast_from_ref::<Symbol>(other) {
             self.name == s.name

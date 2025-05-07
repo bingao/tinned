@@ -10,7 +10,7 @@ use crate::internal::{
 };
 use crate::public::{
     downcast_from_arc, downcast_from_ref, expression_error, generic_expression_error, is_expr_type,
-    is_one_expr, is_zero_expr, unreachable_error,
+    is_one_expr, is_zero_expr, unreachable_error, NumberTolerance,
 };
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]

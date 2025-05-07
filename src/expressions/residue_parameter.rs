@@ -128,6 +128,11 @@ impl Expr for ResidueParameter {
     }
 
     #[inline]
+    fn clone_expr(&self) -> Self {
+        self.clone()
+    }
+
+    #[inline]
     fn eq_expr(&self, other: &dyn Expr) -> bool {
         if let Some(op) = downcast_from_ref::<ResidueParameter>(other) {
             self == op
@@ -143,7 +148,7 @@ impl Expr for ResidueParameter {
 
     fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
         let diff_param = self.parameter.differentiate(s).map_err(|e| {
-            generic_expression_error("Differentiation failed", self, Some(Box::new(e)))
+            generic_expression_error("differentiate() on parameter failed", self, Some(Box::new(e)))
         })?;
 
         if is_expr_type::<ZeroOperator>(&diff_param) {

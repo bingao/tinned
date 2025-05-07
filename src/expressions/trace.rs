@@ -9,7 +9,7 @@ use crate::expressions::{
 use crate::internal::intern_expr;
 use crate::public::{
     downcast_from_arc, downcast_from_ref, expression_error, generic_expression_error, is_expr_type,
-    is_one_expr,
+    is_one_expr, NumberTolerance, is_zero_expr,
 };
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -26,11 +26,12 @@ impl Trace {
         if is_expr_type::<ZeroOperator>(&argument) {
             Ok(Number::zero())
         } else if let Some(matadd) = downcast_from_arc::<MatrixAdd>(&argument) {
-            let mut terms = Vec::new();
-            for term in matadd.terms() {
-                terms.push(Self::new(term.clone())?);
+            let terms = matadd.terms();
+            let mut new_terms = Vec::with_capacity(terms.len());
+            for term in terms {
+                new_terms.push(Self::new(term.clone())?);
             }
-            Add::new(terms)
+            Add::new(new_terms)
         } else if let Some(matmul) = downcast_from_arc::<MatrixMul>(&argument) {
             let coef = matmul.coefficient();
             let mut factors = matmul.factors().to_vec();
@@ -81,7 +82,7 @@ impl Trace {
     }
 }
 
-impl_unary_expr_traits!(Trace, true, "tr({arg})");
+impl_unary_expr_traits!(Trace, true, Number::zero, "tr({arg})");
 
 #[cfg(test)]
 mod tests {
@@ -96,7 +97,7 @@ mod tests {
     #[test]
     fn test_impl_expr() {
         let op0 = Trace::new(ZeroOperator::new()).unwrap();
-        assert!(crate::public::is_zero_expr(&op0, None));
+        assert!(is_zero_expr(&op0, None));
 
         let arg_2el = make_two_elec_operator("", None);
         let op1 = Trace::new(arg_2el.clone()).unwrap();

@@ -40,7 +40,7 @@ pub(crate) fn sort_multi_expressions(exprs: &[Arc<dyn Expr>]) -> Vec<Arc<dyn Exp
     }
 
     // Now flatten: within each group, sort by `fast_hash()`
-    let mut sorted = Vec::new();
+    let mut sorted = Vec::with_capacity(exprs.len());
     for mut group in grouped.into_values() {
         group.sort_by_key(|e| e.fast_hash());
         sorted.extend(group);

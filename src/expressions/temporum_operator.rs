@@ -3,9 +3,9 @@ use std::sync::Arc;
 use typetag;
 
 use crate::core::{Expr, TinnedError};
-use crate::expressions::{OneElecOperator, WfnParameter, ZeroOperator};
+use crate::expressions::{OneElecOperator, WfnParameter, ZeroOperator, MatrixMul};
 use crate::public::{
-    downcast_from_ref, expression_error, generic_expression_error, is_expr_type, is_zero_expr,
+    NumberTolerance, downcast_from_ref, expression_error, generic_expression_error, is_expr_type, is_zero_expr, sum_pert_frequencies, negate_expr, downcast_from_arc, unreachable_error,
 };
 
 /// A TemporumOperator represents i*d/dt (forward) or -i*d/dt (backward) acting
@@ -41,6 +41,32 @@ impl TemporumOperator {
     #[inline]
     pub fn argument(&self) -> &Arc<dyn Expr> {
         &self.argument
+    }
+
+    #[inline]
+    pub fn derivative(&self) -> Result<&PertMultichain, TinnedError> {
+        if let Some(op) = downcast_from_arc::<OneElecOperator>(&self.argument) {
+            Ok(op.derivative())
+        } else if let Some(wfn) = downcast_from_arc::<WfnParameter>(&self.argument) {
+            Ok(wfn.derivative())
+        } else {
+            Err(unreachable_error(
+                "TemporumOperator::frequency() gets an argument neither OneElecOperator nor WfnParameter",
+                &self.argument,
+                None,
+            ))
+        }
+    }
+
+    // For unperturbed `argument`, the function `frequency()` should return
+    // zero number
+    #[inline]
+    pub fn frequency(&self) -> Result<Arc<dyn Expr>, TinnedError> {
+        if self.is_forward {
+            sum_pert_frequencies(self.derivative()?)
+        } else {
+            negate_expr(sum_pert_frequencies(self.derivative()?)?)
+        }
     }
 }
 
@@ -101,6 +127,11 @@ impl Expr for TemporumOperator {
     }
 
     #[inline]
+    fn clone_expr(&self) -> Self {
+        self.clone()
+    }
+
+    #[inline]
     fn eq_expr(&self, other: &dyn Expr) -> bool {
         if let Some(op) = downcast_from_ref::<TemporumOperator>(other) {
             self == op
@@ -114,12 +145,25 @@ impl Expr for TemporumOperator {
         write!(f, "{self}")
     }
 
+    fn clean_temporum(
+        &self,
+        num_tol: Option<NumberTolerance>,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        let frequency = self.frequency()?;
+
+        if is_zero_expr(&frequency, num_tol) {
+            Ok(ZeroOperator::new())
+        } else {
+            MatrixMul::new(vec![frequency, self.argument.clone()])
+        }
+    }
+
     fn differentiate(
         &self,
         s: &Arc<crate::perturbations::Perturbation>,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
         let diff_arg = self.argument.differentiate(s).map_err(|e| {
-            generic_expression_error("Differentiation failed", self, Some(Box::new(e)))
+            generic_expression_error("differentiate() on argument failed", self, Some(Box::new(e)))
         })?;
 
         if is_zero_expr(&diff_arg, None) {
@@ -159,7 +203,7 @@ mod tests {
     use crate::expressions::one_elec_operator::test_utils::make_one_elec_operator;
     use crate::expressions::wfn_parameter::test_utils::make_wfn_parameter;
     use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
-    use crate::public::{downcast_from_arc, is_one_expr};
+    use crate::public::is_one_expr;
 
     test_struct_safety!(TemporumOperator);
 

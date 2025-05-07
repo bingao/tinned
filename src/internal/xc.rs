@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::core::{Expr, TinnedError};
-use crate::expressions::{Composition, MatrixMul, Trace, WfnParameter};
+use crate::expressions::{Composition, MatrixMul, Trace, WfnParameter, NonElecFunction, OneElecOperator};
 use crate::public::{expression_error, is_expr_type};
 
 // Helper function to validate the density matrix, grid weight and overlap
@@ -20,17 +20,17 @@ pub(crate) fn validate_xc_inputs(
         ));
     }
 
-    if !grid_weight.is_scalar() {
+    if !is_expr_type::<NonElecFunction>(grid_weight) {
         return Err(expression_error(
-            "validate_xc_inputs() - grid weight must be scalar",
+            "validate_xc_inputs() - grid weight must be NonElecFunction",
             grid_weight,
             None,
         ));
     }
 
-    if overlap_distribution.is_scalar() {
+    if !is_expr_type::<OneElecOperator>(overlap_distribution) {
         return Err(expression_error(
-            "validate_xc_inputs() - overlap distribution must be non-scalar",
+            "validate_xc_inputs() - overlap distribution must be OneElecOperator",
             overlap_distribution,
             None,
         ));
@@ -50,5 +50,5 @@ pub(crate) fn build_xc_density(
     // Generalized density vector
     let density_vector = Trace::new(MatrixMul::new(vec![overlap_distribution, density_matrix])?)?;
 
-    Ok(Composition::new(name, order, density_vector))
+    Composition::new(name, order, density_vector)
 }

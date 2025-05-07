@@ -7,7 +7,10 @@ use crate::expressions::{
     Add, DotProduct, HermitianTranspose, MatrixMul, Mul, Number, Power, Transpose, ZeroOperator,
 };
 use crate::internal::intern_expr;
-use crate::public::{downcast_from_arc, downcast_from_ref, is_expr_type, is_one_expr};
+use crate::public::{
+    NumberTolerance, downcast_from_arc, downcast_from_ref, generic_expression_error, is_expr_type,
+    is_one_expr, is_zero_expr,
+};
 
 /// Represents complex conjugation of an expression.
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -87,6 +90,11 @@ impl Expr for Conjugate {
     }
 
     #[inline]
+    fn clone_expr(&self) -> Self {
+        self.clone()
+    }
+
+    #[inline]
     fn eq_expr(&self, other: &dyn Expr) -> bool {
         if let Some(conj) = downcast_from_ref::<Conjugate>(other) {
             self == conj
@@ -100,16 +108,35 @@ impl Expr for Conjugate {
         write!(f, "{self}")
     }
 
+    fn clean_temporum(
+        &self,
+        num_tol: Option<NumberTolerance>,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        let new_arg = self.argument.clean_temporum(num_tol).map_err(|e| {
+            generic_expression_error("clean_temporum() failed", self, Some(Box::new(e)))
+        })?;
+
+        if is_zero_expr(&new_arg) {
+            return if new_arg.is_scalar() {
+                Ok(Number::zero())
+            } else {
+                Ok(ZeroOperator::new())
+            };
+        }
+
+        if new_arg == self.argument {
+            Ok(Arc::new(self.clone_expr()))
+        } else {
+            Self::new(new_arg)
+        }
+    }
+
     fn differentiate(
         &self,
         s: &Arc<crate::perturbations::Perturbation>,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
         let diff_arg = self.argument.differentiate(s).map_err(|e| {
-            crate::public::generic_expression_error(
-                "Differentiation failed",
-                self,
-                Some(Box::new(e)),
-            )
+            generic_expression_error("differentiate() on argument failed", self, Some(Box::new(e)))
         })?;
         Self::new(diff_arg)
     }

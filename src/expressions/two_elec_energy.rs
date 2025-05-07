@@ -219,6 +219,11 @@ impl Expr for TwoElecEnergy {
     }
 
     #[inline]
+    fn clone_expr(&self) -> Self {
+        self.clone()
+    }
+
+    #[inline]
     fn eq_expr(&self, other: &dyn Expr) -> bool {
         if let Some(op) = downcast_from_ref::<TwoElecEnergy>(other) {
             self == op

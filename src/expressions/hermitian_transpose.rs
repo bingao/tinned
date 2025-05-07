@@ -7,7 +7,7 @@ use crate::expressions::{Conjugate, MatrixMul, Transpose, ZeroOperator};
 use crate::internal::intern_expr;
 use crate::public::{
     downcast_from_arc, downcast_from_ref, expression_error, generic_expression_error, is_expr_type,
-    is_one_expr,
+    is_one_expr, NumberTolerance, is_zero_expr,
 };
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -60,7 +60,7 @@ impl HermitianTranspose {
     }
 }
 
-impl_unary_expr_traits!(HermitianTranspose, false, "{arg}^H");
+impl_unary_expr_traits!(HermitianTranspose, false, ZeroOperator::new, "{arg}^H");
 
 #[cfg(test)]
 mod tests {

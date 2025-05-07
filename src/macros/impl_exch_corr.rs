@@ -126,6 +126,11 @@ macro_rules! impl_exch_corr_traits {
             }
 
             #[inline]
+            fn clone_expr(&self) -> Self {
+                self.clone()
+            }
+
+            #[inline]
             fn eq_expr(&self, other: &dyn Expr) -> bool {
                 if let Some(xc) = downcast_from_ref::<$type_name>(other) {
                     self == xc
@@ -141,7 +146,7 @@ macro_rules! impl_exch_corr_traits {
 
             fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
                 let diff_expr = self.$grid_expr_name.differentiate(s).map_err(|e| {
-                    generic_expression_error("Differentiation failed", self, Some(Box::new(e)))
+                    generic_expression_error("differentiate() failed", self, Some(Box::new(e)))
                 })?;
 
                 let new_deriv = self.derivative.clone_with_insert(s);

@@ -136,6 +136,11 @@ impl Expr for TwoElecOperator {
     }
 
     #[inline]
+    fn clone_expr(&self) -> Self {
+        self.clone()
+    }
+
+    #[inline]
     fn eq_expr(&self, other: &dyn Expr) -> bool {
         if let Some(op) = downcast_from_ref::<TwoElecOperator>(other) {
             self == op

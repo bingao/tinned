@@ -24,6 +24,16 @@ impl PertMultichain {
         PertMultichain(Arc::new(Mutex::new(map)))
     }
 
+    /// Creates a new perturbation multichain from a given slice of `Arc<Perturbation>`.
+    #[inline]
+    pub fn from_slice(slice: &[Arc<Perturbation>]) -> Self {
+        let mut map = BTreeMap::new();
+        for p in slice {
+            *map.entry(p.clone()).or_insert(0) += 1;
+        }
+        PertMultichain(Arc::new(Mutex::new(map)))
+    }
+
     /// Creates a new perturbation multichain by deeply cloning the underlying
     /// `BTreeMap` and inserting a given perturbation.
     #[inline]
@@ -31,6 +41,15 @@ impl PertMultichain {
         let mut map = self.get_map_clone();
         *map.entry(p.clone()).or_insert(0) += 1;
         Self::from_map(map)
+    }
+
+    /// Inserts a perturbation into the multichain, or increases the order by 1
+    /// if the perturbation already exists in the multichain.
+    #[inline]
+    pub fn insert(&mut self, p: &Arc<Perturbation>) {
+        let mut map = self.0.lock().unwrap();
+        let entry = map.entry(p.clone()).or_insert(0);
+        *entry += 1;
     }
 
     /// Returns true if the perturbation multichain is empty.
@@ -44,28 +63,6 @@ impl PertMultichain {
     pub fn get_order(&self, p: &Arc<Perturbation>) -> u32 {
         let map = self.0.lock().unwrap();
         *map.get(p).unwrap_or(&0)
-    }
-
-    /// Returns sum of all perturbations' frequencies
-    #[inline]
-    pub fn sum_frequencies(&self) -> Result<Arc<dyn Expr>, TinnedError> {
-        let map = self.0.lock().unwrap();
-
-        let mut terms = Vec::new();
-
-        for (pert, &order) in map.iter() {
-            let freq = pert.frequency().clone();
-
-            let weighted_freq = if order == 1 {
-                freq
-            } else {
-                Mul::new(vec![Number::from_i64(order as i64), freq])?
-            };
-
-            terms.push(weighted_freq);
-        }
-
-        Add::new(terms)
     }
 
     /// Returns all perturbations in the multichain and meanwhile preserves the order.
@@ -94,15 +91,6 @@ impl PertMultichain {
         }
 
         result
-    }
-
-    /// Inserts a perturbation into the multichain, or increases the order by 1
-    /// if the perturbation already exists in the multichain.
-    #[inline]
-    pub fn insert(&mut self, p: &Arc<Perturbation>) {
-        let mut map = self.0.lock().unwrap();
-        let entry = map.entry(p.clone()).or_insert(0);
-        *entry += 1;
     }
 
     /// Returns true if `chain` is a super-multichain of `subchain`. That is,
@@ -158,7 +146,7 @@ impl PertMultichain {
     #[inline]
     pub fn hash_key(&self) -> String {
         let map = self.0.lock().unwrap();
-        let mut parts = Vec::new();
+        let mut parts = Vec::with_capacity(map.len());
         for (pert, order) in map.iter() {
             parts.push(format!("{}^{}", pert.name(), order));
         }
@@ -329,19 +317,6 @@ mod tests {
         expected_keys.sort();
 
         assert_eq!(keys, expected_keys);
-
-        let sum_freq = chain.sum_frequencies().unwrap();
-        let expected_sum = Add::new(vec![
-            p1.frequency().clone(),
-            p1.frequency().clone(),
-            p2.frequency().clone(),
-            p3.frequency().clone(),
-            p4.frequency().clone(),
-            p5.frequency().clone(),
-        ])
-        .unwrap();
-
-        assert_eq!(&sum_freq, &expected_sum);
     }
 
     #[test]

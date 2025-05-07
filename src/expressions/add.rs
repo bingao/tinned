@@ -10,7 +10,7 @@ use crate::internal::{
 };
 use crate::public::{
     downcast_from_arc, downcast_from_ref, expression_error, generic_expression_error,
-    unreachable_error,
+    unreachable_error, NumberTolerance, is_zero_expr,
 };
 
 // Addition Expression
@@ -145,7 +145,7 @@ mod tests {
     use crate::expressions::wfn_parameter::test_utils::make_wfn_parameter;
     use crate::expressions::{Power, Symbol, Trace};
     use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
-    use crate::public::{is_expr_type, is_one_expr, is_zero_expr};
+    use crate::public::{is_expr_type, is_one_expr};
     use num_complex::Complex64;
     use num_rational::Rational64;
 

@@ -180,6 +180,11 @@ macro_rules! impl_nullary_oper_traits {
             }
 
             #[inline]
+            fn clone_expr(&self) -> Self {
+                self.clone()
+            }
+
+            #[inline]
             fn eq_expr(&self, other: &dyn Expr) -> bool {
                 if let Some(op) = crate::public::downcast_from_ref::<$type_name>(other) {
                     impl_nullary_oper_traits!(@impl_eq_expr $has_deps, self, op)

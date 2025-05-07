@@ -1,5 +1,5 @@
 macro_rules! impl_unary_expr_traits {
-    ($type_name:ident, $is_scalar:expr, $display_fmt:expr) => {
+    ($type_name:ident, $is_scalar:expr, $build_zero_expr:ident, $display_fmt:expr) => {
         #[typetag::serde]
         impl Expr for $type_name {
             #[inline]
@@ -18,6 +18,11 @@ macro_rules! impl_unary_expr_traits {
             }
 
             #[inline]
+            fn clone_expr(&self) -> Self {
+                self.clone()
+            }
+
+            #[inline]
             fn eq_expr(&self, other: &dyn Expr) -> bool {
                 if let Some(expr) = downcast_from_ref::<$type_name>(other) {
                     self == expr
@@ -31,12 +36,34 @@ macro_rules! impl_unary_expr_traits {
                 write!(f, "{self}")
             }
 
+            #[inline]
+            fn clean_temporum(
+                &self,
+                num_tol: Option<NumberTolerance>,
+            ) -> Result<Arc<dyn Expr>, TinnedError> {
+                let new_arg = self.argument.clean_temporum(num_tol)?;
+
+                if is_zero_expr(&new_arg) {
+                    return Ok($build_zero_expr());
+                }
+
+                if new_arg == self.argument {
+                    Ok(Arc::new(self.clone_expr()))
+                } else {
+                    Self::new(new_arg)
+                }
+            }
+
             fn differentiate(
                 &self,
                 s: &Arc<crate::perturbations::Perturbation>,
             ) -> Result<Arc<dyn Expr>, TinnedError> {
                 let diff_arg = self.argument.differentiate(s).map_err(|e| {
-                    generic_expression_error("Differentiation failed", self, Some(Box::new(e)))
+                    generic_expression_error(
+                        "differentiate() on argument failed",
+                        self,
+                        Some(Box::new(e)),
+                    )
                 })?;
 
                 Self::new(diff_arg)

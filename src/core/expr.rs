@@ -15,13 +15,13 @@ pub trait Expr: Debug + Send + Sync {
     //
     fn as_any(&self) -> &dyn std::any::Any;
 
-    //
+    // Returns name of a concrete expression type
     #[inline]
     fn type_name(&self) -> &'static str {
         std::any::type_name::<Self>()
     }
 
-    //
+    // Returns hash key of a concrete expression type
     fn hash_key(&self) -> String;
 
     // Precomputes hashes for faster sorting
@@ -32,18 +32,28 @@ pub trait Expr: Debug + Send + Sync {
         hasher.finish()
     }
 
-    // Returns if the concrete expression type is scalar
+    // Returns if a concrete expression type is scalar
     fn is_scalar(&self) -> bool;
 
     // Compares equality for concrete expression types
     fn eq_expr(&self, other: &dyn Expr) -> bool;
 
-    //
+    // Make a clone of a concrete expression type
+    fn clone_expr(&self) -> Self
+    where
+        Self: Sized + Clone;
+
+    // Formats a concrete expression type
     fn fmt_expr(&self, f: &mut Formatter) -> FmtResult;
 
-    //    // Helper function to clean `TemporumOperator` and unperturbed
-    //    // `TemporumOverlap` objects in `x`
-    //    fn clean_temporum(&self) -> Result<Arc<dyn Expr>, TinnedError>;
+    // Cleans `TemporumOperator` and unperturbed `TemporumOverlap` objects
+    #[inline]
+    fn clean_temporum(
+        &self,
+        _num_tol: Option<crate::public::NumberTolerance>,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        Ok(Arc::new(self.clone_expr()))
+    }
 
     // Differentiate with respect to a `Perturbation`
     fn differentiate(
@@ -51,29 +61,32 @@ pub trait Expr: Debug + Send + Sync {
         s: &Arc<crate::perturbations::Perturbation>,
     ) -> Result<Arc<dyn Expr>, TinnedError>;
 
-    //    // Helper function to eliminate a given response `parameter`'s derivatives
-    //    // from `x`. Maximum order of derivatives to be eliminated is the length of
-    //    // `perturbations`, and minimum order is specified by `min_order`. For wave
-    //    // function parameters, it should be greater than the floor function of the
-    //    // half length of `perturbations`, and for multipliers, it should be greater
-    //    // than or equal to the ceiling function of the half length of
-    //    // `perturbations` according to J. Chem. Phys. 129, 214103 (2008).
-    //    fn eliminate(
-    //        &self,
-    //        parameter: &Arc<dyn Expr>,
-    //        perturbations: &[Arc<Perturbation>],
-    //        min_order: u32,
-    //    ) -> Result<Arc<dyn Expr>, TinnedError>;
+    // Helper function to eliminate a given response `parameter`'s derivatives
+    // from `x`. Maximum order of derivatives to be eliminated is the length of
+    // `perturbations`, and minimum order is specified by `min_order`. For wave
+    // function parameters, it should be greater than the floor function of the
+    // half length of `perturbations`, and for multipliers, it should be greater
+    // than or equal to the ceiling function of the half length of
+    // `perturbations` according to J. Chem. Phys. 129, 214103 (2008).
+    fn eliminate(
+        &self,
+        parameter: &Arc<dyn Expr>,
+        perturbations: &[Arc<Perturbation>],
+        min_order: u32,
+    ) -> Result<Arc<dyn Expr>, TinnedError>;
+
     //
-    //    // Find a given `s` and all its differentiated ones
-    //    fn find_all(&self, s: &Arc<dyn Expr>) -> BTreeMap<u32, HashSet<Arc<dyn Expr>>>;
-    //
-    //    // Helper function to remove given `symbols` from `x`
-    //    fn remove(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError>;
-    //
-    //    // Helper function to replace Tinned objects and their derivatives with
-    //    // SymEngine `Basic` symbols and corresponding derivatives
-    //    fn replace(&self, map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>) -> Arc<dyn Expr>;
+    fn exist_any(&self, set: &HashSet<Arc<dyn Expr>>) -> bool;
+
+    // Find a given `s` and all its differentiated ones
+    fn find_all(&self, s: &Arc<dyn Expr>) -> BTreeMap<u32, HashSet<Arc<dyn Expr>>>;
+
+    // Helper function to remove given `symbols` from `x`
+    fn remove(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError>;
+
+    // Helper function to replace Tinned objects and their derivatives with
+    // SymEngine `Basic` symbols and corresponding derivatives
+    fn replace(&self, map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>) -> Arc<dyn Expr>;
 }
 
 impl Hash for dyn Expr {

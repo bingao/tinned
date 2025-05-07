@@ -9,7 +9,7 @@ use crate::expressions::{
 use crate::internal::intern_expr;
 use crate::public::{
     downcast_from_arc, downcast_from_ref, expression_error, generic_expression_error, is_expr_type,
-    is_one_expr,
+    is_one_expr, NumberTolerance, is_zero_expr,
 };
 
 /// Dot product of a bra and a ket (inner product)
@@ -73,7 +73,7 @@ impl DotProduct {
             return Ok(Number::zero());
         }
 
-        let mut coefficients = Vec::new();
+        let mut coefficients = Vec::with_capacity(2);
 
         let bra = Self::strip_matrixmul_coefficient(bra, &mut coefficients)?;
         let ket = Self::strip_matrixmul_coefficient(ket, &mut coefficients)?;
@@ -151,6 +151,11 @@ impl Expr for DotProduct {
     }
 
     #[inline]
+    fn clone_expr(&self) -> Self {
+        self.clone()
+    }
+
+    #[inline]
     fn eq_expr(&self, other: &dyn Expr) -> bool {
         if let Some(dot) = downcast_from_ref::<DotProduct>(other) {
             self == dot
@@ -164,15 +169,40 @@ impl Expr for DotProduct {
         write!(f, "{self}")
     }
 
+    fn clean_temporum(
+        &self,
+        num_tol: Option<NumberTolerance>,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        let new_bra = self.bra.clean_temporum(num_tol).map_err(|e| {
+            generic_expression_error("clean_temporum() on bra failed", self, Some(Box::new(e)))
+        })?;
+        if is_zero_expr(&new_bra) {
+            return Ok(Number::zero());
+        }
+
+        let new_ket = self.ket.clean_temporum(num_tol).map_err(|e| {
+            generic_expression_error("clean_temporum() on ket failed", self, Some(Box::new(e)))
+        })?;
+        if is_zero_expr(&new_ket) {
+            return Ok(Number::zero());
+        }
+
+        if new_bra == self.bra && new_ket == self.ket {
+            Ok(Arc::new(self.clone_expr()))
+        } else {
+            Self::make_dot_product(new_bra, new_ket, self.allow_braket_swap)
+        }
+    }
+
     fn differentiate(
         &self,
         s: &Arc<crate::perturbations::Perturbation>,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
         let diff_bra = self.bra.differentiate(s).map_err(|e| {
-            generic_expression_error("Differentiation failed", self, Some(Box::new(e)))
+            generic_expression_error("differentiate() on bra failed", self, Some(Box::new(e)))
         })?;
         let diff_ket = self.ket.differentiate(s).map_err(|e| {
-            generic_expression_error("Differentiation failed", self, Some(Box::new(e)))
+            generic_expression_error("differentiate() on ket failed", self, Some(Box::new(e)))
         })?;
 
         Add::new(vec![
@@ -226,7 +256,6 @@ mod tests {
     use crate::expressions::symbol::test_utils::make_symbol;
     use crate::expressions::wfn_parameter::test_utils::make_wfn_parameter;
     use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
-    use crate::public::is_zero_expr;
 
     test_struct_safety!(DotProduct);
 

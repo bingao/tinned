@@ -4,7 +4,7 @@ use std::sync::Arc;
 use typetag;
 
 use crate::core::{Expr, TinnedError};
-use crate::expressions::{Number, Power};
+use crate::expressions::{Add, Number, Power};
 use crate::internal::{
     intern_expr, multi_expression_format, multi_expression_hash, sort_multi_expressions,
 };
@@ -126,7 +126,7 @@ impl Mul {
 const DEFAULT_HASH_DELIMITER: &str = ";";
 const DEFAULT_FMT_DELIMITER: &str = " * ";
 
-impl_mul_traits!(Mul, DEFAULT_HASH_DELIMITER, DEFAULT_FMT_DELIMITER, true);
+impl_mul_traits!(Mul, true, Number::zero, DEFAULT_HASH_DELIMITER, DEFAULT_FMT_DELIMITER);
 
 #[cfg(test)]
 mod tests {
@@ -138,7 +138,7 @@ mod tests {
     use crate::expressions::one_elec_operator::test_utils::make_one_elec_operator;
     use crate::expressions::symbol::test_utils::make_symbol;
     use crate::expressions::two_elec_energy::test_utils::make_two_elec_energy;
-    use crate::expressions::{Add, Symbol, Trace};
+    use crate::expressions::{Symbol, Trace};
     use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
     use crate::public::{is_expr_type, is_one_expr};
     use num_complex::Complex64;

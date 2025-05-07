@@ -6,7 +6,7 @@ use crate::core::{Expr, TinnedError};
 use crate::expressions::{Mul, Number};
 use crate::internal::intern_expr;
 use crate::public::{
-    downcast_from_arc, downcast_from_ref, expression_error, generic_expression_error,
+    is_zero_expr, NumberTolerance, downcast_from_arc, downcast_from_ref, expression_error, generic_expression_error,
 };
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -87,6 +87,11 @@ impl Expr for Power {
     }
 
     #[inline]
+    fn clone_expr(&self) -> Self {
+        self.clone()
+    }
+
+    #[inline]
     fn eq_expr(&self, other: &dyn Expr) -> bool {
         if let Some(pow) = downcast_from_ref::<Power>(other) {
             self == pow
@@ -100,13 +105,32 @@ impl Expr for Power {
         write!(f, "{self}")
     }
 
+    fn clean_temporum(
+        &self,
+        num_tol: Option<NumberTolerance>,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        let new_base = self.base.clean_temporum(num_tol).map_err(|e| {
+            generic_expression_error("clean_temporum() on base failed", self, Some(Box::new(e)))
+        })?;
+
+        if is_zero_expr(&new_base) {
+            return Ok(Number::zero());
+        }
+
+        if new_base == self.base {
+            Ok(Arc::new(self.clone_expr()))
+        } else {
+            Self::new(new_base, self.exponent)
+        }
+    }
+
     fn differentiate(
         &self,
         s: &Arc<crate::perturbations::Perturbation>,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
         let new_exp = self.exponent - 1;
         let diff_base = self.base.differentiate(s).map_err(|e| {
-            generic_expression_error("Differentiation failed", self, Some(Box::new(e)))
+            generic_expression_error("differentiate() on base failed", self, Some(Box::new(e)))
         })?;
 
         crate::expressions::Mul::new(vec![
@@ -137,7 +161,7 @@ mod tests {
     use crate::expressions::exch_corr_energy::test_utils::make_exch_corr_energy;
     use crate::expressions::symbol::test_utils::make_symbol;
     use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
-    use crate::public::{is_expr_type, is_one_expr, is_zero_expr};
+    use crate::public::{is_expr_type, is_one_expr};
 
     test_struct_safety!(Power);
 

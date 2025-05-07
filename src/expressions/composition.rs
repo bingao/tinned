@@ -3,6 +3,7 @@ use std::sync::Arc;
 use typetag;
 
 use crate::core::{Expr, TinnedError};
+use crate::public::{expression_error, downcast_from_ref, generic_expression_error};
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Composition {
@@ -13,12 +14,20 @@ pub struct Composition {
 
 impl Composition {
     #[inline]
-    pub fn new(name: impl Into<String>, order: u32, inner: Arc<dyn Expr>) -> Arc<dyn Expr> {
-        crate::internal::intern_expr(Arc::new(Self {
+    pub fn new(name: impl Into<String>, order: u32, inner: Arc<dyn Expr>) -> Result<Arc<dyn Expr>, TinnedError> {
+        if !inner.is_scalar() {
+            return Err(expression_error(
+                "Composition requires scalar inner function",
+                inner,
+                None,
+            ));
+        }
+
+        Ok(crate::internal::intern_expr(Arc::new(Self {
             name: name.into(),
             order,
             inner,
-        }))
+        })))
     }
 
     #[inline]
@@ -55,8 +64,13 @@ impl Expr for Composition {
     }
 
     #[inline]
+    fn clone_expr(&self) -> Self {
+        self.clone()
+    }
+
+    #[inline]
     fn eq_expr(&self, other: &dyn Expr) -> bool {
-        if let Some(comp) = crate::public::downcast_from_ref::<Composition>(other) {
+        if let Some(comp) = downcast_from_ref::<Composition>(other) {
             self == comp
         } else {
             false
@@ -75,8 +89,8 @@ impl Expr for Composition {
         // Differentiation using the chain rule in calculus
         let diff_outer = Self::new(self.name.clone(), self.order + 1, self.inner.clone());
         let diff_inner = self.inner.differentiate(s).map_err(|e| {
-            crate::public::generic_expression_error(
-                "Differentiation failed",
+            generic_expression_error(
+                "differentiate() on inner function failed",
                 self,
                 Some(Box::new(e)),
             )
@@ -116,7 +130,7 @@ mod tests {
     test_struct_safety!(Composition);
 
     test_thread_interning!({
-        Composition::new("composition", 1, Power::new(make_symbol(0u32), 4).unwrap())
+        Composition::new("composition", 1, Power::new(make_symbol(0u32), 4).unwrap()).unwrap()
     });
 
     #[test]
@@ -124,7 +138,7 @@ mod tests {
         let name = random_alphanumeric(4u32);
         let order = rand::random_range(2..=16) as u32;
         let inner = Power::new(make_symbol(2u32), rand::random_range(2..=16) as i64).unwrap();
-        let op1 = Composition::new(name.clone(), order, inner.clone());
+        let op1 = Composition::new(name.clone(), order, inner.clone()).unwrap();
 
         let op = downcast_from_arc::<Composition>(&op1).unwrap();
         assert_eq!(
@@ -150,14 +164,14 @@ mod tests {
             assert_eq!(format!("{}", op1), format!("{}^({})({})", name, order, inner));
         }
 
-        let op2 = Composition::new(name.clone(), order, inner.clone());
-        let op3 = Composition::new(random_alphanumeric(2u32), order, inner.clone());
-        let op4 = Composition::new(name.clone(), order + 1, inner.clone());
+        let op2 = Composition::new(name.clone(), order, inner.clone()).unwrap();
+        let op3 = Composition::new(random_alphanumeric(2u32), order, inner.clone()).unwrap();
+        let op4 = Composition::new(name.clone(), order + 1, inner.clone()).unwrap();
         let op5 = Composition::new(
             name.clone(),
             order,
             Power::new(make_symbol(4u32), rand::random_range(2..=16) as i64).unwrap(),
-        );
+        ).unwrap();
 
         assert_eq!(&op1, &op2);
         assert_ne!(&op1, &op3);
@@ -172,7 +186,7 @@ mod tests {
         let base = make_exch_corr_energy("", None, None, None);
         let exponent: i64 = rand::random_range(2..=16);
         let inner = Power::new(base.clone(), exponent).unwrap();
-        let op = Composition::new(name.clone(), order, inner.clone());
+        let op = Composition::new(name.clone(), order, inner.clone()).unwrap();
 
         let p = make_perturbation_symbol(4u32, 4u32);
         let diff_op = op.differentiate(&p).unwrap();
@@ -180,7 +194,7 @@ mod tests {
         assert_eq!(
             &diff_op,
             &Mul::new(vec![
-                Composition::new(name.clone(), order + 1, inner.clone()),
+                Composition::new(name.clone(), order + 1, inner.clone()).unwrap(),
                 inner.differentiate(&p).unwrap(),
             ])
             .unwrap()
@@ -193,7 +207,7 @@ mod tests {
             random_alphanumeric(4u32),
             rand::random_range(2..=16) as u32,
             Power::new(make_symbol(2u32), rand::random_range(2..=16) as i64).unwrap(),
-        );
+        ).unwrap();
         let json = serde_json::to_string(&op).unwrap();
         let deserialized: Arc<dyn Expr> = serde_json::from_str(&json).unwrap();
         assert_eq!(&op, &deserialized);
@@ -204,20 +218,20 @@ mod tests {
         let name = random_alphanumeric(4u32);
         let order = rand::random_range(2..=16) as u32;
         let inner = Power::new(make_symbol(2u32), rand::random_range(2..=16) as i64).unwrap();
-        let op1 = Composition::new(name.clone(), order, inner.clone());
+        let op1 = Composition::new(name.clone(), order, inner.clone()).unwrap();
 
         assert!(is_expr_type::<Composition>(&op1));
         assert!(!is_zero_expr(&op1, None));
         assert!(!is_one_expr(&op1, None));
 
-        let op2 = Composition::new(name.clone(), order, inner.clone());
-        let op3 = Composition::new(random_alphanumeric(2u32), order, inner.clone());
-        let op4 = Composition::new(name.clone(), order + 1, inner.clone());
+        let op2 = Composition::new(name.clone(), order, inner.clone()).unwrap();
+        let op3 = Composition::new(random_alphanumeric(2u32), order, inner.clone()).unwrap();
+        let op4 = Composition::new(name.clone(), order + 1, inner.clone()).unwrap();
         let op5 = Composition::new(
             name.clone(),
             order,
             Power::new(make_symbol(4u32), rand::random_range(2..=16) as i64).unwrap(),
-        );
+        ).unwrap();
 
         assert!(Arc::ptr_eq(&op1, &op2));
         assert!(!Arc::ptr_eq(&op1, &op3));
