@@ -8,7 +8,7 @@ use typetag;
 use crate::core::{Expr, TinnedError};
 use crate::internal::{build_xc_density, intern_expr, validate_xc_inputs};
 use crate::perturbations::{PertMultichain, Perturbation};
-use crate::public::{downcast_from_ref, generic_expression_error, is_zero_expr};
+use crate::public::{downcast_from_arc, downcast_from_ref, generic_expression_error, is_zero_expr};
 
 fn build_xc_potential(
     grid_weight: Arc<dyn Expr>,
@@ -57,7 +57,7 @@ mod tests {
     use crate::expressions::one_elec_operator::test_utils::make_one_elec_operator;
     use crate::expressions::wfn_parameter::test_utils::make_wfn_parameter;
     use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
-    use crate::public::{downcast_from_arc, is_expr_type, is_one_expr, is_zero_expr};
+    use crate::public::{is_expr_type, is_one_expr, is_zero_expr};
 
     test_exch_corr!(
         ExchCorrPotential,

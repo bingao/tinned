@@ -140,12 +140,12 @@ macro_rules! impl_exch_corr_traits {
             }
 
             #[inline]
-            fn eq_shallow(&self, other: &dyn Expr) -> bool {
-                if let Some(xc) = downcast_from_ref::<$type_name>(other) {
+            fn eq_shallow(&self, other: &Arc<dyn Expr>) -> bool {
+                if let Some(xc) = downcast_from_arc::<$type_name>(other) {
                     self.name == xc.name
-                        && self.grid_weight.eq_shallow(xc.grid_weight.as_ref())
-                        && self.density_matrix.eq_shallow(xc.density_matrix.as_ref())
-                        && self.overlap_distribution.eq_shallow(xc.overlap_distribution.as_ref())
+                        && self.grid_weight.eq_shallow(&xc.grid_weight)
+                        && self.density_matrix.eq_shallow(&xc.density_matrix)
+                        && self.overlap_distribution.eq_shallow(&xc.overlap_distribution)
                 } else {
                     false
                 }

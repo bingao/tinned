@@ -102,9 +102,9 @@ macro_rules! impl_unary_expr_traits {
 macro_rules! impl_unary_expr_eq_shallow {
     ($type_name:ident, $arg_field:ident) => {
         #[inline]
-        fn eq_shallow(&self, other: &dyn Expr) -> bool {
-            if let Some(expr) = downcast_from_ref::<$type_name>(other) {
-                self.$arg_field.eq_shallow(expr.$arg_field.as_ref())
+        fn eq_shallow(&self, other: &Arc<dyn Expr>) -> bool {
+            if let Some(expr) = downcast_from_arc::<$type_name>(other) {
+                self.$arg_field.eq_shallow(&expr.$arg_field)
             } else {
                 false
             }

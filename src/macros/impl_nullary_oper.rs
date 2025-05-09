@@ -194,8 +194,8 @@ macro_rules! impl_nullary_oper_traits {
             }
 
             #[inline]
-            fn eq_shallow(&self, other: &dyn Expr) -> bool {
-                if let Some(op) = downcast_from_ref::<$type_name>(other) {
+            fn eq_shallow(&self, other: &Arc<dyn Expr>) -> bool {
+                if let Some(op) = downcast_from_arc::<$type_name>(other) {
                     impl_nullary_oper_traits!(@impl_eq_shallow self, op, $has_deps)
                 } else {
                     false

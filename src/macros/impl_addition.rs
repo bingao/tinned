@@ -96,6 +96,9 @@ macro_rules! impl_add_traits {
 
                 set.iter().any(|expr| self.eq_expr(expr.as_ref()))
             }
+
+            //fn find_all(&self, s: &Arc<dyn Expr>) -> BTreeMap<u32, HashSet<Arc<dyn Expr>>> {
+            //}
         }
 
         impl PartialEq for $type_name {

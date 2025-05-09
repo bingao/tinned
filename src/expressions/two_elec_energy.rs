@@ -7,7 +7,8 @@ use crate::core::{Expr, TinnedError};
 use crate::expressions::{Add, Number, TwoElecOperator, WfnParameter, ZeroOperator};
 use crate::perturbations::{PertMultichain, Perturbation};
 use crate::public::{
-    downcast_from_ref, expression_error, generic_expression_error, is_expr_type, is_zero_expr,
+    downcast_from_arc, downcast_from_ref, expression_error, generic_expression_error, is_expr_type,
+    is_zero_expr,
 };
 
 /// allow_density_swap means we allow inner_density and outer_density to be
@@ -234,8 +235,8 @@ impl Expr for TwoElecEnergy {
     }
 
     #[inline]
-    fn eq_shallow(&self, other: &dyn Expr) -> bool {
-        if let Some(op) = downcast_from_ref::<TwoElecEnergy>(other) {
+    fn eq_shallow(&self, other: &Arc<dyn Expr>) -> bool {
+        if let Some(op) = downcast_from_arc::<TwoElecEnergy>(other) {
             // Compare all fixed fields
             if self.name != op.name || self.dependencies != op.dependencies {
                 return false;
@@ -244,14 +245,14 @@ impl Expr for TwoElecEnergy {
             // Handle density equality based on swap flags
             if !self.allow_density_swap && !op.allow_density_swap {
                 // Strict matching only
-                self.inner_density.eq_shallow(op.inner_density.as_ref())
-                    && self.outer_density.eq_shallow(op.outer_density.as_ref())
+                self.inner_density.eq_shallow(&op.inner_density)
+                    && self.outer_density.eq_shallow(&op.outer_density)
             } else {
                 // Accept either order
-                (self.inner_density.eq_shallow(op.inner_density.as_ref())
-                    && self.outer_density.eq_shallow(op.outer_density.as_ref()))
-                    || (self.inner_density.eq_shallow(op.outer_density.as_ref())
-                        && self.outer_density.eq_shallow(op.inner_density.as_ref()))
+                (self.inner_density.eq_shallow(&op.inner_density)
+                    && self.outer_density.eq_shallow(&op.outer_density))
+                    || (self.inner_density.eq_shallow(&op.outer_density)
+                        && self.outer_density.eq_shallow(&op.inner_density))
             }
         } else {
             false
@@ -444,7 +445,7 @@ mod tests {
         make_pert_multichain, make_super_multichain,
     };
     use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
-    use crate::public::{downcast_from_arc, is_one_expr};
+    use crate::public::is_one_expr;
 
     test_struct_safety!(TwoElecEnergy);
 

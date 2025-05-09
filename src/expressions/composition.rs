@@ -5,7 +5,9 @@ use typetag;
 
 use crate::core::{Expr, TinnedError};
 use crate::perturbations::Perturbation;
-use crate::public::{downcast_from_ref, expression_error, generic_expression_error, is_zero_expr};
+use crate::public::{
+    downcast_from_arc, downcast_from_ref, expression_error, generic_expression_error, is_zero_expr,
+};
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Composition {
@@ -84,9 +86,9 @@ impl Expr for Composition {
     }
 
     #[inline]
-    fn eq_shallow(&self, other: &dyn Expr) -> bool {
-        if let Some(comp) = downcast_from_ref::<Composition>(other) {
-            self.name == comp.name && self.inner.eq_shallow(comp.inner.as_ref())
+    fn eq_shallow(&self, other: &Arc<dyn Expr>) -> bool {
+        if let Some(comp) = downcast_from_arc::<Composition>(other) {
+            self.name == comp.name && self.inner.eq_shallow(&comp.inner)
         } else {
             false
         }
@@ -162,7 +164,7 @@ mod tests {
     use crate::expressions::symbol::test_utils::{make_symbol, random_alphanumeric};
     use crate::expressions::{Mul, Power};
     use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
-    use crate::public::{downcast_from_arc, is_expr_type, is_one_expr};
+    use crate::public::{is_expr_type, is_one_expr};
 
     test_struct_safety!(Composition);
 

@@ -6,7 +6,9 @@ use typetag;
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{MatrixAdd, WfnParameter, ZeroOperator};
 use crate::perturbations::{PertMultichain, Perturbation};
-use crate::public::{downcast_from_ref, expression_error, generic_expression_error, is_expr_type};
+use crate::public::{
+    downcast_from_arc, downcast_from_ref, expression_error, generic_expression_error, is_expr_type,
+};
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct TwoElecOperator {
@@ -149,11 +151,11 @@ impl Expr for TwoElecOperator {
     }
 
     #[inline]
-    fn eq_shallow(&self, other: &dyn Expr) -> bool {
-        if let Some(op) = downcast_from_ref::<TwoElecOperator>(other) {
+    fn eq_shallow(&self, other: &Arc<dyn Expr>) -> bool {
+        if let Some(op) = downcast_from_arc::<TwoElecOperator>(other) {
             self.name == op.name
                 && self.dependencies == op.dependencies
-                && self.density.eq_shallow(op.density.as_ref())
+                && self.density.eq_shallow(&op.density)
         } else {
             false
         }
@@ -278,7 +280,7 @@ mod tests {
         make_pert_multichain, make_super_multichain,
     };
     use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
-    use crate::public::{downcast_from_arc, is_one_expr, is_zero_expr};
+    use crate::public::{is_one_expr, is_zero_expr};
 
     test_struct_safety!(TwoElecOperator);
 

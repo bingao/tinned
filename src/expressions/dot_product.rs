@@ -164,9 +164,9 @@ impl Expr for DotProduct {
     }
 
     #[inline]
-    fn eq_shallow(&self, other: &dyn Expr) -> bool {
-        if let Some(dot) = downcast_from_ref::<DotProduct>(other) {
-            if self.bra.eq_shallow(dot.bra.as_ref()) && self.ket.eq_shallow(dot.ket.as_ref()) {
+    fn eq_shallow(&self, other: &Arc<dyn Expr>) -> bool {
+        if let Some(dot) = downcast_from_arc::<DotProduct>(other) {
+            if self.bra.eq_shallow(&dot.bra) && self.ket.eq_shallow(&dot.ket) {
                 return true;
             }
 
@@ -175,7 +175,7 @@ impl Expr for DotProduct {
                     Ok(expr) => expr,
                     Err(_) => return false,
                 };
-                if !trans_bra.eq_shallow(dot.ket.as_ref()) {
+                if !trans_bra.eq_shallow(&dot.ket) {
                     return false;
                 }
                 let trans_ket = match Transpose::new(self.ket.clone()) {
@@ -183,7 +183,7 @@ impl Expr for DotProduct {
                     Err(_) => return false,
                 };
 
-                return trans_ket.eq_shallow(dot.bra.as_ref());
+                return trans_ket.eq_shallow(&dot.bra);
             }
 
             false

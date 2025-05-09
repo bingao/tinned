@@ -181,8 +181,8 @@ impl Expr for TemporumOverlap {
     }
 
     #[inline]
-    fn eq_shallow(&self, other: &dyn Expr) -> bool {
-        if let Some(op) = downcast_from_ref::<TemporumOverlap>(other) {
+    fn eq_shallow(&self, other: &Arc<dyn Expr>) -> bool {
+        if let Some(op) = downcast_from_arc::<TemporumOverlap>(other) {
             // We care only `dependencies`, regardless whether at zero strength
             // or not (specified by `is_zero_strength`, `braket` also changes)
             self.dependencies == op.dependencies

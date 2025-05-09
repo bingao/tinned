@@ -39,8 +39,8 @@ pub trait Expr: Debug + Send + Sync {
     fn eq_expr(&self, other: &dyn Expr) -> bool;
 
     // Compares equality for concrete expression types but ignores derivatives.
-    fn eq_shallow(&self, other: &dyn Expr) -> bool {
-        self.eq_expr(other)
+    fn eq_shallow(&self, other: &Arc<dyn Expr>) -> bool {
+        self.eq_expr(other.as_ref())
     }
 
     // Make a clone of a concrete expression type.
@@ -94,10 +94,10 @@ pub trait Expr: Debug + Send + Sync {
     //    // Finds a given expression `s` and all its differentiated ones in the
     //    // concrete expression.
     //    fn find_all(&self, s: &Arc<dyn Expr>) -> BTreeMap<u32, HashSet<Arc<dyn Expr>>>;
-    //
+
     //    // Removes given expressions in `set` from the concrete expression.
     //    fn remove(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError>;
-    //
+
     //    // Replaces given expressions (keys of `map`) and their derivatives with
     //    // corresponding values of `map` and their derivatives in the concrete
     //    // expression.
