@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
 
 use typetag;
@@ -8,8 +8,10 @@ use crate::expressions::{Add, Number, Power};
 use crate::internal::{
     intern_expr, multi_expression_format, multi_expression_hash, sort_multi_expressions,
 };
+use crate::perturbations::Perturbation;
 use crate::public::{
-    downcast_from_arc, downcast_from_ref, expression_error, generic_expression_error, is_zero_expr,
+    NumberTolerance, downcast_from_arc, downcast_from_ref, expression_error,
+    generic_expression_error, is_zero_expr,
 };
 
 // Multiplication Expression
@@ -126,7 +128,7 @@ impl Mul {
 const DEFAULT_HASH_DELIMITER: &str = ";";
 const DEFAULT_FMT_DELIMITER: &str = " * ";
 
-impl_mul_traits!(Mul, true, Number::zero, DEFAULT_HASH_DELIMITER, DEFAULT_FMT_DELIMITER);
+impl_mul_traits!(Mul, true, DEFAULT_HASH_DELIMITER, DEFAULT_FMT_DELIMITER);
 
 #[cfg(test)]
 mod tests {

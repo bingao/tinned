@@ -1,5 +1,6 @@
 /// Represents exchange-correlation potential in a grid-based formulation.
 /// xc_potential represents XC potential or its derivatives evaluated at grid points.
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
 
 use typetag;
@@ -7,7 +8,7 @@ use typetag;
 use crate::core::{Expr, TinnedError};
 use crate::internal::{build_xc_density, intern_expr, validate_xc_inputs};
 use crate::perturbations::{PertMultichain, Perturbation};
-use crate::public::{downcast_from_ref, generic_expression_error};
+use crate::public::{downcast_from_ref, generic_expression_error, is_zero_expr};
 
 fn build_xc_potential(
     grid_weight: Arc<dyn Expr>,
@@ -27,7 +28,12 @@ fn build_xc_potential(
 }
 
 impl_exch_corr_type!(ExchCorrPotential, ExchCorrPotentialBuilder, xc_potential, build_xc_potential);
-impl_exch_corr_traits!(ExchCorrPotential, xc_potential, false);
+impl_exch_corr_traits!(
+    ExchCorrPotential,
+    xc_potential,
+    false,
+    crate::expressions::ZeroOperator::new
+);
 
 #[cfg(test)]
 const DEFAULT_FUNC_NAME: &str = "Vxc[rho]";

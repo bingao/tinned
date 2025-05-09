@@ -1,7 +1,9 @@
 use std::sync::Arc;
 
 use crate::core::{Expr, TinnedError};
-use crate::expressions::{Composition, MatrixMul, Trace, WfnParameter, NonElecFunction, OneElecOperator};
+use crate::expressions::{
+    Composition, MatrixMul, NonElecFunction, OneElecOperator, Trace, WfnParameter,
+};
 use crate::public::{expression_error, is_expr_type};
 
 // Helper function to validate the density matrix, grid weight and overlap

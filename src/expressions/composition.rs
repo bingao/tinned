@@ -1,9 +1,11 @@
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
 
 use typetag;
 
 use crate::core::{Expr, TinnedError};
-use crate::public::{expression_error, downcast_from_ref, generic_expression_error};
+use crate::perturbations::Perturbation;
+use crate::public::{downcast_from_ref, expression_error, generic_expression_error, is_zero_expr};
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Composition {
@@ -14,11 +16,15 @@ pub struct Composition {
 
 impl Composition {
     #[inline]
-    pub fn new(name: impl Into<String>, order: u32, inner: Arc<dyn Expr>) -> Result<Arc<dyn Expr>, TinnedError> {
+    pub fn new(
+        name: impl Into<String>,
+        order: u32,
+        inner: Arc<dyn Expr>,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
         if !inner.is_scalar() {
             return Err(expression_error(
                 "Composition requires scalar inner function",
-                inner,
+                &inner,
                 None,
             ));
         }
@@ -64,8 +70,8 @@ impl Expr for Composition {
     }
 
     #[inline]
-    fn clone_expr(&self) -> Self {
-        self.clone()
+    fn clone_expr(&self) -> Arc<dyn Expr> {
+        Arc::new(self.clone())
     }
 
     #[inline]
@@ -78,19 +84,25 @@ impl Expr for Composition {
     }
 
     #[inline]
+    fn eq_shallow(&self, other: &dyn Expr) -> bool {
+        if let Some(comp) = downcast_from_ref::<Composition>(other) {
+            self.name == comp.name && self.inner.eq_shallow(comp.inner.as_ref())
+        } else {
+            false
+        }
+    }
+
+    #[inline]
     fn fmt_expr(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{self}")
     }
 
-    fn differentiate(
-        &self,
-        s: &Arc<crate::perturbations::Perturbation>,
-    ) -> Result<Arc<dyn Expr>, TinnedError> {
+    fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
         // Differentiation using the chain rule in calculus
-        let diff_outer = Self::new(self.name.clone(), self.order + 1, self.inner.clone());
+        let diff_outer = Self::new(self.name.clone(), self.order + 1, self.inner.clone())?;
         let diff_inner = self.inner.differentiate(s).map_err(|e| {
             generic_expression_error(
-                "differentiate() on inner function failed",
+                "Composition::differentiate() failed for inner function",
                 self,
                 Some(Box::new(e)),
             )
@@ -98,6 +110,31 @@ impl Expr for Composition {
 
         crate::expressions::Mul::new(vec![diff_outer, diff_inner])
     }
+
+    fn eliminate(
+        &self,
+        parameter: &Arc<dyn Expr>,
+        perturbations: &[Arc<Perturbation>],
+        min_order: u32,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        let new_inner = self.inner.eliminate(parameter, perturbations, min_order).map_err(|e| {
+            generic_expression_error(
+                "Composition::eliminate() failed for inner function",
+                self,
+                Some(Box::new(e)),
+            )
+        })?;
+
+        if is_zero_expr(&new_inner, None) {
+            Ok(crate::expressions::Number::zero())
+        } else if &new_inner == &self.inner {
+            Ok(self.clone_expr())
+        } else {
+            Self::new(self.name.clone(), self.order, new_inner)
+        }
+    }
+
+    impl_unary_expr_exist_any!(inner);
 }
 
 impl PartialEq for Composition {
@@ -125,7 +162,7 @@ mod tests {
     use crate::expressions::symbol::test_utils::{make_symbol, random_alphanumeric};
     use crate::expressions::{Mul, Power};
     use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
-    use crate::public::{downcast_from_arc, is_expr_type, is_one_expr, is_zero_expr};
+    use crate::public::{downcast_from_arc, is_expr_type, is_one_expr};
 
     test_struct_safety!(Composition);
 
@@ -171,7 +208,8 @@ mod tests {
             name.clone(),
             order,
             Power::new(make_symbol(4u32), rand::random_range(2..=16) as i64).unwrap(),
-        ).unwrap();
+        )
+        .unwrap();
 
         assert_eq!(&op1, &op2);
         assert_ne!(&op1, &op3);
@@ -207,7 +245,8 @@ mod tests {
             random_alphanumeric(4u32),
             rand::random_range(2..=16) as u32,
             Power::new(make_symbol(2u32), rand::random_range(2..=16) as i64).unwrap(),
-        ).unwrap();
+        )
+        .unwrap();
         let json = serde_json::to_string(&op).unwrap();
         let deserialized: Arc<dyn Expr> = serde_json::from_str(&json).unwrap();
         assert_eq!(&op, &deserialized);
@@ -231,7 +270,8 @@ mod tests {
             name.clone(),
             order,
             Power::new(make_symbol(4u32), rand::random_range(2..=16) as i64).unwrap(),
-        ).unwrap();
+        )
+        .unwrap();
 
         assert!(Arc::ptr_eq(&op1, &op2));
         assert!(!Arc::ptr_eq(&op1, &op3));

@@ -98,7 +98,7 @@ macro_rules! impl_exch_corr_type {
 }
 
 macro_rules! impl_exch_corr_traits {
-    ($type_name:ident, $grid_expr_name:ident, $is_scalar:literal) => {
+    ($type_name:ident, $grid_expr_name:ident, $is_scalar:literal, $build_zero_expr:expr) => {
         #[typetag::serde]
         impl Expr for $type_name {
             #[inline]
@@ -126,8 +126,8 @@ macro_rules! impl_exch_corr_traits {
             }
 
             #[inline]
-            fn clone_expr(&self) -> Self {
-                self.clone()
+            fn clone_expr(&self) -> Arc<dyn Expr> {
+                Arc::new(self.clone())
             }
 
             #[inline]
@@ -140,13 +140,29 @@ macro_rules! impl_exch_corr_traits {
             }
 
             #[inline]
+            fn eq_shallow(&self, other: &dyn Expr) -> bool {
+                if let Some(xc) = downcast_from_ref::<$type_name>(other) {
+                    self.name == xc.name
+                        && self.grid_weight.eq_shallow(xc.grid_weight.as_ref())
+                        && self.density_matrix.eq_shallow(xc.density_matrix.as_ref())
+                        && self.overlap_distribution.eq_shallow(xc.overlap_distribution.as_ref())
+                } else {
+                    false
+                }
+            }
+
+            #[inline]
             fn fmt_expr(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
                 write!(f, "{self}")
             }
 
             fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
                 let diff_expr = self.$grid_expr_name.differentiate(s).map_err(|e| {
-                    generic_expression_error("differentiate() failed", self, Some(Box::new(e)))
+                    generic_expression_error(
+                        concat!(stringify!($type_name), "differentiate() failed"),
+                        self,
+                        Some(Box::new(e)),
+                    )
                 })?;
 
                 let new_deriv = self.derivative.clone_with_insert(s);
@@ -159,6 +175,45 @@ macro_rules! impl_exch_corr_traits {
                     $grid_expr_name: diff_expr,
                     derivative: new_deriv,
                 })))
+            }
+
+            fn eliminate(
+                &self,
+                parameter: &Arc<dyn Expr>,
+                perturbations: &[Arc<Perturbation>],
+                min_order: u32,
+            ) -> Result<Arc<dyn Expr>, TinnedError> {
+                let new_expr = self
+                    .$grid_expr_name
+                    .eliminate(parameter, perturbations, min_order)
+                    .map_err(|e| {
+                        generic_expression_error(
+                            concat!(stringify!($type_name), "eliminate() failed"),
+                            self,
+                            Some(Box::new(e)),
+                        )
+                    })?;
+
+                if is_zero_expr(&new_expr, None) {
+                    Ok($build_zero_expr())
+                } else if &new_expr == &self.$grid_expr_name {
+                    Ok(self.clone_expr())
+                } else {
+                    Ok(intern_expr(Arc::new(Self {
+                        name: self.name.clone(),
+                        grid_weight: self.grid_weight.clone(),
+                        density_matrix: self.density_matrix.clone(),
+                        overlap_distribution: self.overlap_distribution.clone(),
+                        $grid_expr_name: new_expr,
+                        derivative: self.derivative.clone(),
+                    })))
+                }
+            }
+
+            #[inline]
+            fn exist_any(&self, set: &HashSet<Arc<dyn Expr>>) -> bool {
+                set.iter().any(|expr| self.eq_expr(expr.as_ref()))
+                    || self.$grid_expr_name.exist_any(set)
             }
         }
 

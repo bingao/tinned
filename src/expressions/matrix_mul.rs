@@ -1,13 +1,15 @@
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
 
 use typetag;
 
 use crate::core::{Expr, TinnedError};
-use crate::expressions::{Mul, MatrixAdd, Number, ZeroOperator};
+use crate::expressions::{MatrixAdd, Mul, Number, ZeroOperator};
 use crate::internal::{intern_expr, multi_expression_format, multi_expression_hash};
+use crate::perturbations::Perturbation;
 use crate::public::{
-    downcast_from_arc, downcast_from_ref, generic_expression_error, is_expr_type, is_one_expr,
-    is_zero_expr,
+    NumberTolerance, downcast_from_arc, downcast_from_ref, generic_expression_error, is_expr_type,
+    is_one_expr, is_zero_expr,
 };
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -91,18 +93,18 @@ impl MatrixMul {
 const DEFAULT_HASH_DELIMITER: &str = ";";
 const DEFAULT_FMT_DELIMITER: &str = " * ";
 
-impl_mul_traits!(MatrixMul, false, ZeroOperator::new, DEFAULT_HASH_DELIMITER, DEFAULT_FMT_DELIMITER);
+impl_mul_traits!(MatrixMul, false, DEFAULT_HASH_DELIMITER, DEFAULT_FMT_DELIMITER);
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::expressions::Symbol;
     use crate::expressions::exch_corr_energy::test_utils::make_exch_corr_energy;
     use crate::expressions::number::test_utils::make_number_complex;
     use crate::expressions::one_elec_operator::test_utils::make_one_elec_operator;
     use crate::expressions::symbol::test_utils::make_symbol;
     use crate::expressions::two_elec_operator::test_utils::make_two_elec_operator;
     use crate::expressions::wfn_parameter::test_utils::make_wfn_parameter;
-    use crate::expressions::Symbol;
     use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
     use num_complex::Complex64;
 

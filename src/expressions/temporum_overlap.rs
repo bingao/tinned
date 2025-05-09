@@ -3,10 +3,15 @@ use std::sync::Arc;
 use typetag;
 
 use crate::core::{Expr, TinnedError};
-use crate::expressions::{Add, Mul, Number, MatrixAdd, MatrixMul, OneElecOperator, TemporumOperator, ZeroOperator};
+use crate::expressions::{
+    Add, MatrixAdd, MatrixMul, Mul, Number, OneElecOperator, TemporumOperator, ZeroOperator,
+};
 use crate::internal::intern_expr;
 use crate::perturbations::{PertMultichain, Perturbation};
-use crate::public::{NumberTolerance, downcast_from_ref, generic_expression_error, is_expr_type, downcast_from_arc, unreachable_error};
+use crate::public::{
+    NumberTolerance, downcast_from_arc, downcast_from_ref, generic_expression_error, is_expr_type,
+    is_zero_expr, unreachable_error,
+};
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct TemporumOverlap {
@@ -50,7 +55,7 @@ impl TemporumOverlap {
     // 2024; 45: 2136-2152.
     pub fn at_zero_strength(
         &self,
-        num_tol: Option<NumberTolerance>,
+        freq_tol: Option<NumberTolerance>,
     ) -> Result<Vec<(Arc<dyn Expr>, Arc<dyn Expr>, Arc<dyn Expr>)>, TinnedError> {
         let terms = if let Some(matadd) = downcast_from_arc::<MatrixAdd>(&self.braket) {
             matadd.terms()
@@ -61,9 +66,8 @@ impl TemporumOverlap {
         let mut result = Vec::new();
 
         for term in terms {
-            let matmul = downcast_from_arc::<MatrixMul>(term).ok_or_else(|| {
-                unreachable_error("Unexpected term inside braket", term, None)
-            })?;
+            let matmul = downcast_from_arc::<MatrixMul>(term)
+                .ok_or_else(|| unreachable_error("Unexpected term inside braket", term, None))?;
 
             let factors = matmul.factors();
             if factors.len() != 2 {
@@ -75,11 +79,7 @@ impl TemporumOverlap {
             }
 
             if self.is_zero_strength {
-                result.push((
-                    matmul.coefficient().clone(),
-                    factors[0].clone(),
-                    factors[1].clone(),
-                ));
+                result.push((matmul.coefficient().clone(), factors[0].clone(), factors[1].clone()));
             } else {
                 let bra = downcast_from_arc::<TemporumOperator>(&factors[0]).ok_or_else(|| {
                     unreachable_error(
@@ -98,20 +98,16 @@ impl TemporumOverlap {
                 })?;
 
                 let frequency = Mul::new(vec![
-                    Add::new(vec![bra.frequency(), ket.frequency()])?,
+                    Add::new(vec![bra.frequency()?, ket.frequency()?])?,
                     matmul.coefficient().clone(),
                     Number::one_half(),
                 ])?;
 
-                if is_zero_expr(&frequency, num_tol) {
+                if is_zero_expr(&frequency, freq_tol.clone()) {
                     continue;
                 }
 
-                result.push((
-                    frequency,
-                    bra.argument().clone(),
-                    ket.argument().clone(),
-                ));
+                result.push((frequency, bra.argument().clone(), ket.argument().clone()));
             }
         }
 
@@ -171,14 +167,25 @@ impl Expr for TemporumOverlap {
     }
 
     #[inline]
-    fn clone_expr(&self) -> Self {
-        self.clone()
+    fn clone_expr(&self) -> Arc<dyn Expr> {
+        Arc::new(self.clone())
     }
 
     #[inline]
     fn eq_expr(&self, other: &dyn Expr) -> bool {
         if let Some(op) = downcast_from_ref::<TemporumOverlap>(other) {
             self == op
+        } else {
+            false
+        }
+    }
+
+    #[inline]
+    fn eq_shallow(&self, other: &dyn Expr) -> bool {
+        if let Some(op) = downcast_from_ref::<TemporumOverlap>(other) {
+            // We care only `dependencies`, regardless whether at zero strength
+            // or not (specified by `is_zero_strength`, `braket` also changes)
+            self.dependencies == op.dependencies
         } else {
             false
         }
@@ -193,17 +200,17 @@ impl Expr for TemporumOverlap {
     // perturbations have zero frequency
     fn clean_temporum(
         &self,
-        num_tol: Option<NumberTolerance>,
+        freq_tol: Option<NumberTolerance>,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
         if self.is_zero_strength {
-            return Ok(Arc::new(self.clone_expr()));
+            return Ok(self.clone_expr());
         } else if self.derivative.is_empty() {
             return Ok(ZeroOperator::new());
         }
 
-        let triplets = self.at_zero_strength(num_tol)?;
+        let triplets = self.at_zero_strength(freq_tol)?;
 
-        if triplets.is_emtpy() {
+        if triplets.is_empty() {
             return Ok(ZeroOperator::new());
         }
 
@@ -222,7 +229,11 @@ impl Expr for TemporumOverlap {
 
     fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
         let diff_braket = self.braket.differentiate(s).map_err(|e| {
-            generic_expression_error("Differentiation failed", self, Some(Box::new(e)))
+            generic_expression_error(
+                "TemporumOverlap::differentiate() failed",
+                self,
+                Some(Box::new(e)),
+            )
         })?;
 
         if is_expr_type::<ZeroOperator>(&diff_braket) {
@@ -238,12 +249,17 @@ impl Expr for TemporumOverlap {
             derivative: new_deriv,
         })))
     }
+
+    // `TemporumOverlap` is an undivided whole for the method `exist_any()`, so
+    // we use the corresponding method of the pub trait `Expr`.
 }
 
 impl PartialEq for TemporumOverlap {
     fn eq(&self, other: &Self) -> bool {
         // We do not need to compare braket
-        self.is_zero_strength == other.is_zero_strength && self.dependencies == other.dependencies && self.derivative == other.derivative
+        self.is_zero_strength == other.is_zero_strength
+            && self.dependencies == other.dependencies
+            && self.derivative == other.derivative
     }
 }
 
@@ -262,7 +278,7 @@ mod tests {
         make_pert_multichain, make_super_multichain,
     };
     use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
-    use crate::public::{downcast_from_arc, is_one_expr, is_zero_expr};
+    use crate::public::is_one_expr;
 
     test_struct_safety!(TemporumOverlap);
 

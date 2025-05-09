@@ -1,5 +1,6 @@
 /// Represents exchange-correlation energy in a grid-based formulation.
 /// xc_energy represents XC energy or its derivatives evaluated at grid points.
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
 
 use typetag;
@@ -7,7 +8,7 @@ use typetag;
 use crate::core::{Expr, TinnedError};
 use crate::internal::{build_xc_density, intern_expr, validate_xc_inputs};
 use crate::perturbations::{PertMultichain, Perturbation};
-use crate::public::{downcast_from_ref, generic_expression_error};
+use crate::public::{downcast_from_ref, generic_expression_error, is_zero_expr};
 
 fn build_xc_energy(
     grid_weight: Arc<dyn Expr>,
@@ -22,7 +23,7 @@ fn build_xc_energy(
 }
 
 impl_exch_corr_type!(ExchCorrEnergy, ExchCorrEnergyBuilder, xc_energy, build_xc_energy);
-impl_exch_corr_traits!(ExchCorrEnergy, xc_energy, true);
+impl_exch_corr_traits!(ExchCorrEnergy, xc_energy, true, crate::expressions::Number::zero);
 
 #[cfg(test)]
 const DEFAULT_FUNC_NAME: &str = "Exc[rho]";

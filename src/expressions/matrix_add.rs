@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
 
 use typetag;
@@ -8,9 +8,10 @@ use crate::expressions::{Add, MatrixMul, Number, ZeroOperator};
 use crate::internal::{
     intern_expr, multi_expression_format, multi_expression_hash, sort_multi_expressions,
 };
+use crate::perturbations::Perturbation;
 use crate::public::{
-    downcast_from_arc, downcast_from_ref, expression_error, generic_expression_error, is_expr_type,
-    is_one_expr, is_zero_expr, unreachable_error, NumberTolerance,
+    NumberTolerance, downcast_from_arc, downcast_from_ref, expression_error,
+    generic_expression_error, is_expr_type, is_one_expr, is_zero_expr, unreachable_error,
 };
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]

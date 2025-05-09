@@ -122,7 +122,7 @@ macro_rules! impl_nullary_oper_type {
                     derivative: self.derivative,
                 })))
             } else {
-                Ok(crate::expressions::Number::zero())
+                Ok(Number::zero())
             }
         }
     };
@@ -143,7 +143,7 @@ macro_rules! impl_nullary_oper_type {
                     derivative: self.derivative,
                 })))
             } else {
-                Ok(crate::expressions::ZeroOperator::new())
+                Ok(ZeroOperator::new())
             }
         }
     };
@@ -180,14 +180,23 @@ macro_rules! impl_nullary_oper_traits {
             }
 
             #[inline]
-            fn clone_expr(&self) -> Self {
-                self.clone()
+            fn clone_expr(&self) -> Arc<dyn Expr> {
+                Arc::new(self.clone())
             }
 
             #[inline]
             fn eq_expr(&self, other: &dyn Expr) -> bool {
-                if let Some(op) = crate::public::downcast_from_ref::<$type_name>(other) {
-                    impl_nullary_oper_traits!(@impl_eq_expr $has_deps, self, op)
+                if let Some(op) = downcast_from_ref::<$type_name>(other) {
+                    impl_nullary_oper_traits!(@impl_eq_expr self, op, $has_deps)
+                } else {
+                    false
+                }
+            }
+
+            #[inline]
+            fn eq_shallow(&self, other: &dyn Expr) -> bool {
+                if let Some(op) = downcast_from_ref::<$type_name>(other) {
+                    impl_nullary_oper_traits!(@impl_eq_shallow self, op, $has_deps)
                 } else {
                     false
                 }
@@ -205,6 +214,8 @@ macro_rules! impl_nullary_oper_traits {
 
                 self.builder_from(new_deriv).build()
             }
+
+            impl_nullary_oper_traits!(@impl_eliminate $type_name, $has_deps);
         }
 
         impl std::fmt::Display for $type_name {
@@ -243,14 +254,51 @@ macro_rules! impl_nullary_oper_traits {
         }
     };
 
-    (@impl_eq_expr true, $self_:ident, $op:ident) => {
-        $self_.name == $op.name
-            && $self_.dependencies == $op.dependencies
-            && $self_.derivative == $op.derivative
+    (@impl_eq_expr $self:ident, $op:ident, true) => {
+        $self.name == $op.name
+            && $self.dependencies == $op.dependencies
+            && $self.derivative == $op.derivative
     };
 
-    (@impl_eq_expr false, $self_:ident, $op:ident) => {
-        $self_.name == $op.name
-            && $self_.derivative == $op.derivative
+    (@impl_eq_expr $self:ident, $op:ident, false) => {
+        $self.name == $op.name
+            && $self.derivative == $op.derivative
+    };
+
+    (@impl_eq_shallow $self:ident, $op:ident, true) => {
+        $self.name == $op.name
+            && $self.dependencies == $op.dependencies
+    };
+
+    (@impl_eq_shallow $self:ident, $op:ident, false) => {
+        $self.name == $op.name
+    };
+
+    (@impl_eliminate $type_name:ident, true) => { };
+
+    (@impl_eliminate $type_name:ident, false) => {
+        #[inline]
+        fn eliminate(
+            &self,
+            parameter: &Arc<dyn Expr>,
+            perturbations: &[Arc<Perturbation>],
+            min_order: u32,
+        ) -> Result<Arc<dyn Expr>, TinnedError>
+        {
+            if let Some(op) = downcast_from_arc::<$type_name>(parameter) {
+                if self.name == op.name {
+                    let map = self.derivative.get_map_clone();
+                    let order: u32 = perturbations
+                        .iter()
+                        .map(|p| *map.get(p).unwrap_or(&0))
+                        .sum();
+                    if order >= min_order && order <= perturbations.len() as u32 {
+                        return Ok(ZeroOperator::new());
+                    }
+                }
+            }
+
+            Ok(self.clone_expr())
+        }
     };
 }

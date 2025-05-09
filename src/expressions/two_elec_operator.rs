@@ -1,3 +1,4 @@
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
 
 use typetag;
@@ -5,9 +6,7 @@ use typetag;
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{MatrixAdd, WfnParameter, ZeroOperator};
 use crate::perturbations::{PertMultichain, Perturbation};
-use crate::public::{
-    downcast_from_ref, expression_error, generic_expression_error, is_expr_type, is_zero_expr,
-};
+use crate::public::{downcast_from_ref, expression_error, generic_expression_error, is_expr_type};
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct TwoElecOperator {
@@ -136,8 +135,8 @@ impl Expr for TwoElecOperator {
     }
 
     #[inline]
-    fn clone_expr(&self) -> Self {
-        self.clone()
+    fn clone_expr(&self) -> Arc<dyn Expr> {
+        Arc::new(self.clone())
     }
 
     #[inline]
@@ -150,25 +149,67 @@ impl Expr for TwoElecOperator {
     }
 
     #[inline]
+    fn eq_shallow(&self, other: &dyn Expr) -> bool {
+        if let Some(op) = downcast_from_ref::<TwoElecOperator>(other) {
+            self.name == op.name
+                && self.dependencies == op.dependencies
+                && self.density.eq_shallow(op.density.as_ref())
+        } else {
+            false
+        }
+    }
+
+    #[inline]
     fn fmt_expr(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{self}")
     }
 
     fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
         let diff_density = self.density.differentiate(s).map_err(|e| {
-            generic_expression_error("Differentiation failed", self, Some(Box::new(e)))
+            generic_expression_error(
+                "TwoElecOperator::differentiate() failed for density",
+                self,
+                Some(Box::new(e)),
+            )
         })?;
         let term1 = self.builder_from_density(diff_density).build()?;
 
         let new_deriv = self.derivative.clone_with_insert(s);
         let term2 = self.builder_from_derivative(new_deriv).build()?;
 
-        if is_zero_expr(&term2, None) {
+        if is_expr_type::<ZeroOperator>(&term2) {
             return Ok(term1);
         }
 
         MatrixAdd::new(vec![term1, term2])
     }
+
+    #[inline]
+    fn eliminate(
+        &self,
+        parameter: &Arc<dyn Expr>,
+        perturbations: &[Arc<Perturbation>],
+        min_order: u32,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        let new_density =
+            self.density.eliminate(parameter, perturbations, min_order).map_err(|e| {
+                generic_expression_error(
+                    "TwoElecOperator::eliminate() failed for density",
+                    self,
+                    Some(Box::new(e)),
+                )
+            })?;
+        if is_expr_type::<ZeroOperator>(&new_density) {
+            return Ok(new_density);
+        }
+
+        // Elimination of `density` either returns `ZeroOperator` or the
+        // original `density` so that we return either 0 or a copy of
+        // `TwoElecOperator`.
+        Ok(self.clone_expr())
+    }
+
+    impl_unary_expr_exist_any!(density);
 }
 
 impl PartialEq for TwoElecOperator {
@@ -237,7 +278,7 @@ mod tests {
         make_pert_multichain, make_super_multichain,
     };
     use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
-    use crate::public::{downcast_from_arc, is_one_expr};
+    use crate::public::{downcast_from_arc, is_one_expr, is_zero_expr};
 
     test_struct_safety!(TwoElecOperator);
 

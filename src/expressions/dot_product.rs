@@ -1,3 +1,4 @@
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
 
 use typetag;
@@ -7,9 +8,10 @@ use crate::expressions::{
     Add, Conjugate, HermitianTranspose, MatrixMul, Mul, Number, Transpose, ZeroOperator,
 };
 use crate::internal::intern_expr;
+use crate::perturbations::Perturbation;
 use crate::public::{
-    downcast_from_arc, downcast_from_ref, expression_error, generic_expression_error, is_expr_type,
-    is_one_expr, NumberTolerance, is_zero_expr,
+    NumberTolerance, downcast_from_arc, downcast_from_ref, expression_error,
+    generic_expression_error, is_expr_type, is_one_expr,
 };
 
 /// Dot product of a bra and a ket (inner product)
@@ -27,18 +29,6 @@ impl DotProduct {
         ket: Arc<dyn Expr>,
         allow_braket_swap: bool,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
-        if bra.is_scalar() || ket.is_scalar() {
-            return Err(expression_error(
-                "DotProduct::new() - both arguments must be non-scalar",
-                if bra.is_scalar() {
-                    &bra
-                } else {
-                    &ket
-                },
-                None,
-            ));
-        }
-
         let bra = if use_hermitian {
             HermitianTranspose::new(bra)?
         } else {
@@ -69,6 +59,13 @@ impl DotProduct {
         ket: Arc<dyn Expr>,
         allow_braket_swap: bool,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
+        if bra.is_scalar() {
+            return Err(expression_error("DotProduct requires bra must be non-scalar", &bra, None));
+        }
+        if ket.is_scalar() {
+            return Err(expression_error("DotProduct requires ket must be non-scalar", &ket, None));
+        }
+
         if is_expr_type::<ZeroOperator>(&bra) || is_expr_type::<ZeroOperator>(&ket) {
             return Ok(Number::zero());
         }
@@ -120,10 +117,12 @@ impl DotProduct {
 
     #[inline]
     pub fn conjugate(&self) -> Result<Arc<dyn Expr>, TinnedError> {
-        let bra = Conjugate::new(self.bra.clone())?;
-        let ket = Conjugate::new(self.ket.clone())?;
-
-        Self::make_dot_product(bra, ket, self.allow_braket_swap)
+        dot_product_argument_op!(
+            self,
+            Conjugate::new(self.bra.clone()),
+            Conjugate::new(self.ket.clone()),
+            "DotProduct::conjugate() failed"
+        )
     }
 }
 
@@ -151,8 +150,8 @@ impl Expr for DotProduct {
     }
 
     #[inline]
-    fn clone_expr(&self) -> Self {
-        self.clone()
+    fn clone_expr(&self) -> Arc<dyn Expr> {
+        Arc::new(self.clone())
     }
 
     #[inline]
@@ -165,50 +164,94 @@ impl Expr for DotProduct {
     }
 
     #[inline]
+    fn eq_shallow(&self, other: &dyn Expr) -> bool {
+        if let Some(dot) = downcast_from_ref::<DotProduct>(other) {
+            if self.bra.eq_shallow(dot.bra.as_ref()) && self.ket.eq_shallow(dot.ket.as_ref()) {
+                return true;
+            }
+
+            if self.allow_braket_swap || dot.allow_braket_swap {
+                let trans_bra = match Transpose::new(self.bra.clone()) {
+                    Ok(expr) => expr,
+                    Err(_) => return false,
+                };
+                if !trans_bra.eq_shallow(dot.ket.as_ref()) {
+                    return false;
+                }
+                let trans_ket = match Transpose::new(self.ket.clone()) {
+                    Ok(expr) => expr,
+                    Err(_) => return false,
+                };
+
+                return trans_ket.eq_shallow(dot.bra.as_ref());
+            }
+
+            false
+        } else {
+            false
+        }
+    }
+
+    #[inline]
     fn fmt_expr(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{self}")
     }
 
+    #[inline]
     fn clean_temporum(
         &self,
-        num_tol: Option<NumberTolerance>,
+        freq_tol: Option<NumberTolerance>,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
-        let new_bra = self.bra.clean_temporum(num_tol).map_err(|e| {
-            generic_expression_error("clean_temporum() on bra failed", self, Some(Box::new(e)))
-        })?;
-        if is_zero_expr(&new_bra) {
-            return Ok(Number::zero());
-        }
-
-        let new_ket = self.ket.clean_temporum(num_tol).map_err(|e| {
-            generic_expression_error("clean_temporum() on ket failed", self, Some(Box::new(e)))
-        })?;
-        if is_zero_expr(&new_ket) {
-            return Ok(Number::zero());
-        }
-
-        if new_bra == self.bra && new_ket == self.ket {
-            Ok(Arc::new(self.clone_expr()))
-        } else {
-            Self::make_dot_product(new_bra, new_ket, self.allow_braket_swap)
-        }
+        dot_product_argument_op!(
+            self,
+            self.bra.clean_temporum(freq_tol.clone()),
+            self.ket.clean_temporum(freq_tol),
+            "DotProduct::clean_temporum() failed"
+        )
     }
 
-    fn differentiate(
-        &self,
-        s: &Arc<crate::perturbations::Perturbation>,
-    ) -> Result<Arc<dyn Expr>, TinnedError> {
+    fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
         let diff_bra = self.bra.differentiate(s).map_err(|e| {
-            generic_expression_error("differentiate() on bra failed", self, Some(Box::new(e)))
+            generic_expression_error(
+                "DotProduct::differentiate() failed for bra",
+                self,
+                Some(Box::new(e)),
+            )
         })?;
         let diff_ket = self.ket.differentiate(s).map_err(|e| {
-            generic_expression_error("differentiate() on ket failed", self, Some(Box::new(e)))
+            generic_expression_error(
+                "DotProduct::differentiate() failed for ket",
+                self,
+                Some(Box::new(e)),
+            )
         })?;
 
         Add::new(vec![
             Self::make_dot_product(diff_bra, self.ket.clone(), self.allow_braket_swap)?,
             Self::make_dot_product(self.bra.clone(), diff_ket, self.allow_braket_swap)?,
         ])
+    }
+
+    #[inline]
+    fn eliminate(
+        &self,
+        parameter: &Arc<dyn Expr>,
+        perturbations: &[Arc<Perturbation>],
+        min_order: u32,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        dot_product_argument_op!(
+            self,
+            self.bra.eliminate(parameter, perturbations, min_order),
+            self.ket.eliminate(parameter, perturbations, min_order),
+            "DotProduct::eliminate() failed"
+        )
+    }
+
+    #[inline]
+    fn exist_any(&self, set: &HashSet<Arc<dyn Expr>>) -> bool {
+        set.iter().any(|expr| self.eq_expr(expr.as_ref()))
+            || self.bra.exist_any(set)
+            || self.ket.exist_any(set)
     }
 }
 
@@ -256,6 +299,7 @@ mod tests {
     use crate::expressions::symbol::test_utils::make_symbol;
     use crate::expressions::wfn_parameter::test_utils::make_wfn_parameter;
     use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
+    use crate::public::is_zero_expr;
 
     test_struct_safety!(DotProduct);
 

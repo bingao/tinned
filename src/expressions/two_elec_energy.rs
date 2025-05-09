@@ -1,9 +1,10 @@
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
 
 use typetag;
 
 use crate::core::{Expr, TinnedError};
-use crate::expressions::{Add, Number, TwoElecOperator, WfnParameter};
+use crate::expressions::{Add, Number, TwoElecOperator, WfnParameter, ZeroOperator};
 use crate::perturbations::{PertMultichain, Perturbation};
 use crate::public::{
     downcast_from_ref, expression_error, generic_expression_error, is_expr_type, is_zero_expr,
@@ -153,7 +154,7 @@ impl TwoElecEnergyBuilder {
 
         if !is_expr_type::<WfnParameter>(&self.inner_density) {
             return Err(expression_error(
-                "TwoElecEnergyBuilder::build() - inner_density must be WfnParameter",
+                "TwoElecEnergyBuilder::build() - inner density must be WfnParameter",
                 &self.inner_density,
                 None,
             ));
@@ -161,7 +162,7 @@ impl TwoElecEnergyBuilder {
 
         if !is_expr_type::<WfnParameter>(&outer) {
             return Err(expression_error(
-                "TwoElecEnergyBuilder::build() - outer_density must be WfnParameter",
+                "TwoElecEnergyBuilder::build() - outer density must be WfnParameter",
                 &outer,
                 None,
             ));
@@ -219,8 +220,8 @@ impl Expr for TwoElecEnergy {
     }
 
     #[inline]
-    fn clone_expr(&self) -> Self {
-        self.clone()
+    fn clone_expr(&self) -> Arc<dyn Expr> {
+        Arc::new(self.clone())
     }
 
     #[inline]
@@ -233,16 +234,49 @@ impl Expr for TwoElecEnergy {
     }
 
     #[inline]
+    fn eq_shallow(&self, other: &dyn Expr) -> bool {
+        if let Some(op) = downcast_from_ref::<TwoElecEnergy>(other) {
+            // Compare all fixed fields
+            if self.name != op.name || self.dependencies != op.dependencies {
+                return false;
+            }
+
+            // Handle density equality based on swap flags
+            if !self.allow_density_swap && !op.allow_density_swap {
+                // Strict matching only
+                self.inner_density.eq_shallow(op.inner_density.as_ref())
+                    && self.outer_density.eq_shallow(op.outer_density.as_ref())
+            } else {
+                // Accept either order
+                (self.inner_density.eq_shallow(op.inner_density.as_ref())
+                    && self.outer_density.eq_shallow(op.outer_density.as_ref()))
+                    || (self.inner_density.eq_shallow(op.outer_density.as_ref())
+                        && self.outer_density.eq_shallow(op.inner_density.as_ref()))
+            }
+        } else {
+            false
+        }
+    }
+
+    #[inline]
     fn fmt_expr(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{self}")
     }
 
     fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
         let diff_inner = self.inner_density.differentiate(s).map_err(|e| {
-            generic_expression_error("Differentiation failed", self, Some(Box::new(e)))
+            generic_expression_error(
+                "TwoElecEnergy::differentiate() failed for inner density",
+                self,
+                Some(Box::new(e)),
+            )
         })?;
         let diff_outer = self.outer_density.differentiate(s).map_err(|e| {
-            generic_expression_error("Differentiation failed", self, Some(Box::new(e)))
+            generic_expression_error(
+                "TwoElecEnergy::differentiate() failed for outer density",
+                self,
+                Some(Box::new(e)),
+            )
         })?;
 
         let mut terms = vec![
@@ -265,6 +299,50 @@ impl Expr for TwoElecEnergy {
         }
 
         Add::new(terms)
+    }
+
+    #[inline]
+    fn eliminate(
+        &self,
+        parameter: &Arc<dyn Expr>,
+        perturbations: &[Arc<Perturbation>],
+        min_order: u32,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        let new_inner =
+            self.inner_density.eliminate(parameter, perturbations, min_order).map_err(|e| {
+                generic_expression_error(
+                    "TwoElecEnergy::eliminate() failed for inner density",
+                    self,
+                    Some(Box::new(e)),
+                )
+            })?;
+        if is_expr_type::<ZeroOperator>(&new_inner) {
+            return Ok(Number::zero());
+        }
+
+        let new_outer =
+            self.outer_density.eliminate(parameter, perturbations, min_order).map_err(|e| {
+                generic_expression_error(
+                    "TwoElecEnergy::eliminate() failed for outer density",
+                    self,
+                    Some(Box::new(e)),
+                )
+            })?;
+        if is_expr_type::<ZeroOperator>(&new_outer) {
+            return Ok(Number::zero());
+        }
+
+        // Elimination of inner and outer densities either returns
+        // `ZeroOperator` or the original densities so that we return either 0
+        // or a copy of `TwoElecEnergy`.
+        Ok(self.clone_expr())
+    }
+
+    #[inline]
+    fn exist_any(&self, set: &HashSet<Arc<dyn Expr>>) -> bool {
+        set.iter().any(|expr| self.eq_expr(expr.as_ref()))
+            || self.inner_density.exist_any(set)
+            || self.outer_density.exist_any(set)
     }
 }
 

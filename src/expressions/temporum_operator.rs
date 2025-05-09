@@ -1,11 +1,15 @@
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
 
 use typetag;
 
 use crate::core::{Expr, TinnedError};
-use crate::expressions::{OneElecOperator, WfnParameter, ZeroOperator, MatrixMul};
+use crate::expressions::{MatrixMul, OneElecOperator, WfnParameter, ZeroOperator};
+use crate::perturbations::{PertMultichain, Perturbation};
 use crate::public::{
-    NumberTolerance, downcast_from_ref, expression_error, generic_expression_error, is_expr_type, is_zero_expr, sum_pert_frequencies, negate_expr, downcast_from_arc, unreachable_error,
+    NumberTolerance, downcast_from_arc, downcast_from_ref, expression_error,
+    generic_expression_error, is_expr_type, is_zero_expr, negate_expr, sum_pert_frequencies,
+    unreachable_error,
 };
 
 /// A TemporumOperator represents i*d/dt (forward) or -i*d/dt (backward) acting
@@ -92,6 +96,10 @@ impl TemporumOperatorBuilder {
             ));
         }
 
+        if is_expr_type::<ZeroOperator>(&self.argument) {
+            return Ok(self.argument);
+        }
+
         if is_expr_type::<OneElecOperator>(&self.argument)
             || is_expr_type::<WfnParameter>(&self.argument)
         {
@@ -127,8 +135,8 @@ impl Expr for TemporumOperator {
     }
 
     #[inline]
-    fn clone_expr(&self) -> Self {
-        self.clone()
+    fn clone_expr(&self) -> Arc<dyn Expr> {
+        Arc::new(self.clone())
     }
 
     #[inline]
@@ -140,38 +148,57 @@ impl Expr for TemporumOperator {
         }
     }
 
+    impl_unary_expr_eq_shallow!(TemporumOperator, argument);
+
     #[inline]
     fn fmt_expr(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{self}")
     }
 
+    #[inline]
     fn clean_temporum(
         &self,
-        num_tol: Option<NumberTolerance>,
+        freq_tol: Option<NumberTolerance>,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
         let frequency = self.frequency()?;
 
-        if is_zero_expr(&frequency, num_tol) {
+        if is_zero_expr(&frequency, freq_tol) {
             Ok(ZeroOperator::new())
         } else {
             MatrixMul::new(vec![frequency, self.argument.clone()])
         }
     }
 
-    fn differentiate(
-        &self,
-        s: &Arc<crate::perturbations::Perturbation>,
-    ) -> Result<Arc<dyn Expr>, TinnedError> {
+    #[inline]
+    fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
         let diff_arg = self.argument.differentiate(s).map_err(|e| {
-            generic_expression_error("differentiate() on argument failed", self, Some(Box::new(e)))
+            generic_expression_error(
+                "TemporumOperator::differentiate() failed for argument",
+                self,
+                Some(Box::new(e)),
+            )
         })?;
 
-        if is_zero_expr(&diff_arg, None) {
-            Ok(ZeroOperator::new())
-        } else {
-            self.builder_from(diff_arg).build()
-        }
+        self.builder_from(diff_arg).build()
     }
+
+    #[inline]
+    fn eliminate(
+        &self,
+        parameter: &Arc<dyn Expr>,
+        perturbations: &[Arc<Perturbation>],
+        min_order: u32,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        impl_unary_expr_arg_operation!(
+            self,
+            argument,
+            self.argument.eliminate(parameter, perturbations, min_order),
+            "TemporumOperator::eliminate() failed for parameter",
+            |arg| self.builder_from(arg).build()
+        )
+    }
+
+    impl_unary_expr_exist_any!(argument);
 }
 
 impl PartialEq for TemporumOperator {
@@ -271,8 +298,8 @@ mod tests {
         let diff_op1 = op1.differentiate(&p).unwrap();
         let diff_arg = argument.differentiate(&p).unwrap();
 
-        if is_zero_expr(&diff_arg, None) {
-            assert!(is_zero_expr(&diff_op1, None));
+        if is_expr_type::<ZeroOperator>(&diff_arg) {
+            assert!(is_expr_type::<ZeroOperator>(&diff_op1));
         } else {
             let diff_cast = downcast_from_arc::<TemporumOperator>(&diff_op1).unwrap();
 

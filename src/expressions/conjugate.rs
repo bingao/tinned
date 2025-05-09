@@ -1,3 +1,4 @@
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
 
 use typetag;
@@ -7,9 +8,10 @@ use crate::expressions::{
     Add, DotProduct, HermitianTranspose, MatrixMul, Mul, Number, Power, Transpose, ZeroOperator,
 };
 use crate::internal::intern_expr;
+use crate::perturbations::Perturbation;
 use crate::public::{
     NumberTolerance, downcast_from_arc, downcast_from_ref, generic_expression_error, is_expr_type,
-    is_one_expr, is_zero_expr,
+    is_one_expr,
 };
 
 /// Represents complex conjugation of an expression.
@@ -90,8 +92,8 @@ impl Expr for Conjugate {
     }
 
     #[inline]
-    fn clone_expr(&self) -> Self {
-        self.clone()
+    fn clone_expr(&self) -> Arc<dyn Expr> {
+        Arc::new(self.clone())
     }
 
     #[inline]
@@ -103,43 +105,56 @@ impl Expr for Conjugate {
         }
     }
 
+    impl_unary_expr_eq_shallow!(Conjugate, argument);
+
     #[inline]
     fn fmt_expr(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{self}")
     }
 
+    #[inline]
     fn clean_temporum(
         &self,
-        num_tol: Option<NumberTolerance>,
+        freq_tol: Option<NumberTolerance>,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
-        let new_arg = self.argument.clean_temporum(num_tol).map_err(|e| {
-            generic_expression_error("clean_temporum() failed", self, Some(Box::new(e)))
-        })?;
-
-        if is_zero_expr(&new_arg) {
-            return if new_arg.is_scalar() {
-                Ok(Number::zero())
-            } else {
-                Ok(ZeroOperator::new())
-            };
-        }
-
-        if new_arg == self.argument {
-            Ok(Arc::new(self.clone_expr()))
-        } else {
-            Self::new(new_arg)
-        }
+        impl_unary_expr_arg_operation!(
+            self,
+            argument,
+            self.argument.clean_temporum(freq_tol),
+            "Conjugate::clean_temporum() failed for argument",
+            |arg| Self::new(arg)
+        )
     }
 
-    fn differentiate(
-        &self,
-        s: &Arc<crate::perturbations::Perturbation>,
-    ) -> Result<Arc<dyn Expr>, TinnedError> {
+    fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
         let diff_arg = self.argument.differentiate(s).map_err(|e| {
-            generic_expression_error("differentiate() on argument failed", self, Some(Box::new(e)))
+            generic_expression_error(
+                "Conjugate::differentiate() failed for argument",
+                self,
+                Some(Box::new(e)),
+            )
         })?;
+
         Self::new(diff_arg)
     }
+
+    #[inline]
+    fn eliminate(
+        &self,
+        parameter: &Arc<dyn Expr>,
+        perturbations: &[Arc<Perturbation>],
+        min_order: u32,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        impl_unary_expr_arg_operation!(
+            self,
+            argument,
+            self.argument.eliminate(parameter, perturbations, min_order),
+            "Conjugate::eliminate() failed for argument",
+            |arg| Self::new(arg)
+        )
+    }
+
+    impl_unary_expr_exist_any!(argument);
 }
 
 impl PartialEq for Conjugate {

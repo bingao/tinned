@@ -22,8 +22,8 @@ macro_rules! impl_add_traits {
             }
 
             #[inline]
-            fn clone_expr(&self) -> Self {
-                self.clone()
+            fn clone_expr(&self) -> Arc<dyn Expr> {
+                Arc::new(self.clone())
             }
 
             #[inline]
@@ -42,41 +42,29 @@ macro_rules! impl_add_traits {
 
             fn clean_temporum(
                 &self,
-                num_tol: Option<NumberTolerance>,
+                freq_tol: Option<NumberTolerance>,
             ) -> Result<Arc<dyn Expr>, TinnedError> {
-                let mut new_terms = Vec::with_capacity(self.terms.len());
-                let mut new_add = false;
-
-                for term in &self.terms {
-                    let new_term = term.clean_temporum(num_tol).map_err(|e| {
-                        generic_expression_error("clean_temporum() failed", self, Some(Box::new(e)))
-                    })?;
-                    if is_zero_expr(&new_term, num_tol) {
-                        new_add = true;
-                    } else {
-                        if !new_add {
-                            new_add = new_term != term;
-                        }
-                        new_terms.push(new_term);
-                    }
-                }
-
-                if new_add {
-                    Self::new(new_terms)
-                } else {
-                    Ok(Arc::new(self.clone_expr()))
-                }
+                impl_add_traits!(
+                    @add_termwise_operation
+                    self,
+                    |term: &Arc<dyn Expr>| term.clean_temporum(freq_tol.clone()),
+                    concat!(stringify!($type_name), "clean_temporum() failed")
+                )
             }
 
             fn differentiate(
                 &self,
-                s: &Arc<crate::perturbations::Perturbation>,
+                s: &Arc<Perturbation>,
             ) -> Result<Arc<dyn Expr>, TinnedError> {
                 let mut diff_terms = Vec::with_capacity(self.terms.len());
 
                 for term in &self.terms {
                     let diff = term.differentiate(s).map_err(|e| {
-                        generic_expression_error("differentiate() failed", self, Some(Box::new(e)))
+                        generic_expression_error(
+                            concat!(stringify!($type_name), "differentiate() failed"),
+                            self,
+                            Some(Box::new(e)),
+                        )
                     })?;
                     if !is_zero_expr(&diff, None) {
                         diff_terms.push(diff);
@@ -84,6 +72,29 @@ macro_rules! impl_add_traits {
                 }
 
                 Self::new(diff_terms)
+            }
+
+            fn eliminate(
+                &self,
+                parameter: &Arc<dyn Expr>,
+                perturbations: &[Arc<Perturbation>],
+                min_order: u32,
+            ) -> Result<Arc<dyn Expr>, TinnedError> {
+                impl_add_traits!(
+                    @add_termwise_operation
+                    self,
+                    |term: &Arc<dyn Expr>| term.eliminate(parameter, perturbations, min_order),
+                    concat!(stringify!($type_name), "eliminate() failed")
+                )
+            }
+
+            #[inline]
+            fn exist_any(&self, set: &HashSet<Arc<dyn Expr>>) -> bool {
+                if self.terms.iter().any(|term| term.exist_any(set)) {
+                    return true;
+                }
+
+                set.iter().any(|expr| self.eq_expr(expr.as_ref()))
             }
         }
 
@@ -101,4 +112,28 @@ macro_rules! impl_add_traits {
             }
         }
     };
+
+    (@add_termwise_operation $self:ident, $operation:expr, $message:expr) => {{
+        let mut new_terms = Vec::with_capacity($self.terms.len());
+        let mut new_add = false;
+
+        for term in &$self.terms {
+            let new_term = ($operation)(term)
+                .map_err(|e| generic_expression_error($message, $self, Some(Box::new(e))))?;
+            if is_zero_expr(&new_term, None) {
+                new_add = true;
+            } else {
+                if !new_add {
+                    new_add = &new_term != term;
+                }
+                new_terms.push(new_term);
+            }
+        }
+
+        if new_add {
+            Self::new(new_terms)
+        } else {
+            Ok($self.clone_expr())
+        }
+    }};
 }

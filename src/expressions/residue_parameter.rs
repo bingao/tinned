@@ -73,6 +73,10 @@ impl ResidueParameterBuilder {
     }
 
     pub fn build(mut self) -> Result<Arc<dyn Expr>, TinnedError> {
+        if is_expr_type::<ZeroOperator>(&self.parameter) {
+            return Ok(ZeroOperator::new());
+        }
+
         let derivative_opt = if let Some(wfn) = downcast_from_arc::<WfnParameter>(&self.parameter) {
             Some(wfn.derivative())
         } else if let Some(lag) = downcast_from_arc::<LagMultiplier>(&self.parameter) {
@@ -128,8 +132,8 @@ impl Expr for ResidueParameter {
     }
 
     #[inline]
-    fn clone_expr(&self) -> Self {
-        self.clone()
+    fn clone_expr(&self) -> Arc<dyn Expr> {
+        Arc::new(self.clone())
     }
 
     #[inline]
@@ -141,6 +145,8 @@ impl Expr for ResidueParameter {
         }
     }
 
+    impl_unary_expr_eq_shallow!(ResidueParameter, parameter);
+
     #[inline]
     fn fmt_expr(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{self}")
@@ -148,20 +154,44 @@ impl Expr for ResidueParameter {
 
     fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
         let diff_param = self.parameter.differentiate(s).map_err(|e| {
-            generic_expression_error("differentiate() on parameter failed", self, Some(Box::new(e)))
+            generic_expression_error(
+                "ResidueParameter::differentiate() failed for parameter",
+                self,
+                Some(Box::new(e)),
+            )
         })?;
 
-        if is_expr_type::<ZeroOperator>(&diff_param) {
-            return Ok(ZeroOperator::new());
-        }
-
-        Ok(intern_expr(Arc::new(Self {
-            positive_frequency: self.positive_frequency,
-            perturbations: self.perturbations.clone(),
-            excited_state: self.excited_state.clone(),
-            parameter: diff_param,
-        })))
+        Self::builder(self.perturbations.clone(), self.excited_state.clone(), diff_param)
+            .positive_frequency(self.positive_frequency)
+            .build()
     }
+
+    // Elimination should be usually performed for response functions, so that
+    // it is a bit weird to call eliminate() method for `ResidueParameter`.
+    //
+    // But, it is technically possible to firstly take the residue procedure,
+    // followed by the elimination in SymResponse. So we may still need the
+    // eliminate() method for `ResidueParameter`.
+    #[inline]
+    fn eliminate(
+        &self,
+        parameter: &Arc<dyn Expr>,
+        perturbations: &[Arc<Perturbation>],
+        min_order: u32,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        impl_unary_expr_arg_operation!(
+            self,
+            parameter,
+            self.parameter.eliminate(parameter, perturbations, min_order),
+            "ResidueParameter::eliminate() failed for parameter",
+            |arg| Self::builder(self.perturbations.clone(), self.excited_state.clone(), arg,)
+                .positive_frequency(self.positive_frequency)
+                .build()
+        )
+    }
+
+    // `ResidueParameter` is an undivided whole for the method `exist_any()`,
+    // so we use the corresponding method of the pub trait `Expr`.
 }
 
 impl PartialEq for ResidueParameter {

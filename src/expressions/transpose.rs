@@ -1,3 +1,4 @@
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
 
 use typetag;
@@ -5,9 +6,10 @@ use typetag;
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{Conjugate, HermitianTranspose, MatrixMul, ZeroOperator};
 use crate::internal::intern_expr;
+use crate::perturbations::Perturbation;
 use crate::public::{
-    downcast_from_arc, downcast_from_ref, expression_error, generic_expression_error, is_expr_type,
-    is_one_expr, NumberTolerance, is_zero_expr,
+    NumberTolerance, downcast_from_arc, downcast_from_ref, expression_error,
+    generic_expression_error, is_expr_type, is_one_expr,
 };
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -60,7 +62,7 @@ impl Transpose {
     }
 }
 
-impl_unary_expr_traits!(Transpose, false, ZeroOperator::new, "{arg}^T");
+impl_unary_expr_traits!(Transpose, false, "{arg}^T");
 
 #[cfg(test)]
 mod tests {

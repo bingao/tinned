@@ -15,16 +15,16 @@ pub trait Expr: Debug + Send + Sync {
     //
     fn as_any(&self) -> &dyn std::any::Any;
 
-    // Returns name of a concrete expression type
+    // Returns name of a concrete expression type.
     #[inline]
     fn type_name(&self) -> &'static str {
         std::any::type_name::<Self>()
     }
 
-    // Returns hash key of a concrete expression type
+    // Returns hash key of a concrete expression type.
     fn hash_key(&self) -> String;
 
-    // Precomputes hashes for faster sorting
+    // Precomputes hashes for faster sorting.
     #[inline]
     fn fast_hash(&self) -> u64 {
         let mut hasher = std::collections::hash_map::DefaultHasher::new();
@@ -32,61 +32,76 @@ pub trait Expr: Debug + Send + Sync {
         hasher.finish()
     }
 
-    // Returns if a concrete expression type is scalar
+    // Returns if a concrete expression type is scalar.
     fn is_scalar(&self) -> bool;
 
-    // Compares equality for concrete expression types
+    // Compares equality for concrete expression types.
     fn eq_expr(&self, other: &dyn Expr) -> bool;
 
-    // Make a clone of a concrete expression type
-    fn clone_expr(&self) -> Self
-    where
-        Self: Sized + Clone;
+    // Compares equality for concrete expression types but ignores derivatives.
+    fn eq_shallow(&self, other: &dyn Expr) -> bool {
+        self.eq_expr(other)
+    }
 
-    // Formats a concrete expression type
+    // Make a clone of a concrete expression type.
+    fn clone_expr(&self) -> Arc<dyn Expr>;
+
+    // Formats a concrete expression type.
     fn fmt_expr(&self, f: &mut Formatter) -> FmtResult;
 
-    // Cleans `TemporumOperator` and unperturbed `TemporumOverlap` objects
+    // Cleans `TemporumOperator` and unperturbed `TemporumOverlap` objects.
     #[inline]
     fn clean_temporum(
         &self,
-        _num_tol: Option<crate::public::NumberTolerance>,
+        _freq_tol: Option<crate::public::NumberTolerance>,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
-        Ok(Arc::new(self.clone_expr()))
+        Ok(self.clone_expr())
     }
 
-    // Differentiate with respect to a `Perturbation`
+    // Differentiates with respect to a `Perturbation`.
     fn differentiate(
         &self,
         s: &Arc<crate::perturbations::Perturbation>,
     ) -> Result<Arc<dyn Expr>, TinnedError>;
 
-    // Helper function to eliminate a given response `parameter`'s derivatives
-    // from `x`. Maximum order of derivatives to be eliminated is the length of
-    // `perturbations`, and minimum order is specified by `min_order`. For wave
-    // function parameters, it should be greater than the floor function of the
-    // half length of `perturbations`, and for multipliers, it should be greater
-    // than or equal to the ceiling function of the half length of
+    // Eliminates a given response `parameter`'s derivatives from the
+    // expression. Maximum order of derivatives to be eliminated is the length
+    // of `perturbations`, and minimum order is specified by `min_order`. For
+    // wave function parameters, it should be greater than the floor function
+    // of the half length of `perturbations`, and for multipliers, it should be
+    // greater than or equal to the ceiling function of the half length of
     // `perturbations` according to J. Chem. Phys. 129, 214103 (2008).
+    //
+    // Note that we expect that `parameter` is either `LagMultiplier` or
+    // `WfnParameter`. Error or incorrect result will return if users provide
+    // invalid types of `parameter`.
+    #[inline]
     fn eliminate(
         &self,
-        parameter: &Arc<dyn Expr>,
-        perturbations: &[Arc<Perturbation>],
-        min_order: u32,
-    ) -> Result<Arc<dyn Expr>, TinnedError>;
+        _parameter: &Arc<dyn Expr>,
+        _perturbations: &[Arc<crate::perturbations::Perturbation>],
+        _min_order: u32,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        Ok(self.clone_expr())
+    }
 
+    // Checks if any expression in `set` exists in the concrete expression.
+    #[inline]
+    fn exist_any(&self, set: &HashSet<Arc<dyn Expr>>) -> bool {
+        set.iter().any(|expr| self.eq_expr(expr.as_ref()))
+    }
+
+    //    // Finds a given expression `s` and all its differentiated ones in the
+    //    // concrete expression.
+    //    fn find_all(&self, s: &Arc<dyn Expr>) -> BTreeMap<u32, HashSet<Arc<dyn Expr>>>;
     //
-    fn exist_any(&self, set: &HashSet<Arc<dyn Expr>>) -> bool;
-
-    // Find a given `s` and all its differentiated ones
-    fn find_all(&self, s: &Arc<dyn Expr>) -> BTreeMap<u32, HashSet<Arc<dyn Expr>>>;
-
-    // Helper function to remove given `symbols` from `x`
-    fn remove(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError>;
-
-    // Helper function to replace Tinned objects and their derivatives with
-    // SymEngine `Basic` symbols and corresponding derivatives
-    fn replace(&self, map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>) -> Arc<dyn Expr>;
+    //    // Removes given expressions in `set` from the concrete expression.
+    //    fn remove(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError>;
+    //
+    //    // Replaces given expressions (keys of `map`) and their derivatives with
+    //    // corresponding values of `map` and their derivatives in the concrete
+    //    // expression.
+    //    fn replace(&self, map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>) -> Arc<dyn Expr>;
 }
 
 impl Hash for dyn Expr {

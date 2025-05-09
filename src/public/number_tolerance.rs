@@ -24,6 +24,14 @@ impl NumberTolerance {
     }
 
     #[inline]
+    pub fn zero() -> Self {
+        Self {
+            abs_error: 0.0,
+            rel_error: 0.0,
+        }
+    }
+
+    #[inline]
     pub fn abs_error(&self) -> f64 {
         self.abs_error
     }

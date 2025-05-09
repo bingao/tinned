@@ -1,3 +1,4 @@
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
 
 use typetag;
@@ -5,8 +6,10 @@ use typetag;
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{Mul, Number};
 use crate::internal::intern_expr;
+use crate::perturbations::Perturbation;
 use crate::public::{
-    is_zero_expr, NumberTolerance, downcast_from_arc, downcast_from_ref, expression_error, generic_expression_error,
+    NumberTolerance, downcast_from_arc, downcast_from_ref, expression_error,
+    generic_expression_error,
 };
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -87,8 +90,8 @@ impl Expr for Power {
     }
 
     #[inline]
-    fn clone_expr(&self) -> Self {
-        self.clone()
+    fn clone_expr(&self) -> Arc<dyn Expr> {
+        Arc::new(self.clone())
     }
 
     #[inline]
@@ -100,37 +103,35 @@ impl Expr for Power {
         }
     }
 
+    impl_unary_expr_eq_shallow!(Power, base);
+
     #[inline]
     fn fmt_expr(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{self}")
     }
 
+    #[inline]
     fn clean_temporum(
         &self,
-        num_tol: Option<NumberTolerance>,
+        freq_tol: Option<NumberTolerance>,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
-        let new_base = self.base.clean_temporum(num_tol).map_err(|e| {
-            generic_expression_error("clean_temporum() on base failed", self, Some(Box::new(e)))
-        })?;
-
-        if is_zero_expr(&new_base) {
-            return Ok(Number::zero());
-        }
-
-        if new_base == self.base {
-            Ok(Arc::new(self.clone_expr()))
-        } else {
-            Self::new(new_base, self.exponent)
-        }
+        impl_unary_expr_arg_operation!(
+            self,
+            base,
+            self.base.clean_temporum(freq_tol),
+            "Power::clean_temporum() failed for base",
+            |arg| Self::new(arg, self.exponent)
+        )
     }
 
-    fn differentiate(
-        &self,
-        s: &Arc<crate::perturbations::Perturbation>,
-    ) -> Result<Arc<dyn Expr>, TinnedError> {
+    fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
         let new_exp = self.exponent - 1;
         let diff_base = self.base.differentiate(s).map_err(|e| {
-            generic_expression_error("differentiate() on base failed", self, Some(Box::new(e)))
+            generic_expression_error(
+                "Power::differentiate() failed for base",
+                self,
+                Some(Box::new(e)),
+            )
         })?;
 
         crate::expressions::Mul::new(vec![
@@ -139,6 +140,24 @@ impl Expr for Power {
             diff_base,
         ])
     }
+
+    #[inline]
+    fn eliminate(
+        &self,
+        parameter: &Arc<dyn Expr>,
+        perturbations: &[Arc<Perturbation>],
+        min_order: u32,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        impl_unary_expr_arg_operation!(
+            self,
+            base,
+            self.base.eliminate(parameter, perturbations, min_order),
+            "Power::eliminate() failed for base",
+            |arg| Self::new(arg, self.exponent)
+        )
+    }
+
+    impl_unary_expr_exist_any!(base);
 }
 
 impl PartialEq for Power {
@@ -161,7 +180,7 @@ mod tests {
     use crate::expressions::exch_corr_energy::test_utils::make_exch_corr_energy;
     use crate::expressions::symbol::test_utils::make_symbol;
     use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
-    use crate::public::{is_expr_type, is_one_expr};
+    use crate::public::{is_expr_type, is_one_expr, is_zero_expr};
 
     test_struct_safety!(Power);
 
