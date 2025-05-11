@@ -7,8 +7,8 @@ use crate::expressions::{Number, ZeroOperator};
 use crate::perturbations::{PertMultichain, Perturbation};
 use crate::public::{downcast_from_arc, downcast_from_ref};
 
-impl_nullary_oper_type!(WfnParameter, WfnParameterBuilder, false, false);
-impl_nullary_oper_traits!(WfnParameter, false, false);
+impl_nullary_expr_type!(WfnParameter, WfnParameterBuilder, false, false);
+impl_nullary_expr_traits!(WfnParameter, false, false);
 
 #[cfg(test)]
 const DEFAULT_OPER_NAME: &str = "psi";
@@ -44,5 +44,5 @@ mod tests {
     use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
     use crate::public::{downcast_from_arc, is_expr_type, is_one_expr, is_zero_expr};
 
-    test_nullary_oper!(WfnParameter, DEFAULT_OPER_NAME, make_wfn_parameter, false, false);
+    test_nullary_expr!(WfnParameter, DEFAULT_OPER_NAME, make_wfn_parameter, false, false);
 }

@@ -11,7 +11,7 @@ pub mod impl_exch_corr;
 pub mod impl_multiplication;
 
 #[macro_use]
-pub mod impl_nullary_oper;
+pub mod impl_nullary_expr;
 
 #[macro_use]
 pub mod impl_unary_expr;

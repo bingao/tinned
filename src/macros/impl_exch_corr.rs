@@ -156,6 +156,11 @@ macro_rules! impl_exch_corr_traits {
                 write!(f, "{self}")
             }
 
+            #[inline]
+            fn total_order(&self) -> u32 {
+                self.derivative.total_order()
+            }
+
             fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
                 let diff_expr = self.$grid_expr_name.differentiate(s).map_err(|e| {
                     generic_expression_error(
@@ -214,6 +219,15 @@ macro_rules! impl_exch_corr_traits {
             fn exist_any(&self, set: &HashSet<Arc<dyn Expr>>) -> bool {
                 set.iter().any(|expr| self.eq_expr(expr.as_ref()))
                     || self.$grid_expr_name.exist_any(set)
+            }
+
+            #[inline]
+            fn find_all(&self, s: &Arc<dyn Expr>) -> BTreeMap<u32, HashSet<Arc<dyn Expr>>> {
+                if self.eq_shallow(s) {
+                    BTreeMap::from([(self.total_order(), HashSet::from([self.clone_expr()]))])
+                } else {
+                    self.$grid_expr_name.find_all(s)
+                }
             }
         }
 

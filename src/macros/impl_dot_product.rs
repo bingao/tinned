@@ -1,4 +1,4 @@
-macro_rules! dot_product_argument_op {
+macro_rules! dot_product_arg_operation {
     ($self:ident, $bra_operation:expr, $ket_operation:expr, $message:literal) => {{
         let new_bra = $bra_operation.map_err(|e| {
             generic_expression_error(concat!($message, " for bra"), $self, Some(Box::new(e)))

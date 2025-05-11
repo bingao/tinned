@@ -31,6 +31,10 @@ impl Composition {
             ));
         }
 
+        if is_zero_expr(&inner, None) {
+            return Ok(crate::expressions::Number::zero());
+        }
+
         Ok(crate::internal::intern_expr(Arc::new(Self {
             name: name.into(),
             order,
@@ -56,33 +60,18 @@ impl Composition {
 
 #[typetag::serde]
 impl Expr for Composition {
-    #[inline]
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
+    impl_unary_expr_common_methods!(
+        Composition,
+        inner,
+        True,
+        |this: &Composition, arg| Self::new(this.name.clone(), this.order, arg),
+        false,
+        false,
+    );
 
     #[inline]
     fn hash_key(&self) -> String {
         format!("Composition({}^{}; {})", self.name, self.order, self.inner.hash_key())
-    }
-
-    #[inline]
-    fn is_scalar(&self) -> bool {
-        true
-    }
-
-    #[inline]
-    fn clone_expr(&self) -> Arc<dyn Expr> {
-        Arc::new(self.clone())
-    }
-
-    #[inline]
-    fn eq_expr(&self, other: &dyn Expr) -> bool {
-        if let Some(comp) = downcast_from_ref::<Composition>(other) {
-            self == comp
-        } else {
-            false
-        }
     }
 
     #[inline]
@@ -92,11 +81,6 @@ impl Expr for Composition {
         } else {
             false
         }
-    }
-
-    #[inline]
-    fn fmt_expr(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{self}")
     }
 
     fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
@@ -112,31 +96,6 @@ impl Expr for Composition {
 
         crate::expressions::Mul::new(vec![diff_outer, diff_inner])
     }
-
-    fn eliminate(
-        &self,
-        parameter: &Arc<dyn Expr>,
-        perturbations: &[Arc<Perturbation>],
-        min_order: u32,
-    ) -> Result<Arc<dyn Expr>, TinnedError> {
-        let new_inner = self.inner.eliminate(parameter, perturbations, min_order).map_err(|e| {
-            generic_expression_error(
-                "Composition::eliminate() failed for inner function",
-                self,
-                Some(Box::new(e)),
-            )
-        })?;
-
-        if is_zero_expr(&new_inner, None) {
-            Ok(crate::expressions::Number::zero())
-        } else if &new_inner == &self.inner {
-            Ok(self.clone_expr())
-        } else {
-            Self::new(self.name.clone(), self.order, new_inner)
-        }
-    }
-
-    impl_unary_expr_exist_any!(inner);
 }
 
 impl PartialEq for Composition {

@@ -84,7 +84,7 @@ impl Trace {
     }
 }
 
-impl_unary_expr_traits!(Trace, true, "tr({arg})");
+impl_unary_expr_traits!(Trace, True, "tr({arg})");
 
 #[cfg(test)]
 mod tests {

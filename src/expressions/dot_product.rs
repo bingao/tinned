@@ -117,7 +117,7 @@ impl DotProduct {
 
     #[inline]
     pub fn conjugate(&self) -> Result<Arc<dyn Expr>, TinnedError> {
-        dot_product_argument_op!(
+        dot_product_arg_operation!(
             self,
             Conjugate::new(self.bra.clone()),
             Conjugate::new(self.ket.clone()),
@@ -202,12 +202,17 @@ impl Expr for DotProduct {
         &self,
         freq_tol: Option<NumberTolerance>,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
-        dot_product_argument_op!(
+        dot_product_arg_operation!(
             self,
             self.bra.clean_temporum(freq_tol.clone()),
             self.ket.clean_temporum(freq_tol),
             "DotProduct::clean_temporum() failed"
         )
+    }
+
+    #[inline]
+    fn total_order(&self) -> u32 {
+        self.bra.total_order() + self.ket.total_order()
     }
 
     fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
@@ -239,7 +244,7 @@ impl Expr for DotProduct {
         perturbations: &[Arc<Perturbation>],
         min_order: u32,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
-        dot_product_argument_op!(
+        dot_product_arg_operation!(
             self,
             self.bra.eliminate(parameter, perturbations, min_order),
             self.ket.eliminate(parameter, perturbations, min_order),
@@ -252,6 +257,20 @@ impl Expr for DotProduct {
         set.iter().any(|expr| self.eq_expr(expr.as_ref()))
             || self.bra.exist_any(set)
             || self.ket.exist_any(set)
+    }
+
+    #[inline]
+    fn find_all(&self, s: &Arc<dyn Expr>) -> BTreeMap<u32, HashSet<Arc<dyn Expr>>> {
+        if self.eq_shallow(s) {
+            BTreeMap::from([(self.total_order(), HashSet::from([self.clone_expr()]))])
+        } else {
+            let mut result = self.bra.find_all(s);
+            for (order, subset) in self.ket.find_all(s) {
+                result.entry(order).or_default().extend(subset);
+            }
+
+            result
+        }
     }
 }
 

@@ -7,8 +7,8 @@ use crate::expressions::{Number, ZeroOperator};
 use crate::perturbations::{PertMultichain, Perturbation};
 use crate::public::{downcast_from_arc, downcast_from_ref};
 
-impl_nullary_oper_type!(OneElecOperator, OneElecOperatorBuilder, true, false);
-impl_nullary_oper_traits!(OneElecOperator, true, false);
+impl_nullary_expr_type!(OneElecOperator, OneElecOperatorBuilder, true, false);
+impl_nullary_expr_traits!(OneElecOperator, true, false);
 
 #[cfg(test)]
 const DEFAULT_OPER_NAME: &str = "op(1el)";
@@ -51,5 +51,5 @@ mod tests {
     use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
     use crate::public::{downcast_from_arc, is_expr_type, is_one_expr, is_zero_expr};
 
-    test_nullary_oper!(OneElecOperator, DEFAULT_OPER_NAME, make_one_elec_operator, true, false);
+    test_nullary_expr!(OneElecOperator, DEFAULT_OPER_NAME, make_one_elec_operator, true, false);
 }

@@ -1,9 +1,9 @@
-macro_rules! impl_nullary_oper_type {
+macro_rules! impl_nullary_expr_type {
     ($type_name:ident, $builder_name:ident, $has_deps:tt, $is_scalar:tt) => {
-        impl_nullary_oper_type!(@def_oper_struct $type_name, $has_deps);
+        impl_nullary_expr_type!(@def_oper_struct $type_name, $has_deps);
 
         impl $type_name {
-            impl_nullary_oper_type!(@impl_oper_methods $builder_name, $has_deps);
+            impl_nullary_expr_type!(@impl_oper_methods $builder_name, $has_deps);
 
             #[inline]
             pub fn name(&self) -> &str {
@@ -16,7 +16,7 @@ macro_rules! impl_nullary_oper_type {
             }
         }
 
-        impl_nullary_oper_type!(@def_builder_struct $builder_name, $has_deps);
+        impl_nullary_expr_type!(@def_builder_struct $builder_name, $has_deps);
 
         impl $builder_name {
             #[inline]
@@ -25,7 +25,7 @@ macro_rules! impl_nullary_oper_type {
                 self
             }
 
-            impl_nullary_oper_type!(@impl_builder_methods $type_name, $has_deps, $is_scalar);
+            impl_nullary_expr_type!(@impl_builder_methods $type_name, $has_deps, $is_scalar);
         }
     };
 
@@ -149,7 +149,7 @@ macro_rules! impl_nullary_oper_type {
     };
 
     (@impl_builder_methods $type_name:ident, false, true) => {
-        compile_error!("impl_nullary_oper_type!(...) does not support has_deps = false and is_scalar = true");
+        compile_error!("impl_nullary_expr_type!(...) does not support has_deps = false and is_scalar = true");
     };
 
     (@impl_builder_methods $type_name:ident, false, false) => {
@@ -163,7 +163,7 @@ macro_rules! impl_nullary_oper_type {
     };
 }
 
-macro_rules! impl_nullary_oper_traits {
+macro_rules! impl_nullary_expr_traits {
     ($type_name:ident, $has_deps:tt, $is_scalar:tt) => {
         #[typetag::serde]
         impl Expr for $type_name {
@@ -172,7 +172,7 @@ macro_rules! impl_nullary_oper_traits {
                 self
             }
 
-            impl_nullary_oper_traits!(@impl_hash_key $type_name, $has_deps);
+            impl_nullary_expr_traits!(@impl_hash_key $type_name, $has_deps);
 
             #[inline]
             fn is_scalar(&self) -> bool {
@@ -187,7 +187,7 @@ macro_rules! impl_nullary_oper_traits {
             #[inline]
             fn eq_expr(&self, other: &dyn Expr) -> bool {
                 if let Some(op) = downcast_from_ref::<$type_name>(other) {
-                    impl_nullary_oper_traits!(@impl_eq_expr self, op, $has_deps)
+                    impl_nullary_expr_traits!(@impl_eq_expr self, op, $has_deps)
                 } else {
                     false
                 }
@@ -196,7 +196,7 @@ macro_rules! impl_nullary_oper_traits {
             #[inline]
             fn eq_shallow(&self, other: &Arc<dyn Expr>) -> bool {
                 if let Some(op) = downcast_from_arc::<$type_name>(other) {
-                    impl_nullary_oper_traits!(@impl_eq_shallow self, op, $has_deps)
+                    impl_nullary_expr_traits!(@impl_eq_shallow self, op, $has_deps)
                 } else {
                     false
                 }
@@ -208,6 +208,9 @@ macro_rules! impl_nullary_oper_traits {
             }
 
             #[inline]
+            fn total_order(&self) -> u32 { self.derivative.total_order() }
+
+            #[inline]
             fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError>
             {
                 let new_deriv = self.derivative.clone_with_insert(s);
@@ -215,7 +218,7 @@ macro_rules! impl_nullary_oper_traits {
                 self.builder_from(new_deriv).build()
             }
 
-            impl_nullary_oper_traits!(@impl_eliminate $type_name, $has_deps);
+            impl_nullary_expr_traits!(@impl_eliminate $type_name, $has_deps);
         }
 
         impl std::fmt::Display for $type_name {

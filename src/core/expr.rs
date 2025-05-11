@@ -35,16 +35,17 @@ pub trait Expr: Debug + Send + Sync {
     // Returns if a concrete expression type is scalar.
     fn is_scalar(&self) -> bool;
 
+    // Make a clone of a concrete expression type.
+    fn clone_expr(&self) -> Arc<dyn Expr>;
+
     // Compares equality for concrete expression types.
     fn eq_expr(&self, other: &dyn Expr) -> bool;
 
     // Compares equality for concrete expression types but ignores derivatives.
+    #[inline]
     fn eq_shallow(&self, other: &Arc<dyn Expr>) -> bool {
         self.eq_expr(other.as_ref())
     }
-
-    // Make a clone of a concrete expression type.
-    fn clone_expr(&self) -> Arc<dyn Expr>;
 
     // Formats a concrete expression type.
     fn fmt_expr(&self, f: &mut Formatter) -> FmtResult;
@@ -56,6 +57,12 @@ pub trait Expr: Debug + Send + Sync {
         _freq_tol: Option<crate::public::NumberTolerance>,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
         Ok(self.clone_expr())
+    }
+
+    // Returns the total order of differentiation.
+    #[inline]
+    fn total_order(&self) -> u32 {
+        0
     }
 
     // Differentiates with respect to a `Perturbation`.
@@ -91,9 +98,16 @@ pub trait Expr: Debug + Send + Sync {
         set.iter().any(|expr| self.eq_expr(expr.as_ref()))
     }
 
-    //    // Finds a given expression `s` and all its differentiated ones in the
-    //    // concrete expression.
-    //    fn find_all(&self, s: &Arc<dyn Expr>) -> BTreeMap<u32, HashSet<Arc<dyn Expr>>>;
+    // Finds a given expression `s` and all its differentiated ones in the
+    // concrete expression.
+    #[inline]
+    fn find_all(&self, s: &Arc<dyn Expr>) -> BTreeMap<u32, HashSet<Arc<dyn Expr>>> {
+        if self.eq_shallow(s) {
+            BTreeMap::from([(self.total_order(), HashSet::from([self.clone_expr()]))])
+        } else {
+            BTreeMap::new()
+        }
+    }
 
     //    // Removes given expressions in `set` from the concrete expression.
     //    fn remove(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError>;

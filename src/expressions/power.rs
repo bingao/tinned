@@ -74,54 +74,18 @@ impl Power {
 
 #[typetag::serde]
 impl Expr for Power {
-    #[inline]
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
+    impl_unary_expr_common_methods!(
+        Power,
+        base,
+        True,
+        |this: &Power, arg| Self::new(arg, this.exponent),
+        true,
+        true,
+    );
 
     #[inline]
     fn hash_key(&self) -> String {
         format!("Power({}; {})", self.base.hash_key(), self.exponent)
-    }
-
-    #[inline]
-    fn is_scalar(&self) -> bool {
-        true
-    }
-
-    #[inline]
-    fn clone_expr(&self) -> Arc<dyn Expr> {
-        Arc::new(self.clone())
-    }
-
-    #[inline]
-    fn eq_expr(&self, other: &dyn Expr) -> bool {
-        if let Some(pow) = downcast_from_ref::<Power>(other) {
-            self == pow
-        } else {
-            false
-        }
-    }
-
-    impl_unary_expr_eq_shallow!(Power, base);
-
-    #[inline]
-    fn fmt_expr(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{self}")
-    }
-
-    #[inline]
-    fn clean_temporum(
-        &self,
-        freq_tol: Option<NumberTolerance>,
-    ) -> Result<Arc<dyn Expr>, TinnedError> {
-        impl_unary_expr_arg_operation!(
-            self,
-            base,
-            self.base.clean_temporum(freq_tol),
-            "Power::clean_temporum() failed for base",
-            |arg| Self::new(arg, self.exponent)
-        )
     }
 
     fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
@@ -140,24 +104,6 @@ impl Expr for Power {
             diff_base,
         ])
     }
-
-    #[inline]
-    fn eliminate(
-        &self,
-        parameter: &Arc<dyn Expr>,
-        perturbations: &[Arc<Perturbation>],
-        min_order: u32,
-    ) -> Result<Arc<dyn Expr>, TinnedError> {
-        impl_unary_expr_arg_operation!(
-            self,
-            base,
-            self.base.eliminate(parameter, perturbations, min_order),
-            "Power::eliminate() failed for base",
-            |arg| Self::new(arg, self.exponent)
-        )
-    }
-
-    impl_unary_expr_exist_any!(base);
 }
 
 impl PartialEq for Power {

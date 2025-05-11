@@ -65,6 +65,12 @@ impl PertMultichain {
         *map.get(p).unwrap_or(&0)
     }
 
+    /// Returns the sum of all perturbation orders.
+    #[inline]
+    pub fn total_order(&self) -> u32 {
+        self.0.lock().unwrap().values().sum()
+    }
+
     /// Returns all perturbations in the multichain and meanwhile preserves the order.
     #[inline]
     pub fn keys(&self) -> Vec<Arc<Perturbation>> {

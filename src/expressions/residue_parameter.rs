@@ -1,3 +1,4 @@
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
 
 use typetag;
@@ -110,10 +111,31 @@ impl ResidueParameterBuilder {
 
 #[typetag::serde]
 impl Expr for ResidueParameter {
-    #[inline]
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
+    // We treat `ResidueParameter` is the same type as its `parameter` so that
+    // `exist_any()` will return true and `find_all()` will return
+    // `ResidueParameter` itself if its `parameter` is the input parameter of
+    // these two methods.
+    //
+    // Elimination should be usually performed for response functions, so that
+    // it is a bit weird to call eliminate() method for `ResidueParameter`.
+    //
+    // But, it is technically possible to firstly take the residue procedure,
+    // followed by the elimination in SymResponse. So we may still need the
+    // eliminate() method for `ResidueParameter`.
+    impl_unary_expr_common_methods!(
+        ResidueParameter,
+        parameter,
+        False,
+        |this: &ResidueParameter, arg| Self::builder(
+            this.perturbations.clone(),
+            this.excited_state.clone(),
+            arg
+        )
+        .positive_frequency(this.positive_frequency)
+        .build(),
+        true,
+        false,
+    );
 
     #[inline]
     fn hash_key(&self) -> String {
@@ -124,32 +146,6 @@ impl Expr for ResidueParameter {
             self.excited_state.hash_key(),
             self.parameter.hash_key(),
         )
-    }
-
-    #[inline]
-    fn is_scalar(&self) -> bool {
-        false
-    }
-
-    #[inline]
-    fn clone_expr(&self) -> Arc<dyn Expr> {
-        Arc::new(self.clone())
-    }
-
-    #[inline]
-    fn eq_expr(&self, other: &dyn Expr) -> bool {
-        if let Some(op) = downcast_from_ref::<ResidueParameter>(other) {
-            self == op
-        } else {
-            false
-        }
-    }
-
-    impl_unary_expr_eq_shallow!(ResidueParameter, parameter);
-
-    #[inline]
-    fn fmt_expr(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{self}")
     }
 
     fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
@@ -165,33 +161,6 @@ impl Expr for ResidueParameter {
             .positive_frequency(self.positive_frequency)
             .build()
     }
-
-    // Elimination should be usually performed for response functions, so that
-    // it is a bit weird to call eliminate() method for `ResidueParameter`.
-    //
-    // But, it is technically possible to firstly take the residue procedure,
-    // followed by the elimination in SymResponse. So we may still need the
-    // eliminate() method for `ResidueParameter`.
-    #[inline]
-    fn eliminate(
-        &self,
-        parameter: &Arc<dyn Expr>,
-        perturbations: &[Arc<Perturbation>],
-        min_order: u32,
-    ) -> Result<Arc<dyn Expr>, TinnedError> {
-        impl_unary_expr_arg_operation!(
-            self,
-            parameter,
-            self.parameter.eliminate(parameter, perturbations, min_order),
-            "ResidueParameter::eliminate() failed for parameter",
-            |arg| Self::builder(self.perturbations.clone(), self.excited_state.clone(), arg,)
-                .positive_frequency(self.positive_frequency)
-                .build()
-        )
-    }
-
-    // `ResidueParameter` is an undivided whole for the method `exist_any()`,
-    // so we use the corresponding method of the pub trait `Expr`.
 }
 
 impl PartialEq for ResidueParameter {

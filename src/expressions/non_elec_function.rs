@@ -7,8 +7,8 @@ use crate::expressions::{Number, ZeroOperator};
 use crate::perturbations::{PertMultichain, Perturbation};
 use crate::public::{downcast_from_arc, downcast_from_ref};
 
-impl_nullary_oper_type!(NonElecFunction, NonElecFunctionBuilder, true, true);
-impl_nullary_oper_traits!(NonElecFunction, true, true);
+impl_nullary_expr_type!(NonElecFunction, NonElecFunctionBuilder, true, true);
+impl_nullary_expr_traits!(NonElecFunction, true, true);
 
 #[cfg(test)]
 const DEFAULT_FUN_NAME: &str = "nel";
@@ -51,5 +51,5 @@ mod tests {
     use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
     use crate::public::{downcast_from_arc, is_expr_type, is_one_expr, is_zero_expr};
 
-    test_nullary_oper!(NonElecFunction, DEFAULT_FUN_NAME, make_non_elec_function, true, true);
+    test_nullary_expr!(NonElecFunction, DEFAULT_FUN_NAME, make_non_elec_function, true, true);
 }

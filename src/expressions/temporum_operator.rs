@@ -119,40 +119,18 @@ impl TemporumOperatorBuilder {
 
 #[typetag::serde]
 impl Expr for TemporumOperator {
-    #[inline]
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
+    impl_unary_expr_common_methods!(
+        TemporumOperator,
+        argument,
+        False,
+        |this: &TemporumOperator, arg| this.builder_from(arg).build(),
+        true,
+        false,
+    );
 
     #[inline]
     fn hash_key(&self) -> String {
         format!("TemporumOperator({}; {})", self.is_forward, self.argument.hash_key())
-    }
-
-    #[inline]
-    fn is_scalar(&self) -> bool {
-        false
-    }
-
-    #[inline]
-    fn clone_expr(&self) -> Arc<dyn Expr> {
-        Arc::new(self.clone())
-    }
-
-    #[inline]
-    fn eq_expr(&self, other: &dyn Expr) -> bool {
-        if let Some(op) = downcast_from_ref::<TemporumOperator>(other) {
-            self == op
-        } else {
-            false
-        }
-    }
-
-    impl_unary_expr_eq_shallow!(TemporumOperator, argument);
-
-    #[inline]
-    fn fmt_expr(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{self}")
     }
 
     #[inline]
@@ -181,24 +159,6 @@ impl Expr for TemporumOperator {
 
         self.builder_from(diff_arg).build()
     }
-
-    #[inline]
-    fn eliminate(
-        &self,
-        parameter: &Arc<dyn Expr>,
-        perturbations: &[Arc<Perturbation>],
-        min_order: u32,
-    ) -> Result<Arc<dyn Expr>, TinnedError> {
-        impl_unary_expr_arg_operation!(
-            self,
-            argument,
-            self.argument.eliminate(parameter, perturbations, min_order),
-            "TemporumOperator::eliminate() failed for parameter",
-            |arg| self.builder_from(arg).build()
-        )
-    }
-
-    impl_unary_expr_exist_any!(argument);
 }
 
 impl PartialEq for TemporumOperator {

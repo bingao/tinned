@@ -97,8 +97,20 @@ macro_rules! impl_add_traits {
                 set.iter().any(|expr| self.eq_expr(expr.as_ref()))
             }
 
-            //fn find_all(&self, s: &Arc<dyn Expr>) -> BTreeMap<u32, HashSet<Arc<dyn Expr>>> {
-            //}
+            fn find_all(&self, s: &Arc<dyn Expr>) -> BTreeMap<u32, HashSet<Arc<dyn Expr>>> {
+                if self.eq_shallow(s) {
+                    return BTreeMap::from([(self.total_order(), HashSet::from([self.clone_expr()]))]);
+                }
+
+                let mut result: BTreeMap<u32, HashSet<Arc<dyn Expr>>> = BTreeMap::new();
+                for term in &self.terms {
+                    for (order, subset) in term.find_all(s) {
+                        result.entry(order).or_default().extend(subset);
+                    }
+                }
+
+                result
+            }
         }
 
         impl PartialEq for $type_name {

@@ -106,7 +106,26 @@ macro_rules! impl_mul_traits {
                 }
 
                 set.iter().any(|expr| self.eq_expr(expr.as_ref()))
-                    || impl_mul_traits!(@exist_any_coefficient self.coefficient, set, $is_scalar)
+                    || self.coefficient.exist_any(set)
+            }
+
+            fn find_all(&self, s: &Arc<dyn Expr>) -> BTreeMap<u32, HashSet<Arc<dyn Expr>>> {
+                if self.eq_shallow(s) {
+                    return BTreeMap::from([(self.total_order(), HashSet::from([self.clone_expr()]))]);
+                }
+
+                let mut result: BTreeMap<u32, HashSet<Arc<dyn Expr>>> = BTreeMap::new();
+                for factor in &self.factors {
+                    for (order, subset) in factor.find_all(s) {
+                        result.entry(order).or_default().extend(subset);
+                    }
+                }
+
+               if result.is_empty() {
+                   return self.coefficient.find_all(s);
+               }
+
+               result
             }
         }
 
@@ -222,14 +241,6 @@ macro_rules! impl_mul_traits {
             Ok($self.clone_expr())
         }
     }};
-
-    (@exist_any_coefficient $coefficient:expr, $set:ident, true) => {
-        $coefficient.clone_expr().exist_any($set)
-    };
-
-    (@exist_any_coefficient $coefficient:expr, $set:ident, false) => {
-        $coefficient.exist_any($set)
-    };
 
     (@non_one_coefficient $coefficient:expr, true) => { !$coefficient.is_one(None) };
 

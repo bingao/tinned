@@ -92,6 +92,10 @@ impl TwoElecOperatorBuilder {
     }
 
     pub fn build(self) -> Result<Arc<dyn Expr>, TinnedError> {
+        if is_expr_type::<ZeroOperator>(&self.density) {
+            return Ok(self.density);
+        }
+
         if is_expr_type::<WfnParameter>(&self.density) {
             if self.dependencies.is_subchain(&self.derivative) {
                 Ok(crate::internal::intern_expr(Arc::new(TwoElecOperator {
@@ -115,10 +119,14 @@ impl TwoElecOperatorBuilder {
 
 #[typetag::serde]
 impl Expr for TwoElecOperator {
-    #[inline]
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
+    impl_unary_expr_common_methods!(
+        TwoElecOperator,
+        density,
+        False,
+        |this: &TwoElecOperator, arg| this.builder_from_density(arg).build(),
+        false,
+        false,
+    );
 
     #[inline]
     fn hash_key(&self) -> String {
@@ -132,25 +140,6 @@ impl Expr for TwoElecOperator {
     }
 
     #[inline]
-    fn is_scalar(&self) -> bool {
-        false
-    }
-
-    #[inline]
-    fn clone_expr(&self) -> Arc<dyn Expr> {
-        Arc::new(self.clone())
-    }
-
-    #[inline]
-    fn eq_expr(&self, other: &dyn Expr) -> bool {
-        if let Some(op) = downcast_from_ref::<TwoElecOperator>(other) {
-            self == op
-        } else {
-            false
-        }
-    }
-
-    #[inline]
     fn eq_shallow(&self, other: &Arc<dyn Expr>) -> bool {
         if let Some(op) = downcast_from_arc::<TwoElecOperator>(other) {
             self.name == op.name
@@ -159,11 +148,6 @@ impl Expr for TwoElecOperator {
         } else {
             false
         }
-    }
-
-    #[inline]
-    fn fmt_expr(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{self}")
     }
 
     fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
@@ -185,33 +169,6 @@ impl Expr for TwoElecOperator {
 
         MatrixAdd::new(vec![term1, term2])
     }
-
-    #[inline]
-    fn eliminate(
-        &self,
-        parameter: &Arc<dyn Expr>,
-        perturbations: &[Arc<Perturbation>],
-        min_order: u32,
-    ) -> Result<Arc<dyn Expr>, TinnedError> {
-        let new_density =
-            self.density.eliminate(parameter, perturbations, min_order).map_err(|e| {
-                generic_expression_error(
-                    "TwoElecOperator::eliminate() failed for density",
-                    self,
-                    Some(Box::new(e)),
-                )
-            })?;
-        if is_expr_type::<ZeroOperator>(&new_density) {
-            return Ok(new_density);
-        }
-
-        // Elimination of `density` either returns `ZeroOperator` or the
-        // original `density` so that we return either 0 or a copy of
-        // `TwoElecOperator`.
-        Ok(self.clone_expr())
-    }
-
-    impl_unary_expr_exist_any!(density);
 }
 
 impl PartialEq for TwoElecOperator {

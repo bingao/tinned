@@ -35,7 +35,7 @@ macro_rules! test_thread_interning {
 
 // Test LagMultiplier, NonElecFunction, OneElecOperator and WfnParameter
 #[allow(unused_macros)]
-macro_rules! test_nullary_oper {
+macro_rules! test_nullary_expr {
     ($type_name:ident, $oper_name:ident, $make_expr:ident, $has_deps:tt, $is_scalar:tt) => {
         test_struct_safety!($type_name);
 
@@ -44,7 +44,7 @@ macro_rules! test_nullary_oper {
         #[test]
         fn test_impl_expr() {
             let deriv = make_pert_multichain(2u32, 8u32, 1u32, 10u32);
-            test_nullary_oper!(@test_nullary_expr
+            test_nullary_expr!(@test_nullary_expr
                 $type_name,
                 $oper_name,
                 deriv,
@@ -53,7 +53,7 @@ macro_rules! test_nullary_oper {
             );
         }
 
-        test_nullary_oper!(@test_nullary_differentiation $type_name, $oper_name, $has_deps);
+        test_nullary_expr!(@test_nullary_differentiation $type_name, $oper_name, $has_deps);
 
         #[test]
         fn test_serialization() {
