@@ -219,6 +219,15 @@ macro_rules! impl_nullary_expr_traits {
             }
 
             impl_nullary_expr_traits!(@impl_eliminate $type_name, $has_deps);
+
+            #[inline]
+            fn remove(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
+                if set.iter().any(|expr| self.eq_expr(expr.as_ref())) {
+                    impl_nullary_expr_traits!(@build_zero_expr $is_scalar)
+                } else {
+                    Ok(self.clone_expr())
+                }
+            }
         }
 
         impl std::fmt::Display for $type_name {
@@ -304,4 +313,8 @@ macro_rules! impl_nullary_expr_traits {
             Ok(self.clone_expr())
         }
     };
+
+    (@build_zero_expr true) => { Ok(Number::zero()) };
+
+    (@build_zero_expr false) => { Ok(ZeroOperator::new()) };
 }

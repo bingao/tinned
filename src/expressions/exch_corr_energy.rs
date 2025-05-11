@@ -23,7 +23,7 @@ fn build_xc_energy(
 }
 
 impl_exch_corr_type!(ExchCorrEnergy, ExchCorrEnergyBuilder, xc_energy, build_xc_energy);
-impl_exch_corr_traits!(ExchCorrEnergy, xc_energy, true, crate::expressions::Number::zero);
+impl_exch_corr_traits!(ExchCorrEnergy, xc_energy, true);
 
 #[cfg(test)]
 const DEFAULT_FUNC_NAME: &str = "Exc[rho]";

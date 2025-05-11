@@ -28,12 +28,7 @@ fn build_xc_potential(
 }
 
 impl_exch_corr_type!(ExchCorrPotential, ExchCorrPotentialBuilder, xc_potential, build_xc_potential);
-impl_exch_corr_traits!(
-    ExchCorrPotential,
-    xc_potential,
-    false,
-    crate::expressions::ZeroOperator::new
-);
+impl_exch_corr_traits!(ExchCorrPotential, xc_potential, false);
 
 #[cfg(test)]
 const DEFAULT_FUNC_NAME: &str = "Vxc[rho]";

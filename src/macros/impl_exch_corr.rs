@@ -98,7 +98,7 @@ macro_rules! impl_exch_corr_type {
 }
 
 macro_rules! impl_exch_corr_traits {
-    ($type_name:ident, $grid_expr_name:ident, $is_scalar:literal, $build_zero_expr:expr) => {
+    ($type_name:ident, $grid_expr_name:ident, $is_scalar:tt) => {
         #[typetag::serde]
         impl Expr for $type_name {
             #[inline]
@@ -164,7 +164,7 @@ macro_rules! impl_exch_corr_traits {
             fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
                 let diff_expr = self.$grid_expr_name.differentiate(s).map_err(|e| {
                     generic_expression_error(
-                        concat!(stringify!($type_name), "differentiate() failed"),
+                        concat!(stringify!($type_name), "::differentiate() failed"),
                         self,
                         Some(Box::new(e)),
                     )
@@ -188,31 +188,14 @@ macro_rules! impl_exch_corr_traits {
                 perturbations: &[Arc<Perturbation>],
                 min_order: u32,
             ) -> Result<Arc<dyn Expr>, TinnedError> {
-                let new_expr = self
-                    .$grid_expr_name
-                    .eliminate(parameter, perturbations, min_order)
-                    .map_err(|e| {
-                        generic_expression_error(
-                            concat!(stringify!($type_name), "eliminate() failed"),
-                            self,
-                            Some(Box::new(e)),
-                        )
-                    })?;
-
-                if is_zero_expr(&new_expr, None) {
-                    Ok($build_zero_expr())
-                } else if &new_expr == &self.$grid_expr_name {
-                    Ok(self.clone_expr())
-                } else {
-                    Ok(intern_expr(Arc::new(Self {
-                        name: self.name.clone(),
-                        grid_weight: self.grid_weight.clone(),
-                        density_matrix: self.density_matrix.clone(),
-                        overlap_distribution: self.overlap_distribution.clone(),
-                        $grid_expr_name: new_expr,
-                        derivative: self.derivative.clone(),
-                    })))
-                }
+                impl_exch_corr_traits!(
+                    @grid_expr_operation
+                    self,
+                    $grid_expr_name,
+                    |grid_expr: &Arc<dyn Expr>| grid_expr.eliminate(parameter, perturbations, min_order),
+                    concat!(stringify!($type_name), "::eliminate() failed"),
+                    $is_scalar,
+                )
             }
 
             #[inline]
@@ -228,6 +211,22 @@ macro_rules! impl_exch_corr_traits {
                 } else {
                     self.$grid_expr_name.find_all(s)
                 }
+            }
+
+            #[inline]
+            fn remove(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
+                if set.iter().any(|expr| self.eq_expr(expr.as_ref())) {
+                    return impl_exch_corr_traits!(@build_zero_expr $is_scalar);
+                }
+
+                impl_exch_corr_traits!(
+                    @grid_expr_operation
+                    self,
+                    $grid_expr_name,
+                    |grid_expr: &Arc<dyn Expr>| grid_expr.remove(set),
+                    concat!(stringify!($type_name), "::remove() failed"),
+                    $is_scalar,
+                )
             }
         }
 
@@ -254,6 +253,37 @@ macro_rules! impl_exch_corr_traits {
             }
         }
     };
+
+    (
+        @grid_expr_operation
+        $self:ident,
+        $grid_expr_name:ident,
+        $operation:expr,
+        $message:expr,
+        $is_scalar:tt,
+    ) => {{
+        let new_expr = ($operation)(& $self.$grid_expr_name)
+            .map_err(|e| generic_expression_error($message, $self, Some(Box::new(e))))?;
+
+        if is_zero_expr(&new_expr, None) {
+            impl_exch_corr_traits!(@build_zero_expr $is_scalar)
+        } else if &new_expr == &$self.$grid_expr_name {
+            Ok($self.clone_expr())
+        } else {
+            Ok(intern_expr(Arc::new(Self {
+                name: $self.name.clone(),
+                grid_weight: $self.grid_weight.clone(),
+                density_matrix: $self.density_matrix.clone(),
+                overlap_distribution: $self.overlap_distribution.clone(),
+                $grid_expr_name: new_expr,
+                derivative: $self.derivative.clone(),
+            })))
+        }
+    }};
+
+    (@build_zero_expr true) => { Ok(crate::expressions::Number::zero()) };
+
+    (@build_zero_expr false) => { Ok(crate::expressions::ZeroOperator::new()) };
 }
 
 #[allow(unused_macros)]

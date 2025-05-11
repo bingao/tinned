@@ -55,7 +55,7 @@ macro_rules! impl_mul_traits {
                     @mul_termwise_operation
                     self,
                     |factor: &Arc<dyn Expr>| factor.clean_temporum(freq_tol.clone()),
-                    concat!(stringify!($type_name), "clean_temporum() failed"),
+                    concat!(stringify!($type_name), "::clean_temporum() failed"),
                     $is_scalar
                 )
             }
@@ -68,7 +68,7 @@ macro_rules! impl_mul_traits {
                 let with_context = |f: &Arc<dyn Expr>| {
                     f.differentiate(s).map_err(|e| {
                         generic_expression_error(
-                            concat!(stringify!($type_name), "differentiate() failed for factors"),
+                            concat!(stringify!($type_name), "::differentiate() failed for factors"),
                             self,
                             Some(Box::new(e)),
                         )
@@ -94,7 +94,7 @@ macro_rules! impl_mul_traits {
                     @mul_termwise_operation
                     self,
                     |factor: &Arc<dyn Expr>| factor.eliminate(parameter, perturbations, min_order),
-                    concat!(stringify!($type_name), "eliminate() failed"),
+                    concat!(stringify!($type_name), "::eliminate() failed"),
                     $is_scalar
                 )
             }
@@ -126,6 +126,20 @@ macro_rules! impl_mul_traits {
                }
 
                result
+            }
+
+            fn remove(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
+                if set.iter().any(|expr| self.eq_expr(expr.as_ref())) {
+                    return impl_mul_traits!(@build_zero_expr $is_scalar);
+                }
+
+                impl_mul_traits!(
+                    @mul_termwise_operation
+                    self,
+                    |factor: &Arc<dyn Expr>| factor.remove(set),
+                    concat!(stringify!($type_name), "::remove() failed"),
+                    $is_scalar
+                )
             }
         }
 
@@ -202,7 +216,7 @@ macro_rules! impl_mul_traits {
             .differentiate($s)
             .map_err(|e| {
                 generic_expression_error(
-                    concat!(stringify!($type_name), "differentiate() failed for coefficient"),
+                    concat!(stringify!($type_name), "::differentiate() failed for coefficient"),
                     $self,
                     Some(Box::new(e)),
                 )
@@ -226,7 +240,7 @@ macro_rules! impl_mul_traits {
             let new_factor = ($operation)(factor)
                 .map_err(|e| generic_expression_error($message, $self, Some(Box::new(e))))?;
             if is_zero_expr(&new_factor, None) {
-                return Self::new(Vec::new());
+                return impl_mul_traits!(@build_zero_expr $is_scalar);
             } else {
                 if !new_mul {
                     new_mul = &new_factor != factor;
@@ -253,4 +267,8 @@ macro_rules! impl_mul_traits {
     (@push_coefficient $factors:expr, $coefficient:expr, false) => {
         $factors.push($coefficient.clone())
     };
+
+    (@build_zero_expr true) => { Ok(Number::zero()) };
+
+    (@build_zero_expr false) => { Ok(ZeroOperator::new()) };
 }

@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use typetag;
@@ -257,6 +258,15 @@ impl Expr for TemporumOverlap {
 
     // `TemporumOverlap` is an undivided whole for the method `exist_any()`, so
     // we use the corresponding method of the pub trait `Expr`.
+
+    #[inline]
+    fn remove(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
+        if set.iter().any(|expr| self.eq_expr(expr.as_ref())) {
+            Ok(ZeroOperator::new())
+        } else {
+            Ok(self.clone_expr())
+        }
+    }
 }
 
 impl PartialEq for TemporumOverlap {

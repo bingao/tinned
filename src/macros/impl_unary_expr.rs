@@ -24,7 +24,7 @@ macro_rules! impl_unary_expr_traits {
             fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
                 let diff_arg = self.argument.differentiate(s).map_err(|e| {
                     generic_expression_error(
-                        concat!(stringify!($type_name), "differentiate() failed for argument"),
+                        concat!(stringify!($type_name), "::differentiate() failed for argument"),
                         self,
                         Some(Box::new(e)),
                     )
@@ -64,7 +64,7 @@ macro_rules! impl_unary_expr_common_methods {
             self
         }
 
-        impl_unary_expr_common_methods!(@unary_expr_is_scalar $type_scalar);
+        impl_unary_expr_common_methods!(@unary_expr_is_scalar $arg_field, $type_scalar);
 
         #[inline]
         fn clone_expr(&self) -> Arc<dyn Expr> {
@@ -112,7 +112,7 @@ macro_rules! impl_unary_expr_common_methods {
                 self,
                 $arg_field,
                 self.$arg_field.eliminate(parameter, perturbations, min_order),
-                concat!(stringify!($type_name), "eliminate() failed for argument"),
+                concat!(stringify!($type_name), "::eliminate() failed for argument"),
                 $build_expr,
             )
         }
@@ -130,26 +130,46 @@ macro_rules! impl_unary_expr_common_methods {
                 self.$arg_field.find_all(s)
             }
         }
+
+        #[inline]
+        fn remove(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
+            if set.iter().any(|expr| self.eq_expr(expr.as_ref())) {
+                return impl_unary_expr_common_methods!(
+                    @build_zero_expr
+                    self.$arg_field,
+                    $type_scalar
+                );
+            }
+
+            impl_unary_expr_common_methods!(
+                @unary_expr_arg_operation
+                self,
+                $arg_field,
+                self.$arg_field.remove(set),
+                concat!(stringify!($type_name), "::remove() failed for argument"),
+                $build_expr,
+            )
+        }
     };
 
-    (@unary_expr_is_scalar True) => {
+    (@unary_expr_is_scalar $_arg_field:ident, True) => {
         #[inline]
         fn is_scalar(&self) -> bool {
             true
         }
     };
 
-    (@unary_expr_is_scalar False) => {
+    (@unary_expr_is_scalar $_arg_field:ident, False) => {
         #[inline]
         fn is_scalar(&self) -> bool {
             false
         }
     };
 
-    (@unary_expr_is_scalar Argument) => {
+    (@unary_expr_is_scalar $arg_field:ident, Argument) => {
         #[inline]
         fn is_scalar(&self) -> bool {
-            self.argument.is_scalar()
+            self.$arg_field.is_scalar()
         }
     };
 
@@ -177,7 +197,7 @@ macro_rules! impl_unary_expr_common_methods {
                 self,
                 $arg_field,
                 self.$arg_field.clean_temporum(freq_tol),
-                concat!(stringify!($type_name), "clean_temporum() failed for argument"),
+                concat!(stringify!($type_name), "::clean_temporum() failed for argument"),
                 $build_expr,
             )
         }
@@ -201,4 +221,16 @@ macro_rules! impl_unary_expr_common_methods {
             ($build_expr)($self, new_arg)
         }
     }};
+
+    (@build_zero_expr $_argument:expr, True) => { Ok(crate::expressions::Number::zero()) };
+
+    (@build_zero_expr $_argument:expr, False) => { Ok(ZeroOperator::new()) };
+
+    (@build_zero_expr $argument:expr, Argument) => {
+        if $argument.is_scalar() {
+            impl_unary_expr_common_methods!(@build_zero_expr $argument, True)
+        } else {
+            impl_unary_expr_common_methods!(@build_zero_expr $argument, False)
+        }
+    };
 }

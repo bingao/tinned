@@ -1,8 +1,10 @@
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use typetag;
 
 use crate::core::{Expr, TinnedError};
+use crate::expressions::Number;
 
 /// A scalar symbolic constant that becomes 0 after differentiation.
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -65,7 +67,16 @@ impl Expr for Symbol {
         &self,
         _s: &Arc<crate::perturbations::Perturbation>,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
-        Ok(crate::expressions::Number::zero())
+        Ok(Number::zero())
+    }
+
+    #[inline]
+    fn remove(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
+        if set.iter().any(|expr| self.eq_expr(expr.as_ref())) {
+            Ok(Number::zero())
+        } else {
+            Ok(self.clone_expr())
+        }
     }
 }
 
@@ -147,7 +158,7 @@ mod tests {
     fn test_differentiation() {
         let s = make_symbol(10u32);
         let p = make_perturbation_symbol(4u32, 4u32);
-        assert_eq!(&s.differentiate(&p).unwrap(), &crate::expressions::Number::zero());
+        assert_eq!(&s.differentiate(&p).unwrap(), &Number::zero());
     }
 
     // Test serialization and deserialization via `serde_json`

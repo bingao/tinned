@@ -1,5 +1,5 @@
 macro_rules! impl_add_traits {
-    ($type_name:ident, $hash_delimiter:ident, $fmt_delimiter:ident, $is_scalar:literal) => {
+    ($type_name:ident, $hash_delimiter:ident, $fmt_delimiter:ident, $is_scalar:tt) => {
         #[typetag::serde]
         impl Expr for $type_name {
             #[inline]
@@ -48,7 +48,8 @@ macro_rules! impl_add_traits {
                     @add_termwise_operation
                     self,
                     |term: &Arc<dyn Expr>| term.clean_temporum(freq_tol.clone()),
-                    concat!(stringify!($type_name), "clean_temporum() failed")
+                    concat!(stringify!($type_name), "::clean_temporum() failed"),
+                    $is_scalar
                 )
             }
 
@@ -61,7 +62,7 @@ macro_rules! impl_add_traits {
                 for term in &self.terms {
                     let diff = term.differentiate(s).map_err(|e| {
                         generic_expression_error(
-                            concat!(stringify!($type_name), "differentiate() failed"),
+                            concat!(stringify!($type_name), "::differentiate() failed"),
                             self,
                             Some(Box::new(e)),
                         )
@@ -84,7 +85,8 @@ macro_rules! impl_add_traits {
                     @add_termwise_operation
                     self,
                     |term: &Arc<dyn Expr>| term.eliminate(parameter, perturbations, min_order),
-                    concat!(stringify!($type_name), "eliminate() failed")
+                    concat!(stringify!($type_name), "::eliminate() failed"),
+                    $is_scalar
                 )
             }
 
@@ -111,6 +113,20 @@ macro_rules! impl_add_traits {
 
                 result
             }
+
+            fn remove(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
+                if set.iter().any(|expr| self.eq_expr(expr.as_ref())) {
+                    return impl_add_traits!(@build_zero_expr $is_scalar);
+                }
+
+                impl_add_traits!(
+                    @add_termwise_operation
+                    self,
+                    |term: &Arc<dyn Expr>| term.remove(set),
+                    concat!(stringify!($type_name), "::remove() failed"),
+                    $is_scalar
+                )
+            }
         }
 
         impl PartialEq for $type_name {
@@ -128,7 +144,7 @@ macro_rules! impl_add_traits {
         }
     };
 
-    (@add_termwise_operation $self:ident, $operation:expr, $message:expr) => {{
+    (@add_termwise_operation $self:ident, $operation:expr, $message:expr, $is_scalar:tt) => {{
         let mut new_terms = Vec::with_capacity($self.terms.len());
         let mut new_add = false;
 
@@ -136,7 +152,7 @@ macro_rules! impl_add_traits {
             let new_term = ($operation)(term)
                 .map_err(|e| generic_expression_error($message, $self, Some(Box::new(e))))?;
             if is_zero_expr(&new_term, None) {
-                new_add = true;
+                return impl_add_traits!(@build_zero_expr $is_scalar);
             } else {
                 if !new_add {
                     new_add = &new_term != term;
@@ -151,4 +167,8 @@ macro_rules! impl_add_traits {
             Ok($self.clone_expr())
         }
     }};
+
+    (@build_zero_expr true) => { Ok(Number::zero()) };
+
+    (@build_zero_expr false) => { Ok(ZeroOperator::new()) };
 }

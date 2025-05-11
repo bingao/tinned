@@ -3,7 +3,7 @@ macro_rules! impl_binary_expr_common_methods {
         $type_name:ident,
         $first_argument:ident,
         $second_argument:ident,
-        $is_scalar:literal,
+        $is_scalar:tt,
         $build_expr:expr,
         $with_clean_temporum:tt
     ) => {
@@ -57,7 +57,7 @@ macro_rules! impl_binary_expr_common_methods {
                 $first_argument,
                 $second_argument,
                 |arg: &Arc<dyn Expr>| arg.eliminate(parameter, perturbations, min_order),
-                concat!(stringify!($type_name), "eliminate() failed"),
+                concat!(stringify!($type_name), "::eliminate() failed"),
                 $build_expr,
             )
         }
@@ -82,6 +82,22 @@ macro_rules! impl_binary_expr_common_methods {
                 result
             }
         }
+
+        #[inline]
+        fn remove(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
+            if set.iter().any(|expr| self.eq_expr(expr.as_ref())) {
+                return impl_binary_expr_common_methods!(@build_zero_expr $is_scalar);
+            }
+
+            impl_binary_expr_arg_operation!(
+                self,
+                $first_argument,
+                $second_argument,
+                |arg: &Arc<dyn Expr>| arg.remove(set),
+                concat!(stringify!($type_name), "::remove() failed"),
+                $build_expr,
+            )
+        }
     };
 
     (@binary_expr_clean_temporum
@@ -101,7 +117,7 @@ macro_rules! impl_binary_expr_common_methods {
                 $first_argument,
                 $second_argument,
                 |arg: &Arc<dyn Expr>| arg.clean_temporum(freq_tol.clone()),
-                concat!(stringify!($type_name), "clean_temporum() failed"),
+                concat!(stringify!($type_name), "::clean_temporum() failed"),
                 $build_expr,
             )
         }
@@ -114,6 +130,11 @@ macro_rules! impl_binary_expr_common_methods {
         $build_expr:expr,
         false
     ) => { };
+
+    (@build_zero_expr true) => { Ok(Number::zero()) };
+
+    (@build_zero_expr false) => { Ok(ZeroOperator::new()) };
+
 }
 
 macro_rules! impl_binary_expr_arg_operation {

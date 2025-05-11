@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use typetag;
@@ -54,6 +55,11 @@ impl Expr for ZeroOperator {
         _s: &Arc<crate::perturbations::Perturbation>,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
         Ok(Self::new())
+    }
+
+    #[inline]
+    fn remove(&self, _set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
+        Ok(self.clone_expr())
     }
 }
 

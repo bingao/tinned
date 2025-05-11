@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use float_cmp::approx_eq;
@@ -348,6 +349,15 @@ impl Expr for Number {
         _s: &Arc<crate::perturbations::Perturbation>,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
         Ok(Number::zero())
+    }
+
+    #[inline]
+    fn remove(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
+        if set.iter().any(|expr| self.eq_expr(expr.as_ref())) {
+            Ok(Number::zero())
+        } else {
+            Ok(self.clone_expr())
+        }
     }
 }
 

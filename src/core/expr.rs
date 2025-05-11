@@ -109,8 +109,8 @@ pub trait Expr: Debug + Send + Sync {
         }
     }
 
-    //    // Removes given expressions in `set` from the concrete expression.
-    //    fn remove(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError>;
+    // Removes given expressions in `set` from the concrete expression.
+    fn remove(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError>;
 
     //    // Replaces given expressions (keys of `map`) and their derivatives with
     //    // corresponding values of `map` and their derivatives in the concrete
