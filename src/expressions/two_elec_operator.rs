@@ -150,6 +150,11 @@ impl Expr for TwoElecOperator {
         }
     }
 
+    #[inline]
+    fn total_order(&self) -> u32 {
+        self.derivative.total_order()
+    }
+
     fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
         let diff_density = self.density.differentiate(s).map_err(|e| {
             generic_expression_error(

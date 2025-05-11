@@ -117,21 +117,27 @@ impl DotProduct {
 
     #[inline]
     pub fn conjugate(&self) -> Result<Arc<dyn Expr>, TinnedError> {
-        dot_product_arg_operation!(
+        impl_binary_expr_arg_operation!(
             self,
-            Conjugate::new(self.bra.clone()),
-            Conjugate::new(self.ket.clone()),
-            "DotProduct::conjugate() failed"
+            bra,
+            ket,
+            |arg: &Arc<dyn Expr>| Conjugate::new(arg.clone()),
+            "DotProduct::conjugate() failed",
+            |this: &DotProduct, bra, ket| Self::make_dot_product(bra, ket, this.allow_braket_swap),
         )
     }
 }
 
 #[typetag::serde]
 impl Expr for DotProduct {
-    #[inline]
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
+    impl_binary_expr_common_methods!(
+        DotProduct,
+        bra,
+        ket,
+        true,
+        |this: &DotProduct, bra, ket| Self::make_dot_product(bra, ket, this.allow_braket_swap),
+        true
+    );
 
     #[inline]
     fn hash_key(&self) -> String {
@@ -142,25 +148,6 @@ impl Expr for DotProduct {
             self.ket.hash_key(),
             self.allow_braket_swap,
         )
-    }
-
-    #[inline]
-    fn is_scalar(&self) -> bool {
-        true
-    }
-
-    #[inline]
-    fn clone_expr(&self) -> Arc<dyn Expr> {
-        Arc::new(self.clone())
-    }
-
-    #[inline]
-    fn eq_expr(&self, other: &dyn Expr) -> bool {
-        if let Some(dot) = downcast_from_ref::<DotProduct>(other) {
-            self == dot
-        } else {
-            false
-        }
     }
 
     #[inline]
@@ -193,24 +180,6 @@ impl Expr for DotProduct {
     }
 
     #[inline]
-    fn fmt_expr(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{self}")
-    }
-
-    #[inline]
-    fn clean_temporum(
-        &self,
-        freq_tol: Option<NumberTolerance>,
-    ) -> Result<Arc<dyn Expr>, TinnedError> {
-        dot_product_arg_operation!(
-            self,
-            self.bra.clean_temporum(freq_tol.clone()),
-            self.ket.clean_temporum(freq_tol),
-            "DotProduct::clean_temporum() failed"
-        )
-    }
-
-    #[inline]
     fn total_order(&self) -> u32 {
         self.bra.total_order() + self.ket.total_order()
     }
@@ -235,42 +204,6 @@ impl Expr for DotProduct {
             Self::make_dot_product(diff_bra, self.ket.clone(), self.allow_braket_swap)?,
             Self::make_dot_product(self.bra.clone(), diff_ket, self.allow_braket_swap)?,
         ])
-    }
-
-    #[inline]
-    fn eliminate(
-        &self,
-        parameter: &Arc<dyn Expr>,
-        perturbations: &[Arc<Perturbation>],
-        min_order: u32,
-    ) -> Result<Arc<dyn Expr>, TinnedError> {
-        dot_product_arg_operation!(
-            self,
-            self.bra.eliminate(parameter, perturbations, min_order),
-            self.ket.eliminate(parameter, perturbations, min_order),
-            "DotProduct::eliminate() failed"
-        )
-    }
-
-    #[inline]
-    fn exist_any(&self, set: &HashSet<Arc<dyn Expr>>) -> bool {
-        set.iter().any(|expr| self.eq_expr(expr.as_ref()))
-            || self.bra.exist_any(set)
-            || self.ket.exist_any(set)
-    }
-
-    #[inline]
-    fn find_all(&self, s: &Arc<dyn Expr>) -> BTreeMap<u32, HashSet<Arc<dyn Expr>>> {
-        if self.eq_shallow(s) {
-            BTreeMap::from([(self.total_order(), HashSet::from([self.clone_expr()]))])
-        } else {
-            let mut result = self.bra.find_all(s);
-            for (order, subset) in self.ket.find_all(s) {
-                result.entry(order).or_default().extend(subset);
-            }
-
-            result
-        }
     }
 }
 

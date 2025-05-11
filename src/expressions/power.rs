@@ -79,13 +79,22 @@ impl Expr for Power {
         base,
         True,
         |this: &Power, arg| Self::new(arg, this.exponent),
-        true,
+        false,
         true,
     );
 
     #[inline]
     fn hash_key(&self) -> String {
         format!("Power({}; {})", self.base.hash_key(), self.exponent)
+    }
+
+    #[inline]
+    fn eq_shallow(&self, other: &Arc<dyn Expr>) -> bool {
+        if let Some(pow) = downcast_from_arc::<Power>(other) {
+            self.exponent == pow.exponent && self.base.eq_shallow(&pow.base)
+        } else {
+            false
+        }
     }
 
     fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {

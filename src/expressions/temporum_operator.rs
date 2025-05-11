@@ -148,6 +148,11 @@ impl Expr for TemporumOperator {
     }
 
     #[inline]
+    fn total_order(&self) -> u32 {
+        self.argument.total_order()
+    }
+
+    #[inline]
     fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
         let diff_arg = self.argument.differentiate(s).map_err(|e| {
             generic_expression_error(

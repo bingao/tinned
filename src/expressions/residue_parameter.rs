@@ -148,6 +148,11 @@ impl Expr for ResidueParameter {
         )
     }
 
+    #[inline]
+    fn total_order(&self) -> u32 {
+        self.parameter.total_order()
+    }
+
     fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
         let diff_param = self.parameter.differentiate(s).map_err(|e| {
             generic_expression_error(

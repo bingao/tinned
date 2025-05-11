@@ -2,7 +2,7 @@
 pub mod impl_addition;
 
 #[macro_use]
-pub mod impl_dot_product;
+pub mod impl_binary_expr;
 
 #[macro_use]
 pub mod impl_exch_corr;

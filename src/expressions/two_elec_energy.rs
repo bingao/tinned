@@ -153,6 +153,11 @@ impl TwoElecEnergyBuilder {
     pub fn build(self) -> Result<Arc<dyn Expr>, TinnedError> {
         let outer = self.outer_density.unwrap_or_else(|| self.inner_density.clone());
 
+        if is_expr_type::<ZeroOperator>(&self.inner_density) || is_expr_type::<ZeroOperator>(&outer)
+        {
+            return Ok(Number::zero());
+        }
+
         if !is_expr_type::<WfnParameter>(&self.inner_density) {
             return Err(expression_error(
                 "TwoElecEnergyBuilder::build() - inner density must be WfnParameter",
@@ -186,10 +191,18 @@ impl TwoElecEnergyBuilder {
 
 #[typetag::serde]
 impl Expr for TwoElecEnergy {
-    #[inline]
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
+    impl_binary_expr_common_methods!(
+        TwoElecEnergy,
+        inner_density,
+        outer_density,
+        true,
+        |this: &TwoElecEnergy, inner_density, outer_density| this
+            .builder_with_inner_density(inner_density)
+            .outer_density(outer_density)
+            .allow_density_swap(this.allow_density_swap)
+            .build(),
+        false
+    );
 
     #[inline]
     fn hash_key(&self) -> String {
@@ -213,25 +226,6 @@ impl Expr for TwoElecEnergy {
             self.dependencies.hash_key(),
             self.derivative.hash_key(),
         )
-    }
-
-    #[inline]
-    fn is_scalar(&self) -> bool {
-        true
-    }
-
-    #[inline]
-    fn clone_expr(&self) -> Arc<dyn Expr> {
-        Arc::new(self.clone())
-    }
-
-    #[inline]
-    fn eq_expr(&self, other: &dyn Expr) -> bool {
-        if let Some(op) = downcast_from_ref::<TwoElecEnergy>(other) {
-            self == op
-        } else {
-            false
-        }
     }
 
     #[inline]
@@ -260,8 +254,8 @@ impl Expr for TwoElecEnergy {
     }
 
     #[inline]
-    fn fmt_expr(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{self}")
+    fn total_order(&self) -> u32 {
+        self.derivative.total_order()
     }
 
     fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
@@ -300,50 +294,6 @@ impl Expr for TwoElecEnergy {
         }
 
         Add::new(terms)
-    }
-
-    #[inline]
-    fn eliminate(
-        &self,
-        parameter: &Arc<dyn Expr>,
-        perturbations: &[Arc<Perturbation>],
-        min_order: u32,
-    ) -> Result<Arc<dyn Expr>, TinnedError> {
-        let new_inner =
-            self.inner_density.eliminate(parameter, perturbations, min_order).map_err(|e| {
-                generic_expression_error(
-                    "TwoElecEnergy::eliminate() failed for inner density",
-                    self,
-                    Some(Box::new(e)),
-                )
-            })?;
-        if is_expr_type::<ZeroOperator>(&new_inner) {
-            return Ok(Number::zero());
-        }
-
-        let new_outer =
-            self.outer_density.eliminate(parameter, perturbations, min_order).map_err(|e| {
-                generic_expression_error(
-                    "TwoElecEnergy::eliminate() failed for outer density",
-                    self,
-                    Some(Box::new(e)),
-                )
-            })?;
-        if is_expr_type::<ZeroOperator>(&new_outer) {
-            return Ok(Number::zero());
-        }
-
-        // Elimination of inner and outer densities either returns
-        // `ZeroOperator` or the original densities so that we return either 0
-        // or a copy of `TwoElecEnergy`.
-        Ok(self.clone_expr())
-    }
-
-    #[inline]
-    fn exist_any(&self, set: &HashSet<Arc<dyn Expr>>) -> bool {
-        set.iter().any(|expr| self.eq_expr(expr.as_ref()))
-            || self.inner_density.exist_any(set)
-            || self.outer_density.exist_any(set)
     }
 }
 

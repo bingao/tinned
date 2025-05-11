@@ -16,6 +16,11 @@ macro_rules! impl_unary_expr_traits {
                 true,
             );
 
+            #[inline]
+            fn total_order(&self) -> u32 {
+                self.argument.total_order()
+            }
+
             fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
                 let diff_arg = self.argument.differentiate(s).map_err(|e| {
                     generic_expression_error(
@@ -87,11 +92,6 @@ macro_rules! impl_unary_expr_common_methods {
             write!(f, "{self}")
         }
 
-        #[inline]
-        fn total_order(&self) -> u32 {
-            self.$arg_field.total_order()
-        }
-
         impl_unary_expr_common_methods!(
             @unary_expr_clean_temporum
             $type_name,
@@ -99,11 +99,6 @@ macro_rules! impl_unary_expr_common_methods {
             $build_expr,
             $with_clean_temporum
         );
-
-        #[inline]
-        fn exist_any(&self, set: &HashSet<Arc<dyn Expr>>) -> bool {
-            set.iter().any(|expr| self.eq_expr(expr.as_ref())) || self.$arg_field.exist_any(set)
-        }
 
         #[inline]
         fn eliminate(
@@ -120,6 +115,11 @@ macro_rules! impl_unary_expr_common_methods {
                 concat!(stringify!($type_name), "eliminate() failed for argument"),
                 $build_expr,
             )
+        }
+
+        #[inline]
+        fn exist_any(&self, set: &HashSet<Arc<dyn Expr>>) -> bool {
+            set.iter().any(|expr| self.eq_expr(expr.as_ref())) || self.$arg_field.exist_any(set)
         }
 
         #[inline]
@@ -162,7 +162,6 @@ macro_rules! impl_unary_expr_common_methods {
                 false
             }
         }
-
     };
 
     (@unary_expr_eq_shallow $type_name:ident, $arg_field:ident, false) => { };

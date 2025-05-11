@@ -83,6 +83,11 @@ impl Expr for Composition {
         }
     }
 
+    #[inline]
+    fn total_order(&self) -> u32 {
+        self.order
+    }
+
     fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
         // Differentiation using the chain rule in calculus
         let diff_outer = Self::new(self.name.clone(), self.order + 1, self.inner.clone())?;
