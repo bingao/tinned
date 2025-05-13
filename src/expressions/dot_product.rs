@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use typetag;
 
+use crate::core::expr_internal::sealed::ExprInternal;
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{
     Add, Conjugate, HermitianTranspose, MatrixMul, Mul, Number, Transpose, ZeroOperator,
@@ -128,6 +129,39 @@ impl DotProduct {
     }
 }
 
+impl ExprInternal for DotProduct {
+    impl_expr_internal_methods!(DotProduct);
+
+    #[inline]
+    fn match_for_find_all(&self, other: &Arc<dyn Expr>) -> bool {
+        if let Some(dot) = downcast_from_arc::<DotProduct>(other) {
+            if self.bra.match_for_find_all(&dot.bra) && self.ket.match_for_find_all(&dot.ket) {
+                return true;
+            }
+
+            if self.allow_braket_swap || dot.allow_braket_swap {
+                let trans_bra = match Transpose::new(self.bra.clone()) {
+                    Ok(expr) => expr,
+                    Err(_) => return false,
+                };
+                if !trans_bra.match_for_find_all(&dot.ket) {
+                    return false;
+                }
+                let trans_ket = match Transpose::new(self.ket.clone()) {
+                    Ok(expr) => expr,
+                    Err(_) => return false,
+                };
+
+                return trans_ket.match_for_find_all(&dot.bra);
+            }
+
+            false
+        } else {
+            false
+        }
+    }
+}
+
 #[typetag::serde]
 impl Expr for DotProduct {
     impl_binary_expr_common_methods!(
@@ -150,40 +184,6 @@ impl Expr for DotProduct {
         )
     }
 
-    #[inline]
-    fn eq_shallow(&self, other: &Arc<dyn Expr>) -> bool {
-        if let Some(dot) = downcast_from_arc::<DotProduct>(other) {
-            if self.bra.eq_shallow(&dot.bra) && self.ket.eq_shallow(&dot.ket) {
-                return true;
-            }
-
-            if self.allow_braket_swap || dot.allow_braket_swap {
-                let trans_bra = match Transpose::new(self.bra.clone()) {
-                    Ok(expr) => expr,
-                    Err(_) => return false,
-                };
-                if !trans_bra.eq_shallow(&dot.ket) {
-                    return false;
-                }
-                let trans_ket = match Transpose::new(self.ket.clone()) {
-                    Ok(expr) => expr,
-                    Err(_) => return false,
-                };
-
-                return trans_ket.eq_shallow(&dot.bra);
-            }
-
-            false
-        } else {
-            false
-        }
-    }
-
-    #[inline]
-    fn total_order(&self) -> u32 {
-        self.bra.total_order() + self.ket.total_order()
-    }
-
     fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
         let diff_bra = self.bra.differentiate(s).map_err(|e| {
             generic_expression_error(
@@ -204,6 +204,27 @@ impl Expr for DotProduct {
             Self::make_dot_product(diff_bra, self.ket.clone(), self.allow_braket_swap)?,
             Self::make_dot_product(self.bra.clone(), diff_ket, self.allow_braket_swap)?,
         ])
+    }
+
+    #[inline]
+    fn replace_all(
+        &self,
+        map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        // For unambiguous replacement, we require equality of `bra` and `ket`,
+        // and make replacement by ignoring derivatives of `bra` and `ket`.
+        if let Some((_, value)) = map.iter().find(|(key, _)| self.match_for_replace_all(key)) {
+            return Ok(value.clone());
+        }
+
+        impl_binary_expr_arg_operation!(
+            self,
+            bra,
+            ket,
+            |arg: &Arc<dyn Expr>| arg.replace_all(map),
+            "DotProduct::replace_all() failed",
+            |this: &DotProduct, bra, ket| Self::make_dot_product(bra, ket, this.allow_braket_swap),
+        )
     }
 }
 

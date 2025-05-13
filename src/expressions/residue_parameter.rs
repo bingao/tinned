@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use typetag;
 
+use crate::core::expr_internal::sealed::ExprInternal;
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{LagMultiplier, WfnParameter, ZeroOperator};
 use crate::internal::{intern_expr, multi_perturbation_format, multi_perturbation_hash};
@@ -109,6 +110,24 @@ impl ResidueParameterBuilder {
     }
 }
 
+impl ExprInternal for ResidueParameter {
+    impl_expr_internal_methods!(ResidueParameter);
+
+    #[inline]
+    fn find_all_key(&self) -> u32 {
+        self.parameter.find_all_key()
+    }
+
+    #[inline]
+    fn match_for_find_all(&self, other: &Arc<dyn Expr>) -> bool {
+        if let Some(op) = downcast_from_arc::<ResidueParameter>(other) {
+            self.parameter.match_for_find_all(&op.parameter)
+        } else {
+            false
+        }
+    }
+}
+
 #[typetag::serde]
 impl Expr for ResidueParameter {
     // We treat `ResidueParameter` is the same type as its `parameter` so that
@@ -133,7 +152,6 @@ impl Expr for ResidueParameter {
         )
         .positive_frequency(this.positive_frequency)
         .build(),
-        true,
         false,
     );
 
@@ -146,11 +164,6 @@ impl Expr for ResidueParameter {
             self.excited_state.hash_key(),
             self.parameter.hash_key(),
         )
-    }
-
-    #[inline]
-    fn total_order(&self) -> u32 {
-        self.parameter.total_order()
     }
 
     fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {

@@ -1,8 +1,9 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use typetag;
 
+use crate::core::expr_internal::sealed::ExprInternal;
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{
     Add, MatrixAdd, MatrixMul, Mul, Number, OneElecOperator, TemporumOperator, ZeroOperator,
@@ -10,8 +11,8 @@ use crate::expressions::{
 use crate::internal::intern_expr;
 use crate::perturbations::{PertMultichain, Perturbation};
 use crate::public::{
-    NumberTolerance, downcast_from_arc, downcast_from_ref, generic_expression_error, is_expr_type,
-    is_zero_expr, unreachable_error,
+    NumberTolerance, differentiate_expr, downcast_from_arc, downcast_from_ref,
+    generic_expression_error, is_expr_type, is_zero_expr, unreachable_error,
 };
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -144,45 +145,16 @@ impl TemporumOverlapBuilder {
     }
 }
 
-#[typetag::serde]
-impl Expr for TemporumOverlap {
+impl ExprInternal for TemporumOverlap {
+    impl_expr_internal_methods!(TemporumOverlap);
+
     #[inline]
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
+    fn find_all_key(&self) -> u32 {
+        self.derivative.total_order()
     }
 
     #[inline]
-    fn hash_key(&self) -> String {
-        // We remove braket here, to be consistent with PartialEq
-        format!(
-            "TemporumOverlap({}; [{}]; [{}])",
-            self.is_zero_strength,
-            self.dependencies.hash_key(),
-            self.derivative.hash_key(),
-        )
-    }
-
-    #[inline]
-    fn is_scalar(&self) -> bool {
-        false
-    }
-
-    #[inline]
-    fn clone_expr(&self) -> Arc<dyn Expr> {
-        Arc::new(self.clone())
-    }
-
-    #[inline]
-    fn eq_expr(&self, other: &dyn Expr) -> bool {
-        if let Some(op) = downcast_from_ref::<TemporumOverlap>(other) {
-            self == op
-        } else {
-            false
-        }
-    }
-
-    #[inline]
-    fn eq_shallow(&self, other: &Arc<dyn Expr>) -> bool {
+    fn match_for_find_all(&self, other: &Arc<dyn Expr>) -> bool {
         if let Some(op) = downcast_from_arc::<TemporumOverlap>(other) {
             // We care only `dependencies`, regardless whether at zero strength
             // or not (specified by `is_zero_strength`, `braket` also changes)
@@ -193,8 +165,28 @@ impl Expr for TemporumOverlap {
     }
 
     #[inline]
-    fn fmt_expr(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{self}")
+    fn match_for_replace_all(&self, other: &Arc<dyn Expr>) -> bool {
+        if let Some(op) = downcast_from_arc::<TemporumOverlap>(other) {
+            self.is_zero_strength == op.is_zero_strength && self.dependencies == op.dependencies
+        } else {
+            false
+        }
+    }
+}
+
+#[typetag::serde]
+impl Expr for TemporumOverlap {
+    impl_nullary_expr_common_methods!(false);
+
+    #[inline]
+    fn hash_key(&self) -> String {
+        // We remove braket here, to be consistent with PartialEq
+        format!(
+            "TemporumOverlap({}; [{}]; [{}])",
+            self.is_zero_strength,
+            self.dependencies.hash_key(),
+            self.derivative.hash_key(),
+        )
     }
 
     // `TemporumOverlap` will disappear if it is unperturbed or all
@@ -228,11 +220,6 @@ impl Expr for TemporumOverlap {
         })))
     }
 
-    #[inline]
-    fn total_order(&self) -> u32 {
-        self.derivative.total_order()
-    }
-
     fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
         let diff_braket = self.braket.differentiate(s).map_err(|e| {
             generic_expression_error(
@@ -256,17 +243,9 @@ impl Expr for TemporumOverlap {
         })))
     }
 
-    // `TemporumOverlap` is an undivided whole for the method `exist_any()`, so
-    // we use the corresponding method of the pub trait `Expr`.
-
-    #[inline]
-    fn remove(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
-        if set.iter().any(|expr| self.eq_expr(expr.as_ref())) {
-            Ok(ZeroOperator::new())
-        } else {
-            Ok(self.clone_expr())
-        }
-    }
+    // `TemporumOverlap` is an undivided whole for methods `exist_any()`,
+    // `find_all()` and `replace()`. So, we use the corresponding methods of
+    // the pub trait `Expr`.
 }
 
 impl PartialEq for TemporumOverlap {

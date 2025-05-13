@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use typetag;
 
+use crate::core::expr_internal::sealed::ExprInternal;
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{
     Add, Conjugate, HermitianTranspose, MatrixAdd, MatrixMul, Mul, Number, Transpose, ZeroOperator,

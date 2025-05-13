@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use typetag;
 
+use crate::core::expr_internal::sealed::ExprInternal;
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{Mul, Number};
 use crate::internal::intern_expr;
@@ -72,6 +73,19 @@ impl Power {
     }
 }
 
+impl ExprInternal for Power {
+    impl_expr_internal_methods!(Power);
+
+    #[inline]
+    fn match_for_find_all(&self, other: &Arc<dyn Expr>) -> bool {
+        if let Some(pow) = downcast_from_arc::<Power>(other) {
+            self.exponent == pow.exponent && self.base.match_for_find_all(&pow.base)
+        } else {
+            false
+        }
+    }
+}
+
 #[typetag::serde]
 impl Expr for Power {
     impl_unary_expr_common_methods!(
@@ -79,22 +93,12 @@ impl Expr for Power {
         base,
         True,
         |this: &Power, arg| Self::new(arg, this.exponent),
-        false,
         true,
     );
 
     #[inline]
     fn hash_key(&self) -> String {
         format!("Power({}; {})", self.base.hash_key(), self.exponent)
-    }
-
-    #[inline]
-    fn eq_shallow(&self, other: &Arc<dyn Expr>) -> bool {
-        if let Some(pow) = downcast_from_arc::<Power>(other) {
-            self.exponent == pow.exponent && self.base.eq_shallow(&pow.base)
-        } else {
-            false
-        }
     }
 
     fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {

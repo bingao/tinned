@@ -165,50 +165,34 @@ macro_rules! impl_nullary_expr_type {
 
 macro_rules! impl_nullary_expr_traits {
     ($type_name:ident, $has_deps:tt, $is_scalar:tt) => {
+        impl ExprInternal for $type_name {
+            impl_expr_internal_methods!($type_name);
+
+            #[inline]
+            fn find_all_key(&self) -> u32 {
+                self.derivative.total_order()
+            }
+
+            #[inline]
+            fn match_for_find_all(&self, other: &Arc<dyn Expr>) -> bool {
+                if let Some(op) = downcast_from_arc::<$type_name>(other) {
+                    impl_nullary_expr_traits!(@impl_match_for_find_all self, op, $has_deps)
+                } else {
+                    false
+                }
+            }
+
+            #[inline]
+            fn match_for_replace_all(&self, other: &Arc<dyn Expr>) -> bool {
+                self.match_for_find_all(other)
+            }
+        }
+
         #[typetag::serde]
         impl Expr for $type_name {
-            #[inline]
-            fn as_any(&self) -> &dyn std::any::Any {
-                self
-            }
+            impl_nullary_expr_common_methods!($is_scalar);
 
             impl_nullary_expr_traits!(@impl_hash_key $type_name, $has_deps);
-
-            #[inline]
-            fn is_scalar(&self) -> bool {
-                $is_scalar
-            }
-
-            #[inline]
-            fn clone_expr(&self) -> Arc<dyn Expr> {
-                Arc::new(self.clone())
-            }
-
-            #[inline]
-            fn eq_expr(&self, other: &dyn Expr) -> bool {
-                if let Some(op) = downcast_from_ref::<$type_name>(other) {
-                    impl_nullary_expr_traits!(@impl_eq_expr self, op, $has_deps)
-                } else {
-                    false
-                }
-            }
-
-            #[inline]
-            fn eq_shallow(&self, other: &Arc<dyn Expr>) -> bool {
-                if let Some(op) = downcast_from_arc::<$type_name>(other) {
-                    impl_nullary_expr_traits!(@impl_eq_shallow self, op, $has_deps)
-                } else {
-                    false
-                }
-            }
-
-            #[inline]
-            fn fmt_expr(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-                write!(f, "{self}")
-            }
-
-            #[inline]
-            fn total_order(&self) -> u32 { self.derivative.total_order() }
 
             #[inline]
             fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError>
@@ -219,15 +203,6 @@ macro_rules! impl_nullary_expr_traits {
             }
 
             impl_nullary_expr_traits!(@impl_eliminate $type_name, $has_deps);
-
-            #[inline]
-            fn remove(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
-                if set.iter().any(|expr| self.eq_expr(expr.as_ref())) {
-                    impl_nullary_expr_traits!(@build_zero_expr $is_scalar)
-                } else {
-                    Ok(self.clone_expr())
-                }
-            }
         }
 
         impl std::fmt::Display for $type_name {
@@ -266,23 +241,12 @@ macro_rules! impl_nullary_expr_traits {
         }
     };
 
-    (@impl_eq_expr $self:ident, $op:ident, true) => {
-        $self.name == $op.name
-            && $self.dependencies == $op.dependencies
-            && $self.derivative == $op.derivative
-    };
-
-    (@impl_eq_expr $self:ident, $op:ident, false) => {
-        $self.name == $op.name
-            && $self.derivative == $op.derivative
-    };
-
-    (@impl_eq_shallow $self:ident, $op:ident, true) => {
+    (@impl_match_for_find_all $self:ident, $op:ident, true) => {
         $self.name == $op.name
             && $self.dependencies == $op.dependencies
     };
 
-    (@impl_eq_shallow $self:ident, $op:ident, false) => {
+    (@impl_match_for_find_all $self:ident, $op:ident, false) => {
         $self.name == $op.name
     };
 
@@ -313,8 +277,35 @@ macro_rules! impl_nullary_expr_traits {
             Ok(self.clone_expr())
         }
     };
+}
 
-    (@build_zero_expr true) => { Ok(Number::zero()) };
+macro_rules! impl_nullary_expr_common_methods {
+    ($is_scalar:tt) => {
+        impl_expr_common_methods!($is_scalar);
 
-    (@build_zero_expr false) => { Ok(ZeroOperator::new()) };
+        #[inline]
+        fn remove(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
+            if set.iter().any(|expr| self.eq_expr(expr.as_ref())) {
+                impl_zero_expr!($is_scalar)
+            } else {
+                Ok(self.clone_expr())
+            }
+        }
+
+        #[inline]
+        fn replace_all(
+            &self,
+            map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
+        ) -> Result<Arc<dyn Expr>, TinnedError> {
+            if let Some((_, value)) = map.iter().find(|(key, _)| self.match_for_replace_all(key)) {
+                if self.derivative.is_empty() {
+                    Ok(value.clone())
+                } else {
+                    differentiate_expr(value, &self.derivative)
+                }
+            } else {
+                Ok(self.clone_expr())
+            }
+        }
+    };
 }

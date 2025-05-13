@@ -3,8 +3,6 @@ use std::sync::{Arc, Mutex};
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use crate::core::{Expr, TinnedError};
-use crate::expressions::{Add, Mul, Number};
 use crate::perturbations::Perturbation;
 
 /// Perturbation multichain: unique perturbations with associated differentiation orders.

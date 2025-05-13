@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use typetag;
 
+use crate::core::expr_internal::sealed::ExprInternal;
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{MatrixAdd, WfnParameter, ZeroOperator};
 use crate::perturbations::{PertMultichain, Perturbation};
@@ -117,6 +118,40 @@ impl TwoElecOperatorBuilder {
     }
 }
 
+impl ExprInternal for TwoElecOperator {
+    impl_expr_internal_methods!(TwoElecOperator);
+
+    #[inline]
+    fn find_all_key(&self) -> u32 {
+        self.derivative.total_order()
+    }
+
+    #[inline]
+    fn match_for_find_all(&self, other: &Arc<dyn Expr>) -> bool {
+        if let Some(op) = downcast_from_arc::<TwoElecOperator>(other) {
+            self.name == op.name
+                && self.dependencies == op.dependencies
+                && self.density.match_for_find_all(&op.density)
+        } else {
+            false
+        }
+    }
+
+    #[inline]
+    fn match_for_replace_all(&self, other: &Arc<dyn Expr>) -> bool {
+        // For unambiguous replacement, we require equality of density
+        // matrices, and make replacement by considering only derivative of
+        // electron repulsion integrals (ERIs).
+        if let Some(op) = downcast_from_arc::<TwoElecOperator>(other) {
+            self.name == op.name
+                && self.dependencies == op.dependencies
+                && &self.density == &op.density
+        } else {
+            false
+        }
+    }
+}
+
 #[typetag::serde]
 impl Expr for TwoElecOperator {
     impl_unary_expr_common_methods!(
@@ -124,7 +159,6 @@ impl Expr for TwoElecOperator {
         density,
         False,
         |this: &TwoElecOperator, arg| this.builder_from_density(arg).build(),
-        false,
         false,
     );
 
@@ -137,22 +171,6 @@ impl Expr for TwoElecOperator {
             self.dependencies.hash_key(),
             self.derivative.hash_key(),
         )
-    }
-
-    #[inline]
-    fn eq_shallow(&self, other: &Arc<dyn Expr>) -> bool {
-        if let Some(op) = downcast_from_arc::<TwoElecOperator>(other) {
-            self.name == op.name
-                && self.dependencies == op.dependencies
-                && self.density.eq_shallow(&op.density)
-        } else {
-            false
-        }
-    }
-
-    #[inline]
-    fn total_order(&self) -> u32 {
-        self.derivative.total_order()
     }
 
     fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {

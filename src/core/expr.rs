@@ -8,20 +8,22 @@ use std::sync::Arc;
 use typetag;
 
 use crate::core::TinnedError;
+use crate::core::expr_internal::sealed::ExprInternal;
 
 // Base Expression trait
 #[typetag::serde]
-pub trait Expr: Debug + Send + Sync {
-    //
+pub trait Expr: Debug + Send + Sync + ExprInternal {
+    // Exposes the trait object as `dyn Any` to enable runtime downcasting of
+    // trait objects to concrete types.
     fn as_any(&self) -> &dyn std::any::Any;
 
-    // Returns name of a concrete expression type.
+    // Returns the concrete type name of an expression.
     #[inline]
     fn type_name(&self) -> &'static str {
         std::any::type_name::<Self>()
     }
 
-    // Returns hash key of a concrete expression type.
+    // Returns hash key of an expression.
     fn hash_key(&self) -> String;
 
     // Precomputes hashes for faster sorting.
@@ -32,23 +34,8 @@ pub trait Expr: Debug + Send + Sync {
         hasher.finish()
     }
 
-    // Returns if a concrete expression type is scalar.
+    // Returns if an expression is scalar.
     fn is_scalar(&self) -> bool;
-
-    // Make a clone of a concrete expression type.
-    fn clone_expr(&self) -> Arc<dyn Expr>;
-
-    // Compares equality for concrete expression types.
-    fn eq_expr(&self, other: &dyn Expr) -> bool;
-
-    // Compares equality for concrete expression types but ignores derivatives.
-    #[inline]
-    fn eq_shallow(&self, other: &Arc<dyn Expr>) -> bool {
-        self.eq_expr(other.as_ref())
-    }
-
-    // Formats a concrete expression type.
-    fn fmt_expr(&self, f: &mut Formatter) -> FmtResult;
 
     // Cleans `TemporumOperator` and unperturbed `TemporumOverlap` objects.
     #[inline]
@@ -57,12 +44,6 @@ pub trait Expr: Debug + Send + Sync {
         _freq_tol: Option<crate::public::NumberTolerance>,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
         Ok(self.clone_expr())
-    }
-
-    // Returns the total order of differentiation.
-    #[inline]
-    fn total_order(&self) -> u32 {
-        0
     }
 
     // Differentiates with respect to a `Perturbation`.
@@ -92,30 +73,70 @@ pub trait Expr: Debug + Send + Sync {
         Ok(self.clone_expr())
     }
 
-    // Checks if any expression in `set` exists in the concrete expression.
+    // Checks if any expression in `set` exists in the current expression.
     #[inline]
     fn exist_any(&self, set: &HashSet<Arc<dyn Expr>>) -> bool {
         set.iter().any(|expr| self.eq_expr(expr.as_ref()))
     }
 
-    // Finds a given expression `s` and all its differentiated ones in the
-    // concrete expression.
+    // Finds a given expression `s` and all its "differentiated" ones in the
+    // current expression. Here "differentiated" ones mean they may not be the
+    // mathematical derivative of `s`. For example, for `s` being the type of
+    // `TwoElecOperator`, its derivative is an `MatrixAdd` of `TwoElecOperator`
+    // objects with fields of (un)differentiated electron repulsion integrals
+    // (ERI) and one-electron spin-orbital density matrix, which is difficult
+    // to find. Instead, we return all `TwoElecOperator` objects, with
+    // (un)differentiated ERI and density matrix fields.
+    //
+    // In other words, this method returns objects that match `s` according to
+    // the method `match_for_find_all()`.
     #[inline]
     fn find_all(&self, s: &Arc<dyn Expr>) -> BTreeMap<u32, HashSet<Arc<dyn Expr>>> {
-        if self.eq_shallow(s) {
-            BTreeMap::from([(self.total_order(), HashSet::from([self.clone_expr()]))])
+        if self.match_for_find_all(s) {
+            BTreeMap::from([(self.find_all_key(), HashSet::from([self.clone_expr()]))])
         } else {
             BTreeMap::new()
         }
     }
 
-    // Removes given expressions in `set` from the concrete expression.
+    // Removes given expressions in `set` from the current expression.
     fn remove(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError>;
 
-    //    // Replaces given expressions (keys of `map`) and their derivatives with
-    //    // corresponding values of `map` and their derivatives in the concrete
-    //    // expression.
-    //    fn replace(&self, map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>) -> Arc<dyn Expr>;
+    // Replaces given expressions (keys of `map`) with corresponding values of
+    // `map` in the current expression.
+    #[inline]
+    fn replace(
+        &self,
+        map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        Ok(map
+            .iter()
+            .find(|(key, _)| self.eq_expr(key.as_ref()))
+            .map(|(_, value)| value.clone())
+            .unwrap_or_else(|| self.clone_expr()))
+    }
+
+    // Replaces given expressions (keys of `map`) and their "derivatives" with
+    // corresponding values of `map` and their derivatives in the concrete
+    // expression. Here, the meaning of "derivatives" is taken care by
+    // different concrete expression types. One requirement is that
+    // `replace_all()` should not return same results for two different
+    // `map`'s.
+    //
+    // Expressions to be replaced are determined by the method
+    // `match_for_replace_all()`, which can be overriden by concrete expression
+    // types.
+    #[inline]
+    fn replace_all(
+        &self,
+        map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        Ok(map
+            .iter()
+            .find(|(key, _)| self.match_for_replace_all(key))
+            .map(|(_, value)| value.clone())
+            .unwrap_or_else(|| self.clone_expr()))
+    }
 }
 
 impl Hash for dyn Expr {

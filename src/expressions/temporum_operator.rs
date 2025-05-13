@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use typetag;
 
+use crate::core::expr_internal::sealed::ExprInternal;
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{MatrixMul, OneElecOperator, WfnParameter, ZeroOperator};
 use crate::perturbations::{PertMultichain, Perturbation};
@@ -117,6 +118,24 @@ impl TemporumOperatorBuilder {
     }
 }
 
+impl ExprInternal for TemporumOperator {
+    impl_expr_internal_methods!(TemporumOperator);
+
+    #[inline]
+    fn find_all_key(&self) -> u32 {
+        self.argument.find_all_key()
+    }
+
+    #[inline]
+    fn match_for_find_all(&self, other: &Arc<dyn Expr>) -> bool {
+        if let Some(op) = downcast_from_arc::<TemporumOperator>(other) {
+            self.argument.match_for_find_all(&op.argument)
+        } else {
+            false
+        }
+    }
+}
+
 #[typetag::serde]
 impl Expr for TemporumOperator {
     impl_unary_expr_common_methods!(
@@ -124,7 +143,6 @@ impl Expr for TemporumOperator {
         argument,
         False,
         |this: &TemporumOperator, arg| this.builder_from(arg).build(),
-        true,
         false,
     );
 
@@ -145,11 +163,6 @@ impl Expr for TemporumOperator {
         } else {
             MatrixMul::new(vec![frequency, self.argument.clone()])
         }
-    }
-
-    #[inline]
-    fn total_order(&self) -> u32 {
-        self.argument.total_order()
     }
 
     #[inline]

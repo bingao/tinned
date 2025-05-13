@@ -3,8 +3,10 @@ use std::sync::Arc;
 
 use typetag;
 
+use crate::core::expr_internal::sealed::ExprInternal;
 use crate::core::{Expr, TinnedError};
 use crate::expressions::Number;
+use crate::public::downcast_from_ref;
 
 /// A scalar symbolic constant that becomes 0 after differentiation.
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -26,40 +28,17 @@ impl Symbol {
     }
 }
 
+impl ExprInternal for Symbol {
+    impl_expr_internal_methods!(Symbol);
+}
+
 #[typetag::serde]
 impl Expr for Symbol {
-    #[inline]
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
+    impl_expr_common_methods!(true);
 
     #[inline]
     fn hash_key(&self) -> String {
         format!("Symbol({})", self.name)
-    }
-
-    #[inline]
-    fn is_scalar(&self) -> bool {
-        true
-    }
-
-    #[inline]
-    fn clone_expr(&self) -> Arc<dyn Expr> {
-        Arc::new(self.clone())
-    }
-
-    #[inline]
-    fn eq_expr(&self, other: &dyn Expr) -> bool {
-        if let Some(s) = crate::public::downcast_from_ref::<Symbol>(other) {
-            self.name == s.name
-        } else {
-            false
-        }
-    }
-
-    #[inline]
-    fn fmt_expr(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{self}")
     }
 
     #[inline]

@@ -3,12 +3,13 @@ use std::sync::Arc;
 
 use typetag;
 
+use crate::core::expr_internal::sealed::ExprInternal;
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{Add, Number, TwoElecOperator, WfnParameter, ZeroOperator};
 use crate::perturbations::{PertMultichain, Perturbation};
 use crate::public::{
-    downcast_from_arc, downcast_from_ref, expression_error, generic_expression_error, is_expr_type,
-    is_zero_expr,
+    differentiate_expr, downcast_from_arc, downcast_from_ref, expression_error,
+    generic_expression_error, is_expr_type, is_zero_expr,
 };
 
 /// allow_density_swap means we allow inner_density and outer_density to be
@@ -113,6 +114,22 @@ impl TwoElecEnergy {
     pub fn derivative(&self) -> &PertMultichain {
         &self.derivative
     }
+
+    #[inline]
+    fn eq_density(&self, other: &Self) -> bool {
+        // Handle density equality based on swap flags
+        if !self.allow_density_swap && !other.allow_density_swap {
+            // Strict matching only
+            &self.inner_density == &other.inner_density
+                && &self.outer_density == &other.outer_density
+        } else {
+            // Accept either order
+            (&self.inner_density == &other.inner_density
+                && &self.outer_density == &other.outer_density)
+                || (&self.inner_density == &other.outer_density
+                    && &self.outer_density == &other.inner_density)
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -189,6 +206,52 @@ impl TwoElecEnergyBuilder {
     }
 }
 
+impl ExprInternal for TwoElecEnergy {
+    impl_expr_internal_methods!(TwoElecEnergy);
+
+    #[inline]
+    fn find_all_key(&self) -> u32 {
+        self.derivative.total_order()
+    }
+
+    #[inline]
+    fn match_for_find_all(&self, other: &Arc<dyn Expr>) -> bool {
+        if let Some(op) = downcast_from_arc::<TwoElecEnergy>(other) {
+            // Compare all fixed fields
+            if self.name != op.name || self.dependencies != op.dependencies {
+                return false;
+            }
+
+            // Handle density equality based on swap flags
+            if !self.allow_density_swap && !op.allow_density_swap {
+                // Strict matching only
+                self.inner_density.match_for_find_all(&op.inner_density)
+                    && self.outer_density.match_for_find_all(&op.outer_density)
+            } else {
+                // Accept either order
+                (self.inner_density.match_for_find_all(&op.inner_density)
+                    && self.outer_density.match_for_find_all(&op.outer_density))
+                    || (self.inner_density.match_for_find_all(&op.outer_density)
+                        && self.outer_density.match_for_find_all(&op.inner_density))
+            }
+        } else {
+            false
+        }
+    }
+
+    #[inline]
+    fn match_for_replace_all(&self, other: &Arc<dyn Expr>) -> bool {
+        // For unambiguous replacement, we require equality of density
+        // matrices, and make replacement by considering only derivative of
+        // electron repulsion integrals (ERIs).
+        if let Some(op) = downcast_from_arc::<TwoElecEnergy>(other) {
+            self.name == op.name && self.dependencies == op.dependencies && self.eq_density(op)
+        } else {
+            false
+        }
+    }
+}
+
 #[typetag::serde]
 impl Expr for TwoElecEnergy {
     impl_binary_expr_common_methods!(
@@ -228,36 +291,6 @@ impl Expr for TwoElecEnergy {
         )
     }
 
-    #[inline]
-    fn eq_shallow(&self, other: &Arc<dyn Expr>) -> bool {
-        if let Some(op) = downcast_from_arc::<TwoElecEnergy>(other) {
-            // Compare all fixed fields
-            if self.name != op.name || self.dependencies != op.dependencies {
-                return false;
-            }
-
-            // Handle density equality based on swap flags
-            if !self.allow_density_swap && !op.allow_density_swap {
-                // Strict matching only
-                self.inner_density.eq_shallow(&op.inner_density)
-                    && self.outer_density.eq_shallow(&op.outer_density)
-            } else {
-                // Accept either order
-                (self.inner_density.eq_shallow(&op.inner_density)
-                    && self.outer_density.eq_shallow(&op.outer_density))
-                    || (self.inner_density.eq_shallow(&op.outer_density)
-                        && self.outer_density.eq_shallow(&op.inner_density))
-            }
-        } else {
-            false
-        }
-    }
-
-    #[inline]
-    fn total_order(&self) -> u32 {
-        self.derivative.total_order()
-    }
-
     fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
         let diff_inner = self.inner_density.differentiate(s).map_err(|e| {
             generic_expression_error(
@@ -295,6 +328,33 @@ impl Expr for TwoElecEnergy {
 
         Add::new(terms)
     }
+
+    #[inline]
+    fn replace_all(
+        &self,
+        map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        if let Some((_, value)) = map.iter().find(|(key, _)| self.match_for_replace_all(key)) {
+            return if self.derivative.is_empty() {
+                Ok(value.clone())
+            } else {
+                differentiate_expr(value, &self.derivative)
+            };
+        }
+
+        impl_binary_expr_arg_operation!(
+            self,
+            inner_density,
+            outer_density,
+            |arg: &Arc<dyn Expr>| arg.replace_all(map),
+            "TwoElecEnergy::replace_all() failed",
+            |this: &TwoElecEnergy, inner_density, outer_density| this
+                .builder_with_inner_density(inner_density)
+                .outer_density(outer_density)
+                .allow_density_swap(this.allow_density_swap)
+                .build(),
+        )
+    }
 }
 
 impl PartialEq for TwoElecEnergy {
@@ -307,18 +367,7 @@ impl PartialEq for TwoElecEnergy {
             return false;
         }
 
-        // Handle density equality based on swap flags
-        if !self.allow_density_swap && !other.allow_density_swap {
-            // Strict matching only
-            &self.inner_density == &other.inner_density
-                && &self.outer_density == &other.outer_density
-        } else {
-            // Accept either order
-            (&self.inner_density == &other.inner_density
-                && &self.outer_density == &other.outer_density)
-                || (&self.inner_density == &other.outer_density
-                    && &self.outer_density == &other.inner_density)
-        }
+        self.eq_density(other)
     }
 }
 

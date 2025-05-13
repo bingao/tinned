@@ -8,6 +8,7 @@ use num_traits::{ToPrimitive, Zero};
 
 use typetag;
 
+use crate::core::expr_internal::sealed::ExprInternal;
 use crate::core::{Expr, TinnedError};
 use crate::internal::intern_expr;
 use crate::public::{NumberTolerance, downcast_from_ref, generic_error, get_number_tolerance};
@@ -301,12 +302,13 @@ impl From<&Number> for Arc<dyn Expr> {
     }
 }
 
+impl ExprInternal for Number {
+    impl_expr_internal_methods!(Number);
+}
+
 #[typetag::serde]
 impl Expr for Number {
-    #[inline]
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
+    impl_expr_common_methods!(true);
 
     #[inline]
     fn hash_key(&self) -> String {
@@ -316,30 +318,6 @@ impl Expr for Number {
             Number::Complex(z) => format!("Complex({})", z),
             Number::Fraction(r) => format!("Fraction({}/{})", r.numer(), r.denom()),
         }
-    }
-
-    #[inline]
-    fn is_scalar(&self) -> bool {
-        true
-    }
-
-    #[inline]
-    fn clone_expr(&self) -> Arc<dyn Expr> {
-        Arc::new(self.clone())
-    }
-
-    #[inline]
-    fn eq_expr(&self, other: &dyn Expr) -> bool {
-        if let Some(num) = downcast_from_ref::<Number>(other) {
-            self == num
-        } else {
-            false
-        }
-    }
-
-    #[inline]
-    fn fmt_expr(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{self}")
     }
 
     #[allow(unused_variables)]

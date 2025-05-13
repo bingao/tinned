@@ -1,11 +1,12 @@
 macro_rules! impl_add_traits {
     ($type_name:ident, $hash_delimiter:ident, $fmt_delimiter:ident, $is_scalar:tt) => {
+        impl ExprInternal for $type_name {
+            impl_expr_internal_methods!($type_name);
+        }
+
         #[typetag::serde]
         impl Expr for $type_name {
-            #[inline]
-            fn as_any(&self) -> &dyn std::any::Any {
-                self
-            }
+            impl_expr_common_methods!($is_scalar);
 
             #[inline]
             fn hash_key(&self) -> String {
@@ -14,30 +15,6 @@ macro_rules! impl_add_traits {
                     stringify!($type_name),
                     multi_expression_hash(&self.terms, $hash_delimiter),
                 )
-            }
-
-            #[inline]
-            fn is_scalar(&self) -> bool {
-                $is_scalar
-            }
-
-            #[inline]
-            fn clone_expr(&self) -> Arc<dyn Expr> {
-                Arc::new(self.clone())
-            }
-
-            #[inline]
-            fn eq_expr(&self, other: &dyn Expr) -> bool {
-                if let Some(add) = downcast_from_ref::<$type_name>(other) {
-                    self == add
-                } else {
-                    false
-                }
-            }
-
-            #[inline]
-            fn fmt_expr(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-                write!(f, "{self}")
             }
 
             fn clean_temporum(
@@ -100,8 +77,8 @@ macro_rules! impl_add_traits {
             }
 
             fn find_all(&self, s: &Arc<dyn Expr>) -> BTreeMap<u32, HashSet<Arc<dyn Expr>>> {
-                if self.eq_shallow(s) {
-                    return BTreeMap::from([(self.total_order(), HashSet::from([self.clone_expr()]))]);
+                if self.match_for_find_all(s) {
+                    return BTreeMap::from([(self.find_all_key(), HashSet::from([self.clone_expr()]))]);
                 }
 
                 let mut result: BTreeMap<u32, HashSet<Arc<dyn Expr>>> = BTreeMap::new();
@@ -116,7 +93,7 @@ macro_rules! impl_add_traits {
 
             fn remove(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
                 if set.iter().any(|expr| self.eq_expr(expr.as_ref())) {
-                    return impl_add_traits!(@build_zero_expr $is_scalar);
+                    return impl_zero_expr!($is_scalar);
                 }
 
                 impl_add_traits!(
@@ -124,6 +101,42 @@ macro_rules! impl_add_traits {
                     self,
                     |term: &Arc<dyn Expr>| term.remove(set),
                     concat!(stringify!($type_name), "::remove() failed"),
+                    $is_scalar
+                )
+            }
+
+            fn replace(
+                &self,
+                map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
+            ) -> Result<Arc<dyn Expr>, TinnedError> {
+                if let Some((_, value)) = map.iter().find(|(key, _)| self.eq_expr(key.as_ref())) {
+                    return Ok(value.clone());
+                }
+
+                impl_add_traits!(
+                    @add_termwise_operation
+                    self,
+                    |term: &Arc<dyn Expr>| term.replace(map),
+                    concat!(stringify!($type_name), "::replace() failed"),
+                    $is_scalar
+                )
+            }
+
+            fn replace_all(
+                &self,
+                map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
+            ) -> Result<Arc<dyn Expr>, TinnedError> {
+                // For unambiguous replacement, we requirement equality for the
+                // whole `Add`.
+                if let Some((_, value)) = map.iter().find(|(key, _)| self.match_for_replace_all(key)) {
+                    return Ok(value.clone());
+                }
+
+                impl_add_traits!(
+                    @add_termwise_operation
+                    self,
+                    |term: &Arc<dyn Expr>| term.replace_all(map),
+                    concat!(stringify!($type_name), "::replace_all() failed"),
                     $is_scalar
                 )
             }
@@ -152,7 +165,7 @@ macro_rules! impl_add_traits {
             let new_term = ($operation)(term)
                 .map_err(|e| generic_expression_error($message, $self, Some(Box::new(e))))?;
             if is_zero_expr(&new_term, None) {
-                return impl_add_traits!(@build_zero_expr $is_scalar);
+                new_add = true;
             } else {
                 if !new_add {
                     new_add = &new_term != term;
@@ -167,8 +180,4 @@ macro_rules! impl_add_traits {
             Ok($self.clone_expr())
         }
     }};
-
-    (@build_zero_expr true) => { Ok(Number::zero()) };
-
-    (@build_zero_expr false) => { Ok(ZeroOperator::new()) };
 }

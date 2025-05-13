@@ -7,34 +7,7 @@ macro_rules! impl_binary_expr_common_methods {
         $build_expr:expr,
         $with_clean_temporum:tt
     ) => {
-        #[inline]
-        fn as_any(&self) -> &dyn std::any::Any {
-            self
-        }
-
-        #[inline]
-        fn is_scalar(&self) -> bool {
-            $is_scalar
-        }
-
-        #[inline]
-        fn clone_expr(&self) -> Arc<dyn Expr> {
-            Arc::new(self.clone())
-        }
-
-        #[inline]
-        fn eq_expr(&self, other: &dyn Expr) -> bool {
-            if let Some(expr) = downcast_from_ref::<$type_name>(other) {
-                self == expr
-            } else {
-                false
-            }
-        }
-
-        #[inline]
-        fn fmt_expr(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-            write!(f, "{self}")
-        }
+        impl_expr_common_methods!($is_scalar);
 
         impl_binary_expr_common_methods!(
             @binary_expr_clean_temporum
@@ -71,8 +44,8 @@ macro_rules! impl_binary_expr_common_methods {
 
         #[inline]
         fn find_all(&self, s: &Arc<dyn Expr>) -> BTreeMap<u32, HashSet<Arc<dyn Expr>>> {
-            if self.eq_shallow(s) {
-                BTreeMap::from([(self.total_order(), HashSet::from([self.clone_expr()]))])
+            if self.match_for_find_all(s) {
+                BTreeMap::from([(self.find_all_key(), HashSet::from([self.clone_expr()]))])
             } else {
                 let mut result = self.$first_argument.find_all(s);
                 for (order, subset) in self.$second_argument.find_all(s) {
@@ -86,7 +59,7 @@ macro_rules! impl_binary_expr_common_methods {
         #[inline]
         fn remove(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
             if set.iter().any(|expr| self.eq_expr(expr.as_ref())) {
-                return impl_binary_expr_common_methods!(@build_zero_expr $is_scalar);
+                return impl_zero_expr!($is_scalar);
             }
 
             impl_binary_expr_arg_operation!(
@@ -95,6 +68,25 @@ macro_rules! impl_binary_expr_common_methods {
                 $second_argument,
                 |arg: &Arc<dyn Expr>| arg.remove(set),
                 concat!(stringify!($type_name), "::remove() failed"),
+                $build_expr,
+            )
+        }
+
+        #[inline]
+        fn replace(
+            &self,
+            map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
+        ) -> Result<Arc<dyn Expr>, TinnedError> {
+            if let Some((_, value)) = map.iter().find(|(key, _)| self.eq_expr(key.as_ref())) {
+                return Ok(value.clone());
+            }
+
+            impl_binary_expr_arg_operation!(
+                self,
+                $first_argument,
+                $second_argument,
+                |arg: &Arc<dyn Expr>| arg.replace(map),
+                concat!(stringify!($type_name), "::replace() failed"),
                 $build_expr,
             )
         }
@@ -130,11 +122,6 @@ macro_rules! impl_binary_expr_common_methods {
         $build_expr:expr,
         false
     ) => { };
-
-    (@build_zero_expr true) => { Ok(Number::zero()) };
-
-    (@build_zero_expr false) => { Ok(ZeroOperator::new()) };
-
 }
 
 macro_rules! impl_binary_expr_arg_operation {

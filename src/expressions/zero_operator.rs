@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use typetag;
 
+use crate::core::expr_internal::sealed::ExprInternal;
 use crate::core::{Expr, TinnedError};
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -15,23 +16,7 @@ impl ZeroOperator {
     }
 }
 
-#[typetag::serde]
-impl Expr for ZeroOperator {
-    #[inline]
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-
-    #[inline]
-    fn hash_key(&self) -> String {
-        "ZeroOperator".to_string()
-    }
-
-    #[inline]
-    fn is_scalar(&self) -> bool {
-        false
-    }
-
+impl ExprInternal for ZeroOperator {
     #[inline]
     fn clone_expr(&self) -> Arc<dyn Expr> {
         Arc::new(self.clone())
@@ -46,6 +31,16 @@ impl Expr for ZeroOperator {
     #[inline]
     fn fmt_expr(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         f.write_str("op(0)")
+    }
+}
+
+#[typetag::serde]
+impl Expr for ZeroOperator {
+    impl_expr_common_methods!(false);
+
+    #[inline]
+    fn hash_key(&self) -> String {
+        "ZeroOperator".to_string()
     }
 
     #[allow(unused_variables)]

@@ -3,7 +3,9 @@ use std::sync::Arc;
 
 use typetag;
 
+use crate::core::expr_internal::sealed::ExprInternal;
 use crate::core::{Expr, TinnedError};
+use crate::expressions::{Mul, Number};
 use crate::perturbations::Perturbation;
 use crate::public::{
     downcast_from_arc, downcast_from_ref, expression_error, generic_expression_error, is_zero_expr,
@@ -32,7 +34,7 @@ impl Composition {
         }
 
         if is_zero_expr(&inner, None) {
-            return Ok(crate::expressions::Number::zero());
+            return Ok(Number::zero());
         }
 
         Ok(crate::internal::intern_expr(Arc::new(Self {
@@ -58,6 +60,24 @@ impl Composition {
     }
 }
 
+impl ExprInternal for Composition {
+    impl_expr_internal_methods!(Composition);
+
+    #[inline]
+    fn find_all_key(&self) -> u32 {
+        self.order
+    }
+
+    #[inline]
+    fn match_for_find_all(&self, other: &Arc<dyn Expr>) -> bool {
+        if let Some(comp) = downcast_from_arc::<Composition>(other) {
+            self.name == comp.name && self.inner.match_for_find_all(&comp.inner)
+        } else {
+            false
+        }
+    }
+}
+
 #[typetag::serde]
 impl Expr for Composition {
     impl_unary_expr_common_methods!(
@@ -66,26 +86,11 @@ impl Expr for Composition {
         True,
         |this: &Composition, arg| Self::new(this.name.clone(), this.order, arg),
         false,
-        false,
     );
 
     #[inline]
     fn hash_key(&self) -> String {
         format!("Composition({}^{}; {})", self.name, self.order, self.inner.hash_key())
-    }
-
-    #[inline]
-    fn eq_shallow(&self, other: &Arc<dyn Expr>) -> bool {
-        if let Some(comp) = downcast_from_arc::<Composition>(other) {
-            self.name == comp.name && self.inner.eq_shallow(&comp.inner)
-        } else {
-            false
-        }
-    }
-
-    #[inline]
-    fn total_order(&self) -> u32 {
-        self.order
     }
 
     fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
@@ -99,7 +104,7 @@ impl Expr for Composition {
             )
         })?;
 
-        crate::expressions::Mul::new(vec![diff_outer, diff_inner])
+        Mul::new(vec![diff_outer, diff_inner])
     }
 }
 
@@ -124,9 +129,9 @@ impl std::fmt::Display for Composition {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::expressions::Power;
     use crate::expressions::exch_corr_energy::test_utils::make_exch_corr_energy;
     use crate::expressions::symbol::test_utils::{make_symbol, random_alphanumeric};
-    use crate::expressions::{Mul, Power};
     use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
     use crate::public::{is_expr_type, is_one_expr};
 
