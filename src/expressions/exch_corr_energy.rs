@@ -60,6 +60,6 @@ mod tests {
         make_exch_corr_energy,
         xc_energy,
         build_xc_energy,
-        true,
+        true
     );
 }

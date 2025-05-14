@@ -146,7 +146,11 @@ macro_rules! impl_exch_corr_traits {
             fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
                 let diff_expr = self.$grid_expr_name.differentiate(s).map_err(|e| {
                     generic_expression_error(
-                        concat!(stringify!($type_name), "::differentiate() failed"),
+                        concat!(
+                            stringify!($type_name),
+                            "::differentiate() failed for ",
+                            stringify!($grid_expr_name)
+                        ),
                         self,
                         Some(Box::new(e)),
                     )
@@ -177,7 +181,7 @@ macro_rules! impl_exch_corr_traits {
                     |grid_expr: &Arc<dyn Expr>| grid_expr.eliminate(parameter, perturbations, min_order),
                     concat!(stringify!($type_name), "::eliminate() failed"),
                     $is_scalar,
-                    false,
+                    false
                 )
             }
 
@@ -209,7 +213,7 @@ macro_rules! impl_exch_corr_traits {
                     |grid_expr: &Arc<dyn Expr>| grid_expr.remove(set),
                     concat!(stringify!($type_name), "::remove() failed"),
                     $is_scalar,
-                    false,
+                    false
                 )
             }
 
@@ -233,7 +237,7 @@ macro_rules! impl_exch_corr_traits {
                     |grid_expr: &Arc<dyn Expr>| grid_expr.replace(map),
                     concat!(stringify!($type_name), "::replace() failed"),
                     $is_scalar,
-                    true,
+                    true
                 )
             }
 
@@ -257,7 +261,7 @@ macro_rules! impl_exch_corr_traits {
                     |grid_expr: &Arc<dyn Expr>| grid_expr.replace_all(map),
                     concat!(stringify!($type_name), "::replace_all() failed"),
                     $is_scalar,
-                    true,
+                    true
                 )
             }
         }
@@ -293,23 +297,23 @@ macro_rules! impl_exch_corr_traits {
         $operation:expr,
         $message:expr,
         $is_scalar:tt,
-        true,
+        true
     ) => {{
-        let grid_weight = ($operation)(& $self.grid_weight).map_err(|e| {
+        let grid_weight = ($operation)(&$self.grid_weight).map_err(|e| {
             generic_expression_error(
                 concat!($message, " for grid weight"),
                 $self,
                 Some(Box::new(e))
             )
         })?;
-        let density_matrix = ($operation)(& $self.density_matrix).map_err(|e| {
+        let density_matrix = ($operation)(&$self.density_matrix).map_err(|e| {
             generic_expression_error(
                 concat!($message, " for density matrix"),
                 $self,
                 Some(Box::new(e))
             )
         })?;
-        let overlap_distribution = ($operation)(& $self.overlap_distribution).map_err(|e| {
+        let overlap_distribution = ($operation)(&$self.overlap_distribution).map_err(|e| {
             generic_expression_error(
                 concat!($message, " for overlap distribution"),
                 $self,
@@ -317,8 +321,13 @@ macro_rules! impl_exch_corr_traits {
             )
         })?;
 
-        let new_expr = ($operation)(& $self.$grid_expr_name)
-            .map_err(|e| generic_expression_error($message, $self, Some(Box::new(e))))?;
+        let new_expr = ($operation)(&$self.$grid_expr_name).map_err(|e| {
+            generic_expression_error(
+                concat!($message, " for ", stringify!($grid_expr_name)),
+                $self,
+                Some(Box::new(e)),
+            )
+        })?;
 
         if is_zero_expr(&new_expr, None) {
             impl_zero_expr!($is_scalar)
@@ -343,10 +352,15 @@ macro_rules! impl_exch_corr_traits {
         $operation:expr,
         $message:expr,
         $is_scalar:tt,
-        false,
+        false
     ) => {{
-        let new_expr = ($operation)(& $self.$grid_expr_name)
-            .map_err(|e| generic_expression_error($message, $self, Some(Box::new(e))))?;
+        let new_expr = ($operation)(&$self.$grid_expr_name).map_err(|e| {
+            generic_expression_error(
+                concat!($message, " for ", stringify!($grid_expr_name)),
+                $self,
+                Some(Box::new(e)),
+            )
+        })?;
 
         if is_zero_expr(&new_expr, None) {
             impl_zero_expr!($is_scalar)

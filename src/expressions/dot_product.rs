@@ -124,7 +124,7 @@ impl DotProduct {
             ket,
             |arg: &Arc<dyn Expr>| Conjugate::new(arg.clone()),
             "DotProduct::conjugate() failed",
-            |this: &DotProduct, bra, ket| Self::make_dot_product(bra, ket, this.allow_braket_swap),
+            |this: &DotProduct, bra, ket| Self::make_dot_product(bra, ket, this.allow_braket_swap)
         )
     }
 }
@@ -223,7 +223,7 @@ impl Expr for DotProduct {
             ket,
             |arg: &Arc<dyn Expr>| arg.replace_all(map),
             "DotProduct::replace_all() failed",
-            |this: &DotProduct, bra, ket| Self::make_dot_product(bra, ket, this.allow_braket_swap),
+            |this: &DotProduct, bra, ket| Self::make_dot_product(bra, ket, this.allow_braket_swap)
         )
     }
 }

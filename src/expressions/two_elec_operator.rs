@@ -8,7 +8,8 @@ use crate::core::{Expr, TinnedError};
 use crate::expressions::{MatrixAdd, WfnParameter, ZeroOperator};
 use crate::perturbations::{PertMultichain, Perturbation};
 use crate::public::{
-    downcast_from_arc, downcast_from_ref, expression_error, generic_expression_error, is_expr_type,
+    differentiate_expr, downcast_from_arc, downcast_from_ref, expression_error,
+    generic_expression_error, is_expr_type,
 };
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -158,8 +159,8 @@ impl Expr for TwoElecOperator {
         TwoElecOperator,
         density,
         False,
-        |this: &TwoElecOperator, arg| this.builder_from_density(arg).build(),
-        false,
+        true,
+        |this: &TwoElecOperator, arg| this.builder_from_density(arg).build()
     );
 
     #[inline]

@@ -142,8 +142,8 @@ impl Expr for TemporumOperator {
         TemporumOperator,
         argument,
         False,
-        |this: &TemporumOperator, arg| this.builder_from(arg).build(),
         false,
+        |this: &TemporumOperator, arg| this.builder_from(arg).build()
     );
 
     #[inline]

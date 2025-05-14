@@ -16,6 +16,11 @@ macro_rules! impl_unary_expr_traits {
                     false
                 }
             }
+
+            // Except for `TwoElecOperator`, all other implemented unary `Expr`
+            // types do not hold derivative. So we use equality comparison on
+            // the whole expression, i.e. we do not override the method
+            // `match_for_replace_all()` of the trait `ExprInternal`.
         }
 
         #[typetag::serde]
@@ -29,10 +34,25 @@ macro_rules! impl_unary_expr_traits {
                 $type_name,
                 argument,
                 $type_scalar,
-                |_this, arg| Self::new(arg),
-                true,
+                false,
+                |_this, arg| Self::new(arg)
             );
 
+            #[inline]
+            fn clean_temporum(
+                &self,
+                freq_tol: Option<NumberTolerance>,
+            ) -> Result<Arc<dyn Expr>, TinnedError> {
+                impl_unary_expr_arg_operation!(
+                    self,
+                    argument,
+                    |arg: &Arc<dyn Expr>| arg.clean_temporum(freq_tol),
+                    concat!(stringify!($type_name), "::clean_temporum() failed"),
+                    |_this, arg| Self::new(arg)
+                )
+            }
+
+            #[inline]
             fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
                 let diff_arg = self.argument.differentiate(s).map_err(|e| {
                     generic_expression_error(
@@ -67,8 +87,8 @@ macro_rules! impl_unary_expr_common_methods {
         $type_name:ident,
         $arg_field:ident,
         $type_scalar:ident,
-        $build_expr:expr,
-        $with_clean_temporum:tt,
+        $has_derivative:tt,
+        $build_expr:expr
     ) => {
         #[inline]
         fn as_any(&self) -> &dyn std::any::Any {
@@ -77,14 +97,6 @@ macro_rules! impl_unary_expr_common_methods {
 
         impl_unary_expr_common_methods!(@unary_expr_is_scalar $arg_field, $type_scalar);
 
-        impl_unary_expr_common_methods!(
-            @unary_expr_clean_temporum
-            $type_name,
-            $arg_field,
-            $build_expr,
-            $with_clean_temporum
-        );
-
         #[inline]
         fn eliminate(
             &self,
@@ -92,13 +104,12 @@ macro_rules! impl_unary_expr_common_methods {
             perturbations: &[Arc<Perturbation>],
             min_order: u32,
         ) -> Result<Arc<dyn Expr>, TinnedError> {
-            impl_unary_expr_common_methods!(
-                @unary_expr_arg_operation
+            impl_unary_expr_arg_operation!(
                 self,
                 $arg_field,
-                self.$arg_field.eliminate(parameter, perturbations, min_order),
-                concat!(stringify!($type_name), "::eliminate() failed for argument"),
-                $build_expr,
+                |arg: &Arc<dyn Expr>| arg.eliminate(parameter, perturbations, min_order),
+                concat!(stringify!($type_name), "::eliminate() failed"),
+                $build_expr
             )
         }
 
@@ -126,16 +137,55 @@ macro_rules! impl_unary_expr_common_methods {
                 );
             }
 
-            impl_unary_expr_common_methods!(
-                @unary_expr_arg_operation
+            impl_unary_expr_arg_operation!(
                 self,
                 $arg_field,
-                self.$arg_field.remove(set),
-                concat!(stringify!($type_name), "::remove() failed for argument"),
-                $build_expr,
+                |arg: &Arc<dyn Expr>| arg.remove(set),
+                concat!(stringify!($type_name), "::remove() failed"),
+                $build_expr
             )
         }
 
+        #[inline]
+        fn replace(
+            &self,
+            map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
+        ) -> Result<Arc<dyn Expr>, TinnedError> {
+            if let Some((_, value)) = map.iter().find(|(key, _)| self.eq_expr(key.as_ref())) {
+                return Ok(value.clone());
+            }
+
+            impl_unary_expr_arg_operation!(
+                self,
+                $arg_field,
+                |arg: &Arc<dyn Expr>| arg.replace(map),
+                concat!(stringify!($type_name), "::replace() failed"),
+                $build_expr
+            )
+        }
+
+        #[inline]
+        fn replace_all(
+            &self,
+            map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
+        ) -> Result<Arc<dyn Expr>, TinnedError> {
+            if let Some((_, value)) = map.iter().find(|(key, _)| self.match_for_replace_all(key)) {
+                return impl_unary_expr_common_methods!(
+                    @unary_expr_replace_self
+                    self,
+                    value,
+                    $has_derivative
+                );
+            }
+
+            impl_unary_expr_arg_operation!(
+                self,
+                $arg_field,
+                |arg: &Arc<dyn Expr>| arg.replace_all(map),
+                concat!(stringify!($type_name), "::replace_all() failed"),
+                $build_expr
+            )
+        }
     };
 
     (@unary_expr_is_scalar $_arg_field:ident, True) => {
@@ -159,41 +209,17 @@ macro_rules! impl_unary_expr_common_methods {
         }
     };
 
-    (@unary_expr_clean_temporum $type_name:ident, $arg_field:ident, $build_expr:expr, true) => {
-        #[inline]
-        fn clean_temporum(
-            &self,
-            freq_tol: Option<NumberTolerance>,
-        ) -> Result<Arc<dyn Expr>, TinnedError> {
-            impl_unary_expr_common_methods!(
-                @unary_expr_arg_operation
-                self,
-                $arg_field,
-                self.$arg_field.clean_temporum(freq_tol),
-                concat!(stringify!($type_name), "::clean_temporum() failed for argument"),
-                $build_expr,
-            )
+    (@unary_expr_replace_self $self:ident, $value:ident, true) => {
+        if $self.derivative.is_empty() {
+            Ok($value.clone())
+        } else {
+            differentiate_expr($value, &$self.derivative)
         }
     };
 
-    (@unary_expr_clean_temporum $type_name:ident, $arg_field:ident, $build_expr:expr, false) => { };
-
-    (@unary_expr_arg_operation
-        $self:ident,
-        $arg_field:ident,
-        $arg_operation:expr,
-        $message:expr,
-        $build_expr:expr,
-    ) => {{
-        let new_arg = $arg_operation
-            .map_err(|e| generic_expression_error($message, $self, Some(Box::new(e))))?;
-
-        if &new_arg == &$self.$arg_field {
-            Ok($self.clone_expr())
-        } else {
-            ($build_expr)($self, new_arg)
-        }
-    }};
+    (@unary_expr_replace_self $_self:ident, $value:ident, false) => {
+        Ok($value.clone())
+    };
 
     (@build_zero_expr $_argument:expr, True) => { impl_zero_expr!(true) };
 
@@ -206,4 +232,28 @@ macro_rules! impl_unary_expr_common_methods {
             impl_zero_expr!(false)
         }
     };
+}
+
+macro_rules! impl_unary_expr_arg_operation {
+    (
+        $self:ident,
+        $arg_field:ident,
+        $arg_operation:expr,
+        $message:expr,
+        $build_expr:expr
+    ) => {{
+        let new_arg = ($arg_operation)(&$self.$arg_field).map_err(|e| {
+            generic_expression_error(
+                concat!($message, " for ", stringify!($arg_field)),
+                $self,
+                Some(Box::new(e)),
+            )
+        })?;
+
+        if &new_arg == &$self.$arg_field {
+            Ok($self.clone_expr())
+        } else {
+            ($build_expr)($self, new_arg)
+        }
+    }};
 }

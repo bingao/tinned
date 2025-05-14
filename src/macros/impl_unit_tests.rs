@@ -248,7 +248,7 @@ macro_rules! test_exch_corr {
         $make_expr:ident,
         $grid_expr_name:ident,
         $build_grid_expr:ident,
-        $is_scalar:literal,
+        $is_scalar:literal
     ) => {
         test_struct_safety!($type_name);
 

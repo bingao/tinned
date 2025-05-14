@@ -145,14 +145,14 @@ impl Expr for ResidueParameter {
         ResidueParameter,
         parameter,
         False,
+        false,
         |this: &ResidueParameter, arg| Self::builder(
             this.perturbations.clone(),
             this.excited_state.clone(),
             arg
         )
         .positive_frequency(this.positive_frequency)
-        .build(),
-        false,
+        .build()
     );
 
     #[inline]

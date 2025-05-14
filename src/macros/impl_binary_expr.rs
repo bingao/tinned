@@ -31,7 +31,7 @@ macro_rules! impl_binary_expr_common_methods {
                 $second_argument,
                 |arg: &Arc<dyn Expr>| arg.eliminate(parameter, perturbations, min_order),
                 concat!(stringify!($type_name), "::eliminate() failed"),
-                $build_expr,
+                $build_expr
             )
         }
 
@@ -68,7 +68,7 @@ macro_rules! impl_binary_expr_common_methods {
                 $second_argument,
                 |arg: &Arc<dyn Expr>| arg.remove(set),
                 concat!(stringify!($type_name), "::remove() failed"),
-                $build_expr,
+                $build_expr
             )
         }
 
@@ -87,7 +87,7 @@ macro_rules! impl_binary_expr_common_methods {
                 $second_argument,
                 |arg: &Arc<dyn Expr>| arg.replace(map),
                 concat!(stringify!($type_name), "::replace() failed"),
-                $build_expr,
+                $build_expr
             )
         }
     };
@@ -110,7 +110,7 @@ macro_rules! impl_binary_expr_common_methods {
                 $second_argument,
                 |arg: &Arc<dyn Expr>| arg.clean_temporum(freq_tol.clone()),
                 concat!(stringify!($type_name), "::clean_temporum() failed"),
-                $build_expr,
+                $build_expr
             )
         }
     };
@@ -131,18 +131,18 @@ macro_rules! impl_binary_expr_arg_operation {
         $second_argument:ident,
         $arg_operation:expr,
         $message:expr,
-        $build_expr:expr,
+        $build_expr:expr
     ) => {{
         let new_first = ($arg_operation)(&$self.$first_argument).map_err(|e| {
             generic_expression_error(
-                concat!($message, " for first argument"),
+                concat!($message, " for ", stringify!($first_argument)),
                 $self,
                 Some(Box::new(e)),
             )
         })?;
         let new_second = ($arg_operation)(&$self.$second_argument).map_err(|e| {
             generic_expression_error(
-                concat!($message, " for second argument"),
+                concat!($message, " for ", stringify!($second_argument)),
                 $self,
                 Some(Box::new(e)),
             )

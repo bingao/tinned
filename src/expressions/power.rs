@@ -88,17 +88,28 @@ impl ExprInternal for Power {
 
 #[typetag::serde]
 impl Expr for Power {
-    impl_unary_expr_common_methods!(
-        Power,
-        base,
-        True,
-        |this: &Power, arg| Self::new(arg, this.exponent),
-        true,
-    );
+    impl_unary_expr_common_methods!(Power, base, True, false, |this: &Power, arg| Self::new(
+        arg,
+        this.exponent
+    ));
 
     #[inline]
     fn hash_key(&self) -> String {
         format!("Power({}; {})", self.base.hash_key(), self.exponent)
+    }
+
+    #[inline]
+    fn clean_temporum(
+        &self,
+        freq_tol: Option<NumberTolerance>,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        impl_unary_expr_arg_operation!(
+            self,
+            base,
+            |arg: &Arc<dyn Expr>| arg.clean_temporum(freq_tol),
+            "Power::clean_temporum() failed",
+            |this: &Power, arg| Self::new(arg, this.exponent)
+        )
     }
 
     fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {

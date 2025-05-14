@@ -352,7 +352,7 @@ impl Expr for TwoElecEnergy {
                 .builder_with_inner_density(inner_density)
                 .outer_density(outer_density)
                 .allow_density_swap(this.allow_density_swap)
-                .build(),
+                .build()
         )
     }
 }

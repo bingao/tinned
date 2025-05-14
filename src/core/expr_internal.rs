@@ -19,7 +19,7 @@ pub(crate) mod sealed {
         }
 
         // Compares equality of two expressions for the method `find_all()`.
-        // This comparison will ignore derivatives of these two expression, and
+        // This comparison will ignore derivatives of these two expressions, and
         // derivatives of their fields may also be ignored. See the
         // implementation of different concrete expression types.
         #[inline]
@@ -28,9 +28,13 @@ pub(crate) mod sealed {
         }
 
         // Compares equality of two expressions for the method `replace_all()`.
-        // This comparison will ignore derivatives of these two expression, and
-        // derivatives of their fields may also be ignored. See the
-        // implementation of different concrete expression types.
+        // This comparison will ignore derivatives of these two expressions.
+        // For unambiguous replacement, we may require equality comparison of
+        // their fields as well. See the implementation of different concrete
+        // expression types.
+        //
+        // One requirement is that `match_for_replace_all()` should not return
+        // true for two different `self`'s by only ignoring their derivatives.
         #[inline]
         fn match_for_replace_all(&self, other: &Arc<dyn crate::core::expr::Expr>) -> bool {
             self.eq_expr(other.as_ref())

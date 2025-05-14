@@ -65,6 +65,6 @@ mod tests {
         make_exch_corr_potential,
         xc_potential,
         build_xc_potential,
-        false,
+        false
     );
 }
