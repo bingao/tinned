@@ -70,13 +70,13 @@ impl Mul {
                     *coefficient = coefficient.mul(num);
                 }
             } else if let Some(pow) = downcast_from_arc::<Power>(expr) {
-                let key = pow.base().fast_hash();
+                let key = pow.base().hash_value();
                 let base = pow.base().clone();
                 let exp = pow.exponent();
                 let entry = power_map.entry(key).or_insert((base, 0));
                 entry.1 += exp;
             } else {
-                let key = expr.fast_hash();
+                let key = expr.hash_value();
                 let entry = power_map.entry(key).or_insert((expr.clone(), 0));
                 entry.1 += 1;
             }

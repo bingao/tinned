@@ -2,11 +2,6 @@ macro_rules! impl_add_traits {
     ($type_name:ident, $hash_delimiter:ident, $fmt_delimiter:ident, $is_scalar:tt) => {
         impl ExprInternal for $type_name {
             impl_expr_internal_methods!($type_name);
-        }
-
-        #[typetag::serde]
-        impl Expr for $type_name {
-            impl_expr_common_methods!($is_scalar);
 
             #[inline]
             fn hash_key(&self) -> String {
@@ -16,6 +11,11 @@ macro_rules! impl_add_traits {
                     multi_expression_hash(&self.terms, $hash_delimiter),
                 )
             }
+        }
+
+        #[typetag::serde]
+        impl Expr for $type_name {
+            impl_expr_common_methods!($is_scalar);
 
             fn clean_temporum(
                 &self,

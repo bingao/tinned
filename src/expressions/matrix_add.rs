@@ -63,7 +63,7 @@ impl MatrixAdd {
                 } else {
                     MatrixMul::new(matmul.factors().to_vec())?
                 };
-                let key = base_expr.fast_hash();
+                let key = base_expr.hash_value();
                 let coef = matmul.coefficient();
                 if let Some((existing_expr, existing_coef)) = merged.get_mut(&key) {
                     if existing_expr == &base_expr {
@@ -73,7 +73,7 @@ impl MatrixAdd {
                 }
                 merged.insert(key, (base_expr, vec![coef.clone()]));
             } else {
-                let key = expr.fast_hash();
+                let key = expr.hash_value();
                 if let Some((existing_expr, existing_coef)) = merged.get_mut(&key) {
                     if existing_expr == expr {
                         existing_coef.push(Arc::new(Number::Integer(1)));

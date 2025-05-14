@@ -133,6 +133,17 @@ impl ExprInternal for DotProduct {
     impl_expr_internal_methods!(DotProduct);
 
     #[inline]
+    fn hash_key(&self) -> String {
+        // Important to include `allow_braket_swap` into hash
+        format!(
+            "DotProduct({}; {}; {})",
+            self.bra.hash_key(),
+            self.ket.hash_key(),
+            self.allow_braket_swap,
+        )
+    }
+
+    #[inline]
     fn match_for_find_all(&self, other: &Arc<dyn Expr>) -> bool {
         if let Some(dot) = downcast_from_arc::<DotProduct>(other) {
             if self.bra.match_for_find_all(&dot.bra) && self.ket.match_for_find_all(&dot.ket) {
@@ -172,17 +183,6 @@ impl Expr for DotProduct {
         |this: &DotProduct, bra, ket| Self::make_dot_product(bra, ket, this.allow_braket_swap),
         true
     );
-
-    #[inline]
-    fn hash_key(&self) -> String {
-        // Important to include `allow_braket_swap` into hash
-        format!(
-            "DotProduct({}; {}; {})",
-            self.bra.hash_key(),
-            self.ket.hash_key(),
-            self.allow_braket_swap,
-        )
-    }
 
     fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
         let diff_bra = self.bra.differentiate(s).map_err(|e| {

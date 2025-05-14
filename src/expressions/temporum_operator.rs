@@ -122,6 +122,11 @@ impl ExprInternal for TemporumOperator {
     impl_expr_internal_methods!(TemporumOperator);
 
     #[inline]
+    fn hash_key(&self) -> String {
+        format!("TemporumOperator({}; {})", self.is_forward, self.argument.hash_key())
+    }
+
+    #[inline]
     fn find_all_key(&self) -> u32 {
         self.argument.find_all_key()
     }
@@ -145,11 +150,6 @@ impl Expr for TemporumOperator {
         false,
         |this: &TemporumOperator, arg| this.builder_from(arg).build()
     );
-
-    #[inline]
-    fn hash_key(&self) -> String {
-        format!("TemporumOperator({}; {})", self.is_forward, self.argument.hash_key())
-    }
 
     #[inline]
     fn clean_temporum(

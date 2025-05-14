@@ -30,16 +30,16 @@ impl Symbol {
 
 impl ExprInternal for Symbol {
     impl_expr_internal_methods!(Symbol);
-}
-
-#[typetag::serde]
-impl Expr for Symbol {
-    impl_expr_common_methods!(true);
 
     #[inline]
     fn hash_key(&self) -> String {
         format!("Symbol({})", self.name)
     }
+}
+
+#[typetag::serde]
+impl Expr for Symbol {
+    impl_expr_common_methods!(true);
 
     #[inline]
     fn differentiate(

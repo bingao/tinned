@@ -210,6 +210,30 @@ impl ExprInternal for TwoElecEnergy {
     impl_expr_internal_methods!(TwoElecEnergy);
 
     #[inline]
+    fn hash_key(&self) -> String {
+        let (inner, outer) = if self.allow_density_swap {
+            let h1 = self.inner_density.hash_key();
+            let h2 = self.outer_density.hash_key();
+            if h1 <= h2 {
+                (h1, h2)
+            } else {
+                (h2, h1)
+            }
+        } else {
+            (self.inner_density.hash_key(), self.outer_density.hash_key())
+        };
+
+        format!(
+            "TwoElecEnergy({}; {}; {}; [{}]; [{}])",
+            self.name,
+            inner,
+            outer,
+            self.dependencies.hash_key(),
+            self.derivative.hash_key(),
+        )
+    }
+
+    #[inline]
     fn find_all_key(&self) -> u32 {
         self.derivative.total_order()
     }
@@ -266,30 +290,6 @@ impl Expr for TwoElecEnergy {
             .build(),
         false
     );
-
-    #[inline]
-    fn hash_key(&self) -> String {
-        let (inner, outer) = if self.allow_density_swap {
-            let h1 = self.inner_density.hash_key();
-            let h2 = self.outer_density.hash_key();
-            if h1 <= h2 {
-                (h1, h2)
-            } else {
-                (h2, h1)
-            }
-        } else {
-            (self.inner_density.hash_key(), self.outer_density.hash_key())
-        };
-
-        format!(
-            "TwoElecEnergy({}; {}; {}; [{}]; [{}])",
-            self.name,
-            inner,
-            outer,
-            self.dependencies.hash_key(),
-            self.derivative.hash_key(),
-        )
-    }
 
     fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
         let diff_inner = self.inner_density.differentiate(s).map_err(|e| {

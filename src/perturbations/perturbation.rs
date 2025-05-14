@@ -34,7 +34,7 @@ impl Perturbation {
 
     // A canonical string used for hashing, ordering, interning, etc.
     #[inline]
-    pub fn hash_key(&self) -> String {
+    pub(crate) fn hash_key(&self) -> String {
         format!("Perturbation({},{})", self.name, self.frequency.hash_key())
     }
 }

@@ -304,11 +304,6 @@ impl From<&Number> for Arc<dyn Expr> {
 
 impl ExprInternal for Number {
     impl_expr_internal_methods!(Number);
-}
-
-#[typetag::serde]
-impl Expr for Number {
-    impl_expr_common_methods!(true);
 
     #[inline]
     fn hash_key(&self) -> String {
@@ -319,6 +314,11 @@ impl Expr for Number {
             Number::Fraction(r) => format!("Fraction({}/{})", r.numer(), r.denom()),
         }
     }
+}
+
+#[typetag::serde]
+impl Expr for Number {
+    impl_expr_common_methods!(true);
 
     #[allow(unused_variables)]
     #[inline]

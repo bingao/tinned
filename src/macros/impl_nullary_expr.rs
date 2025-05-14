@@ -168,6 +168,8 @@ macro_rules! impl_nullary_expr_traits {
         impl ExprInternal for $type_name {
             impl_expr_internal_methods!($type_name);
 
+            impl_nullary_expr_traits!(@impl_hash_key $type_name, $has_deps);
+
             #[inline]
             fn find_all_key(&self) -> u32 {
                 self.derivative.total_order()
@@ -191,8 +193,6 @@ macro_rules! impl_nullary_expr_traits {
         #[typetag::serde]
         impl Expr for $type_name {
             impl_nullary_expr_common_methods!($is_scalar);
-
-            impl_nullary_expr_traits!(@impl_hash_key $type_name, $has_deps);
 
             #[inline]
             fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError>

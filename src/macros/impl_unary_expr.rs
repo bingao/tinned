@@ -4,6 +4,11 @@ macro_rules! impl_unary_expr_traits {
             impl_expr_internal_methods!($type_name);
 
             #[inline]
+            fn hash_key(&self) -> String {
+                format!("{}({})", stringify!($type_name), self.argument.hash_key())
+            }
+
+            #[inline]
             fn find_all_key(&self) -> u32 {
                 self.argument.find_all_key()
             }
@@ -25,11 +30,6 @@ macro_rules! impl_unary_expr_traits {
 
         #[typetag::serde]
         impl Expr for $type_name {
-            #[inline]
-            fn hash_key(&self) -> String {
-                format!("{}({})", stringify!($type_name), self.argument.hash_key())
-            }
-
             impl_unary_expr_common_methods!(
                 $type_name,
                 argument,

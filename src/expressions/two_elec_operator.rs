@@ -123,6 +123,17 @@ impl ExprInternal for TwoElecOperator {
     impl_expr_internal_methods!(TwoElecOperator);
 
     #[inline]
+    fn hash_key(&self) -> String {
+        format!(
+            "TwoElecOperator({}; {}; [{}]; [{}])",
+            self.name,
+            self.density.hash_key(),
+            self.dependencies.hash_key(),
+            self.derivative.hash_key(),
+        )
+    }
+
+    #[inline]
     fn find_all_key(&self) -> u32 {
         self.derivative.total_order()
     }
@@ -162,17 +173,6 @@ impl Expr for TwoElecOperator {
         true,
         |this: &TwoElecOperator, arg| this.builder_from_density(arg).build()
     );
-
-    #[inline]
-    fn hash_key(&self) -> String {
-        format!(
-            "TwoElecOperator({}; {}; [{}]; [{}])",
-            self.name,
-            self.density.hash_key(),
-            self.dependencies.hash_key(),
-            self.derivative.hash_key(),
-        )
-    }
 
     fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
         let diff_density = self.density.differentiate(s).map_err(|e| {

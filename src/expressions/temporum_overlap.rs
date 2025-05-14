@@ -149,6 +149,17 @@ impl ExprInternal for TemporumOverlap {
     impl_expr_internal_methods!(TemporumOverlap);
 
     #[inline]
+    fn hash_key(&self) -> String {
+        // We remove braket here, to be consistent with PartialEq
+        format!(
+            "TemporumOverlap({}; [{}]; [{}])",
+            self.is_zero_strength,
+            self.dependencies.hash_key(),
+            self.derivative.hash_key(),
+        )
+    }
+
+    #[inline]
     fn find_all_key(&self) -> u32 {
         self.derivative.total_order()
     }
@@ -177,17 +188,6 @@ impl ExprInternal for TemporumOverlap {
 #[typetag::serde]
 impl Expr for TemporumOverlap {
     impl_nullary_expr_common_methods!(false);
-
-    #[inline]
-    fn hash_key(&self) -> String {
-        // We remove braket here, to be consistent with PartialEq
-        format!(
-            "TemporumOverlap({}; [{}]; [{}])",
-            self.is_zero_strength,
-            self.dependencies.hash_key(),
-            self.derivative.hash_key(),
-        )
-    }
 
     // `TemporumOverlap` will disappear if it is unperturbed or all
     // perturbations have zero frequency

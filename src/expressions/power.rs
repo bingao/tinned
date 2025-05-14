@@ -77,6 +77,11 @@ impl ExprInternal for Power {
     impl_expr_internal_methods!(Power);
 
     #[inline]
+    fn hash_key(&self) -> String {
+        format!("Power({}; {})", self.base.hash_key(), self.exponent)
+    }
+
+    #[inline]
     fn match_for_find_all(&self, other: &Arc<dyn Expr>) -> bool {
         if let Some(pow) = downcast_from_arc::<Power>(other) {
             self.exponent == pow.exponent && self.base.match_for_find_all(&pow.base)
@@ -92,11 +97,6 @@ impl Expr for Power {
         arg,
         this.exponent
     ));
-
-    #[inline]
-    fn hash_key(&self) -> String {
-        format!("Power({}; {})", self.base.hash_key(), self.exponent)
-    }
 
     #[inline]
     fn clean_temporum(

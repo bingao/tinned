@@ -29,7 +29,7 @@ pub(crate) fn multi_perturbation_hash(perts: &[Arc<Perturbation>], delimiter: &s
 }
 
 /// Sorts a list of expressions by grouping them by `type_id`
-/// and sorting within each group by `fast_hash()`.
+/// and sorting within each group by `hash_value()`.
 #[inline]
 pub(crate) fn sort_multi_expressions(exprs: &[Arc<dyn Expr>]) -> Vec<Arc<dyn Expr>> {
     // Group `exprs` by type names
@@ -39,10 +39,10 @@ pub(crate) fn sort_multi_expressions(exprs: &[Arc<dyn Expr>]) -> Vec<Arc<dyn Exp
         grouped.entry(expr.type_name()).or_default().push(expr.clone());
     }
 
-    // Now flatten: within each group, sort by `fast_hash()`
+    // Now flatten: within each group, sort by `hash_value()`
     let mut sorted = Vec::with_capacity(exprs.len());
     for mut group in grouped.into_values() {
-        group.sort_by_key(|e| e.fast_hash());
+        group.sort_by_key(|e| e.hash_value());
         sorted.extend(group);
     }
 

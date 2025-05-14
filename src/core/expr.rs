@@ -23,12 +23,9 @@ pub trait Expr: Debug + Send + Sync + ExprInternal {
         std::any::type_name::<Self>()
     }
 
-    // Returns hash key of an expression.
-    fn hash_key(&self) -> String;
-
-    // Precomputes hashes for faster sorting.
+    // Returns hash value of the expression.
     #[inline]
-    fn fast_hash(&self) -> u64 {
+    fn hash_value(&self) -> u64 {
         let mut hasher = std::collections::hash_map::DefaultHasher::new();
         self.hash_key().hash(&mut hasher);
         hasher.finish()

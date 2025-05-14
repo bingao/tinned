@@ -64,6 +64,11 @@ impl ExprInternal for Composition {
     impl_expr_internal_methods!(Composition);
 
     #[inline]
+    fn hash_key(&self) -> String {
+        format!("Composition({}^{}; {})", self.name, self.order, self.inner.hash_key())
+    }
+
+    #[inline]
     fn find_all_key(&self) -> u32 {
         self.order
     }
@@ -83,11 +88,6 @@ impl Expr for Composition {
     impl_unary_expr_common_methods!(Composition, inner, True, false, |this: &Composition, arg| {
         Self::new(this.name.clone(), this.order, arg)
     });
-
-    #[inline]
-    fn hash_key(&self) -> String {
-        format!("Composition({}^{}; {})", self.name, self.order, self.inner.hash_key())
-    }
 
     fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
         // Differentiation using the chain rule in calculus

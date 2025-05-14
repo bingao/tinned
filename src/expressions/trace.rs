@@ -44,7 +44,7 @@ impl Trace {
                 let min_idx = factors
                     .iter()
                     .enumerate()
-                    .min_by_key(|(_, f)| f.fast_hash())
+                    .min_by_key(|(_, f)| f.hash_value())
                     .map(|(i, _)| i)
                     .unwrap_or(0);
                 factors.rotate_left(min_idx);

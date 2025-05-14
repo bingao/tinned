@@ -32,7 +32,7 @@ impl Add {
     // - Sort terms based on type names and hash values
     pub fn new(terms: Vec<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
         let mut constant = Number::Integer(0);
-        // Key: fast hash of term (u64), Value: (expr, accumulated coefficient)
+        // Key: hash of term (u64), Value: (expr, accumulated coefficient)
         let mut merged: HashMap<u64, (Arc<dyn Expr>, Number)> = HashMap::new();
 
         #[inline]
@@ -69,7 +69,7 @@ impl Add {
                 } else {
                     Mul::new(mul.factors().to_vec())?
                 };
-                let key = base_expr.fast_hash();
+                let key = base_expr.hash_value();
                 let coef = mul.coefficient();
 
                 if let Some((existing_expr, existing_coef)) = merged.get_mut(&key) {
@@ -80,7 +80,7 @@ impl Add {
                 }
                 merged.insert(key, (base_expr, coef.clone()));
             } else {
-                let key = expr.fast_hash();
+                let key = expr.hash_value();
                 if let Some((existing_expr, existing_coef)) = merged.get_mut(&key) {
                     if existing_expr == expr {
                         *existing_coef = existing_coef.add(&Number::Integer(1));

@@ -114,6 +114,17 @@ impl ExprInternal for ResidueParameter {
     impl_expr_internal_methods!(ResidueParameter);
 
     #[inline]
+    fn hash_key(&self) -> String {
+        format!(
+            "ResidueParameter([{}]; {}; {}; {})",
+            multi_perturbation_hash(&self.perturbations, ";"),
+            self.positive_frequency,
+            self.excited_state.hash_key(),
+            self.parameter.hash_key(),
+        )
+    }
+
+    #[inline]
     fn find_all_key(&self) -> u32 {
         self.parameter.find_all_key()
     }
@@ -154,17 +165,6 @@ impl Expr for ResidueParameter {
         .positive_frequency(this.positive_frequency)
         .build()
     );
-
-    #[inline]
-    fn hash_key(&self) -> String {
-        format!(
-            "ResidueParameter([{}]; {}; {}; {})",
-            multi_perturbation_hash(&self.perturbations, ";"),
-            self.positive_frequency,
-            self.excited_state.hash_key(),
-            self.parameter.hash_key(),
-        )
-    }
 
     fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
         let diff_param = self.parameter.differentiate(s).map_err(|e| {

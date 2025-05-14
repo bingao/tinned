@@ -32,16 +32,16 @@ impl ExprInternal for ZeroOperator {
     fn fmt_expr(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         f.write_str("op(0)")
     }
-}
-
-#[typetag::serde]
-impl Expr for ZeroOperator {
-    impl_expr_common_methods!(false);
 
     #[inline]
     fn hash_key(&self) -> String {
         "ZeroOperator".to_string()
     }
+}
+
+#[typetag::serde]
+impl Expr for ZeroOperator {
+    impl_expr_common_methods!(false);
 
     #[allow(unused_variables)]
     #[inline]

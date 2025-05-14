@@ -103,6 +103,20 @@ macro_rules! impl_exch_corr_traits {
             impl_expr_internal_methods!($type_name);
 
             #[inline]
+            fn hash_key(&self) -> String {
+                format!(
+                    "{}({}; {}; {}; {}; [{}]; {})",
+                    stringify!($type_name),
+                    self.name,
+                    self.grid_weight.hash_key(),
+                    self.density_matrix.hash_key(),
+                    self.overlap_distribution.hash_key(),
+                    self.derivative.hash_key(),
+                    self.$grid_expr_name.hash_key(),
+                )
+            }
+
+            #[inline]
             fn find_all_key(&self) -> u32 {
                 self.derivative.total_order()
             }
@@ -128,20 +142,6 @@ macro_rules! impl_exch_corr_traits {
         #[typetag::serde]
         impl Expr for $type_name {
             impl_expr_common_methods!($is_scalar);
-
-            #[inline]
-            fn hash_key(&self) -> String {
-                format!(
-                    "{}({}; {}; {}; {}; [{}]; {})",
-                    stringify!($type_name),
-                    self.name,
-                    self.grid_weight.hash_key(),
-                    self.density_matrix.hash_key(),
-                    self.overlap_distribution.hash_key(),
-                    self.derivative.hash_key(),
-                    self.$grid_expr_name.hash_key(),
-                )
-            }
 
             fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
                 let diff_expr = self.$grid_expr_name.differentiate(s).map_err(|e| {

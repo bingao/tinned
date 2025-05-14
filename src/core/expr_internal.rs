@@ -12,6 +12,9 @@ pub(crate) mod sealed {
         // Formats an expression.
         fn fmt_expr(&self, f: &mut fmt::Formatter) -> fmt::Result;
 
+        // Returns hash key of an expression.
+        fn hash_key(&self) -> String;
+
         // Provides the key to be used for the function `find_all()`.
         #[inline]
         fn find_all_key(&self) -> u32 {
