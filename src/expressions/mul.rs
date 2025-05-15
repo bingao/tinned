@@ -7,7 +7,7 @@ use crate::core::expr_internal::sealed::ExprInternal;
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{Add, Number, Power};
 use crate::internal::{
-    intern_expr, multi_expression_format, multi_expression_hash, sort_multi_expressions,
+    intern_expr, multi_expression_format, multi_expression_hash, sort_expressions_grouped_by,
 };
 use crate::perturbations::Perturbation;
 use crate::public::{
@@ -33,20 +33,20 @@ impl Mul {
     // - Identities, ensure x * 1 = x, x * 0 = 0
     // - No polynomial multiplication and expansion, e.g. keeping (x + y) * 2 as-is
     // - Series multiplication, e.g. ((2 * x) * (3 * x)) * x -> 6 * x^3
-    // - Sort factors based on type names and hash values
+    // - Sort factors based on type names and hash keys
     pub fn new(terms: Vec<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
         if terms.is_empty() {
             return Ok(Number::zero());
         }
 
         let mut coefficient = Number::Integer(1);
-        let mut power_map: HashMap<u64, (Arc<dyn Expr>, i64)> = HashMap::new();
+        let mut power_map: HashMap<String, (Arc<dyn Expr>, i64)> = HashMap::new();
 
         #[inline]
         fn collect_terms(
             expr: &Arc<dyn Expr>,
             coefficient: &mut Number,
-            power_map: &mut HashMap<u64, (Arc<dyn Expr>, i64)>,
+            power_map: &mut HashMap<String, (Arc<dyn Expr>, i64)>,
         ) -> Result<bool, TinnedError> {
             if !expr.is_scalar() {
                 return Err(expression_error(
@@ -70,13 +70,13 @@ impl Mul {
                     *coefficient = coefficient.mul(num);
                 }
             } else if let Some(pow) = downcast_from_arc::<Power>(expr) {
-                let key = pow.base().hash_value();
+                let key = pow.base().hash_key();
                 let base = pow.base().clone();
                 let exp = pow.exponent();
                 let entry = power_map.entry(key).or_insert((base, 0));
                 entry.1 += exp;
             } else {
-                let key = expr.hash_value();
+                let key = expr.hash_key();
                 let entry = power_map.entry(key).or_insert((expr.clone(), 0));
                 entry.1 += 1;
             }
@@ -102,7 +102,8 @@ impl Mul {
             }
         }
 
-        let mut sorted_factors = sort_multi_expressions(&simplified_factors);
+        let mut sorted_factors =
+            sort_expressions_grouped_by(&simplified_factors, |e| e.type_name());
 
         match sorted_factors.len() {
             0 => Ok(coefficient.into()),
@@ -173,9 +174,10 @@ mod tests {
 
         let c1_cast = downcast_from_arc::<Number>(&c1).unwrap();
         let mut mul = downcast_from_arc::<Mul>(&mul1).unwrap();
-        let expected_factors = sort_multi_expressions(&vec![x.clone(), y.clone(), z.clone()]);
+        let expected_factors =
+            sort_expressions_grouped_by(&vec![x.clone(), y.clone(), z.clone()], |e| e.type_name());
 
-        // - Sort factors based on hash values
+        // - Sort factors based on hash keys
         assert_eq!(
             mul,
             &Mul {

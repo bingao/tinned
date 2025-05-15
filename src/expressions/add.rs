@@ -7,7 +7,7 @@ use crate::core::expr_internal::sealed::ExprInternal;
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{Mul, Number};
 use crate::internal::{
-    intern_expr, multi_expression_format, multi_expression_hash, sort_multi_expressions,
+    intern_expr, multi_expression_format, multi_expression_hash, sort_expressions_grouped_by,
 };
 use crate::perturbations::Perturbation;
 use crate::public::{
@@ -29,17 +29,17 @@ impl Add {
     // - Numeric simplifications: 3 + 5 -> 8
     // - Combine like terms: 2*x*y + 3*x*y -> 5*x*y
     // - Identities: x + 0 = x
-    // - Sort terms based on type names and hash values
+    // - Sort terms based on type names and hash keys
     pub fn new(terms: Vec<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
         let mut constant = Number::Integer(0);
-        // Key: hash of term (u64), Value: (expr, accumulated coefficient)
-        let mut merged: HashMap<u64, (Arc<dyn Expr>, Number)> = HashMap::new();
+        // Key: hash_key() of term, Value: (expr, accumulated coefficient)
+        let mut merged: HashMap<String, (Arc<dyn Expr>, Number)> = HashMap::new();
 
         #[inline]
         fn collect_terms(
             expr: &Arc<dyn Expr>,
             constant: &mut Number,
-            merged: &mut HashMap<u64, (Arc<dyn Expr>, Number)>,
+            merged: &mut HashMap<String, (Arc<dyn Expr>, Number)>,
         ) -> Result<(), TinnedError> {
             if !expr.is_scalar() {
                 return Err(expression_error(
@@ -69,7 +69,7 @@ impl Add {
                 } else {
                     Mul::new(mul.factors().to_vec())?
                 };
-                let key = base_expr.hash_value();
+                let key = base_expr.hash_key();
                 let coef = mul.coefficient();
 
                 if let Some((existing_expr, existing_coef)) = merged.get_mut(&key) {
@@ -80,7 +80,7 @@ impl Add {
                 }
                 merged.insert(key, (base_expr, coef.clone()));
             } else {
-                let key = expr.hash_value();
+                let key = expr.hash_key();
                 if let Some((existing_expr, existing_coef)) = merged.get_mut(&key) {
                     if existing_expr == expr {
                         *existing_coef = existing_coef.add(&Number::Integer(1));
@@ -113,7 +113,7 @@ impl Add {
             simplified_terms.push(intern_expr(Arc::new(constant)));
         }
 
-        let mut sorted_terms = sort_multi_expressions(&simplified_terms);
+        let mut sorted_terms = sort_expressions_grouped_by(&simplified_terms, |e| e.type_name());
 
         match sorted_terms.len() {
             0 => Ok(Number::zero()),
@@ -179,9 +179,11 @@ mod tests {
         let c1_cast = downcast_from_arc::<Number>(&c1).unwrap();
         let add = downcast_from_arc::<Add>(&add1).unwrap();
         let expected_terms =
-            sort_multi_expressions(&vec![c1.clone(), x.clone(), y.clone(), z.clone()]);
+            sort_expressions_grouped_by(&vec![c1.clone(), x.clone(), y.clone(), z.clone()], |e| {
+                e.type_name()
+            });
 
-        // - Sort terms based on type names and hash values
+        // - Sort terms based on type names and hash keys
         assert_eq!(
             add,
             &Add {

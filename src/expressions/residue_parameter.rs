@@ -125,8 +125,8 @@ impl ExprInternal for ResidueParameter {
     }
 
     #[inline]
-    fn find_all_key(&self) -> u32 {
-        self.parameter.find_all_key()
+    fn total_order(&self) -> u32 {
+        self.parameter.total_order()
     }
 
     #[inline]

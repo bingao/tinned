@@ -1,4 +1,5 @@
 pub mod add;
+pub mod adjoint_map;
 pub mod composition;
 pub mod conjugate;
 pub mod dot_product;
@@ -25,6 +26,7 @@ pub mod wfn_parameter;
 pub mod zero_operator;
 
 pub use add::Add;
+pub use adjoint_map::AdjointMap;
 pub use composition::Composition;
 pub use conjugate::Conjugate;
 pub use dot_product::DotProduct;

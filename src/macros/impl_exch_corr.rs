@@ -117,7 +117,7 @@ macro_rules! impl_exch_corr_traits {
             }
 
             #[inline]
-            fn find_all_key(&self) -> u32 {
+            fn total_order(&self) -> u32 {
                 self.derivative.total_order()
             }
 
@@ -194,7 +194,7 @@ macro_rules! impl_exch_corr_traits {
             #[inline]
             fn find_all(&self, s: &Arc<dyn Expr>) -> BTreeMap<u32, HashSet<Arc<dyn Expr>>> {
                 if self.match_for_find_all(s) {
-                    BTreeMap::from([(self.find_all_key(), HashSet::from([self.clone_expr()]))])
+                    BTreeMap::from([(self.total_order(), HashSet::from([self.clone_expr()]))])
                 } else {
                     self.$grid_expr_name.find_all(s)
                 }

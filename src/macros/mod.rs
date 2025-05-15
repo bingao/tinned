@@ -5,6 +5,9 @@ pub mod impl_common_methods;
 pub mod impl_addition;
 
 #[macro_use]
+pub mod impl_adjoint_map;
+
+#[macro_use]
 pub mod impl_binary_expr;
 
 #[macro_use]

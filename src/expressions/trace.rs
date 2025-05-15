@@ -40,13 +40,14 @@ impl Trace {
             let mut factors = matmul.factors().to_vec();
 
             if factors.len() > 1 {
-                // circular shift to bring minimal hash to front
-                let min_idx = factors
+                // circular shift to bring one with minimal hash key to front
+                let (min_idx, _) = factors
                     .iter()
                     .enumerate()
-                    .min_by_key(|(_, f)| f.hash_value())
-                    .map(|(i, _)| i)
-                    .unwrap_or(0);
+                    .map(|(i, f)| (i, f.hash_key()))
+                    .min_by_key(|(_, key)| key.clone())
+                    .unwrap_or((0, String::new()));
+
                 factors.rotate_left(min_idx);
             }
 

@@ -134,7 +134,7 @@ impl ExprInternal for TwoElecOperator {
     }
 
     #[inline]
-    fn find_all_key(&self) -> u32 {
+    fn total_order(&self) -> u32 {
         self.derivative.total_order()
     }
 

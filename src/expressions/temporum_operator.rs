@@ -127,8 +127,8 @@ impl ExprInternal for TemporumOperator {
     }
 
     #[inline]
-    fn find_all_key(&self) -> u32 {
-        self.argument.find_all_key()
+    fn total_order(&self) -> u32 {
+        self.argument.total_order()
     }
 
     #[inline]

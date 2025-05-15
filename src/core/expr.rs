@@ -90,7 +90,7 @@ pub trait Expr: Debug + Send + Sync + ExprInternal {
     #[inline]
     fn find_all(&self, s: &Arc<dyn Expr>) -> BTreeMap<u32, HashSet<Arc<dyn Expr>>> {
         if self.match_for_find_all(s) {
-            BTreeMap::from([(self.find_all_key(), HashSet::from([self.clone_expr()]))])
+            BTreeMap::from([(self.total_order(), HashSet::from([self.clone_expr()]))])
         } else {
             BTreeMap::new()
         }
@@ -157,6 +157,9 @@ impl Eq for dyn Expr {}
 
 impl PartialOrd for dyn Expr {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        // hash_key() is a string and is stable + collision-free, so we use it
+        // here instead of hash_value() which is not guaranteed to be unique
+        // (though hash collisions rarely happen).
         Some(self.hash_key().cmp(&other.hash_key()))
     }
 }

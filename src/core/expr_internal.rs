@@ -15,9 +15,14 @@ pub(crate) mod sealed {
         // Returns hash key of an expression.
         fn hash_key(&self) -> String;
 
-        // Provides the key to be used for the function `find_all()`.
+        // Total order of "differentiation" on the expression, which can be
+        // used as the key for the function `find_all()` and for sorting a list
+        // of expressions. Note that "differentiation" is not mathematically
+        // strict. For example, it is the differenitation only on electron
+        // repulsion integrals (ERI) for `TwoElecOperator`. See implementation
+        // of concrete expression types.
         #[inline]
-        fn find_all_key(&self) -> u32 {
+        fn total_order(&self) -> u32 {
             0
         }
 

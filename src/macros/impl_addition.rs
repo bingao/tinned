@@ -78,7 +78,7 @@ macro_rules! impl_add_traits {
 
             fn find_all(&self, s: &Arc<dyn Expr>) -> BTreeMap<u32, HashSet<Arc<dyn Expr>>> {
                 if self.match_for_find_all(s) {
-                    return BTreeMap::from([(self.find_all_key(), HashSet::from([self.clone_expr()]))]);
+                    return BTreeMap::from([(self.total_order(), HashSet::from([self.clone_expr()]))]);
                 }
 
                 let mut result: BTreeMap<u32, HashSet<Arc<dyn Expr>>> = BTreeMap::new();

@@ -45,7 +45,7 @@ macro_rules! impl_binary_expr_common_methods {
         #[inline]
         fn find_all(&self, s: &Arc<dyn Expr>) -> BTreeMap<u32, HashSet<Arc<dyn Expr>>> {
             if self.match_for_find_all(s) {
-                BTreeMap::from([(self.find_all_key(), HashSet::from([self.clone_expr()]))])
+                BTreeMap::from([(self.total_order(), HashSet::from([self.clone_expr()]))])
             } else {
                 let mut result = self.$first_argument.find_all(s);
                 for (order, subset) in self.$second_argument.find_all(s) {

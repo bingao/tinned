@@ -28,21 +28,27 @@ pub(crate) fn multi_perturbation_hash(perts: &[Arc<Perturbation>], delimiter: &s
     perts.iter().map(|p| p.hash_key()).collect::<Vec<_>>().join(delimiter)
 }
 
-/// Sorts a list of expressions by grouping them by `type_id`
-/// and sorting within each group by `hash_value()`.
+/// Sorts a list of expressions by grouping them by `group_key` and sorting
+/// within each group by `hash_key()`.
+///
+/// Example:
+/// let sorted_by_type = sort_expressions_grouped_by(exprs, |e| e.type_name());
+/// let sorted_by_order = sort_expressions_grouped_by(exprs, |e| e.total_order());
 #[inline]
-pub(crate) fn sort_multi_expressions(exprs: &[Arc<dyn Expr>]) -> Vec<Arc<dyn Expr>> {
-    // Group `exprs` by type names
-    let mut grouped: BTreeMap<&'static str, Vec<Arc<dyn Expr>>> = BTreeMap::new();
+pub(crate) fn sort_expressions_grouped_by<K: Ord + Copy, F: Fn(&Arc<dyn Expr>) -> K>(
+    exprs: &[Arc<dyn Expr>],
+    group_key: F,
+) -> Vec<Arc<dyn Expr>> {
+    let mut grouped: BTreeMap<K, Vec<Arc<dyn Expr>>> = BTreeMap::new();
 
     for expr in exprs {
-        grouped.entry(expr.type_name()).or_default().push(expr.clone());
+        grouped.entry(group_key(expr)).or_default().push(expr.clone());
     }
 
-    // Now flatten: within each group, sort by `hash_value()`
+    // Now flatten: within each group, sort by `hash_key()`
     let mut sorted = Vec::with_capacity(exprs.len());
     for mut group in grouped.into_values() {
-        group.sort_by_key(|e| e.hash_value());
+        group.sort_by_key(|e| e.hash_key());
         sorted.extend(group);
     }
 

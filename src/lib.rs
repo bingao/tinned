@@ -12,9 +12,3 @@ pub use core::*;
 pub use expressions::*;
 pub use perturbations::*;
 pub use public::*;
-
-//EliminationVisitor, ExistAnyVisitor, FindAllVisitor, KeepVisitor, RemoveVisitor, ReplaceVisitor, TemporumCleaner, ZerosRemover
-
-//ClusterConjHamiltonian, AdjointMap, ExpectationValue(bra, oper, ket)
-
-//OperatorEvaluator, FunctionEvaluator

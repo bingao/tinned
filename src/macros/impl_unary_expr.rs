@@ -9,8 +9,8 @@ macro_rules! impl_unary_expr_traits {
             }
 
             #[inline]
-            fn find_all_key(&self) -> u32 {
-                self.argument.find_all_key()
+            fn total_order(&self) -> u32 {
+                self.argument.total_order()
             }
 
             #[inline]
@@ -121,7 +121,7 @@ macro_rules! impl_unary_expr_common_methods {
         #[inline]
         fn find_all(&self, s: &Arc<dyn Expr>) -> BTreeMap<u32, HashSet<Arc<dyn Expr>>> {
             if self.match_for_find_all(s) {
-                BTreeMap::from([(self.find_all_key(), HashSet::from([self.clone_expr()]))])
+                BTreeMap::from([(self.total_order(), HashSet::from([self.clone_expr()]))])
             } else {
                 self.$arg_field.find_all(s)
             }

@@ -7,7 +7,7 @@ use crate::core::expr_internal::sealed::ExprInternal;
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{Add, MatrixMul, Number, ZeroOperator};
 use crate::internal::{
-    intern_expr, multi_expression_format, multi_expression_hash, sort_multi_expressions,
+    intern_expr, multi_expression_format, multi_expression_hash, sort_expressions_grouped_by,
 };
 use crate::perturbations::Perturbation;
 use crate::public::{
@@ -27,14 +27,14 @@ impl MatrixAdd {
     // - Remove empty MatrixAdd([]) -> op(0)
     // - Combine like terms: 2*A*B + 3*A*B -> 5*A*B
     // - Identities: A + op(0) = A
-    // - Sort terms based on type names and hash values
+    // - Sort terms based on type names and hash keys
     pub fn new(terms: Vec<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
-        let mut merged: HashMap<u64, (Arc<dyn Expr>, Vec<Arc<dyn Expr>>)> = HashMap::new();
+        let mut merged: HashMap<String, (Arc<dyn Expr>, Vec<Arc<dyn Expr>>)> = HashMap::new();
 
         #[inline]
         fn collect_terms(
             expr: &Arc<dyn Expr>,
-            merged: &mut HashMap<u64, (Arc<dyn Expr>, Vec<Arc<dyn Expr>>)>,
+            merged: &mut HashMap<String, (Arc<dyn Expr>, Vec<Arc<dyn Expr>>)>,
         ) -> Result<(), TinnedError> {
             if expr.is_scalar() {
                 return Err(expression_error(
@@ -63,7 +63,7 @@ impl MatrixAdd {
                 } else {
                     MatrixMul::new(matmul.factors().to_vec())?
                 };
-                let key = base_expr.hash_value();
+                let key = base_expr.hash_key();
                 let coef = matmul.coefficient();
                 if let Some((existing_expr, existing_coef)) = merged.get_mut(&key) {
                     if existing_expr == &base_expr {
@@ -73,7 +73,7 @@ impl MatrixAdd {
                 }
                 merged.insert(key, (base_expr, vec![coef.clone()]));
             } else {
-                let key = expr.hash_value();
+                let key = expr.hash_key();
                 if let Some((existing_expr, existing_coef)) = merged.get_mut(&key) {
                     if existing_expr == expr {
                         existing_coef.push(Arc::new(Number::Integer(1)));
@@ -103,7 +103,7 @@ impl MatrixAdd {
             }
         }
 
-        let mut sorted_terms = sort_multi_expressions(&simplified_terms);
+        let mut sorted_terms = sort_expressions_grouped_by(&simplified_terms, |e| e.type_name());
 
         match sorted_terms.len() {
             0 => Ok(ZeroOperator::new()),
@@ -174,13 +174,16 @@ mod tests {
         assert!(is_expr_type::<MatrixAdd>(&add1));
 
         let add = downcast_from_arc::<MatrixAdd>(&add1).unwrap();
-        let expected_terms = sort_multi_expressions(&vec![
-            MatrixMul::new(vec![c1.clone(), op_a.clone()]).unwrap(),
-            MatrixMul::new(vec![c2.clone(), op_b.clone()]).unwrap(),
-            op_c.clone(),
-        ]);
+        let expected_terms = sort_expressions_grouped_by(
+            &vec![
+                MatrixMul::new(vec![c1.clone(), op_a.clone()]).unwrap(),
+                MatrixMul::new(vec![c2.clone(), op_b.clone()]).unwrap(),
+                op_c.clone(),
+            ],
+            |e| e.type_name(),
+        );
 
-        // - Sort terms based on type names and hash values
+        // - Sort terms based on type names and hash keys
         assert_eq!(
             add,
             &MatrixAdd {
