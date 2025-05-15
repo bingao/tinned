@@ -4,28 +4,32 @@ macro_rules! impl_adjoint_map_operation {
             generic_expression_error(concat!($message, " for target"), $self, Some(Box::new(e)))
         })?;
 
-        let mut new_adj_map = &new_target != &$self.target;
+        let mut new_ad_map = &new_target != &$self.target;
 
-        let mut new_adj_chain = Vec::with_capacity($self.adjoint_chain.len());
+        let mut new_generators = Vec::with_capacity($self.generators.len());
 
-        for x in &$self.adjoint_chain {
-            let new_x = ($operation)(x).map_err(|e| {
-                generic_expression_error(concat!($message, " for chain"), $self, Some(Box::new(e)))
+        for generator in &$self.generators {
+            let new_generator = ($operation)(generator).map_err(|e| {
+                generic_expression_error(
+                    concat!($message, " for generators"),
+                    $self,
+                    Some(Box::new(e)),
+                )
             })?;
-            if is_zero_expr(&new_x, None) {
+            if is_zero_expr(&new_generator, None) {
                 return Ok(ZeroOperator::new());
             } else {
-                if !new_adj_map {
-                    new_adj_map = &new_x != x;
+                if !new_ad_map {
+                    new_ad_map = &new_generator != generator;
                 }
-                new_adj_chain.push(new_x);
+                new_generators.push(new_generator);
             }
         }
 
-        if new_adj_map {
+        if new_ad_map {
             Ok(Self::new(
-                new_adj_chain,
-                $self.chain_commutative,
+                new_generators,
+                $self.generator_commutative,
                 new_target,
                 Some($self.left_action),
             ))

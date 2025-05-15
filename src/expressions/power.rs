@@ -183,7 +183,7 @@ mod tests {
         assert!(op3.is_scalar());
         assert_eq!(format!("{}", op3), format!("({})^{}", x1, exponent1));
 
-        let x2 = make_symbol(2u32);
+        let x2 = make_symbol(4u32);
         let exponent2: i64 = rand::random_range(-32..=32);
 
         let op4 = Power::new(x1.clone(), exponent1).unwrap();
