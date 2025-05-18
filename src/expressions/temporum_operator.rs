@@ -31,7 +31,7 @@ impl TemporumOperator {
     }
 
     #[inline]
-    fn builder_from(&self, argument: Arc<dyn Expr>) -> TemporumOperatorBuilder {
+    fn with_argument(&self, argument: Arc<dyn Expr>) -> TemporumOperatorBuilder {
         TemporumOperatorBuilder {
             is_forward: self.is_forward,
             argument,
@@ -148,7 +148,7 @@ impl Expr for TemporumOperator {
         argument,
         False,
         false,
-        |this: &TemporumOperator, arg| this.builder_from(arg).build()
+        |this: &TemporumOperator, arg| this.with_argument(arg).build()
     );
 
     #[inline]
@@ -175,7 +175,7 @@ impl Expr for TemporumOperator {
             )
         })?;
 
-        self.builder_from(diff_arg).build()
+        self.with_argument(diff_arg).build()
     }
 }
 
@@ -235,7 +235,7 @@ mod tests {
         assert_eq!(op.is_forward(), is_forward);
         assert_eq!(op.argument(), &argument.clone());
 
-        let op2 = op.builder_from(argument.clone()).build().unwrap();
+        let op2 = op.with_argument(argument.clone()).build().unwrap();
         assert!(Arc::ptr_eq(&op1, &op2));
         assert_eq!(&op1, &op2);
 

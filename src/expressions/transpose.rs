@@ -36,16 +36,16 @@ impl Transpose {
             return Ok(trans.argument().clone());
         } else if let Some(herm) = downcast_from_arc::<HermitianTranspose>(&argument) {
             return Conjugate::new(herm.argument().clone());
-        } else if let Some(matmul) = downcast_from_arc::<MatrixMul>(&argument) {
-            if is_one_expr(matmul.coefficient(), None) {
+        } else if let Some(mat_mul) = downcast_from_arc::<MatrixMul>(&argument) {
+            if is_one_expr(mat_mul.coefficient(), None) {
                 return Ok(intern_expr(Arc::new(Self {
                     argument,
                 })));
             }
 
-            let new_arg = MatrixMul::new(matmul.factors().to_vec())?;
+            let new_arg = MatrixMul::new(mat_mul.factors().to_vec())?;
             return MatrixMul::new(vec![
-                matmul.coefficient().clone(),
+                mat_mul.coefficient().clone(),
                 intern_expr(Arc::new(Self {
                     argument: new_arg,
                 })),

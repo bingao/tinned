@@ -20,8 +20,8 @@ macro_rules! impl_nullary_expr_type {
 
         impl $builder_name {
             #[inline]
-            pub fn derivative(mut self, deriv: PertMultichain) -> Self {
-                self.derivative = deriv;
+            pub fn derivative(mut self, derivative: PertMultichain) -> Self {
+                self.derivative = derivative;
                 self
             }
 
@@ -74,7 +74,7 @@ macro_rules! impl_nullary_expr_type {
         }
 
         #[inline]
-        fn builder_from(&self, derivative: PertMultichain) -> $builder_name {
+        fn with_derivative(&self, derivative: PertMultichain) -> $builder_name {
             $builder_name {
                 name: self.name.clone(),
                 dependencies: self.dependencies.clone(),
@@ -98,7 +98,7 @@ macro_rules! impl_nullary_expr_type {
         }
 
         #[inline]
-        fn builder_from(&self, derivative: PertMultichain) -> $builder_name {
+        fn with_derivative(&self, derivative: PertMultichain) -> $builder_name {
             $builder_name {
                 name: self.name.clone(),
                 derivative,
@@ -197,9 +197,9 @@ macro_rules! impl_nullary_expr_traits {
             #[inline]
             fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError>
             {
-                let new_deriv = self.derivative.clone_with_insert(s);
+                let new_deriv = self.derivative.with_added_perturbation(s);
 
-                self.builder_from(new_deriv).build()
+                self.with_derivative(new_deriv).build()
             }
 
             impl_nullary_expr_traits!(@impl_eliminate $type_name, $has_deps);

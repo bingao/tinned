@@ -45,10 +45,10 @@ impl DotProduct {
         expr: Arc<dyn Expr>,
         coefficients: &mut Vec<Arc<dyn Expr>>,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
-        if let Some(matmul) = downcast_from_arc::<MatrixMul>(&expr) {
-            if !is_one_expr(matmul.coefficient(), None) {
-                coefficients.push(matmul.coefficient().clone());
-                return MatrixMul::new(matmul.factors().to_vec());
+        if let Some(mat_mul) = downcast_from_arc::<MatrixMul>(&expr) {
+            if !is_one_expr(mat_mul.coefficient(), None) {
+                coefficients.push(mat_mul.coefficient().clone());
+                return MatrixMul::new(mat_mul.factors().to_vec());
             }
         }
         Ok(expr)

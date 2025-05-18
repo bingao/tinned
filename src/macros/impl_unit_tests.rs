@@ -114,7 +114,7 @@ macro_rules! test_nullary_expr {
         assert_eq!(op.dependencies(), &deps);
         assert_eq!(op.derivative(), &$deriv);
 
-        let op2 = op.builder_from($deriv.clone()).build().unwrap();
+        let op2 = op.with_derivative($deriv.clone()).build().unwrap();
         assert!(Arc::ptr_eq(&op1, &op2));
         assert_eq!(&op1, &op2);
 
@@ -171,7 +171,7 @@ macro_rules! test_nullary_expr {
         assert_eq!(op.name(), $oper_name);
         assert_eq!(op.derivative(), &$deriv);
 
-        let op2 = op.builder_from($deriv.clone()).build().unwrap();
+        let op2 = op.with_derivative($deriv.clone()).build().unwrap();
         assert!(Arc::ptr_eq(&op1, &op2));
         assert_eq!(&op1, &op2);
 
@@ -527,20 +527,20 @@ macro_rules! test_transpose {
             let op6 = $type_name::new(argument).unwrap();
             assert_ne!(&op1, &op6);
 
-            let matmul = downcast_from_arc::<MatrixMul>(&op6).unwrap();
-            test_transpose!(@assert_matmul_coef matmul, coef, $has_conj);
+            let mat_mul = downcast_from_arc::<MatrixMul>(&op6).unwrap();
+            test_transpose!(@assert_mat_mul_coef mat_mul, coef, $has_conj);
             assert_eq!(
-                matmul.factors(),
+                mat_mul.factors(),
                 vec![$type_name::new(MatrixMul::new(vec![arg_2el, arg_wfn]).unwrap()).unwrap()]
             );
         }
     };
 
-    (@assert_matmul_coef $matmul:ident, $coef:ident, true) => {
-        assert_eq!($matmul.coefficient(), &Conjugate::new($coef).unwrap())
+    (@assert_mat_mul_coef $mat_mul:ident, $coef:ident, true) => {
+        assert_eq!($mat_mul.coefficient(), &Conjugate::new($coef).unwrap())
     };
 
-    (@assert_matmul_coef $matmul:ident, $coef:ident, false) => {
-        assert_eq!($matmul.coefficient(), &$coef)
+    (@assert_mat_mul_coef $mat_mul:ident, $coef:ident, false) => {
+        assert_eq!($mat_mul.coefficient(), &$coef)
     };
 }

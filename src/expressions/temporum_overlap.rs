@@ -28,7 +28,38 @@ impl TemporumOverlap {
     #[inline]
     pub fn builder(dependencies: PertMultichain) -> TemporumOverlapBuilder {
         TemporumOverlapBuilder {
+            is_zero_strength: Some(false),
+            braket: None,
             dependencies,
+            derivative: None,
+        }
+    }
+
+    #[inline]
+    fn with_braket(
+        &self,
+        braket: Arc<dyn Expr>,
+        is_zero_strength: Option<bool>,
+    ) -> TemporumOverlapBuilder {
+        TemporumOverlapBuilder {
+            is_zero_strength,
+            braket: Some(braket),
+            dependencies: self.dependencies.clone(),
+            derivative: Some(self.derivative.clone()),
+        }
+    }
+
+    #[inline]
+    fn with_derivative(
+        &self,
+        derivative: PertMultichain,
+        braket: Arc<dyn Expr>,
+    ) -> TemporumOverlapBuilder {
+        TemporumOverlapBuilder {
+            is_zero_strength: Some(self.is_zero_strength),
+            braket: Some(braket),
+            dependencies: self.dependencies.clone(),
+            derivative: Some(derivative),
         }
     }
 
@@ -55,12 +86,12 @@ impl TemporumOverlap {
     // Returns frequency factor, bra and ket of all terms in `braket`. The
     // frequency factor is computed by using Equation (62), J. Comput. Chem.
     // 2024; 45: 2136-2152.
-    pub fn at_zero_strength(
+    pub(crate) fn at_zero_strength(
         &self,
         freq_tol: Option<NumberTolerance>,
     ) -> Result<Vec<(Arc<dyn Expr>, Arc<dyn Expr>, Arc<dyn Expr>)>, TinnedError> {
-        let terms = if let Some(matadd) = downcast_from_arc::<MatrixAdd>(&self.braket) {
-            matadd.terms()
+        let terms = if let Some(mat_add) = downcast_from_arc::<MatrixAdd>(&self.braket) {
+            mat_add.terms()
         } else {
             std::slice::from_ref(&self.braket)
         };
@@ -68,10 +99,10 @@ impl TemporumOverlap {
         let mut result = Vec::new();
 
         for term in terms {
-            let matmul = downcast_from_arc::<MatrixMul>(term)
+            let mat_mul = downcast_from_arc::<MatrixMul>(term)
                 .ok_or_else(|| unreachable_error("Unexpected term inside braket", term, None))?;
 
-            let factors = matmul.factors();
+            let factors = mat_mul.factors();
             if factors.len() != 2 {
                 return Err(unreachable_error(
                     "Unexpected number of factors of term inside braket",
@@ -81,7 +112,11 @@ impl TemporumOverlap {
             }
 
             if self.is_zero_strength {
-                result.push((matmul.coefficient().clone(), factors[0].clone(), factors[1].clone()));
+                result.push((
+                    mat_mul.coefficient().clone(),
+                    factors[0].clone(),
+                    factors[1].clone(),
+                ));
             } else {
                 let bra = downcast_from_arc::<TemporumOperator>(&factors[0]).ok_or_else(|| {
                     unreachable_error(
@@ -101,7 +136,7 @@ impl TemporumOverlap {
 
                 let frequency = Mul::new(vec![
                     Add::new(vec![bra.frequency()?, ket.frequency()?])?,
-                    matmul.coefficient().clone(),
+                    mat_mul.coefficient().clone(),
                     Number::one_half(),
                 ])?;
 
@@ -131,16 +166,41 @@ fn build_braket(deps: &PertMultichain) -> Result<Arc<dyn Expr>, TinnedError> {
 
 #[derive(Debug)]
 pub struct TemporumOverlapBuilder {
+    is_zero_strength: Option<bool>,
+    braket: Option<Arc<dyn Expr>>,
     dependencies: PertMultichain,
+    derivative: Option<PertMultichain>,
 }
 
 impl TemporumOverlapBuilder {
+    //#[inline]
+    //fn is_zero_strength(mut self, is_zero_strength: bool) -> Self {
+    //    self.is_zero_strength = Some(is_zero_strength);
+    //    self
+    //}
+
+    //#[inline]
+    //fn braket(mut self, braket: Arc<dyn Expr>) -> Self {
+    //    self.braket = Some(braket);
+    //    self
+    //}
+
+    //#[inline]
+    //fn derivative(mut self, derivative: PertMultichain) -> Self {
+    //    self.derivative = Some(derivative);
+    //    self
+    //}
+
     pub fn build(self) -> Result<Arc<dyn Expr>, TinnedError> {
+        let is_zero_strength = self.is_zero_strength.unwrap_or(false);
+        let braket = self.braket.unwrap_or(build_braket(&self.dependencies)?);
+        let derivative = self.derivative.unwrap_or(PertMultichain::new());
+
         Ok(intern_expr(Arc::new(TemporumOverlap {
-            is_zero_strength: false,
-            braket: build_braket(&self.dependencies)?,
+            is_zero_strength,
+            braket,
             dependencies: self.dependencies,
-            derivative: PertMultichain::new(),
+            derivative,
         })))
     }
 }
@@ -150,11 +210,11 @@ impl ExprInternal for TemporumOverlap {
 
     #[inline]
     fn hash_key(&self) -> String {
-        // We remove braket here, to be consistent with PartialEq
         format!(
-            "TemporumOverlap({}; [{}]; [{}])",
+            "TemporumOverlap({}; [{}]; {}; [{}])",
             self.is_zero_strength,
             self.dependencies.hash_key(),
+            self.braket.hash_key(),
             self.derivative.hash_key(),
         )
     }
@@ -212,12 +272,7 @@ impl Expr for TemporumOverlap {
             terms.push(MatrixMul::new(vec![triplet.0, triplet.1, triplet.2])?);
         }
 
-        Ok(intern_expr(Arc::new(Self {
-            is_zero_strength: true,
-            braket: MatrixAdd::new(terms)?,
-            dependencies: self.dependencies.clone(),
-            derivative: self.derivative.clone(),
-        })))
+        self.with_braket(MatrixAdd::new(terms)?, Some(true)).build()
     }
 
     fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
@@ -233,14 +288,9 @@ impl Expr for TemporumOverlap {
             return Ok(diff_braket);
         }
 
-        let new_deriv = self.derivative.clone_with_insert(s);
+        let new_deriv = self.derivative.with_added_perturbation(s);
 
-        Ok(intern_expr(Arc::new(Self {
-            is_zero_strength: self.is_zero_strength,
-            braket: diff_braket,
-            dependencies: self.dependencies.clone(),
-            derivative: new_deriv,
-        })))
+        self.with_derivative(new_deriv, diff_braket).build()
     }
 
     // `TemporumOverlap` is an undivided whole for methods `exist_any()`,
@@ -250,8 +300,8 @@ impl Expr for TemporumOverlap {
 
 impl PartialEq for TemporumOverlap {
     fn eq(&self, other: &Self) -> bool {
-        // We do not need to compare braket
         self.is_zero_strength == other.is_zero_strength
+            && &self.braket == &other.braket
             && self.dependencies == other.dependencies
             && self.derivative == other.derivative
     }
@@ -286,11 +336,12 @@ mod tests {
         let op1 = TemporumOverlap::builder(deps.clone()).build().unwrap();
 
         let op = downcast_from_arc::<TemporumOverlap>(&op1).unwrap();
+        let braket = build_braket(&deps).unwrap();
         assert_eq!(
             op,
             &TemporumOverlap {
                 is_zero_strength: false,
-                braket: build_braket(&deps).unwrap(),
+                braket: braket.clone(),
                 dependencies: deps.clone(),
                 derivative: PertMultichain::new(),
             }
@@ -301,9 +352,10 @@ mod tests {
         assert_eq!(
             op1.hash_key(),
             format!(
-                "TemporumOverlap({}; [{}]; [{}])",
+                "TemporumOverlap({}; [{}]; {}; [{}])",
                 false,
                 deps.hash_key(),
+                braket.hash_key(),
                 PertMultichain::new().hash_key(),
             )
         );

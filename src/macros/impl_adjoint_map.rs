@@ -27,12 +27,7 @@ macro_rules! impl_adjoint_map_operation {
         }
 
         if new_ad_map {
-            Ok(Self::new(
-                new_generators,
-                $self.generator_commutative,
-                new_target,
-                Some($self.left_action),
-            ))
+            Ok(Self::new(new_generators, new_target, Some($self.left_action)))
         } else {
             Ok($self.clone_expr())
         }

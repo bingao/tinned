@@ -47,21 +47,21 @@ impl Conjugate {
             return HermitianTranspose::new(trans.argument().clone());
         } else if let Some(herm) = downcast_from_arc::<HermitianTranspose>(&argument) {
             return Transpose::new(herm.argument().clone());
-        } else if let Some(matmul) = downcast_from_arc::<MatrixMul>(&argument) {
-            if is_one_expr(matmul.coefficient(), None) {
+        } else if let Some(mat_mul) = downcast_from_arc::<MatrixMul>(&argument) {
+            if is_one_expr(mat_mul.coefficient(), None) {
                 return Ok(intern_expr(Arc::new(Self {
                     argument,
                 })));
             }
 
-            let new_factors = if matmul.factors().len() == 1 {
-                Self::new(Arc::clone(&matmul.factors()[0]))?
+            let new_factors = if mat_mul.factors().len() == 1 {
+                Self::new(Arc::clone(&mat_mul.factors()[0]))?
             } else {
                 intern_expr(Arc::new(Self {
-                    argument: MatrixMul::new(matmul.factors().to_vec())?,
+                    argument: MatrixMul::new(mat_mul.factors().to_vec())?,
                 }))
             };
-            return MatrixMul::new(vec![Self::new(matmul.coefficient().clone())?, new_factors]);
+            return MatrixMul::new(vec![Self::new(mat_mul.coefficient().clone())?, new_factors]);
         }
 
         Ok(intern_expr(Arc::new(Self {
@@ -179,18 +179,18 @@ mod tests {
         let op_b = make_wfn_parameter("");
         argument =
             MatrixMul::new(vec![c1.clone(), s1.clone(), op_a.clone(), op_b.clone()]).unwrap();
-        let conj_matmul = Conjugate::new(argument.clone()).unwrap();
+        let conj_mat_mul = Conjugate::new(argument.clone()).unwrap();
 
-        assert!(!conj_matmul.is_scalar());
+        assert!(!conj_mat_mul.is_scalar());
         assert_eq!(
-            &conj_matmul,
+            &conj_mat_mul,
             &MatrixMul::new(vec![
                 Conjugate::new(Mul::new(vec![c1.clone(), s1.clone()]).unwrap()).unwrap(),
                 Conjugate::new(MatrixMul::new(vec![op_a.clone(), op_b.clone()]).unwrap()).unwrap()
             ])
             .unwrap()
         );
-        assert_eq!(&Conjugate::new(conj_matmul.clone()).unwrap(), &argument);
+        assert_eq!(&Conjugate::new(conj_mat_mul.clone()).unwrap(), &argument);
 
         argument = DotProduct::new(op_a.clone(), true, op_b.clone(), false).unwrap();
         let mut conj_dot = Conjugate::new(argument.clone()).unwrap();

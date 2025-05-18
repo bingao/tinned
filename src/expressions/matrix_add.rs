@@ -46,25 +46,25 @@ impl MatrixAdd {
 
             if is_expr_type::<ZeroOperator>(expr) {
                 return Ok(());
-            } else if let Some(matadd) = downcast_from_arc::<MatrixAdd>(expr) {
-                for term in matadd.terms() {
+            } else if let Some(mat_add) = downcast_from_arc::<MatrixAdd>(expr) {
+                for term in mat_add.terms() {
                     collect_terms(term, merged)?;
                 }
-            } else if let Some(matmul) = downcast_from_arc::<MatrixMul>(expr) {
-                if matmul.factors().is_empty() {
+            } else if let Some(mat_mul) = downcast_from_arc::<MatrixMul>(expr) {
+                if mat_mul.factors().is_empty() {
                     return Err(unreachable_error(
                         "MatrixAdd::new() got MatrixMul with empty factors",
                         expr,
                         None,
                     ));
                 }
-                let base_expr = if matmul.factors().len() == 1 {
-                    matmul.factors()[0].clone()
+                let base_expr = if mat_mul.factors().len() == 1 {
+                    mat_mul.factors()[0].clone()
                 } else {
-                    MatrixMul::new(matmul.factors().to_vec())?
+                    MatrixMul::new(mat_mul.factors().to_vec())?
                 };
                 let key = base_expr.hash_key();
-                let coef = matmul.coefficient();
+                let coef = mat_mul.coefficient();
                 if let Some((existing_expr, existing_coef)) = merged.get_mut(&key) {
                     if existing_expr == &base_expr {
                         existing_coef.push(coef.clone());

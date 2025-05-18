@@ -49,9 +49,9 @@ impl MatrixMul {
                 all_coefficients.push(term.clone());
             } else if is_expr_type::<ZeroOperator>(term) {
                 return Ok(ZeroOperator::new());
-            } else if let Some(matmul) = downcast_from_arc::<MatrixMul>(term) {
-                all_coefficients.push(matmul.coefficient().clone());
-                all_factors.extend_from_slice(matmul.factors());
+            } else if let Some(mat_mul) = downcast_from_arc::<MatrixMul>(term) {
+                all_coefficients.push(mat_mul.coefficient().clone());
+                all_factors.extend_from_slice(mat_mul.factors());
             } else {
                 all_factors.push(term.clone());
             }

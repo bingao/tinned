@@ -28,16 +28,16 @@ impl Trace {
 
         if is_expr_type::<ZeroOperator>(&argument) {
             Ok(Number::zero())
-        } else if let Some(matadd) = downcast_from_arc::<MatrixAdd>(&argument) {
-            let terms = matadd.terms();
+        } else if let Some(mat_add) = downcast_from_arc::<MatrixAdd>(&argument) {
+            let terms = mat_add.terms();
             let mut new_terms = Vec::with_capacity(terms.len());
             for term in terms {
                 new_terms.push(Self::new(term.clone())?);
             }
             Add::new(new_terms)
-        } else if let Some(matmul) = downcast_from_arc::<MatrixMul>(&argument) {
-            let coef = matmul.coefficient();
-            let mut factors = matmul.factors().to_vec();
+        } else if let Some(mat_mul) = downcast_from_arc::<MatrixMul>(&argument) {
+            let coef = mat_mul.coefficient();
+            let mut factors = mat_mul.factors().to_vec();
 
             if factors.len() > 1 {
                 // circular shift to bring one with minimal hash key to front

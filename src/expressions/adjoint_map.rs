@@ -19,14 +19,13 @@ use crate::public::{
 // [[...[[y, x0], x1], ...], xn]. Users decide which version they are using.
 // The default is acting from the left side.
 //
-// `generators` holds x0, x1, ..., xn, and y is stored in `target`. The field
-// `generator_commutative` indicates if [xi, xj] = 0 for all 0 <= i, j <= n.
-// That is, if `generator_commutative` is `true`, then we can sort `generators`
-// in some way without changing the result of adjoint map.
+// `generators` holds x0, x1, ..., xn, and y is stored in `target`.
+// All generators are commutative, i.e. [xi, xj] = 0 for all 0 <= i, j <= n.
+// So, we can sort `generators` in some way without changing the result of
+// adjoint map.
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct AdjointMap {
     generators: Vec<Arc<dyn Expr>>,
-    generator_commutative: bool,
     target: Arc<dyn Expr>,
     left_action: bool,
 }
@@ -34,39 +33,46 @@ pub struct AdjointMap {
 impl AdjointMap {
     pub fn new(
         generators: Vec<Arc<dyn Expr>>,
-        generator_commutative: bool,
         target: Arc<dyn Expr>,
         left_action: Option<bool>,
     ) -> Arc<dyn Expr> {
         let left_action = left_action.unwrap_or(true);
 
-        return if generator_commutative {
-            // Sort generators according to `total_order()`
-            let sorted = sort_expressions_grouped_by(&generators, |e| e.total_order());
-            intern_expr(Arc::new(Self {
-                generators: sorted,
-                generator_commutative,
-                target,
-                left_action,
-            }))
-        } else {
-            intern_expr(Arc::new(Self {
-                generators,
-                generator_commutative,
-                target,
-                left_action,
-            }))
-        };
+        // Sort generators according to `total_order()`
+        let sorted = sort_expressions_grouped_by(&generators, |e| e.total_order());
+
+        intern_expr(Arc::new(Self {
+            generators: sorted,
+            target,
+            left_action,
+        }))
+    }
+
+    #[inline]
+    fn with_new_generators(&self, generators: Vec<Arc<dyn Expr>>) -> Arc<dyn Expr> {
+        Self::new(generators, self.target.clone(), Some(self.left_action))
+    }
+
+    #[inline]
+    fn with_new_target(&self, target: Arc<dyn Expr>) -> Arc<dyn Expr> {
+        intern_expr(Arc::new(Self {
+            generators: self.generators.clone(),
+            target,
+            left_action: self.left_action,
+        }))
+    }
+
+    #[inline]
+    pub(crate) fn with_added_generator(&self, generator: Arc<dyn Expr>) -> Arc<dyn Expr> {
+        let mut generators = self.generators.clone();
+        generators.push(generator);
+
+        Self::new(generators, self.target.clone(), Some(self.left_action))
     }
 
     #[inline]
     pub fn generators(&self) -> &[Arc<dyn Expr>] {
         &self.generators
-    }
-
-    #[inline]
-    pub fn generator_commutative(&self) -> bool {
-        self.generator_commutative
     }
 
     #[inline]
@@ -86,11 +92,10 @@ impl ExprInternal for AdjointMap {
     #[inline]
     fn hash_key(&self) -> String {
         format!(
-            "AdjointMap([{}]; {}; {}; {})",
+            "AdjointMap([{}]; {}; {})",
             multi_expression_hash(&self.generators, ";"),
-            self.generator_commutative,
             self.target.hash_key(),
-            self.left_action
+            self.left_action,
         )
     }
 
@@ -99,24 +104,12 @@ impl ExprInternal for AdjointMap {
         if let Some(op) = downcast_from_arc::<AdjointMap>(other) {
             let len = self.generators.len();
 
-            // We find adjoint maps with `left_action` either true or false
+            // We find adjoint maps with `left_action` either `true` or `false`
             if !self.target.match_for_find_all(&op.target) || len != op.generators.len() {
                 return false;
             }
 
-            match (self.generator_commutative, op.generator_commutative) {
-                (false, false) | (true, true) => {
-                    self.generators.iter().zip(&op.generators).all(|(a, b)| a.match_for_find_all(b))
-                },
-                (true, false) => {
-                    let sorted = sort_expressions_grouped_by(&op.generators, |e| e.total_order());
-                    self.generators.iter().zip(&sorted).all(|(a, b)| a.match_for_find_all(b))
-                },
-                (false, true) => {
-                    let sorted = sort_expressions_grouped_by(&self.generators, |e| e.total_order());
-                    sorted.iter().zip(&op.generators).all(|(a, b)| a.match_for_find_all(b))
-                },
-            }
+            self.generators.iter().zip(&op.generators).all(|(a, b)| a.match_for_find_all(b))
         } else {
             false
         }
@@ -167,12 +160,7 @@ impl Expr for AdjointMap {
             // intact
             new_generators[i] = diff.clone();
 
-            results.push(Self::new(
-                new_generators,
-                self.generator_commutative,
-                self.target.clone(),
-                Some(self.left_action),
-            ));
+            results.push(self.with_new_generators(new_generators));
         }
 
         let diff_target = self.target.differentiate(s).map_err(|e| {
@@ -184,12 +172,7 @@ impl Expr for AdjointMap {
         })?;
 
         if !is_zero_expr(&diff_target, None) {
-            results.push(Self::new(
-                self.generators.clone(),
-                self.generator_commutative,
-                diff_target,
-                Some(self.left_action),
-            ));
+            results.push(self.with_new_target(diff_target));
         }
 
         MatrixAdd::new(results)
@@ -292,17 +275,7 @@ impl PartialEq for AdjointMap {
             return false;
         }
 
-        match (self.generator_commutative, other.generator_commutative) {
-            (false, false) | (true, true) => self.generators == other.generators,
-            (true, false) => {
-                self.generators
-                    == sort_expressions_grouped_by(&other.generators, |e| e.total_order())
-            },
-            (false, true) => {
-                sort_expressions_grouped_by(&self.generators, |e| e.total_order())
-                    == other.generators
-            },
-        }
+        self.generators == other.generators
     }
 }
 
@@ -313,8 +286,7 @@ impl std::fmt::Display for AdjointMap {
         if self.left_action {
             write!(
                 f,
-                "({})[{},{}{}",
-                self.generator_commutative,
+                "[{},{}{}",
                 multi_expression_format(&self.generators, ",["),
                 self.target,
                 "]".repeat(self.generators.len())
@@ -322,8 +294,7 @@ impl std::fmt::Display for AdjointMap {
         } else {
             write!(
                 f,
-                "({}){}{},{}]",
-                self.generator_commutative,
+                "{}{},{}]",
                 "[".repeat(self.generators.len()),
                 self.target,
                 multi_expression_format(&self.generators, "],")

@@ -35,7 +35,7 @@ impl PertMultichain {
     /// Creates a new perturbation multichain by deeply cloning the underlying
     /// `BTreeMap` and inserting a given perturbation.
     #[inline]
-    pub fn clone_with_insert(&self, p: &Arc<Perturbation>) -> Self {
+    pub fn with_added_perturbation(&self, p: &Arc<Perturbation>) -> Self {
         let mut map = self.get_map_clone();
         *map.entry(p.clone()).or_insert(0) += 1;
         Self::from_map(map)
@@ -410,10 +410,10 @@ mod tests {
     }
 
     #[test]
-    fn test_clone_with_insert() {
+    fn test_with_added_perturbation() {
         let mut c1 = make_pert_multichain(2u32, 8u32, 0u32, 10u32);
         let p = make_perturbation_symbol(2u32, 4u32);
-        let c2 = c1.clone_with_insert(&p);
+        let c2 = c1.with_added_perturbation(&p);
 
         assert!(c1.is_superchain(&c2));
 

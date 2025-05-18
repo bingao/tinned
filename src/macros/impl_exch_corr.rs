@@ -156,7 +156,7 @@ macro_rules! impl_exch_corr_traits {
                     )
                 })?;
 
-                let new_deriv = self.derivative.clone_with_insert(s);
+                let new_deriv = self.derivative.with_added_perturbation(s);
 
                 Ok(intern_expr(Arc::new(Self {
                     name: self.name.clone(),

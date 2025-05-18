@@ -32,7 +32,7 @@ impl TwoElecOperator {
     }
 
     #[inline]
-    fn builder_from_density(&self, density: Arc<dyn Expr>) -> TwoElecOperatorBuilder {
+    fn with_density(&self, density: Arc<dyn Expr>) -> TwoElecOperatorBuilder {
         TwoElecOperatorBuilder {
             name: self.name.clone(),
             density,
@@ -42,7 +42,7 @@ impl TwoElecOperator {
     }
 
     #[inline]
-    fn builder_from_derivative(&self, derivative: PertMultichain) -> TwoElecOperatorBuilder {
+    fn with_derivative(&self, derivative: PertMultichain) -> TwoElecOperatorBuilder {
         TwoElecOperatorBuilder {
             name: self.name.clone(),
             density: self.density.clone(),
@@ -88,8 +88,8 @@ impl TwoElecOperatorBuilder {
     }
 
     #[inline]
-    pub fn derivative(mut self, deriv: PertMultichain) -> Self {
-        self.derivative = deriv;
+    pub fn derivative(mut self, derivative: PertMultichain) -> Self {
+        self.derivative = derivative;
         self
     }
 
@@ -171,7 +171,7 @@ impl Expr for TwoElecOperator {
         density,
         False,
         true,
-        |this: &TwoElecOperator, arg| this.builder_from_density(arg).build()
+        |this: &TwoElecOperator, arg| this.with_density(arg).build()
     );
 
     fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
@@ -182,10 +182,10 @@ impl Expr for TwoElecOperator {
                 Some(Box::new(e)),
             )
         })?;
-        let term1 = self.builder_from_density(diff_density).build()?;
+        let term1 = self.with_density(diff_density).build()?;
 
-        let new_deriv = self.derivative.clone_with_insert(s);
-        let term2 = self.builder_from_derivative(new_deriv).build()?;
+        let new_deriv = self.derivative.with_added_perturbation(s);
+        let term2 = self.with_derivative(new_deriv).build()?;
 
         if is_expr_type::<ZeroOperator>(&term2) {
             return Ok(term1);
@@ -303,11 +303,11 @@ mod tests {
         assert_eq!(op.dependencies(), &deps);
         assert_eq!(op.derivative(), &deriv);
 
-        let mut op2 = op.builder_from_density(density.clone()).build().unwrap();
+        let mut op2 = op.with_density(density.clone()).build().unwrap();
         assert!(Arc::ptr_eq(&op1, &op2));
         assert_eq!(&op1, &op2);
 
-        op2 = op.builder_from_derivative(deriv.clone()).build().unwrap();
+        op2 = op.with_derivative(deriv.clone()).build().unwrap();
         assert!(Arc::ptr_eq(&op1, &op2));
         assert_eq!(&op1, &op2);
 
