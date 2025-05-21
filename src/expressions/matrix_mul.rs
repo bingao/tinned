@@ -9,8 +9,8 @@ use crate::expressions::{MatrixAdd, Mul, Number, ZeroOperator};
 use crate::internal::{intern_expr, multi_expression_format, multi_expression_hash};
 use crate::perturbations::Perturbation;
 use crate::public::{
-    NumberTolerance, downcast_from_arc, downcast_from_ref, generic_expression_error, is_expr_type,
-    is_one_expr, is_zero_expr,
+    NumberTolerance, downcast_from_arc, downcast_from_ref, expression_error,
+    generic_expression_error, is_expr_type, is_one_expr, is_zero_expr, subtract_exprs,
 };
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]

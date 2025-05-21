@@ -73,6 +73,22 @@ macro_rules! impl_binary_expr_common_methods {
         }
 
         #[inline]
+        fn retain(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
+            if set.iter().any(|expr| self.eq_expr(expr.as_ref())) {
+                return Ok(self.clone_expr());
+            }
+
+            impl_binary_expr_arg_operation!(
+                self,
+                $first_argument,
+                $second_argument,
+                |arg: &Arc<dyn Expr>| arg.retain(set),
+                concat!(stringify!($type_name), "::retain() failed"),
+                $build_expr
+            )
+        }
+
+        #[inline]
         fn replace(
             &self,
             map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,

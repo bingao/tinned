@@ -44,7 +44,7 @@ macro_rules! test_nullary_expr {
         #[test]
         fn test_impl_expr() {
             let deriv = make_pert_multichain(2u32, 8u32, 1u32, 10u32);
-            test_nullary_expr!(@test_nullary_expr
+            test_nullary_expr!(@test_nullary_impl_expr
                 $type_name,
                 $oper_name,
                 deriv,
@@ -79,7 +79,7 @@ macro_rules! test_nullary_expr {
         }
     };
 
-    (@test_nullary_expr
+    (@test_nullary_impl_expr
         $type_name:ident,
         $oper_name:ident,
         $deriv:ident,
@@ -150,7 +150,7 @@ macro_rules! test_nullary_expr {
         assert_ne!(&op1, &op6);
     };
 
-    (@test_nullary_expr
+    (@test_nullary_impl_expr
         $type_name:ident,
         $oper_name:ident,
         $deriv:ident,

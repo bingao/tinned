@@ -57,6 +57,15 @@ impl Expr for Symbol {
             Ok(self.clone_expr())
         }
     }
+
+    #[inline]
+    fn retain(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
+        if set.iter().any(|expr| self.eq_expr(expr.as_ref())) {
+            Ok(self.clone_expr())
+        } else {
+            Ok(Number::zero())
+        }
+    }
 }
 
 impl std::fmt::Display for Symbol {

@@ -95,7 +95,7 @@ macro_rules! impl_unary_expr_common_methods {
             self
         }
 
-        impl_unary_expr_common_methods!(@unary_expr_is_scalar $arg_field, $type_scalar);
+        impl_unary_expr_common_methods!(@unary_is_scalar $arg_field, $type_scalar);
 
         #[inline]
         fn eliminate(
@@ -131,7 +131,7 @@ macro_rules! impl_unary_expr_common_methods {
         fn remove(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
             if set.iter().any(|expr| self.eq_expr(expr.as_ref())) {
                 return impl_unary_expr_common_methods!(
-                    @build_zero_expr
+                    @unary_build_zero_expr
                     self.$arg_field,
                     $type_scalar
                 );
@@ -142,6 +142,21 @@ macro_rules! impl_unary_expr_common_methods {
                 $arg_field,
                 |arg: &Arc<dyn Expr>| arg.remove(set),
                 concat!(stringify!($type_name), "::remove() failed"),
+                $build_expr
+            )
+        }
+
+        #[inline]
+        fn retain(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
+            if set.iter().any(|expr| self.eq_expr(expr.as_ref())) {
+                return Ok(self.clone_expr());
+            }
+
+            impl_unary_expr_arg_operation!(
+                self,
+                $arg_field,
+                |arg: &Arc<dyn Expr>| arg.retain(set),
+                concat!(stringify!($type_name), "::retain() failed"),
                 $build_expr
             )
         }
@@ -171,7 +186,7 @@ macro_rules! impl_unary_expr_common_methods {
         ) -> Result<Arc<dyn Expr>, TinnedError> {
             if let Some((_, value)) = map.iter().find(|(key, _)| self.match_for_replace_all(key)) {
                 return impl_unary_expr_common_methods!(
-                    @unary_expr_replace_self
+                    @unary_replace_self
                     self,
                     value,
                     $has_derivative
@@ -188,28 +203,28 @@ macro_rules! impl_unary_expr_common_methods {
         }
     };
 
-    (@unary_expr_is_scalar $_arg_field:ident, True) => {
+    (@unary_is_scalar $_arg_field:ident, True) => {
         #[inline]
         fn is_scalar(&self) -> bool {
             true
         }
     };
 
-    (@unary_expr_is_scalar $_arg_field:ident, False) => {
+    (@unary_is_scalar $_arg_field:ident, False) => {
         #[inline]
         fn is_scalar(&self) -> bool {
             false
         }
     };
 
-    (@unary_expr_is_scalar $arg_field:ident, Argument) => {
+    (@unary_is_scalar $arg_field:ident, Argument) => {
         #[inline]
         fn is_scalar(&self) -> bool {
             self.$arg_field.is_scalar()
         }
     };
 
-    (@unary_expr_replace_self $self:ident, $value:ident, true) => {
+    (@unary_replace_self $self:ident, $value:ident, true) => {
         if $self.derivative.is_empty() {
             Ok($value.clone())
         } else {
@@ -217,15 +232,15 @@ macro_rules! impl_unary_expr_common_methods {
         }
     };
 
-    (@unary_expr_replace_self $_self:ident, $value:ident, false) => {
+    (@unary_replace_self $_self:ident, $value:ident, false) => {
         Ok($value.clone())
     };
 
-    (@build_zero_expr $_argument:expr, True) => { impl_zero_expr!(true) };
+    (@unary_build_zero_expr $_argument:expr, True) => { impl_zero_expr!(true) };
 
-    (@build_zero_expr $_argument:expr, False) => { impl_zero_expr!(false) };
+    (@unary_build_zero_expr $_argument:expr, False) => { impl_zero_expr!(false) };
 
-    (@build_zero_expr $argument:expr, Argument) => {
+    (@unary_build_zero_expr $argument:expr, Argument) => {
         if $argument.is_scalar() {
             impl_zero_expr!(true)
         } else {

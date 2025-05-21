@@ -105,6 +105,20 @@ macro_rules! impl_add_traits {
                 )
             }
 
+            fn retain(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
+                if set.iter().any(|expr| self.eq_expr(expr.as_ref())) {
+                    return Ok(self.clone_expr());
+                }
+
+                impl_add_traits!(
+                    @add_termwise_operation
+                    self,
+                    |term: &Arc<dyn Expr>| term.retain(set),
+                    concat!(stringify!($type_name), "::retain() failed"),
+                    $is_scalar
+                )
+            }
+
             fn replace(
                 &self,
                 map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,

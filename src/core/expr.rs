@@ -96,11 +96,15 @@ pub trait Expr: Debug + Send + Sync + ExprInternal {
         }
     }
 
-    // Removes given expressions in `set` from the current expression.
+    // Removes all expressions in `set` from the current expression.
     fn remove(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError>;
 
-    // Replaces given expressions (keys of `map`) with corresponding values of
-    // `map` in the current expression.
+    // Keeps only expressions in `set` while removes others from the current
+    // expression.
+    fn retain(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError>;
+
+    // Replaces expressions (keys of `map`) with corresponding values of `map`
+    // in the current expression.
     #[inline]
     fn replace(
         &self,
@@ -113,7 +117,7 @@ pub trait Expr: Debug + Send + Sync + ExprInternal {
             .unwrap_or_else(|| self.clone_expr()))
     }
 
-    // Replaces given expressions (keys of `map`) and their "derivatives" with
+    // Replaces expressions (keys of `map`) and their "derivatives" with
     // corresponding values of `map` and their derivatives in the concrete
     // expression. Here, the meaning of "derivatives" is taken care by
     // different concrete expression types. One requirement is that

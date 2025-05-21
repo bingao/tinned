@@ -11,7 +11,8 @@ use crate::internal::{
 };
 use crate::perturbations::Perturbation;
 use crate::public::{
-    NumberTolerance, downcast_from_arc, downcast_from_ref, generic_expression_error, is_zero_expr,
+    NumberTolerance, downcast_from_arc, downcast_from_ref, expression_error,
+    generic_expression_error, is_expr_type, is_zero_expr,
 };
 
 // Either adjoint map (or adjoint action, adjoint representation)
@@ -35,35 +36,72 @@ impl AdjointMap {
         generators: Vec<Arc<dyn Expr>>,
         target: Arc<dyn Expr>,
         left_action: Option<bool>,
-    ) -> Arc<dyn Expr> {
-        let left_action = left_action.unwrap_or(true);
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        if target.is_scalar() {
+            return Err(expression_error("AdjointMap::new() gets a scalar target", &target, None));
+        }
+        if is_expr_type::<ZeroOperator>(&target) {
+            return Ok(target);
+        }
+
+        for generator in &generators {
+            if generator.is_scalar() {
+                return Err(expression_error(
+                    "AdjointMap::new() got a scalar generator",
+                    generator,
+                    None,
+                ));
+            }
+            if is_expr_type::<ZeroOperator>(&generator) {
+                return Ok(ZeroOperator::new());
+            }
+        }
 
         // Sort generators according to `total_order()`
         let sorted = sort_expressions_grouped_by(&generators, |e| e.total_order());
 
-        intern_expr(Arc::new(Self {
+        let left_action = left_action.unwrap_or(true);
+
+        Ok(intern_expr(Arc::new(Self {
             generators: sorted,
             target,
             left_action,
-        }))
+        })))
     }
 
     #[inline]
-    fn with_new_generators(&self, generators: Vec<Arc<dyn Expr>>) -> Arc<dyn Expr> {
+    fn with_new_generators(
+        &self,
+        generators: Vec<Arc<dyn Expr>>,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
         Self::new(generators, self.target.clone(), Some(self.left_action))
     }
 
     #[inline]
-    fn with_new_target(&self, target: Arc<dyn Expr>) -> Arc<dyn Expr> {
-        intern_expr(Arc::new(Self {
+    fn with_new_target(&self, target: Arc<dyn Expr>) -> Result<Arc<dyn Expr>, TinnedError> {
+        if target.is_scalar() {
+            return Err(expression_error(
+                "AdjointMap::with_new_target() gets a scalar target",
+                &target,
+                None,
+            ));
+        }
+        if is_expr_type::<ZeroOperator>(&target) {
+            return Ok(target);
+        }
+
+        Ok(intern_expr(Arc::new(Self {
             generators: self.generators.clone(),
             target,
             left_action: self.left_action,
-        }))
+        })))
     }
 
     #[inline]
-    pub(crate) fn with_added_generator(&self, generator: Arc<dyn Expr>) -> Arc<dyn Expr> {
+    pub(crate) fn with_added_generator(
+        &self,
+        generator: Arc<dyn Expr>,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
         let mut generators = self.generators.clone();
         generators.push(generator);
 
@@ -160,7 +198,7 @@ impl Expr for AdjointMap {
             // intact
             new_generators[i] = diff.clone();
 
-            results.push(self.with_new_generators(new_generators));
+            results.push(self.with_new_generators(new_generators)?);
         }
 
         let diff_target = self.target.differentiate(s).map_err(|e| {
@@ -172,7 +210,7 @@ impl Expr for AdjointMap {
         })?;
 
         if !is_zero_expr(&diff_target, None) {
-            results.push(self.with_new_target(diff_target));
+            results.push(self.with_new_target(diff_target)?);
         }
 
         MatrixAdd::new(results)
@@ -228,6 +266,19 @@ impl Expr for AdjointMap {
             self,
             |x: &Arc<dyn Expr>| x.remove(set),
             "AdjointMap::remove() failed"
+        )
+    }
+
+    #[inline]
+    fn retain(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
+        if set.iter().any(|expr| self.eq_expr(expr.as_ref())) {
+            return Ok(self.clone_expr());
+        }
+
+        impl_adjoint_map_operation!(
+            self,
+            |x: &Arc<dyn Expr>| x.retain(set),
+            "AdjointMap::retain() failed"
         )
     }
 

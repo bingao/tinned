@@ -9,7 +9,7 @@ use crate::expressions::{AdjointMap, MatrixAdd, ZeroOperator};
 use crate::internal::intern_expr;
 use crate::perturbations::{PertMultichain, Perturbation};
 use crate::public::{
-    NumberTolerance, differentiate_expr, downcast_from_arc, downcast_from_ref,
+    NumberTolerance, differentiate_expr, downcast_from_arc, downcast_from_ref, expression_error,
     generic_expression_error, is_expr_type,
 };
 
@@ -154,11 +154,27 @@ impl ExpAdjointMapBuilder {
     //    self
     //}
 
-    pub fn build(self) -> Arc<dyn Expr> {
+    pub fn build(self) -> Result<Arc<dyn Expr>, TinnedError> {
+        if self.generator.is_scalar() {
+            return Err(expression_error(
+                "ExpAdjointMapBuilder::build() gets a scalar generator",
+                &self.generator,
+                None,
+            ));
+        }
+
+        if self.target.is_scalar() {
+            return Err(expression_error(
+                "ExpAdjointMapBuilder::build() gets a scalar target",
+                &self.target,
+                None,
+            ));
+        }
+
         if is_expr_type::<ZeroOperator>(&self.generator)
             || is_expr_type::<ZeroOperator>(&self.target)
         {
-            return self.target;
+            return Ok(self.target);
         }
 
         let left_action = self.left_action.unwrap_or(true);
@@ -169,7 +185,7 @@ impl ExpAdjointMapBuilder {
         let result = self.result.unwrap_or(self.target.clone());
         let derivative = self.derivative.unwrap_or(PertMultichain::new());
 
-        intern_expr(Arc::new(ExpAdjointMap {
+        Ok(intern_expr(Arc::new(ExpAdjointMap {
             generator: self.generator,
             target: self.target,
             left_action,
@@ -177,7 +193,7 @@ impl ExpAdjointMapBuilder {
             is_zero_strength,
             result,
             derivative,
-        }))
+        })))
     }
 }
 
@@ -237,9 +253,7 @@ impl Expr for ExpAdjointMap {
         result,
         False,
         true,
-        |this: &ExpAdjointMap, arg| {
-            Ok(this.with_result(arg, Some(this.is_zero_strength)).build())
-        }
+        |this: &ExpAdjointMap, arg| { this.with_result(arg, Some(this.is_zero_strength)).build() }
     );
 
     #[inline]
@@ -259,7 +273,7 @@ impl Expr for ExpAdjointMap {
             )
         })?;
 
-        Ok(self.with_result(result, Some(true)).build())
+        self.with_result(result, Some(true)).build()
     }
 
     fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
@@ -293,7 +307,7 @@ impl Expr for ExpAdjointMap {
             return if is_expr_type::<ZeroOperator>(&diff_result) {
                 Ok(diff_result)
             } else {
-                Ok(self.with_result_and_derivative(diff_result, new_deriv).build())
+                self.with_result_and_derivative(diff_result, new_deriv).build()
             };
         }
 
@@ -309,7 +323,7 @@ impl Expr for ExpAdjointMap {
                 if let Some(ad_map) = downcast_from_arc::<AdjointMap>(term) {
                     // Check folds of commutators
                     if ad_map.generators().len() as u32 + 1 < self.max_fold {
-                        terms.push(ad_map.with_added_generator(diff_generator.clone()));
+                        terms.push(ad_map.with_added_generator(diff_generator.clone())?);
                     } else {
                         ad_maps.push(term.clone());
                     }
@@ -319,7 +333,7 @@ impl Expr for ExpAdjointMap {
                         vec![diff_generator.clone()],
                         term.clone(),
                         Some(self.left_action),
-                    ));
+                    )?);
                 }
             }
         } else {
@@ -328,11 +342,11 @@ impl Expr for ExpAdjointMap {
                 vec![diff_generator],
                 self.result.clone(),
                 Some(self.left_action),
-            ));
+            )?);
         }
 
         let new_ead_map =
-            self.with_result_and_derivative(MatrixAdd::new(terms)?, new_deriv).build();
+            self.with_result_and_derivative(MatrixAdd::new(terms)?, new_deriv).build()?;
 
         if ad_maps.is_empty() {
             Ok(new_ead_map)

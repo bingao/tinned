@@ -56,6 +56,11 @@ impl Expr for ZeroOperator {
     fn remove(&self, _set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
         Ok(self.clone_expr())
     }
+
+    #[inline]
+    fn retain(&self, _set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
+        Ok(self.clone_expr())
+    }
 }
 
 impl std::fmt::Display for ZeroOperator {

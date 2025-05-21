@@ -218,6 +218,23 @@ macro_rules! impl_exch_corr_traits {
             }
 
             #[inline]
+            fn retain(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
+                if set.iter().any(|expr| self.eq_expr(expr.as_ref())) {
+                    return Ok(self.clone_expr());
+                }
+
+                impl_exch_corr_traits!(
+                    @grid_expr_operation
+                    self,
+                    $grid_expr_name,
+                    |grid_expr: &Arc<dyn Expr>| grid_expr.retain(set),
+                    concat!(stringify!($type_name), "::retain() failed"),
+                    $is_scalar,
+                    false
+                )
+            }
+
+            #[inline]
             fn replace(
                 &self,
                 map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,

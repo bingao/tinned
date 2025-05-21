@@ -12,7 +12,7 @@ use crate::internal::{
 use crate::perturbations::Perturbation;
 use crate::public::{
     NumberTolerance, downcast_from_arc, downcast_from_ref, expression_error,
-    generic_expression_error, is_zero_expr,
+    generic_expression_error, is_zero_expr, subtract_exprs,
 };
 
 // Multiplication Expression
