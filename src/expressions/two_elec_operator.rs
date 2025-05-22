@@ -139,25 +139,27 @@ impl ExprInternal for TwoElecOperator {
     }
 
     #[inline]
-    fn match_for_find_all(&self, other: &Arc<dyn Expr>) -> bool {
+    fn deep_eq_superchains(&self, other: &Arc<dyn Expr>) -> bool {
         if let Some(op) = downcast_from_arc::<TwoElecOperator>(other) {
             self.name == op.name
                 && self.dependencies == op.dependencies
-                && self.density.match_for_find_all(&op.density)
+                && self.density.deep_eq_superchains(&op.density)
+                && self.derivative.is_subchain(&op.derivative)
         } else {
             false
         }
     }
 
     #[inline]
-    fn match_for_replace_all(&self, other: &Arc<dyn Expr>) -> bool {
+    fn eq_by_superchains(&self, other: &Arc<dyn Expr>) -> bool {
         // For unambiguous replacement, we require equality of density
         // matrices, and make replacement by considering only derivative of
         // electron repulsion integrals (ERIs).
         if let Some(op) = downcast_from_arc::<TwoElecOperator>(other) {
             self.name == op.name
-                && self.dependencies == op.dependencies
                 && &self.density == &op.density
+                && self.dependencies == op.dependencies
+                && self.derivative.is_subchain(&op.derivative)
         } else {
             false
         }

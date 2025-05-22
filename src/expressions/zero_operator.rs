@@ -58,7 +58,11 @@ impl Expr for ZeroOperator {
     }
 
     #[inline]
-    fn retain(&self, _set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
+    fn retain(
+        &self,
+        _set: &HashSet<Arc<dyn Expr>>,
+        _exact_equality: bool,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
         Ok(self.clone_expr())
     }
 }

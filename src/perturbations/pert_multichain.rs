@@ -146,6 +146,32 @@ impl PertMultichain {
         self_map.keys().any(|k| other_map.contains_key(k))
     }
 
+    /// Returns the "difference" between `self` and `other` as a
+    /// `Vec<Arc<Perturbation>>`, where:
+    ///
+    /// (1) Each perturbation in `self` but not in `other` is added count times.
+    /// (2) Each perturbation in both, but where `self` has a higher count, is
+    ///     added (`self_count` - `other_count`) times.
+    /// (3) Any perturbation only in `other` is ignored.
+    #[inline]
+    pub fn complement(&self, other: &PertMultichain) -> Vec<Arc<Perturbation>> {
+        let self_map = self.0.lock().unwrap();
+        let other_map = other.0.lock().unwrap();
+
+        let mut result = Vec::new();
+
+        for (pert, &count_self) in self_map.iter() {
+            let count_other = other_map.get(pert).copied().unwrap_or(0);
+            if count_self > count_other {
+                result.extend(
+                    std::iter::repeat(pert.clone()).take((count_self - count_other) as usize),
+                );
+            }
+        }
+
+        result
+    }
+
     /// Generates a compact string suitable for hashing a perturbation multichain.
     #[inline]
     pub(crate) fn hash_key(&self) -> String {

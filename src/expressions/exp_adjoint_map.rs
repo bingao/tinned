@@ -220,26 +220,28 @@ impl ExprInternal for ExpAdjointMap {
     }
 
     #[inline]
-    fn match_for_find_all(&self, other: &Arc<dyn Expr>) -> bool {
+    fn deep_eq_superchains(&self, other: &Arc<dyn Expr>) -> bool {
         if let Some(op) = downcast_from_arc::<ExpAdjointMap>(other) {
             // We find exponential adjoint maps with `left_action` and
             // `is_zero_strength` either `true` or `false`
             self.max_fold == op.max_fold
-                && self.generator.match_for_find_all(&op.generator)
-                && self.target.match_for_find_all(&op.target)
+                && self.generator.deep_eq_superchains(&op.generator)
+                && self.target.deep_eq_superchains(&op.target)
+                && self.derivative.is_subchain(&op.derivative)
         } else {
             false
         }
     }
 
     #[inline]
-    fn match_for_replace_all(&self, other: &Arc<dyn Expr>) -> bool {
+    fn eq_by_superchains(&self, other: &Arc<dyn Expr>) -> bool {
         if let Some(op) = downcast_from_arc::<ExpAdjointMap>(other) {
             self.left_action == op.left_action
                 && self.max_fold == op.max_fold
                 && self.is_zero_strength == op.is_zero_strength
                 && &self.generator == &op.generator
                 && &self.target == &op.target
+                && self.derivative.is_subchain(&op.derivative)
         } else {
             false
         }

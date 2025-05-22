@@ -43,12 +43,12 @@ macro_rules! impl_binary_expr_common_methods {
         }
 
         #[inline]
-        fn find_all(&self, s: &Arc<dyn Expr>) -> BTreeMap<u32, HashSet<Arc<dyn Expr>>> {
-            if self.match_for_find_all(s) {
+        fn find_superchains(&self, s: &Arc<dyn Expr>) -> BTreeMap<u32, HashSet<Arc<dyn Expr>>> {
+            if self.deep_eq_superchains(s) {
                 BTreeMap::from([(self.total_order(), HashSet::from([self.clone_expr()]))])
             } else {
-                let mut result = self.$first_argument.find_all(s);
-                for (order, subset) in self.$second_argument.find_all(s) {
+                let mut result = self.$first_argument.find_superchains(s);
+                for (order, subset) in self.$second_argument.find_superchains(s) {
                     result.entry(order).or_default().extend(subset);
                 }
 
@@ -73,22 +73,6 @@ macro_rules! impl_binary_expr_common_methods {
         }
 
         #[inline]
-        fn retain(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
-            if set.iter().any(|expr| self.eq_expr(expr.as_ref())) {
-                return Ok(self.clone_expr());
-            }
-
-            impl_binary_expr_arg_operation!(
-                self,
-                $first_argument,
-                $second_argument,
-                |arg: &Arc<dyn Expr>| arg.retain(set),
-                concat!(stringify!($type_name), "::retain() failed"),
-                $build_expr
-            )
-        }
-
-        #[inline]
         fn replace(
             &self,
             map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
@@ -103,6 +87,32 @@ macro_rules! impl_binary_expr_common_methods {
                 $second_argument,
                 |arg: &Arc<dyn Expr>| arg.replace(map),
                 concat!(stringify!($type_name), "::replace() failed"),
+                $build_expr
+            )
+        }
+
+        #[inline]
+        fn retain(
+            &self,
+            set: &HashSet<Arc<dyn Expr>>,
+            exact_equality: bool,
+        ) -> Result<Arc<dyn Expr>, TinnedError> {
+            let found = if exact_equality {
+                set.iter().any(|expr| self.eq_expr(expr.as_ref()))
+            } else {
+                set.iter().any(|expr| self.eq_by_superchains(expr))
+            };
+
+            if found {
+                return Ok(self.clone_expr());
+            }
+
+            impl_binary_expr_arg_operation!(
+                self,
+                $first_argument,
+                $second_argument,
+                |arg: &Arc<dyn Expr>| arg.retain(set, exact_equality),
+                concat!(stringify!($type_name), "::retain() failed"),
                 $build_expr
             )
         }

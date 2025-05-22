@@ -339,7 +339,11 @@ impl Expr for Number {
     }
 
     #[inline]
-    fn retain(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
+    fn retain(
+        &self,
+        set: &HashSet<Arc<dyn Expr>>,
+        _exact_equality: bool,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
         if set.iter().any(|expr| self.eq_expr(expr.as_ref())) {
             Ok(self.clone_expr())
         } else {

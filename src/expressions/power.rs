@@ -82,9 +82,9 @@ impl ExprInternal for Power {
     }
 
     #[inline]
-    fn match_for_find_all(&self, other: &Arc<dyn Expr>) -> bool {
+    fn deep_eq_superchains(&self, other: &Arc<dyn Expr>) -> bool {
         if let Some(pow) = downcast_from_arc::<Power>(other) {
-            self.exponent == pow.exponent && self.base.match_for_find_all(&pow.base)
+            self.exponent == pow.exponent && self.base.deep_eq_superchains(&pow.base)
         } else {
             false
         }

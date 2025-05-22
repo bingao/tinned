@@ -76,20 +76,29 @@ pub trait Expr: Debug + Send + Sync + ExprInternal {
         set.iter().any(|expr| self.eq_expr(expr.as_ref()))
     }
 
-    // Finds a given expression `s` and all its "differentiated" ones in the
-    // current expression. Here "differentiated" ones mean they may not be the
-    // mathematical derivative of `s`. For example, for `s` being the type of
-    // `TwoElecOperator`, its derivative is an `MatrixAdd` of `TwoElecOperator`
-    // objects with fields of (un)differentiated electron repulsion integrals
-    // (ERI) and one-electron spin-orbital density matrix, which is difficult
-    // to find. Instead, we return all `TwoElecOperator` objects, with
-    // (un)differentiated ERI and density matrix fields.
+    // Finds a given expression `s` and all its higher-order "differentiated"
+    // ones in the current expression. Here, two terms need to be clarified:
     //
-    // In other words, this method returns objects that match `s` according to
-    // the method `match_for_find_all()`.
+    // (1) If the expression `s` has derivative, for example, `s`^{a}. Then it
+    //     higher-order derivatives exclude lower-order and unrelated objects,
+    //     such as `s`, `s`^{b}, or `s`^{c}, where b and c are different from
+    //     a. In other words, matched expressions have derivatives that are
+    //     superchains of the derivative of `s`.
+    //
+    // (2) The quoted term "differentiated" means derivatives may not be the
+    //     mathematical derivative of `s`. For example, for `s` being the type
+    //     of `TwoElecOperator`, its derivative is an `MatrixAdd` of
+    //     `TwoElecOperator` objects with fields of (un)differentiated electron
+    //     repulsion integrals (ERI) and one-electron spin-orbital density
+    //     matrix, which is difficult to find. Instead, we return all
+    //     `TwoElecOperator` objects, with (un)differentiated ERI and density
+    //     matrix fields.
+    //
+    // To summarize, this method returns objects that match `s` according to
+    // the method `deep_eq_superchains()`.
     #[inline]
-    fn find_all(&self, s: &Arc<dyn Expr>) -> BTreeMap<u32, HashSet<Arc<dyn Expr>>> {
-        if self.match_for_find_all(s) {
+    fn find_superchains(&self, s: &Arc<dyn Expr>) -> BTreeMap<u32, HashSet<Arc<dyn Expr>>> {
+        if self.deep_eq_superchains(s) {
             BTreeMap::from([(self.total_order(), HashSet::from([self.clone_expr()]))])
         } else {
             BTreeMap::new()
@@ -98,10 +107,6 @@ pub trait Expr: Debug + Send + Sync + ExprInternal {
 
     // Removes all expressions in `set` from the current expression.
     fn remove(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError>;
-
-    // Keeps only expressions in `set` while removes others from the current
-    // expression.
-    fn retain(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError>;
 
     // Replaces expressions (keys of `map`) with corresponding values of `map`
     // in the current expression.
@@ -117,26 +122,50 @@ pub trait Expr: Debug + Send + Sync + ExprInternal {
             .unwrap_or_else(|| self.clone_expr()))
     }
 
-    // Replaces expressions (keys of `map`) and their "derivatives" with
-    // corresponding values of `map` and their derivatives in the concrete
-    // expression. Here, the meaning of "derivatives" is taken care by
-    // different concrete expression types. One requirement is that
-    // `replace_all()` should not return same results for two different
+    // Replaces expressions (keys of `map`) and their higher-order
+    // "derivatives" with corresponding values of `map` and their derivatives
+    // in the concrete expression. Here, "higher-order" is the same as that of
+    // method `find_superchains()`. The meaning of "derivatives" is taken care
+    // by different concrete expression types. One requirement is that
+    // `replace_superchains()` should not return same results for two different
     // `map`'s.
     //
     // Expressions to be replaced are determined by the method
-    // `match_for_replace_all()`, which can be overriden by concrete expression
-    // types.
+    // `eq_by_superchains()`, which can be overriden by concrete
+    // expression types.
     #[inline]
-    fn replace_all(
+    fn replace_superchains(
         &self,
         map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
         Ok(map
             .iter()
-            .find(|(key, _)| self.match_for_replace_all(key))
+            .find(|(key, _)| self.eq_by_superchains(key))
             .map(|(_, value)| value.clone())
             .unwrap_or_else(|| self.clone_expr()))
+    }
+
+    // If the parameter `exact_equality` is `true`, the method keeps only
+    // expressions in `set` while removes others from the current expression.
+    // If the parameter `exact_equality` is `false`, the method keeps only
+    // expressions in `set` and their higher-order derivatives, while removes
+    // (1) those with lower-order and unrelated derivatives, and (2) other
+    // nonmatching expressions from the current expression.
+    fn retain(
+        &self,
+        set: &HashSet<Arc<dyn Expr>>,
+        exact_equality: bool,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        let found = if exact_equality {
+            set.iter().any(|expr| self.eq_expr(expr.as_ref()))
+        } else {
+            set.iter().any(|expr| self.eq_by_superchains(expr))
+        };
+
+        if found {
+            return Ok(self.clone_expr());
+        }
+
     }
 }
 

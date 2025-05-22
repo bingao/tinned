@@ -122,20 +122,21 @@ macro_rules! impl_exch_corr_traits {
             }
 
             #[inline]
-            fn match_for_find_all(&self, other: &Arc<dyn Expr>) -> bool {
+            fn deep_eq_superchains(&self, other: &Arc<dyn Expr>) -> bool {
                 if let Some(xc) = downcast_from_arc::<$type_name>(other) {
                     self.name == xc.name
                         && &self.grid_weight == &xc.grid_weight
                         && &self.density_matrix == &xc.density_matrix
                         && &self.overlap_distribution == &xc.overlap_distribution
+                        && self.derivative.is_subchain(&op.derivative)
                 } else {
                     false
                 }
             }
 
             #[inline]
-            fn match_for_replace_all(&self, other: &Arc<dyn Expr>) -> bool {
-                self.match_for_find_all(other)
+            fn eq_by_superchains(&self, other: &Arc<dyn Expr>) -> bool {
+                self.deep_eq_superchains(other)
             }
         }
 
@@ -192,11 +193,11 @@ macro_rules! impl_exch_corr_traits {
             }
 
             #[inline]
-            fn find_all(&self, s: &Arc<dyn Expr>) -> BTreeMap<u32, HashSet<Arc<dyn Expr>>> {
-                if self.match_for_find_all(s) {
+            fn find_superchains(&self, s: &Arc<dyn Expr>) -> BTreeMap<u32, HashSet<Arc<dyn Expr>>> {
+                if self.deep_eq_superchains(s) {
                     BTreeMap::from([(self.total_order(), HashSet::from([self.clone_expr()]))])
                 } else {
-                    self.$grid_expr_name.find_all(s)
+                    self.$grid_expr_name.find_superchains(s)
                 }
             }
 
@@ -212,23 +213,6 @@ macro_rules! impl_exch_corr_traits {
                     $grid_expr_name,
                     |grid_expr: &Arc<dyn Expr>| grid_expr.remove(set),
                     concat!(stringify!($type_name), "::remove() failed"),
-                    $is_scalar,
-                    false
-                )
-            }
-
-            #[inline]
-            fn retain(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
-                if set.iter().any(|expr| self.eq_expr(expr.as_ref())) {
-                    return Ok(self.clone_expr());
-                }
-
-                impl_exch_corr_traits!(
-                    @grid_expr_operation
-                    self,
-                    $grid_expr_name,
-                    |grid_expr: &Arc<dyn Expr>| grid_expr.retain(set),
-                    concat!(stringify!($type_name), "::retain() failed"),
                     $is_scalar,
                     false
                 )
@@ -259,15 +243,22 @@ macro_rules! impl_exch_corr_traits {
             }
 
             #[inline]
-            fn replace_all(
+            fn replace_superchains(
                 &self,
                 map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
             ) -> Result<Arc<dyn Expr>, TinnedError> {
-                if let Some((_, value)) = map.iter().find(|(key, _)| self.match_for_replace_all(key)) {
+                if let Some((expr, subs)) = map.iter().find(|(key, _)| self.eq_by_superchains(key)) {
                     return if self.derivative.is_empty() {
-                        Ok(value.clone())
+                        Ok(subs.clone())
                     } else {
-                        differentiate_expr(value, &self.derivative)
+                        let op = downcast_from_arc::<$type_name>(&expr).ok_or_else(|| {
+                            unreachable_error(
+                                concat!("Expected ", stringify!($type_name)),
+                                &expr,
+                                None,
+                            )
+                        })?;
+                        differentiate_expr(subs, &self.derivative.complement(&op.derivative))
                     };
                 }
 
@@ -275,10 +266,37 @@ macro_rules! impl_exch_corr_traits {
                     @grid_expr_operation
                     self,
                     $grid_expr_name,
-                    |grid_expr: &Arc<dyn Expr>| grid_expr.replace_all(map),
-                    concat!(stringify!($type_name), "::replace_all() failed"),
+                    |grid_expr: &Arc<dyn Expr>| grid_expr.replace_superchains(map),
+                    concat!(stringify!($type_name), "::replace_superchains() failed"),
                     $is_scalar,
                     true
+                )
+            }
+
+            #[inline]
+            fn retain(
+                &self,
+                set: &HashSet<Arc<dyn Expr>>,
+                exact_equality: bool,
+            ) -> Result<Arc<dyn Expr>, TinnedError> {
+                let found = if exact_equality {
+                    set.iter().any(|expr| self.eq_expr(expr.as_ref()))
+                } else {
+                    set.iter().any(|expr| self.eq_by_superchains(expr))
+                };
+
+                if found {
+                    return Ok(self.clone_expr());
+                }
+
+                impl_exch_corr_traits!(
+                    @grid_expr_operation
+                    self,
+                    $grid_expr_name,
+                    |grid_expr: &Arc<dyn Expr>| grid_expr.retain(set, exact_equality),
+                    concat!(stringify!($type_name), "::retain() failed"),
+                    $is_scalar,
+                    false
                 )
             }
         }

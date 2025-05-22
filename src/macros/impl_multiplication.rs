@@ -86,20 +86,20 @@ macro_rules! impl_mul_traits {
                     || self.coefficient.exist_any(set)
             }
 
-            fn find_all(&self, s: &Arc<dyn Expr>) -> BTreeMap<u32, HashSet<Arc<dyn Expr>>> {
-                if self.match_for_find_all(s) {
+            fn find_superchains(&self, s: &Arc<dyn Expr>) -> BTreeMap<u32, HashSet<Arc<dyn Expr>>> {
+                if self.deep_eq_superchains(s) {
                     return BTreeMap::from([(self.total_order(), HashSet::from([self.clone_expr()]))]);
                 }
 
                 let mut result: BTreeMap<u32, HashSet<Arc<dyn Expr>>> = BTreeMap::new();
                 for factor in &self.factors {
-                    for (order, subset) in factor.find_all(s) {
+                    for (order, subset) in factor.find_superchains(s) {
                         result.entry(order).or_default().extend(subset);
                     }
                 }
 
                if result.is_empty() {
-                   return self.coefficient.find_all(s);
+                   return self.coefficient.find_superchains(s);
                }
 
                result
@@ -119,8 +119,54 @@ macro_rules! impl_mul_traits {
                 )
             }
 
-            fn retain(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
-                if set.iter().any(|expr| self.eq_expr(expr.as_ref())) {
+            fn replace(
+                &self,
+                map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
+            ) -> Result<Arc<dyn Expr>, TinnedError> {
+                if let Some((_, value)) = map.iter().find(|(key, _)| self.eq_expr(key.as_ref())) {
+                    return Ok(value.clone());
+                }
+
+                impl_mul_traits!(
+                    @mul_termwise_operation
+                    self,
+                    |factor: &Arc<dyn Expr>| factor.replace(map),
+                    concat!(stringify!($type_name), "::replace() failed"),
+                    $is_scalar
+                )
+            }
+
+            fn replace_superchains(
+                &self,
+                map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
+            ) -> Result<Arc<dyn Expr>, TinnedError> {
+                // For unambiguous replacement, we requirement equality for the
+                // whole `Mul`.
+                if let Some((_, value)) = map.iter().find(|(key, _)| self.eq_by_superchains(key)) {
+                    return Ok(value.clone());
+                }
+
+                impl_mul_traits!(
+                    @mul_termwise_operation
+                    self,
+                    |factor: &Arc<dyn Expr>| factor.replace_superchains(map),
+                    concat!(stringify!($type_name), "::replace_superchains() failed"),
+                    $is_scalar
+                )
+            }
+
+            fn retain(
+                &self,
+                set: &HashSet<Arc<dyn Expr>>,
+                exact_equality: bool,
+            ) -> Result<Arc<dyn Expr>, TinnedError> {
+                let found = if exact_equality {
+                    set.iter().any(|expr| self.eq_expr(expr.as_ref()))
+                } else {
+                    set.iter().any(|expr| self.eq_by_superchains(expr))
+                };
+
+                if found {
                     return Ok(self.clone_expr());
                 }
 
@@ -131,7 +177,7 @@ macro_rules! impl_mul_traits {
                     = Vec::with_capacity(self.factors.len());
 
                 for factor in &self.factors {
-                    let new_factor = factor.retain(set).map_err(|e| {
+                    let new_factor = factor.retain(set, exact_equality).map_err(|e| {
                         generic_expression_error(
                             concat!(stringify!($type_name), "::retain() failed"),
                             self,
@@ -159,7 +205,7 @@ macro_rules! impl_mul_traits {
                 let (new_coef, new_mul) = impl_mul_traits!(
                     @mul_coef_operation
                     self.coefficient,
-                    |coef: &Arc<dyn Expr>| coef.retain(set),
+                    |coef: &Arc<dyn Expr>| coef.retain(set, exact_equality),
                     concat!(stringify!($type_name), "::retain() failed"),
                     $is_scalar
                 );
@@ -255,42 +301,6 @@ macro_rules! impl_mul_traits {
                         },
                     }
                 }
-            }
-
-            fn replace(
-                &self,
-                map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
-            ) -> Result<Arc<dyn Expr>, TinnedError> {
-                if let Some((_, value)) = map.iter().find(|(key, _)| self.eq_expr(key.as_ref())) {
-                    return Ok(value.clone());
-                }
-
-                impl_mul_traits!(
-                    @mul_termwise_operation
-                    self,
-                    |factor: &Arc<dyn Expr>| factor.replace(map),
-                    concat!(stringify!($type_name), "::replace() failed"),
-                    $is_scalar
-                )
-            }
-
-            fn replace_all(
-                &self,
-                map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
-            ) -> Result<Arc<dyn Expr>, TinnedError> {
-                // For unambiguous replacement, we requirement equality for the
-                // whole `Mul`.
-                if let Some((_, value)) = map.iter().find(|(key, _)| self.match_for_replace_all(key)) {
-                    return Ok(value.clone());
-                }
-
-                impl_mul_traits!(
-                    @mul_termwise_operation
-                    self,
-                    |factor: &Arc<dyn Expr>| factor.replace_all(map),
-                    concat!(stringify!($type_name), "::replace_all() failed"),
-                    $is_scalar
-                )
             }
         }
 

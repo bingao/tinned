@@ -16,35 +16,32 @@ pub(crate) mod sealed {
         fn hash_key(&self) -> String;
 
         // Total order of "differentiation" on the expression, which can be
-        // used as the key for the function `find_all()` and for sorting a list
-        // of expressions. Note that "differentiation" is not mathematically
-        // strict. For example, it is the differenitation only on electron
-        // repulsion integrals (ERI) for `TwoElecOperator`. See implementation
-        // of concrete expression types.
+        // used as the key for the function `find_superchains()` and for
+        // sorting a list of expressions. Note that "differentiation" is not
+        // mathematically strict. For example, it is the differenitation only
+        // on electron repulsion integrals (ERI) for `TwoElecOperator`. See
+        // implementation of concrete expression types.
         #[inline]
         fn total_order(&self) -> u32 {
             0
         }
 
-        // Compares equality of two expressions for the method `find_all()`.
-        // This comparison will ignore derivatives of these two expressions, and
-        // derivatives of their fields may also be ignored. See the
-        // implementation of different concrete expression types.
+        // This equality comparison usually requires `self`'s derivative is the
+        // superchain of that of `other`. Expression fields are usually
+        // compared by using the same rule, while non-expression fields usually
+        // requires exact equality. See the implementation of different
+        // concrete expression types. This comparison is mostly used by the
+        // method `find_superchains()`.
         #[inline]
-        fn match_for_find_all(&self, other: &Arc<dyn crate::core::expr::Expr>) -> bool {
+        fn deep_eq_superchains(&self, other: &Arc<dyn crate::core::expr::Expr>) -> bool {
             self.eq_expr(other.as_ref())
         }
 
-        // Compares equality of two expressions for the method `replace_all()`.
-        // This comparison will ignore derivatives of these two expressions.
-        // For unambiguous replacement, we may require equality comparison of
-        // their fields as well. See the implementation of different concrete
-        // expression types.
-        //
-        // One requirement is that `match_for_replace_all()` should not return
-        // true for two different `self`'s by only ignoring their derivatives.
+        // This equality comparison usually requires `self`'s derivative is the
+        // superchain of that of `other`, while exact equality of other fields.
+        // See the implementation of different concrete expression types.
         #[inline]
-        fn match_for_replace_all(&self, other: &Arc<dyn crate::core::expr::Expr>) -> bool {
+        fn eq_by_superchains(&self, other: &Arc<dyn crate::core::expr::Expr>) -> bool {
             self.eq_expr(other.as_ref())
         }
     }

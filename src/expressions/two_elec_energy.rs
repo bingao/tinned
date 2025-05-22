@@ -9,7 +9,7 @@ use crate::expressions::{Add, Number, TwoElecOperator, WfnParameter, ZeroOperato
 use crate::perturbations::{PertMultichain, Perturbation};
 use crate::public::{
     differentiate_expr, downcast_from_arc, downcast_from_ref, expression_error,
-    generic_expression_error, is_expr_type, is_zero_expr,
+    generic_expression_error, is_expr_type, is_zero_expr, unreachable_error,
 };
 
 /// allow_density_swap means we allow inner_density and outer_density to be
@@ -239,24 +239,27 @@ impl ExprInternal for TwoElecEnergy {
     }
 
     #[inline]
-    fn match_for_find_all(&self, other: &Arc<dyn Expr>) -> bool {
+    fn deep_eq_superchains(&self, other: &Arc<dyn Expr>) -> bool {
         if let Some(op) = downcast_from_arc::<TwoElecEnergy>(other) {
             // Compare all fixed fields
-            if self.name != op.name || self.dependencies != op.dependencies {
+            if self.name != op.name
+                || self.dependencies != op.dependencies
+                || !self.derivative.is_subchain(&op.derivative)
+            {
                 return false;
             }
 
             // Handle density equality based on swap flags
             if !self.allow_density_swap && !op.allow_density_swap {
                 // Strict matching only
-                self.inner_density.match_for_find_all(&op.inner_density)
-                    && self.outer_density.match_for_find_all(&op.outer_density)
+                self.inner_density.deep_eq_superchains(&op.inner_density)
+                    && self.outer_density.deep_eq_superchains(&op.outer_density)
             } else {
                 // Accept either order
-                (self.inner_density.match_for_find_all(&op.inner_density)
-                    && self.outer_density.match_for_find_all(&op.outer_density))
-                    || (self.inner_density.match_for_find_all(&op.outer_density)
-                        && self.outer_density.match_for_find_all(&op.inner_density))
+                (self.inner_density.deep_eq_superchains(&op.inner_density)
+                    && self.outer_density.deep_eq_superchains(&op.outer_density))
+                    || (self.inner_density.deep_eq_superchains(&op.outer_density)
+                        && self.outer_density.deep_eq_superchains(&op.inner_density))
             }
         } else {
             false
@@ -264,12 +267,15 @@ impl ExprInternal for TwoElecEnergy {
     }
 
     #[inline]
-    fn match_for_replace_all(&self, other: &Arc<dyn Expr>) -> bool {
+    fn eq_by_superchains(&self, other: &Arc<dyn Expr>) -> bool {
         // For unambiguous replacement, we require equality of density
         // matrices, and make replacement by considering only derivative of
         // electron repulsion integrals (ERIs).
         if let Some(op) = downcast_from_arc::<TwoElecEnergy>(other) {
-            self.name == op.name && self.dependencies == op.dependencies && self.eq_density(op)
+            self.name == op.name
+                && self.dependencies == op.dependencies
+                && self.derivative.is_subchain(&op.derivative)
+                && self.eq_density(op)
         } else {
             false
         }
@@ -328,15 +334,17 @@ impl Expr for TwoElecEnergy {
     }
 
     #[inline]
-    fn replace_all(
+    fn replace_superchains(
         &self,
         map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
-        if let Some((_, value)) = map.iter().find(|(key, _)| self.match_for_replace_all(key)) {
+        if let Some((expr, subs)) = map.iter().find(|(key, _)| self.eq_by_superchains(key)) {
             return if self.derivative.is_empty() {
-                Ok(value.clone())
+                Ok(subs.clone())
             } else {
-                differentiate_expr(value, &self.derivative)
+                let op = downcast_from_arc::<TwoElecEnergy>(&expr)
+                    .ok_or_else(|| unreachable_error("Expected TwoElecEnergy", &expr, None))?;
+                differentiate_expr(subs, &self.derivative.complement(&op.derivative))
             };
         }
 
@@ -344,8 +352,8 @@ impl Expr for TwoElecEnergy {
             self,
             inner_density,
             outer_density,
-            |arg: &Arc<dyn Expr>| arg.replace_all(map),
-            "TwoElecEnergy::replace_all() failed",
+            |arg: &Arc<dyn Expr>| arg.replace_superchains(map),
+            "TwoElecEnergy::replace_superchains() failed",
             |this: &TwoElecEnergy, inner_density, outer_density| this
                 .with_inner_density(inner_density)
                 .outer_density(outer_density)

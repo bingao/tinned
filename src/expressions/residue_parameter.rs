@@ -130,9 +130,9 @@ impl ExprInternal for ResidueParameter {
     }
 
     #[inline]
-    fn match_for_find_all(&self, other: &Arc<dyn Expr>) -> bool {
+    fn deep_eq_superchains(&self, other: &Arc<dyn Expr>) -> bool {
         if let Some(op) = downcast_from_arc::<ResidueParameter>(other) {
-            self.parameter.match_for_find_all(&op.parameter)
+            self.parameter.deep_eq_superchains(&op.parameter)
         } else {
             false
         }
@@ -142,7 +142,7 @@ impl ExprInternal for ResidueParameter {
 #[typetag::serde]
 impl Expr for ResidueParameter {
     // We treat `ResidueParameter` is the same type as its `parameter` so that
-    // `exist_any()` will return true and `find_all()` will return
+    // `exist_any()` will return true and `find_superchains()` will return
     // `ResidueParameter` itself if its `parameter` is the input parameter of
     // these two methods.
     //

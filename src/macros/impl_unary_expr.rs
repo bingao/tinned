@@ -14,9 +14,9 @@ macro_rules! impl_unary_expr_traits {
             }
 
             #[inline]
-            fn match_for_find_all(&self, other: &Arc<dyn Expr>) -> bool {
+            fn deep_eq_superchains(&self, other: &Arc<dyn Expr>) -> bool {
                 if let Some(expr) = downcast_from_arc::<$type_name>(other) {
-                    self.argument.match_for_find_all(&expr.argument)
+                    self.argument.deep_eq_superchains(&expr.argument)
                 } else {
                     false
                 }
@@ -25,7 +25,7 @@ macro_rules! impl_unary_expr_traits {
             // Except for `TwoElecOperator`, all other implemented unary `Expr`
             // types do not hold derivative. So we use equality comparison on
             // the whole expression, i.e. we do not override the method
-            // `match_for_replace_all()` of the trait `ExprInternal`.
+            // `eq_by_superchains()` of the trait `ExprInternal`.
         }
 
         #[typetag::serde]
@@ -119,11 +119,11 @@ macro_rules! impl_unary_expr_common_methods {
         }
 
         #[inline]
-        fn find_all(&self, s: &Arc<dyn Expr>) -> BTreeMap<u32, HashSet<Arc<dyn Expr>>> {
-            if self.match_for_find_all(s) {
+        fn find_superchains(&self, s: &Arc<dyn Expr>) -> BTreeMap<u32, HashSet<Arc<dyn Expr>>> {
+            if self.deep_eq_superchains(s) {
                 BTreeMap::from([(self.total_order(), HashSet::from([self.clone_expr()]))])
             } else {
-                self.$arg_field.find_all(s)
+                self.$arg_field.find_superchains(s)
             }
         }
 
@@ -147,21 +147,6 @@ macro_rules! impl_unary_expr_common_methods {
         }
 
         #[inline]
-        fn retain(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
-            if set.iter().any(|expr| self.eq_expr(expr.as_ref())) {
-                return Ok(self.clone_expr());
-            }
-
-            impl_unary_expr_arg_operation!(
-                self,
-                $arg_field,
-                |arg: &Arc<dyn Expr>| arg.retain(set),
-                concat!(stringify!($type_name), "::retain() failed"),
-                $build_expr
-            )
-        }
-
-        #[inline]
         fn replace(
             &self,
             map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
@@ -180,15 +165,17 @@ macro_rules! impl_unary_expr_common_methods {
         }
 
         #[inline]
-        fn replace_all(
+        fn replace_superchains(
             &self,
             map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
         ) -> Result<Arc<dyn Expr>, TinnedError> {
-            if let Some((_, value)) = map.iter().find(|(key, _)| self.match_for_replace_all(key)) {
+            if let Some((expr, subs)) = map.iter().find(|(key, _)| self.eq_by_superchains(key)) {
                 return impl_unary_expr_common_methods!(
                     @unary_replace_self
+                    $type_name
                     self,
-                    value,
+                    expr,
+                    subs,
                     $has_derivative
                 );
             }
@@ -196,8 +183,33 @@ macro_rules! impl_unary_expr_common_methods {
             impl_unary_expr_arg_operation!(
                 self,
                 $arg_field,
-                |arg: &Arc<dyn Expr>| arg.replace_all(map),
-                concat!(stringify!($type_name), "::replace_all() failed"),
+                |arg: &Arc<dyn Expr>| arg.replace_superchains(map),
+                concat!(stringify!($type_name), "::replace_superchains() failed"),
+                $build_expr
+            )
+        }
+
+        #[inline]
+        fn retain(
+            &self,
+            set: &HashSet<Arc<dyn Expr>>,
+            exact_equality: bool,
+        ) -> Result<Arc<dyn Expr>, TinnedError> {
+            let found = if exact_equality {
+                set.iter().any(|expr| self.eq_expr(expr.as_ref()))
+            } else {
+                set.iter().any(|expr| self.eq_by_superchains(expr))
+            };
+
+            if found {
+                return Ok(self.clone_expr());
+            }
+
+            impl_unary_expr_arg_operation!(
+                self,
+                $arg_field,
+                |arg: &Arc<dyn Expr>| arg.retain(set, exact_equality),
+                concat!(stringify!($type_name), "::retain() failed"),
                 $build_expr
             )
         }
@@ -224,15 +236,22 @@ macro_rules! impl_unary_expr_common_methods {
         }
     };
 
-    (@unary_replace_self $self:ident, $value:ident, true) => {
+    (@unary_replace_self $type_name:ident, $self:ident, $expr:ident, $value:ident, true) => {
         if $self.derivative.is_empty() {
             Ok($value.clone())
         } else {
-            differentiate_expr($value, &$self.derivative)
+            let op = downcast_from_arc::<$type_name>(&$expr).ok_or_else(|| {
+                unreachable_error(
+                    concat!("Expected ", stringify!($type_name)),
+                    &$expr,
+                    None,
+                )
+            })?;
+            differentiate_expr($value, &$self.derivative.complement(&op.derivative))
         }
     };
 
-    (@unary_replace_self $_self:ident, $value:ident, false) => {
+    (@unary_replace_self $_type_name:ident, $_self:ident, $_expr:ident, $value:ident, false) => {
         Ok($value.clone())
     };
 

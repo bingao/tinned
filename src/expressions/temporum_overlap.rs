@@ -225,20 +225,22 @@ impl ExprInternal for TemporumOverlap {
     }
 
     #[inline]
-    fn match_for_find_all(&self, other: &Arc<dyn Expr>) -> bool {
+    fn deep_eq_superchains(&self, other: &Arc<dyn Expr>) -> bool {
         if let Some(op) = downcast_from_arc::<TemporumOverlap>(other) {
             // We care only `dependencies`, regardless whether at zero strength
             // or not (specified by `is_zero_strength`, `braket` also changes)
-            self.dependencies == op.dependencies
+            self.dependencies == op.dependencies && self.derivative.is_subchain(&op.derivative)
         } else {
             false
         }
     }
 
     #[inline]
-    fn match_for_replace_all(&self, other: &Arc<dyn Expr>) -> bool {
+    fn eq_by_superchains(&self, other: &Arc<dyn Expr>) -> bool {
         if let Some(op) = downcast_from_arc::<TemporumOverlap>(other) {
-            self.is_zero_strength == op.is_zero_strength && self.dependencies == op.dependencies
+            self.is_zero_strength == op.is_zero_strength
+                && self.dependencies == op.dependencies
+                && self.derivative.is_subchain(&op.derivative)
         } else {
             false
         }
@@ -247,7 +249,7 @@ impl ExprInternal for TemporumOverlap {
 
 #[typetag::serde]
 impl Expr for TemporumOverlap {
-    impl_nullary_expr_common_methods!(false);
+    impl_nullary_expr_common_methods!(TemporumOverlap, false);
 
     // `TemporumOverlap` will disappear if it is unperturbed or all
     // perturbations have zero frequency
@@ -294,8 +296,8 @@ impl Expr for TemporumOverlap {
     }
 
     // `TemporumOverlap` is an undivided whole for methods `exist_any()`,
-    // `find_all()` and `replace()`. So, we use the corresponding methods of
-    // the pub trait `Expr`.
+    // `find_superchains()` and `replace()`. So, we use the corresponding
+    // methods of the pub trait `Expr`.
 }
 
 impl PartialEq for TemporumOverlap {

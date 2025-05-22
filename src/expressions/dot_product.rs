@@ -144,9 +144,9 @@ impl ExprInternal for DotProduct {
     }
 
     #[inline]
-    fn match_for_find_all(&self, other: &Arc<dyn Expr>) -> bool {
+    fn deep_eq_superchains(&self, other: &Arc<dyn Expr>) -> bool {
         if let Some(dot) = downcast_from_arc::<DotProduct>(other) {
-            if self.bra.match_for_find_all(&dot.bra) && self.ket.match_for_find_all(&dot.ket) {
+            if self.bra.deep_eq_superchains(&dot.bra) && self.ket.deep_eq_superchains(&dot.ket) {
                 return true;
             }
 
@@ -155,7 +155,7 @@ impl ExprInternal for DotProduct {
                     Ok(expr) => expr,
                     Err(_) => return false,
                 };
-                if !trans_bra.match_for_find_all(&dot.ket) {
+                if !trans_bra.deep_eq_superchains(&dot.ket) {
                     return false;
                 }
                 let trans_ket = match Transpose::new(self.ket.clone()) {
@@ -163,7 +163,7 @@ impl ExprInternal for DotProduct {
                     Err(_) => return false,
                 };
 
-                return trans_ket.match_for_find_all(&dot.bra);
+                return trans_ket.deep_eq_superchains(&dot.bra);
             }
 
             false
@@ -207,13 +207,13 @@ impl Expr for DotProduct {
     }
 
     #[inline]
-    fn replace_all(
+    fn replace_superchains(
         &self,
         map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
         // For unambiguous replacement, we require equality of `bra` and `ket`,
         // and make replacement by ignoring derivatives of `bra` and `ket`.
-        if let Some((_, value)) = map.iter().find(|(key, _)| self.match_for_replace_all(key)) {
+        if let Some((_, value)) = map.iter().find(|(key, _)| self.eq_by_superchains(key)) {
             return Ok(value.clone());
         }
 
@@ -221,8 +221,8 @@ impl Expr for DotProduct {
             self,
             bra,
             ket,
-            |arg: &Arc<dyn Expr>| arg.replace_all(map),
-            "DotProduct::replace_all() failed",
+            |arg: &Arc<dyn Expr>| arg.replace_superchains(map),
+            "DotProduct::replace_superchains() failed",
             |this: &DotProduct, bra, ket| Self::make_dot_product(bra, ket, this.allow_braket_swap)
         )
     }

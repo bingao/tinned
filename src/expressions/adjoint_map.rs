@@ -138,16 +138,16 @@ impl ExprInternal for AdjointMap {
     }
 
     #[inline]
-    fn match_for_find_all(&self, other: &Arc<dyn Expr>) -> bool {
+    fn deep_eq_superchains(&self, other: &Arc<dyn Expr>) -> bool {
         if let Some(op) = downcast_from_arc::<AdjointMap>(other) {
             let len = self.generators.len();
 
             // We find adjoint maps with `left_action` either `true` or `false`
-            if !self.target.match_for_find_all(&op.target) || len != op.generators.len() {
+            if !self.target.deep_eq_superchains(&op.target) || len != op.generators.len() {
                 return false;
             }
 
-            self.generators.iter().zip(&op.generators).all(|(a, b)| a.match_for_find_all(b))
+            self.generators.iter().zip(&op.generators).all(|(a, b)| a.deep_eq_superchains(b))
         } else {
             false
         }
@@ -240,15 +240,15 @@ impl Expr for AdjointMap {
     }
 
     #[inline]
-    fn find_all(&self, s: &Arc<dyn Expr>) -> BTreeMap<u32, HashSet<Arc<dyn Expr>>> {
-        if self.match_for_find_all(s) {
+    fn find_superchains(&self, s: &Arc<dyn Expr>) -> BTreeMap<u32, HashSet<Arc<dyn Expr>>> {
+        if self.deep_eq_superchains(s) {
             return BTreeMap::from([(self.total_order(), HashSet::from([self.clone_expr()]))]);
         }
 
-        let mut result = self.target.find_all(s);
+        let mut result = self.target.find_superchains(s);
 
         for x in &self.generators {
-            for (order, subset) in x.find_all(s) {
+            for (order, subset) in x.find_superchains(s) {
                 result.entry(order).or_default().extend(subset);
             }
         }
@@ -270,19 +270,6 @@ impl Expr for AdjointMap {
     }
 
     #[inline]
-    fn retain(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
-        if set.iter().any(|expr| self.eq_expr(expr.as_ref())) {
-            return Ok(self.clone_expr());
-        }
-
-        impl_adjoint_map_operation!(
-            self,
-            |x: &Arc<dyn Expr>| x.retain(set),
-            "AdjointMap::retain() failed"
-        )
-    }
-
-    #[inline]
     fn replace(
         &self,
         map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
@@ -299,18 +286,41 @@ impl Expr for AdjointMap {
     }
 
     #[inline]
-    fn replace_all(
+    fn replace_superchains(
         &self,
         map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
-        if let Some((_, value)) = map.iter().find(|(key, _)| self.match_for_replace_all(key)) {
+        if let Some((_, value)) = map.iter().find(|(key, _)| self.eq_by_superchains(key)) {
             return Ok(value.clone());
         }
 
         impl_adjoint_map_operation!(
             self,
-            |x: &Arc<dyn Expr>| x.replace_all(map),
-            "AdjointMap::replace_all() failed"
+            |x: &Arc<dyn Expr>| x.replace_superchains(map),
+            "AdjointMap::replace_superchains() failed"
+        )
+    }
+
+    #[inline]
+    fn retain(
+        &self,
+        set: &HashSet<Arc<dyn Expr>>,
+        exact_equality: bool,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        let found = if exact_equality {
+            set.iter().any(|expr| self.eq_expr(expr.as_ref()))
+        } else {
+            set.iter().any(|expr| self.eq_by_superchains(expr))
+        };
+
+        if found {
+            return Ok(self.clone_expr());
+        }
+
+        impl_adjoint_map_operation!(
+            self,
+            |x: &Arc<dyn Expr>| x.retain(set, exact_equality),
+            "AdjointMap::retain() failed"
         )
     }
 }

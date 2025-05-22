@@ -132,9 +132,9 @@ impl ExprInternal for TemporumOperator {
     }
 
     #[inline]
-    fn match_for_find_all(&self, other: &Arc<dyn Expr>) -> bool {
+    fn deep_eq_superchains(&self, other: &Arc<dyn Expr>) -> bool {
         if let Some(op) = downcast_from_arc::<TemporumOperator>(other) {
-            self.argument.match_for_find_all(&op.argument)
+            self.argument.deep_eq_superchains(&op.argument)
         } else {
             false
         }

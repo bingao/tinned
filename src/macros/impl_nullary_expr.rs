@@ -176,23 +176,23 @@ macro_rules! impl_nullary_expr_traits {
             }
 
             #[inline]
-            fn match_for_find_all(&self, other: &Arc<dyn Expr>) -> bool {
+            fn deep_eq_superchains(&self, other: &Arc<dyn Expr>) -> bool {
                 if let Some(op) = downcast_from_arc::<$type_name>(other) {
-                    impl_nullary_expr_traits!(@nullary_match_for_find_all self, op, $has_deps)
+                    impl_nullary_expr_traits!(@nullary_deep_eq_superchains self, op, $has_deps)
                 } else {
                     false
                 }
             }
 
             #[inline]
-            fn match_for_replace_all(&self, other: &Arc<dyn Expr>) -> bool {
-                self.match_for_find_all(other)
+            fn eq_by_superchains(&self, other: &Arc<dyn Expr>) -> bool {
+                self.deep_eq_superchains(other)
             }
         }
 
         #[typetag::serde]
         impl Expr for $type_name {
-            impl_nullary_expr_common_methods!($is_scalar);
+            impl_nullary_expr_common_methods!($type_name, $is_scalar);
 
             #[inline]
             fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError>
@@ -241,13 +241,14 @@ macro_rules! impl_nullary_expr_traits {
         }
     };
 
-    (@nullary_match_for_find_all $self:ident, $op:ident, true) => {
+    (@nullary_deep_eq_superchains $self:ident, $op:ident, true) => {
         $self.name == $op.name
             && $self.dependencies == $op.dependencies
+            && $self.derivative.is_subchain(&$op.derivative)
     };
 
-    (@nullary_match_for_find_all $self:ident, $op:ident, false) => {
-        $self.name == $op.name
+    (@nullary_deep_eq_superchains $self:ident, $op:ident, false) => {
+        $self.name == $op.name && $self.derivative.is_subchain(&$op.derivative)
     };
 
     (@nullary_eliminate $type_name:ident, true) => { };
@@ -280,7 +281,7 @@ macro_rules! impl_nullary_expr_traits {
 }
 
 macro_rules! impl_nullary_expr_common_methods {
-    ($is_scalar:tt) => {
+    ($type_name:ident, $is_scalar:tt) => {
         impl_expr_common_methods!($is_scalar);
 
         #[inline]
@@ -293,27 +294,40 @@ macro_rules! impl_nullary_expr_common_methods {
         }
 
         #[inline]
-        fn retain(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
-            if set.iter().any(|expr| self.eq_expr(expr.as_ref())) {
-                return Ok(self.clone_expr());
+        fn replace_superchains(
+            &self,
+            map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
+        ) -> Result<Arc<dyn Expr>, TinnedError> {
+            if let Some((expr, subs)) = map.iter().find(|(key, _)| self.eq_by_superchains(key)) {
+                if self.derivative.is_empty() {
+                    Ok(subs.clone())
+                } else {
+                    let op = downcast_from_arc::<$type_name>(&expr).ok_or_else(|| {
+                        unreachable_error(concat!("Expected ", stringify!($type_name)), &expr, None)
+                    })?;
+                    differentiate_expr(subs, &self.derivative.complement(&op.derivative))
+                }
             } else {
-                impl_zero_expr!($is_scalar)
+                Ok(self.clone_expr())
             }
         }
 
         #[inline]
-        fn replace_all(
+        fn retain(
             &self,
-            map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
+            set: &HashSet<Arc<dyn Expr>>,
+            exact_equality: bool,
         ) -> Result<Arc<dyn Expr>, TinnedError> {
-            if let Some((_, value)) = map.iter().find(|(key, _)| self.match_for_replace_all(key)) {
-                if self.derivative.is_empty() {
-                    Ok(value.clone())
-                } else {
-                    differentiate_expr(value, &self.derivative)
-                }
+            let found = if exact_equality {
+                set.iter().any(|expr| self.eq_expr(expr.as_ref()))
             } else {
-                Ok(self.clone_expr())
+                set.iter().any(|expr| self.eq_by_superchains(expr))
+            };
+
+            if found {
+                return Ok(self.clone_expr());
+            } else {
+                impl_zero_expr!($is_scalar)
             }
         }
     };

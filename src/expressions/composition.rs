@@ -74,9 +74,11 @@ impl ExprInternal for Composition {
     }
 
     #[inline]
-    fn match_for_find_all(&self, other: &Arc<dyn Expr>) -> bool {
+    fn deep_eq_superchains(&self, other: &Arc<dyn Expr>) -> bool {
         if let Some(comp) = downcast_from_arc::<Composition>(other) {
-            self.name == comp.name && self.inner.match_for_find_all(&comp.inner)
+            self.name == comp.name
+                && self.order >= comp.order
+                && self.inner.deep_eq_superchains(&comp.inner)
         } else {
             false
         }
