@@ -10,7 +10,7 @@ use crate::internal::intern_expr;
 use crate::perturbations::{PertMultichain, Perturbation};
 use crate::public::{
     NumberTolerance, differentiate_expr, downcast_from_arc, downcast_from_ref, expression_error,
-    generic_expression_error, is_expr_type,
+    generic_expression_error, is_expr_type, unreachable_error,
 };
 
 // Exponential adjoint map (or conjugation operation in Lie algebra):
@@ -198,7 +198,9 @@ impl ExpAdjointMapBuilder {
 }
 
 impl ExprInternal for ExpAdjointMap {
-    impl_expr_internal_methods!(ExpAdjointMap);
+    impl_unary_expr_internal_methods!(ExpAdjointMap, result, true, |this: &ExpAdjointMap, arg| {
+        this.with_result(arg, Some(this.is_zero_strength)).build()
+    });
 
     #[inline]
     fn hash_key(&self) -> String {
@@ -250,13 +252,9 @@ impl ExprInternal for ExpAdjointMap {
 
 #[typetag::serde]
 impl Expr for ExpAdjointMap {
-    impl_unary_expr_common_methods!(
-        ExpAdjointMap,
-        result,
-        False,
-        true,
-        |this: &ExpAdjointMap, arg| { this.with_result(arg, Some(this.is_zero_strength)).build() }
-    );
+    impl_unary_expr_common_methods!(ExpAdjointMap, result, False, |this: &ExpAdjointMap, arg| this
+        .with_result(arg, Some(this.is_zero_strength))
+        .build());
 
     #[inline]
     fn clean_temporum(

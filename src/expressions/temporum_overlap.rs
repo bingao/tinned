@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use typetag;
@@ -206,7 +206,7 @@ impl TemporumOverlapBuilder {
 }
 
 impl ExprInternal for TemporumOverlap {
-    impl_expr_internal_methods!(TemporumOverlap);
+    impl_expr_internal_methods!(TemporumOverlap, true);
 
     #[inline]
     fn hash_key(&self) -> String {
@@ -244,6 +244,15 @@ impl ExprInternal for TemporumOverlap {
         } else {
             false
         }
+    }
+
+    #[inline]
+    fn retain_expr_fields(
+        &self,
+        _set: &HashSet<Arc<dyn Expr>>,
+        _exact_equality: bool,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        Ok(ZeroOperator::new())
     }
 }
 
@@ -296,8 +305,8 @@ impl Expr for TemporumOverlap {
     }
 
     // `TemporumOverlap` is an undivided whole for methods `exist_any()`,
-    // `find_superchains()` and `replace()`. So, we use the corresponding
-    // methods of the pub trait `Expr`.
+    // `find_superchains()`. So, we use the corresponding methods of the pub
+    // trait `Expr`.
 }
 
 impl PartialEq for TemporumOverlap {

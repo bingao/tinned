@@ -74,7 +74,10 @@ impl Power {
 }
 
 impl ExprInternal for Power {
-    impl_expr_internal_methods!(Power);
+    impl_unary_expr_internal_methods!(Power, base, false, |this: &Power, arg| Self::new(
+        arg,
+        this.exponent
+    ));
 
     #[inline]
     fn hash_key(&self) -> String {
@@ -93,7 +96,7 @@ impl ExprInternal for Power {
 
 #[typetag::serde]
 impl Expr for Power {
-    impl_unary_expr_common_methods!(Power, base, True, false, |this: &Power, arg| Self::new(
+    impl_unary_expr_common_methods!(Power, base, True, |this: &Power, arg| Self::new(
         arg,
         this.exponent
     ));

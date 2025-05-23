@@ -12,7 +12,7 @@ use crate::internal::{build_xc_density, intern_expr, validate_xc_inputs};
 use crate::perturbations::{PertMultichain, Perturbation};
 use crate::public::{
     differentiate_expr, downcast_from_arc, downcast_from_ref, generic_expression_error,
-    is_zero_expr,
+    is_zero_expr, unreachable_error,
 };
 
 fn build_xc_potential(

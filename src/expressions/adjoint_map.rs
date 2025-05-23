@@ -125,7 +125,7 @@ impl AdjointMap {
 }
 
 impl ExprInternal for AdjointMap {
-    impl_expr_internal_methods!(AdjointMap);
+    impl_expr_internal_methods!(AdjointMap, false);
 
     #[inline]
     fn hash_key(&self) -> String {
@@ -151,6 +151,32 @@ impl ExprInternal for AdjointMap {
         } else {
             false
         }
+    }
+
+    #[inline]
+    fn replace_expr_fields(
+        &self,
+        map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
+        exact_equality: bool,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        impl_adjoint_map_operation!(
+            self,
+            |x: &Arc<dyn Expr>| x.replace(map, exact_equality),
+            "AdjointMap::replace_expr_fields() failed"
+        )
+    }
+
+    #[inline]
+    fn retain_expr_fields(
+        &self,
+        set: &HashSet<Arc<dyn Expr>>,
+        exact_equality: bool,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        impl_adjoint_map_operation!(
+            self,
+            |x: &Arc<dyn Expr>| x.retain(set, exact_equality),
+            "AdjointMap::retain_expr_fields() failed"
+        )
     }
 }
 
@@ -266,61 +292,6 @@ impl Expr for AdjointMap {
             self,
             |x: &Arc<dyn Expr>| x.remove(set),
             "AdjointMap::remove() failed"
-        )
-    }
-
-    #[inline]
-    fn replace(
-        &self,
-        map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
-    ) -> Result<Arc<dyn Expr>, TinnedError> {
-        if let Some((_, value)) = map.iter().find(|(key, _)| self.eq_expr(key.as_ref())) {
-            return Ok(value.clone());
-        }
-
-        impl_adjoint_map_operation!(
-            self,
-            |x: &Arc<dyn Expr>| x.replace(map),
-            "AdjointMap::replace() failed"
-        )
-    }
-
-    #[inline]
-    fn replace_superchains(
-        &self,
-        map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
-    ) -> Result<Arc<dyn Expr>, TinnedError> {
-        if let Some((_, value)) = map.iter().find(|(key, _)| self.eq_by_superchains(key)) {
-            return Ok(value.clone());
-        }
-
-        impl_adjoint_map_operation!(
-            self,
-            |x: &Arc<dyn Expr>| x.replace_superchains(map),
-            "AdjointMap::replace_superchains() failed"
-        )
-    }
-
-    #[inline]
-    fn retain(
-        &self,
-        set: &HashSet<Arc<dyn Expr>>,
-        exact_equality: bool,
-    ) -> Result<Arc<dyn Expr>, TinnedError> {
-        let found = if exact_equality {
-            set.iter().any(|expr| self.eq_expr(expr.as_ref()))
-        } else {
-            set.iter().any(|expr| self.eq_by_superchains(expr))
-        };
-
-        if found {
-            return Ok(self.clone_expr());
-        }
-
-        impl_adjoint_map_operation!(
-            self,
-            |x: &Arc<dyn Expr>| x.retain(set, exact_equality),
-            "AdjointMap::retain() failed"
         )
     }
 }

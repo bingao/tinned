@@ -1,3 +1,47 @@
+macro_rules! impl_binary_expr_internal_methods {
+    (
+        $type_name:ident,
+        $first_argument:ident,
+        $second_argument:ident,
+        $has_derivative:tt,
+        $build_expr:expr
+    ) => {
+        impl_expr_internal_methods!($type_name, $has_derivative);
+
+        #[inline]
+        fn replace_expr_fields(
+            &self,
+            map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
+            exact_equality: bool,
+        ) -> Result<Arc<dyn Expr>, TinnedError> {
+            impl_binary_expr_arg_operation!(
+                self,
+                $first_argument,
+                $second_argument,
+                |arg: &Arc<dyn Expr>| arg.replace(map, exact_equality),
+                concat!(stringify!($type_name), "::replace_expr_fields() failed"),
+                $build_expr
+            )
+        }
+
+        #[inline]
+        fn retain_expr_fields(
+            &self,
+            set: &HashSet<Arc<dyn Expr>>,
+            exact_equality: bool,
+        ) -> Result<Arc<dyn Expr>, TinnedError> {
+            impl_binary_expr_arg_operation!(
+                self,
+                $first_argument,
+                $second_argument,
+                |arg: &Arc<dyn Expr>| arg.retain(set, exact_equality),
+                concat!(stringify!($type_name), "::retain_expr_fields() failed"),
+                $build_expr
+            )
+        }
+    };
+}
+
 macro_rules! impl_binary_expr_common_methods {
     (
         $type_name:ident,
@@ -68,51 +112,6 @@ macro_rules! impl_binary_expr_common_methods {
                 $second_argument,
                 |arg: &Arc<dyn Expr>| arg.remove(set),
                 concat!(stringify!($type_name), "::remove() failed"),
-                $build_expr
-            )
-        }
-
-        #[inline]
-        fn replace(
-            &self,
-            map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
-        ) -> Result<Arc<dyn Expr>, TinnedError> {
-            if let Some((_, value)) = map.iter().find(|(key, _)| self.eq_expr(key.as_ref())) {
-                return Ok(value.clone());
-            }
-
-            impl_binary_expr_arg_operation!(
-                self,
-                $first_argument,
-                $second_argument,
-                |arg: &Arc<dyn Expr>| arg.replace(map),
-                concat!(stringify!($type_name), "::replace() failed"),
-                $build_expr
-            )
-        }
-
-        #[inline]
-        fn retain(
-            &self,
-            set: &HashSet<Arc<dyn Expr>>,
-            exact_equality: bool,
-        ) -> Result<Arc<dyn Expr>, TinnedError> {
-            let found = if exact_equality {
-                set.iter().any(|expr| self.eq_expr(expr.as_ref()))
-            } else {
-                set.iter().any(|expr| self.eq_by_superchains(expr))
-            };
-
-            if found {
-                return Ok(self.clone_expr());
-            }
-
-            impl_binary_expr_arg_operation!(
-                self,
-                $first_argument,
-                $second_argument,
-                |arg: &Arc<dyn Expr>| arg.retain(set, exact_equality),
-                concat!(stringify!($type_name), "::retain() failed"),
                 $build_expr
             )
         }

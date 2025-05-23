@@ -108,41 +108,40 @@ pub trait Expr: Debug + Send + Sync + ExprInternal {
     // Removes all expressions in `set` from the current expression.
     fn remove(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError>;
 
-    // Replaces expressions (keys of `map`) with corresponding values of `map`
-    // in the current expression.
+    // If the parameter `exact_equality` is `true`, the method replaces
+    // expressions (keys of `map`) with corresponding values of `map` in the
+    // current expression.
+    //
+    // If the parameter `exact_equality` is `false`, the method replaces
+    // expressions (keys of `map`) and their higher-order "derivatives" with
+    // corresponding values of `map` and their derivatives in the concrete
+    // expression. Here, "higher-order" is the same as that of method
+    // `find_superchains()`. The meaning of "derivatives" is taken care by
+    // different concrete expression types. One requirement is that
+    // `replace_superchains()` should not return same results for two different
+    // `map`'s. Expressions to be replaced are determined by the method
+    // `eq_by_superchains()`, which can be overriden by concrete expression
+    // types.
     #[inline]
     fn replace(
         &self,
         map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
+        exact_equality: bool,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
-        Ok(map
-            .iter()
-            .find(|(key, _)| self.eq_expr(key.as_ref()))
-            .map(|(_, value)| value.clone())
-            .unwrap_or_else(|| self.clone_expr()))
-    }
+        let found = if exact_equality {
+            map.iter()
+                .find(|(key, _)| self.eq_expr(key.as_ref()))
+                .map(|(_, value)| Ok(value.clone()))
+        } else {
+            map.iter()
+                .find(|(key, _)| self.eq_by_superchains(key))
+                .map(|(expr, value)| self.replace_expr_self(expr, value.clone()))
+        };
 
-    // Replaces expressions (keys of `map`) and their higher-order
-    // "derivatives" with corresponding values of `map` and their derivatives
-    // in the concrete expression. Here, "higher-order" is the same as that of
-    // method `find_superchains()`. The meaning of "derivatives" is taken care
-    // by different concrete expression types. One requirement is that
-    // `replace_superchains()` should not return same results for two different
-    // `map`'s.
-    //
-    // Expressions to be replaced are determined by the method
-    // `eq_by_superchains()`, which can be overriden by concrete
-    // expression types.
-    #[inline]
-    fn replace_superchains(
-        &self,
-        map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
-    ) -> Result<Arc<dyn Expr>, TinnedError> {
-        Ok(map
-            .iter()
-            .find(|(key, _)| self.eq_by_superchains(key))
-            .map(|(_, value)| value.clone())
-            .unwrap_or_else(|| self.clone_expr()))
+        match found {
+            Some(result) => result,
+            None => self.replace_expr_fields(map, exact_equality),
+        }
     }
 
     // If the parameter `exact_equality` is `true`, the method keeps only
@@ -151,6 +150,7 @@ pub trait Expr: Debug + Send + Sync + ExprInternal {
     // expressions in `set` and their higher-order derivatives, while removes
     // (1) those with lower-order and unrelated derivatives, and (2) other
     // nonmatching expressions from the current expression.
+    #[inline]
     fn retain(
         &self,
         set: &HashSet<Arc<dyn Expr>>,
@@ -166,6 +166,7 @@ pub trait Expr: Debug + Send + Sync + ExprInternal {
             return Ok(self.clone_expr());
         }
 
+        self.retain_expr_fields(set, exact_equality)
     }
 }
 

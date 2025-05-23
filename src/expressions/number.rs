@@ -11,7 +11,9 @@ use typetag;
 use crate::core::expr_internal::sealed::ExprInternal;
 use crate::core::{Expr, TinnedError};
 use crate::internal::intern_expr;
-use crate::public::{NumberTolerance, downcast_from_ref, generic_error, get_number_tolerance};
+use crate::public::{
+    NumberTolerance, downcast_from_ref, generic_error, get_number_tolerance, unreachable_error,
+};
 
 // Define an enum to store different number types
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -303,7 +305,7 @@ impl From<&Number> for Arc<dyn Expr> {
 }
 
 impl ExprInternal for Number {
-    impl_expr_internal_methods!(Number);
+    impl_expr_internal_methods!(Number, false);
 
     #[inline]
     fn hash_key(&self) -> String {
@@ -313,6 +315,19 @@ impl ExprInternal for Number {
             Number::Complex(z) => format!("Complex({})", z),
             Number::Fraction(r) => format!("Fraction({}/{})", r.numer(), r.denom()),
         }
+    }
+
+    #[inline]
+    fn retain_expr_fields(
+        &self,
+        _set: &HashSet<Arc<dyn Expr>>,
+        _exact_equality: bool,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        Err(unreachable_error(
+            "Number::retain_expr_fields() is not expected to be called",
+            &self.clone_expr(),
+            None,
+        ))
     }
 }
 

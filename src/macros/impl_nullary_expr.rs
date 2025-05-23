@@ -166,7 +166,7 @@ macro_rules! impl_nullary_expr_type {
 macro_rules! impl_nullary_expr_traits {
     ($type_name:ident, $has_deps:tt, $is_scalar:tt) => {
         impl ExprInternal for $type_name {
-            impl_expr_internal_methods!($type_name);
+            impl_expr_internal_methods!($type_name, true);
 
             impl_nullary_expr_traits!(@nullary_hash_key $type_name, $has_deps);
 
@@ -187,6 +187,15 @@ macro_rules! impl_nullary_expr_traits {
             #[inline]
             fn eq_by_superchains(&self, other: &Arc<dyn Expr>) -> bool {
                 self.deep_eq_superchains(other)
+            }
+
+            #[inline]
+            fn retain_expr_fields(
+                &self,
+                _set: &HashSet<Arc<dyn Expr>>,
+                _exact_equality: bool,
+            ) -> Result<Arc<dyn Expr>, TinnedError> {
+                impl_zero_expr!($is_scalar)
             }
         }
 
@@ -290,44 +299,6 @@ macro_rules! impl_nullary_expr_common_methods {
                 impl_zero_expr!($is_scalar)
             } else {
                 Ok(self.clone_expr())
-            }
-        }
-
-        #[inline]
-        fn replace_superchains(
-            &self,
-            map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
-        ) -> Result<Arc<dyn Expr>, TinnedError> {
-            if let Some((expr, subs)) = map.iter().find(|(key, _)| self.eq_by_superchains(key)) {
-                if self.derivative.is_empty() {
-                    Ok(subs.clone())
-                } else {
-                    let op = downcast_from_arc::<$type_name>(&expr).ok_or_else(|| {
-                        unreachable_error(concat!("Expected ", stringify!($type_name)), &expr, None)
-                    })?;
-                    differentiate_expr(subs, &self.derivative.complement(&op.derivative))
-                }
-            } else {
-                Ok(self.clone_expr())
-            }
-        }
-
-        #[inline]
-        fn retain(
-            &self,
-            set: &HashSet<Arc<dyn Expr>>,
-            exact_equality: bool,
-        ) -> Result<Arc<dyn Expr>, TinnedError> {
-            let found = if exact_equality {
-                set.iter().any(|expr| self.eq_expr(expr.as_ref()))
-            } else {
-                set.iter().any(|expr| self.eq_by_superchains(expr))
-            };
-
-            if found {
-                return Ok(self.clone_expr());
-            } else {
-                impl_zero_expr!($is_scalar)
             }
         }
     };

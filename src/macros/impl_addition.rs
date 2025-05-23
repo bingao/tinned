@@ -1,7 +1,7 @@
 macro_rules! impl_add_traits {
     ($type_name:ident, $hash_delimiter:ident, $fmt_delimiter:ident, $is_scalar:tt) => {
         impl ExprInternal for $type_name {
-            impl_expr_internal_methods!($type_name);
+            impl_expr_internal_methods!($type_name, false);
 
             #[inline]
             fn hash_key(&self) -> String {
@@ -9,6 +9,39 @@ macro_rules! impl_add_traits {
                     "{}({})",
                     stringify!($type_name),
                     multi_expression_hash(&self.terms, $hash_delimiter),
+                )
+            }
+
+            // For unambiguous replacement, we requirement equality for the
+            // whole `Add` so that we do not override methods
+            // `eq_by_superchains()` and `replace_expr_self()` of
+            // `ExprInternal`.
+
+            fn replace_expr_fields(
+                &self,
+                map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
+                exact_equality: bool,
+            ) -> Result<Arc<dyn Expr>, TinnedError> {
+                impl_add_traits!(
+                    @add_termwise_operation
+                    self,
+                    |term: &Arc<dyn Expr>| term.replace(map, exact_equality),
+                    concat!(stringify!($type_name), "::replace_expr_fields() failed"),
+                    $is_scalar
+                )
+            }
+
+            fn retain_expr_fields(
+                &self,
+                set: &HashSet<Arc<dyn Expr>>,
+                exact_equality: bool,
+            ) -> Result<Arc<dyn Expr>, TinnedError> {
+                impl_add_traits!(
+                    @add_termwise_operation
+                    self,
+                    |term: &Arc<dyn Expr>| term.retain(set, exact_equality),
+                    concat!(stringify!($type_name), "::retain_expr_fields() failed"),
+                    $is_scalar
                 )
             }
         }
@@ -101,66 +134,6 @@ macro_rules! impl_add_traits {
                     self,
                     |term: &Arc<dyn Expr>| term.remove(set),
                     concat!(stringify!($type_name), "::remove() failed"),
-                    $is_scalar
-                )
-            }
-
-            fn replace(
-                &self,
-                map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
-            ) -> Result<Arc<dyn Expr>, TinnedError> {
-                if let Some((_, value)) = map.iter().find(|(key, _)| self.eq_expr(key.as_ref())) {
-                    return Ok(value.clone());
-                }
-
-                impl_add_traits!(
-                    @add_termwise_operation
-                    self,
-                    |term: &Arc<dyn Expr>| term.replace(map),
-                    concat!(stringify!($type_name), "::replace() failed"),
-                    $is_scalar
-                )
-            }
-
-            fn replace_superchains(
-                &self,
-                map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
-            ) -> Result<Arc<dyn Expr>, TinnedError> {
-                // For unambiguous replacement, we requirement equality for the
-                // whole `Add`.
-                if let Some((_, value)) = map.iter().find(|(key, _)| self.eq_by_superchains(key)) {
-                    return Ok(value.clone());
-                }
-
-                impl_add_traits!(
-                    @add_termwise_operation
-                    self,
-                    |term: &Arc<dyn Expr>| term.replace_superchains(map),
-                    concat!(stringify!($type_name), "::replace_superchains() failed"),
-                    $is_scalar
-                )
-            }
-
-            fn retain(
-                &self,
-                set: &HashSet<Arc<dyn Expr>>,
-                exact_equality: bool,
-            ) -> Result<Arc<dyn Expr>, TinnedError> {
-                let found = if exact_equality {
-                    set.iter().any(|expr| self.eq_expr(expr.as_ref()))
-                } else {
-                    set.iter().any(|expr| self.eq_by_superchains(expr))
-                };
-
-                if found {
-                    return Ok(self.clone_expr());
-                }
-
-                impl_add_traits!(
-                    @add_termwise_operation
-                    self,
-                    |term: &Arc<dyn Expr>| term.retain(set, exact_equality),
-                    concat!(stringify!($type_name), "::retain() failed"),
                     $is_scalar
                 )
             }

@@ -1,6 +1,9 @@
 pub(crate) mod sealed {
+    use std::collections::{HashMap, HashSet};
     use std::fmt;
     use std::sync::Arc;
+
+    use crate::core::TinnedError;
 
     pub trait ExprInternal {
         // Make a clone of an expression.
@@ -44,5 +47,36 @@ pub(crate) mod sealed {
         fn eq_by_superchains(&self, other: &Arc<dyn crate::core::expr::Expr>) -> bool {
             self.eq_expr(other.as_ref())
         }
+
+        // Replaces the expression with `replacement`, or derivative of
+        // `replacement`. `expr` is "equal to" `self` according to the method
+        // `eq_by_superchains()`. So, the derivative on `replacement` can be
+        // figured out by taking `complement` of the derivative on `expr`.
+        #[inline]
+        fn replace_expr_self(
+            &self,
+            _expr: &Arc<dyn crate::core::expr::Expr>,
+            replacement: Arc<dyn crate::core::expr::Expr>,
+        ) -> Result<Arc<dyn crate::core::expr::Expr>, TinnedError> {
+            Ok(replacement)
+        }
+
+        // Performs `replace()` method on the expression's field(s) if it has
+        // any. By default, there is no fields in the expression and we simply
+        // return its clone.
+        fn replace_expr_fields(
+            &self,
+            _map: &HashMap<Arc<dyn crate::core::expr::Expr>, Arc<dyn crate::core::expr::Expr>>,
+            _exact_equality: bool,
+        ) -> Result<Arc<dyn crate::core::expr::Expr>, TinnedError> {
+            Ok(self.clone_expr())
+        }
+
+        // Performs `retain()` method on the expression's field(s) if it has any.
+        fn retain_expr_fields(
+            &self,
+            set: &HashSet<Arc<dyn crate::core::expr::Expr>>,
+            exact_equality: bool,
+        ) -> Result<Arc<dyn crate::core::expr::Expr>, TinnedError>;
     }
 }

@@ -1,5 +1,5 @@
 macro_rules! impl_expr_internal_methods {
-    ($type_name:ident) => {
+    ($type_name:ident, $has_derivative:tt) => {
         #[inline]
         fn clone_expr(&self) -> Arc<dyn Expr> {
             Arc::new(self.clone())
@@ -18,7 +18,29 @@ macro_rules! impl_expr_internal_methods {
         fn fmt_expr(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
             write!(f, "{self}")
         }
+
+        impl_expr_internal_methods!(@impl_replace_expr_self $type_name, $has_derivative);
     };
+
+    (@impl_replace_expr_self $type_name:ident, true) => {
+        #[inline]
+        fn replace_expr_self(
+            &self,
+            expr: &Arc<dyn Expr>,
+            replacement: Arc<dyn Expr>,
+        ) -> Result<Arc<dyn Expr>, TinnedError> {
+            if self.derivative.is_empty() {
+                Ok(replacement)
+            } else {
+                let op = downcast_from_arc::<$type_name>(expr).ok_or_else(|| {
+                    unreachable_error(concat!("Expected ", stringify!($type_name)), expr, None)
+                })?;
+                differentiate_expr(&replacement, &self.derivative.complement(&op.derivative))
+            }
+        }
+    };
+
+    (@impl_replace_expr_self $type_name:ident, false) => { }
 }
 
 macro_rules! impl_expr_common_methods {

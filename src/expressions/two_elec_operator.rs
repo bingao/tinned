@@ -9,7 +9,7 @@ use crate::expressions::{MatrixAdd, WfnParameter, ZeroOperator};
 use crate::perturbations::{PertMultichain, Perturbation};
 use crate::public::{
     differentiate_expr, downcast_from_arc, downcast_from_ref, expression_error,
-    generic_expression_error, is_expr_type,
+    generic_expression_error, is_expr_type, unreachable_error,
 };
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -120,7 +120,12 @@ impl TwoElecOperatorBuilder {
 }
 
 impl ExprInternal for TwoElecOperator {
-    impl_expr_internal_methods!(TwoElecOperator);
+    impl_unary_expr_internal_methods!(
+        TwoElecOperator,
+        density,
+        true,
+        |this: &TwoElecOperator, arg| this.with_density(arg).build()
+    );
 
     #[inline]
     fn hash_key(&self) -> String {
@@ -172,7 +177,6 @@ impl Expr for TwoElecOperator {
         TwoElecOperator,
         density,
         False,
-        true,
         |this: &TwoElecOperator, arg| this.with_density(arg).build()
     );
 

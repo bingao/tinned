@@ -37,6 +37,19 @@ impl ExprInternal for ZeroOperator {
     fn hash_key(&self) -> String {
         "ZeroOperator".to_string()
     }
+
+    #[inline]
+    fn retain_expr_fields(
+        &self,
+        _set: &HashSet<Arc<dyn Expr>>,
+        _exact_equality: bool,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        Err(crate::public::unreachable_error(
+            "ZeroOperator::retain_expr_fields() is not expected to be called",
+            &self.clone_expr(),
+            None,
+        ))
+    }
 }
 
 #[typetag::serde]

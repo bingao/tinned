@@ -119,7 +119,12 @@ impl TemporumOperatorBuilder {
 }
 
 impl ExprInternal for TemporumOperator {
-    impl_expr_internal_methods!(TemporumOperator);
+    impl_unary_expr_internal_methods!(
+        TemporumOperator,
+        argument,
+        false,
+        |this: &TemporumOperator, arg| this.with_argument(arg).build()
+    );
 
     #[inline]
     fn hash_key(&self) -> String {
@@ -147,7 +152,6 @@ impl Expr for TemporumOperator {
         TemporumOperator,
         argument,
         False,
-        false,
         |this: &TemporumOperator, arg| this.with_argument(arg).build()
     );
 

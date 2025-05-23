@@ -111,7 +111,18 @@ impl ResidueParameterBuilder {
 }
 
 impl ExprInternal for ResidueParameter {
-    impl_expr_internal_methods!(ResidueParameter);
+    impl_unary_expr_internal_methods!(
+        ResidueParameter,
+        parameter,
+        false,
+        |this: &ResidueParameter, arg| Self::builder(
+            this.perturbations.clone(),
+            this.excited_state.clone(),
+            arg
+        )
+        .positive_frequency(this.positive_frequency)
+        .build()
+    );
 
     #[inline]
     fn hash_key(&self) -> String {
@@ -156,7 +167,6 @@ impl Expr for ResidueParameter {
         ResidueParameter,
         parameter,
         False,
-        false,
         |this: &ResidueParameter, arg| Self::builder(
             this.perturbations.clone(),
             this.excited_state.clone(),

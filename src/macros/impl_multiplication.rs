@@ -6,7 +6,7 @@ macro_rules! impl_mul_traits {
         $fmt_delimiter:ident
     ) => {
         impl ExprInternal for $type_name {
-            impl_expr_internal_methods!($type_name);
+            impl_expr_internal_methods!($type_name, false);
 
             #[inline]
             fn hash_key(&self) -> String {
@@ -17,6 +17,163 @@ macro_rules! impl_mul_traits {
                     $hash_delimiter,
                     multi_expression_hash(&self.factors, $hash_delimiter),
                 )
+            }
+
+            // For unambiguous replacement, we requirement equality for the
+            // whole `Mul` so that we do not override methods
+            // `eq_by_superchains()` and `replace_expr_self()` of
+            // `ExprInternal`.
+
+            fn replace_expr_fields(
+                &self,
+                map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
+                exact_equality: bool,
+            ) -> Result<Arc<dyn Expr>, TinnedError> {
+                impl_mul_traits!(
+                    @mul_termwise_operation
+                    self,
+                    |factor: &Arc<dyn Expr>| factor.replace(map, exact_equality),
+                    concat!(stringify!($type_name), "::replace_expr_fields() failed"),
+                    $is_scalar
+                )
+            }
+
+            fn retain_expr_fields(
+                &self,
+                set: &HashSet<Arc<dyn Expr>>,
+                exact_equality: bool,
+            ) -> Result<Arc<dyn Expr>, TinnedError> {
+                let mut num_changes = 0;
+                // `bool` indicates if the new factor is different from the
+                // original one or not
+                let mut new_factors: Vec<(Arc<dyn Expr>, bool)>
+                    = Vec::with_capacity(self.factors.len());
+
+                for factor in &self.factors {
+                    let new_factor = factor.retain_expr_fields(set, exact_equality).map_err(|e| {
+                        generic_expression_error(
+                            concat!(stringify!($type_name), "::retain_expr_fields() failed"),
+                            self,
+                            Some(Box::new(e)),
+                        )
+                    })?;
+                    // `MatrixMul` or `Mul` will be retained as a whole if this
+                    // factor retains completely.
+                    if &new_factor == factor {
+                        return Ok(self.clone_expr());
+                    // This factor does not match any given ones. We save it in
+                    // case that there is other factor(s) retained.
+                    } else if is_zero_expr(&new_factor, None) {
+                        new_factors.push((factor.clone(), false));
+                    } else {
+                        // Suppose `MatrixMul` is A*B*C*... = (Ak+Ar)*B*C*...,
+                        // where Ak will be kept and Ar will be removed. The
+                        // result after removal will be Ak*B*C*..., or
+                        // A*B*C*... - Ar*B*C*..., where Ar = A - Ak.
+                        new_factors.push((new_factor, true));
+                        num_changes += 1;
+                    }
+                }
+
+                let (new_coef, new_mul) = impl_mul_traits!(
+                    @mul_coef_operation
+                    self.coefficient,
+                    |coef: &Arc<dyn Expr>| coef.retain_expr_fields(set, exact_equality),
+                    concat!(stringify!($type_name), "::retain_expr_fields() failed"),
+                    $is_scalar
+                );
+                // Returns `MatrixMul` or `Mul` as a whole is the coefficient
+                // retains completely.
+                if new_mul == false {
+                    return Ok(self.clone_expr());
+                }
+
+                // The coefficient does not match any expression
+                if is_zero_expr(&new_coef, None) {
+                    match num_changes {
+                        0 => impl_zero_expr!($is_scalar),
+                        1 => {
+                            // Only one factor retains partially, we simply
+                            // return coefficient*Ak*B*C*...
+                            let mut terms: Vec<Arc<dyn Expr>> = new_factors
+                                .into_iter()
+                                .map(|(factor, _changed)| factor)
+                                .collect();
+                            terms.push(
+                                impl_mul_traits!(
+                                    @mul_clone_coefficient
+                                    self.coefficient,
+                                    $is_scalar
+                                )
+                            );
+                            Self::new(terms)
+                        },
+                        // As aforementioned, when there are factors partially
+                        // retained, the result can be computed as
+                        // A*B*C*...*R*S*T*... - Ar*Br*Cr*...*R*S*T*..., where
+                        // Ar, Br, Cr, ... are parts that are removed, R, S, T,
+                        // ...  are those without retained parts.
+                        _ => {
+                            let mut terms: Vec<Arc<dyn Expr>> = new_factors
+                                .into_iter()
+                                .zip(self.factors.iter())
+                                .map(|((factor, changed), original)| {
+                                    if changed {
+                                        subtract_exprs(original.clone(), factor)
+                                    } else {
+                                        Ok(factor)
+                                    }
+                                })
+                                .collect::<Result<Vec<_>, TinnedError>>()?;
+                            terms.push(
+                                impl_mul_traits!(
+                                    @mul_clone_coefficient
+                                    self.coefficient,
+                                    $is_scalar
+                                )
+                            );
+                            subtract_exprs(self.clone_expr(), Self::new(terms)?)
+                        },
+                    }
+                // The coefficient retains partially
+                } else {
+                    match num_changes {
+                        0 => {
+                            // Only the coefficient retains partially, we
+                            // return `new_coef`*A*B*C*...
+                            let mut terms: Vec<Arc<dyn Expr>> = new_factors
+                                .into_iter()
+                                .map(|(factor, _changed)| factor)
+                                .collect();
+                            terms.push(new_coef);
+                            Self::new(terms)
+                        },
+                        _ => {
+                            let mut terms: Vec<Arc<dyn Expr>> = new_factors
+                                .into_iter()
+                                .zip(self.factors.iter())
+                                .map(|((factor, changed), original)| {
+                                    if changed {
+                                        subtract_exprs(original.clone(), factor)
+                                    } else {
+                                        Ok(factor)
+                                    }
+                                })
+                                .collect::<Result<Vec<_>, TinnedError>>()?;
+                            terms.push(
+                                subtract_exprs(
+                                    impl_mul_traits!(
+                                        @mul_clone_coefficient
+                                        self.coefficient,
+                                        $is_scalar
+                                    ),
+                                    new_coef,
+                                )?
+                            );
+                            subtract_exprs(self.clone_expr(), Self::new(terms)?)
+                        },
+                    }
+                }
             }
         }
 
@@ -117,190 +274,6 @@ macro_rules! impl_mul_traits {
                     concat!(stringify!($type_name), "::remove() failed"),
                     $is_scalar
                 )
-            }
-
-            fn replace(
-                &self,
-                map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
-            ) -> Result<Arc<dyn Expr>, TinnedError> {
-                if let Some((_, value)) = map.iter().find(|(key, _)| self.eq_expr(key.as_ref())) {
-                    return Ok(value.clone());
-                }
-
-                impl_mul_traits!(
-                    @mul_termwise_operation
-                    self,
-                    |factor: &Arc<dyn Expr>| factor.replace(map),
-                    concat!(stringify!($type_name), "::replace() failed"),
-                    $is_scalar
-                )
-            }
-
-            fn replace_superchains(
-                &self,
-                map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
-            ) -> Result<Arc<dyn Expr>, TinnedError> {
-                // For unambiguous replacement, we requirement equality for the
-                // whole `Mul`.
-                if let Some((_, value)) = map.iter().find(|(key, _)| self.eq_by_superchains(key)) {
-                    return Ok(value.clone());
-                }
-
-                impl_mul_traits!(
-                    @mul_termwise_operation
-                    self,
-                    |factor: &Arc<dyn Expr>| factor.replace_superchains(map),
-                    concat!(stringify!($type_name), "::replace_superchains() failed"),
-                    $is_scalar
-                )
-            }
-
-            fn retain(
-                &self,
-                set: &HashSet<Arc<dyn Expr>>,
-                exact_equality: bool,
-            ) -> Result<Arc<dyn Expr>, TinnedError> {
-                let found = if exact_equality {
-                    set.iter().any(|expr| self.eq_expr(expr.as_ref()))
-                } else {
-                    set.iter().any(|expr| self.eq_by_superchains(expr))
-                };
-
-                if found {
-                    return Ok(self.clone_expr());
-                }
-
-                let mut num_changes = 0;
-                // `bool` indicates if the new factor is different from the
-                // original one or not
-                let mut new_factors: Vec<(Arc<dyn Expr>, bool)>
-                    = Vec::with_capacity(self.factors.len());
-
-                for factor in &self.factors {
-                    let new_factor = factor.retain(set, exact_equality).map_err(|e| {
-                        generic_expression_error(
-                            concat!(stringify!($type_name), "::retain() failed"),
-                            self,
-                            Some(Box::new(e)),
-                        )
-                    })?;
-                    // `MatrixMul` or `Mul` will be retained as a whole if this
-                    // factor retains completely.
-                    if &new_factor == factor {
-                        return Ok(self.clone_expr());
-                    // This factor does not match any given ones. We save it in
-                    // case that there is other factor(s) retained.
-                    } else if is_zero_expr(&new_factor, None) {
-                        new_factors.push((factor.clone(), false));
-                    } else {
-                        // Suppose `MatrixMul` is A*B*C*... = (Ak+Ar)*B*C*...,
-                        // where Ak will be kept and Ar will be removed. The
-                        // result after removal will be Ak*B*C*..., or
-                        // A*B*C*... - Ar*B*C*..., where Ar = A - Ak.
-                        new_factors.push((new_factor, true));
-                        num_changes += 1;
-                    }
-                }
-
-                let (new_coef, new_mul) = impl_mul_traits!(
-                    @mul_coef_operation
-                    self.coefficient,
-                    |coef: &Arc<dyn Expr>| coef.retain(set, exact_equality),
-                    concat!(stringify!($type_name), "::retain() failed"),
-                    $is_scalar
-                );
-                // Returns `MatrixMul` or `Mul` as a whole is the coefficient
-                // retains completely.
-                if new_mul == false {
-                    return Ok(self.clone_expr());
-                }
-
-                // The coefficient does not match any expression
-                if is_zero_expr(&new_coef, None) {
-                    match num_changes {
-                        0 => impl_zero_expr!($is_scalar),
-                        1 => {
-                            // Only one factor retains partially, we simply
-                            // return coefficient*Ak*B*C*...
-                            let mut terms: Vec<Arc<dyn Expr>> = new_factors
-                                .into_iter()
-                                .map(|(factor, _changed)| factor)
-                                .collect();
-                            terms.push(
-                                impl_mul_traits!(
-                                    @mul_clone_coefficient
-                                    self.coefficient,
-                                    $is_scalar
-                                )
-                            );
-                            Self::new(terms)
-                        },
-                        // As aforementioned, when there are factors partially
-                        // retained, the result can be computed as
-                        // A*B*C*...*R*S*T*... - Ar*Br*Cr*...*R*S*T*..., where
-                        // Ar, Br, Cr, ... are parts that are removed, R, S, T,
-                        // ...  are those without retained parts.
-                        _ => {
-                            let mut terms: Vec<Arc<dyn Expr>> = new_factors
-                                .into_iter()
-                                .zip(self.factors.iter())
-                                .map(|((factor, changed), original)| {
-                                    if changed {
-                                        subtract_exprs(original.clone(), factor)
-                                    } else {
-                                        Ok(factor)
-                                    }
-                                })
-                                .collect::<Result<Vec<_>, TinnedError>>()?;
-                            terms.push(
-                                impl_mul_traits!(
-                                    @mul_clone_coefficient
-                                    self.coefficient,
-                                    $is_scalar
-                                )
-                            );
-                            subtract_exprs(self.clone_expr(), Self::new(terms)?)
-                        },
-                    }
-                // The coefficient retains partially
-                } else {
-                    match num_changes {
-                        0 => {
-                            // Only the coefficient retains partially, we
-                            // return `new_coef`*A*B*C*...
-                            let mut terms: Vec<Arc<dyn Expr>> = new_factors
-                                .into_iter()
-                                .map(|(factor, _changed)| factor)
-                                .collect();
-                            terms.push(new_coef);
-                            Self::new(terms)
-                        },
-                        _ => {
-                            let mut terms: Vec<Arc<dyn Expr>> = new_factors
-                                .into_iter()
-                                .zip(self.factors.iter())
-                                .map(|((factor, changed), original)| {
-                                    if changed {
-                                        subtract_exprs(original.clone(), factor)
-                                    } else {
-                                        Ok(factor)
-                                    }
-                                })
-                                .collect::<Result<Vec<_>, TinnedError>>()?;
-                            terms.push(
-                                subtract_exprs(
-                                    impl_mul_traits!(
-                                        @mul_clone_coefficient
-                                        self.coefficient,
-                                        $is_scalar
-                                    ),
-                                    new_coef,
-                                )?
-                            );
-                            subtract_exprs(self.clone_expr(), Self::new(terms)?)
-                        },
-                    }
-                }
             }
         }
 

@@ -207,7 +207,17 @@ impl TwoElecEnergyBuilder {
 }
 
 impl ExprInternal for TwoElecEnergy {
-    impl_expr_internal_methods!(TwoElecEnergy);
+    impl_binary_expr_internal_methods!(
+        TwoElecEnergy,
+        inner_density,
+        outer_density,
+        true,
+        |this: &TwoElecEnergy, inner_density, outer_density| this
+            .with_inner_density(inner_density)
+            .outer_density(outer_density)
+            .allow_density_swap(this.allow_density_swap)
+            .build()
+    );
 
     #[inline]
     fn hash_key(&self) -> String {
@@ -331,35 +341,6 @@ impl Expr for TwoElecEnergy {
         }
 
         Add::new(terms)
-    }
-
-    #[inline]
-    fn replace_superchains(
-        &self,
-        map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
-    ) -> Result<Arc<dyn Expr>, TinnedError> {
-        if let Some((expr, subs)) = map.iter().find(|(key, _)| self.eq_by_superchains(key)) {
-            return if self.derivative.is_empty() {
-                Ok(subs.clone())
-            } else {
-                let op = downcast_from_arc::<TwoElecEnergy>(&expr)
-                    .ok_or_else(|| unreachable_error("Expected TwoElecEnergy", &expr, None))?;
-                differentiate_expr(subs, &self.derivative.complement(&op.derivative))
-            };
-        }
-
-        impl_binary_expr_arg_operation!(
-            self,
-            inner_density,
-            outer_density,
-            |arg: &Arc<dyn Expr>| arg.replace_superchains(map),
-            "TwoElecEnergy::replace_superchains() failed",
-            |this: &TwoElecEnergy, inner_density, outer_density| this
-                .with_inner_density(inner_density)
-                .outer_density(outer_density)
-                .allow_density_swap(this.allow_density_swap)
-                .build()
-        )
     }
 }
 

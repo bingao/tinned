@@ -130,7 +130,13 @@ impl DotProduct {
 }
 
 impl ExprInternal for DotProduct {
-    impl_expr_internal_methods!(DotProduct);
+    impl_binary_expr_internal_methods!(
+        DotProduct,
+        bra,
+        ket,
+        false,
+        |this: &DotProduct, bra, ket| Self::make_dot_product(bra, ket, this.allow_braket_swap)
+    );
 
     #[inline]
     fn hash_key(&self) -> String {
@@ -171,6 +177,11 @@ impl ExprInternal for DotProduct {
             false
         }
     }
+
+    // For unambiguous replacement, we require equality of `bra` and `ket`, and
+    // make replacement by ignoring derivatives of `bra` and `ket`. So we do
+    // not override methods `eq_by_superchains()` and `replace_expr_self()` of
+    // `ExprInternal`.
 }
 
 #[typetag::serde]
@@ -204,27 +215,6 @@ impl Expr for DotProduct {
             Self::make_dot_product(diff_bra, self.ket.clone(), self.allow_braket_swap)?,
             Self::make_dot_product(self.bra.clone(), diff_ket, self.allow_braket_swap)?,
         ])
-    }
-
-    #[inline]
-    fn replace_superchains(
-        &self,
-        map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
-    ) -> Result<Arc<dyn Expr>, TinnedError> {
-        // For unambiguous replacement, we require equality of `bra` and `ket`,
-        // and make replacement by ignoring derivatives of `bra` and `ket`.
-        if let Some((_, value)) = map.iter().find(|(key, _)| self.eq_by_superchains(key)) {
-            return Ok(value.clone());
-        }
-
-        impl_binary_expr_arg_operation!(
-            self,
-            bra,
-            ket,
-            |arg: &Arc<dyn Expr>| arg.replace_superchains(map),
-            "DotProduct::replace_superchains() failed",
-            |this: &DotProduct, bra, ket| Self::make_dot_product(bra, ket, this.allow_braket_swap)
-        )
     }
 }
 
