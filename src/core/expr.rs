@@ -79,7 +79,7 @@ pub trait Expr: Debug + Send + Sync + ExprInternal {
     // Finds a given expression `s` and all its higher-order "differentiated"
     // ones in the current expression. Here, two terms need to be clarified:
     //
-    // (1) If the expression `s` has derivative, for example, `s`^{a}. Then it
+    // (1) If the expression `s` has derivative, for example, `s`^{a}. Then its
     //     higher-order derivatives exclude lower-order and unrelated objects,
     //     such as `s`, `s`^{b}, or `s`^{c}, where b and c are different from
     //     a. In other words, matched expressions have derivatives that are

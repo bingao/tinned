@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{Add, MatrixAdd, MatrixMul, Mul, Number, Power};
-use crate::perturbations::PertSequence;
-use crate::public::{downcast_from_arc, expression_error, multi_expression_error};
+use crate::perturbations::{PertSequence, Perturbation};
+use crate::public::{downcast_from_arc, expression_error, generic_error, multi_expression_error};
 
 #[inline]
 pub fn negate_expr(expr: Arc<dyn Expr>) -> Result<Arc<dyn Expr>, TinnedError> {
@@ -51,7 +51,7 @@ pub fn differentiate_expr<T: PertSequence>(
     perturbations: &T,
 ) -> Result<Arc<dyn Expr>, TinnedError> {
     let mut result = expr.clone();
-    for pert in perturbations.ordered_perturbations() {
+    for pert in perturbations.as_vec() {
         result = result
             .differentiate(&pert)
             .map_err(|e| expression_error("Differentiation failed", expr, Some(Box::new(e))))?;
@@ -137,7 +137,40 @@ pub fn s_anticommutator(
 pub fn sum_pert_frequencies<T: PertSequence>(
     perturbations: &T,
 ) -> Result<Arc<dyn Expr>, TinnedError> {
-    Add::new(
-        perturbations.ordered_perturbations().into_iter().map(|p| p.frequency().clone()).collect(),
-    )
+    Add::new(perturbations.as_vec().into_iter().map(|p| p.frequency().clone()).collect())
+}
+
+/// Returns complement of perturbations. Note that this method is different
+/// from the method `complement()` of `PertMultichain`, which does not require
+/// the `other` multichain is a subchain of `self`.
+#[inline]
+pub fn perturbation_complement<T: PertSequence>(
+    perturbations: &T,
+    all_perturbations: &T,
+) -> Result<Vec<Arc<Perturbation>>, TinnedError> {
+    let pert_map = perturbations.as_map();
+    let all_pert_map = all_perturbations.as_map();
+
+    // Ensure `perturbations` is a subchain of `all_perturbations`
+    for (pert, &count) in &pert_map {
+        let available = all_pert_map.get(pert).copied().unwrap_or(0);
+        if count > available {
+            return Err(generic_error(
+                format!("Too many occurrences ({count}/{available}) of perturbation {pert}."),
+                None,
+            ));
+        }
+    }
+
+    // Compute the complement
+    let mut complement = Vec::new();
+    for (pert, &all_count) in &all_pert_map {
+        let used_count = pert_map.get(pert).copied().unwrap_or(0);
+        let remaining = all_count - used_count;
+        for _ in 0..remaining {
+            complement.push(pert.clone());
+        }
+    }
+
+    Ok(complement)
 }
