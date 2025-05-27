@@ -120,7 +120,7 @@ impl PertMultichain {
             pert_map
         };
 
-        let map = self.0.lock().unwrap().clone();
+        let map = self.0.lock().unwrap();
 
         submap.iter().all(|(p, &order)| map.get(p).copied().unwrap_or(0) >= order)
     }
@@ -140,8 +140,8 @@ impl PertMultichain {
     /// keys (i.e., their keys intersect).
     #[inline]
     pub fn has_overlap(&self, other: &PertMultichain) -> bool {
-        let self_map = self.0.lock().unwrap();
-        let other_map = other.0.lock().unwrap();
+        let self_map = self.0.lock().unwrap().clone();
+        let other_map = other.0.lock().unwrap().clone();
 
         self_map.keys().any(|k| other_map.contains_key(k))
     }
@@ -155,8 +155,8 @@ impl PertMultichain {
     /// (3) Any perturbation only in `other` is ignored.
     #[inline]
     pub fn complement(&self, other: &PertMultichain) -> Vec<Arc<Perturbation>> {
-        let self_map = self.0.lock().unwrap();
-        let other_map = other.0.lock().unwrap();
+        let self_map = self.0.lock().unwrap().clone();
+        let other_map = other.0.lock().unwrap().clone();
 
         let mut result = Vec::new();
 
