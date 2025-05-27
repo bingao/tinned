@@ -136,6 +136,23 @@ impl PertMultichain {
         map.iter().all(|(p, &order)| supermap.get(p).copied().unwrap_or(0) >= order)
     }
 
+    /// Similar to the function `is_superchain` but takes the `superchain` in a
+    /// vector of `Arc<Perturbation>`.
+    #[inline]
+    pub fn is_superchain_vec(&self, superchain: &[Arc<Perturbation>]) -> bool {
+        let supermap: BTreeMap<_, u32> = {
+            let mut pert_map = BTreeMap::new();
+            for pert in superchain {
+                *pert_map.entry(pert.clone()).or_insert(0) += 1;
+            }
+            pert_map
+        };
+
+        let map = self.0.lock().unwrap();
+
+        map.iter().all(|(p, &order)| supermap.get(p).copied().unwrap_or(0) >= order)
+    }
+
     /// Checks if two `PertMultichains` share any common `Arc<Perturbation>`
     /// keys (i.e., their keys intersect).
     #[inline]
