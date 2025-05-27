@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use float_cmp::approx_eq;
@@ -315,6 +315,15 @@ impl ExprInternal for Number {
             Number::Complex(z) => format!("Complex({})", z),
             Number::Fraction(r) => format!("Fraction({}/{})", r.numer(), r.denom()),
         }
+    }
+
+    #[inline]
+    fn replace_expr_fields(
+        &self,
+        _map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
+        _exact_equality: bool,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        Ok(self.clone_expr())
     }
 
     #[inline]

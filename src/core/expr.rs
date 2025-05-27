@@ -34,6 +34,9 @@ pub trait Expr: Debug + Send + Sync + ExprInternal {
     // Returns if an expression is scalar.
     fn is_scalar(&self) -> bool;
 
+    // Make a clone of an expression.
+    fn clone_expr(&self) -> Arc<dyn Expr>;
+
     // Cleans `TemporumOperator` and unperturbed `TemporumOverlap` objects.
     #[inline]
     fn clean_temporum(

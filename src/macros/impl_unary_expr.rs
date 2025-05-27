@@ -126,6 +126,11 @@ macro_rules! impl_unary_expr_common_methods {
         impl_unary_expr_common_methods!(@unary_is_scalar $arg_field, $type_scalar);
 
         #[inline]
+        fn clone_expr(&self) -> Arc<dyn Expr> {
+            Arc::new(self.clone())
+        }
+
+        #[inline]
         fn eliminate(
             &self,
             parameter: &Arc<dyn Expr>,

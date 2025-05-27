@@ -6,9 +6,6 @@ pub(crate) mod sealed {
     use crate::core::TinnedError;
 
     pub trait ExprInternal {
-        // Make a clone of an expression.
-        fn clone_expr(&self) -> Arc<dyn crate::core::expr::Expr>;
-
         // Compares equality for two expressions.
         fn eq_expr(&self, other: &dyn crate::core::expr::Expr) -> bool;
 
@@ -68,9 +65,7 @@ pub(crate) mod sealed {
             &self,
             _map: &HashMap<Arc<dyn crate::core::expr::Expr>, Arc<dyn crate::core::expr::Expr>>,
             _exact_equality: bool,
-        ) -> Result<Arc<dyn crate::core::expr::Expr>, TinnedError> {
-            Ok(self.clone_expr())
-        }
+        ) -> Result<Arc<dyn crate::core::expr::Expr>, TinnedError>;
 
         // Performs `retain()` method on the expression's field(s) if it has any.
         fn retain_expr_fields(

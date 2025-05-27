@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use typetag;
@@ -18,11 +18,6 @@ impl ZeroOperator {
 
 impl ExprInternal for ZeroOperator {
     #[inline]
-    fn clone_expr(&self) -> Arc<dyn Expr> {
-        Arc::new(self.clone())
-    }
-
-    #[inline]
     fn eq_expr(&self, other: &dyn Expr) -> bool {
         other.as_any().downcast_ref::<ZeroOperator>().is_some()
     }
@@ -36,6 +31,15 @@ impl ExprInternal for ZeroOperator {
     #[inline]
     fn hash_key(&self) -> String {
         "ZeroOperator".to_string()
+    }
+
+    #[inline]
+    fn replace_expr_fields(
+        &self,
+        _map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
+        _exact_equality: bool,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        Ok(self.clone_expr())
     }
 
     #[inline]

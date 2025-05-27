@@ -1,11 +1,6 @@
 macro_rules! impl_expr_internal_methods {
     ($type_name:ident, $has_derivative:tt) => {
         #[inline]
-        fn clone_expr(&self) -> Arc<dyn Expr> {
-            Arc::new(self.clone())
-        }
-
-        #[inline]
         fn eq_expr(&self, other: &dyn Expr) -> bool {
             if let Some(expr) = downcast_from_ref::<$type_name>(other) {
                 self == expr
@@ -53,6 +48,11 @@ macro_rules! impl_expr_common_methods {
         #[inline]
         fn is_scalar(&self) -> bool {
             $is_scalar
+        }
+
+        #[inline]
+        fn clone_expr(&self) -> Arc<dyn Expr> {
+            Arc::new(self.clone())
         }
     };
 }

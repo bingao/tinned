@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use typetag;
@@ -34,6 +34,15 @@ impl ExprInternal for Symbol {
     #[inline]
     fn hash_key(&self) -> String {
         format!("Symbol({})", self.name)
+    }
+
+    #[inline]
+    fn replace_expr_fields(
+        &self,
+        _map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
+        _exact_equality: bool,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        Ok(self.clone_expr())
     }
 
     #[inline]
