@@ -5,7 +5,7 @@ use typetag;
 
 use crate::core::expr_internal::sealed::ExprInternal;
 use crate::core::{Expr, TinnedError};
-use crate::expressions::{AdjointMap, MatrixAdd, ZeroOperator};
+use crate::expressions::{AdjointMap, MatrixAdd, TemporumOperator, ZeroOperator};
 use crate::internal::intern_expr;
 use crate::perturbations::{PertMultichain, Perturbation};
 use crate::public::{
@@ -20,6 +20,7 @@ use crate::public::{
 pub struct ExpAdjointMap {
     generator: Arc<dyn Expr>,
     target: Arc<dyn Expr>,
+    is_temporum: bool,
     left_action: bool,
     max_fold: u32,
     is_zero_strength: bool,
@@ -34,6 +35,27 @@ impl ExpAdjointMap {
         ExpAdjointMapBuilder {
             generator,
             target,
+            is_temporum: false,
+            left_action: None,
+            max_fold: None,
+            is_zero_strength: Some(false),
+            result: None,
+            derivative: None,
+        }
+    }
+
+    #[inline]
+    pub fn builder_temporum(generator: Arc<dyn Expr>, is_forward: bool) -> ExpAdjointMapBuilder {
+        let target =
+            match TemporumOperator::builder(generator.clone()).is_forward(is_forward).build() {
+                Ok(e) => e,
+                Err(e) => panic!("ExpAdjointMap::builder_temporum() encounters: {e}"),
+            };
+
+        ExpAdjointMapBuilder {
+            generator,
+            target,
+            is_temporum: true,
             left_action: None,
             max_fold: None,
             is_zero_strength: Some(false),
@@ -51,6 +73,7 @@ impl ExpAdjointMap {
         ExpAdjointMapBuilder {
             generator: self.generator.clone(),
             target: self.target.clone(),
+            is_temporum: self.is_temporum,
             left_action: Some(self.left_action),
             max_fold: Some(self.max_fold),
             is_zero_strength,
@@ -68,6 +91,7 @@ impl ExpAdjointMap {
         ExpAdjointMapBuilder {
             generator: self.generator.clone(),
             target: self.target.clone(),
+            is_temporum: self.is_temporum,
             left_action: Some(self.left_action),
             max_fold: Some(self.max_fold),
             is_zero_strength: Some(self.is_zero_strength),
@@ -84,6 +108,11 @@ impl ExpAdjointMap {
     #[inline]
     pub fn target(&self) -> &Arc<dyn Expr> {
         &self.target
+    }
+
+    #[inline]
+    pub fn is_temporum(&self) -> bool {
+        self.is_temporum
     }
 
     #[inline]
@@ -116,6 +145,7 @@ impl ExpAdjointMap {
 pub struct ExpAdjointMapBuilder {
     generator: Arc<dyn Expr>,
     target: Arc<dyn Expr>,
+    is_temporum: bool,
     left_action: Option<bool>,
     max_fold: Option<u32>,
     is_zero_strength: Option<bool>,
@@ -188,6 +218,7 @@ impl ExpAdjointMapBuilder {
         Ok(intern_expr(Arc::new(ExpAdjointMap {
             generator: self.generator,
             target: self.target,
+            is_temporum: self.is_temporum,
             left_action,
             max_fold,
             is_zero_strength,
@@ -205,12 +236,13 @@ impl ExprInternal for ExpAdjointMap {
     #[inline]
     fn hash_key(&self) -> String {
         format!(
-            "ExpAdjointMap({}; {}; {}; {}; {}; {}; [{}])",
+            "ExpAdjointMap({}; {}; {}; {}; {}; {}; {}; [{}])",
             self.left_action,
             self.max_fold,
             self.is_zero_strength,
             self.generator.hash_key(),
             self.target.hash_key(),
+            self.is_temporum,
             self.result.hash_key(),
             self.derivative.hash_key(),
         )
@@ -229,6 +261,7 @@ impl ExprInternal for ExpAdjointMap {
             self.max_fold == op.max_fold
                 && self.generator.deep_eq_superchains(&op.generator)
                 && self.target.deep_eq_superchains(&op.target)
+                && self.is_temporum == op.is_temporum
                 && self.derivative.is_subchain(&op.derivative)
         } else {
             false
@@ -243,6 +276,7 @@ impl ExprInternal for ExpAdjointMap {
                 && self.is_zero_strength == op.is_zero_strength
                 && &self.generator == &op.generator
                 && &self.target == &op.target
+                && self.is_temporum == op.is_temporum
                 && self.derivative.is_subchain(&op.derivative)
         } else {
             false
@@ -276,6 +310,7 @@ impl Expr for ExpAdjointMap {
         self.with_result(result, Some(true)).build()
     }
 
+    // Equation (47)
     fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
         // `result` is (i) an `MatrixAdd` of `AdjointMap`'s and differentiated
         // `target`, or (ii) undifferentiated `target`.  We first differentiate
@@ -289,6 +324,18 @@ impl Expr for ExpAdjointMap {
                 Some(Box::new(e)),
             )
         })?;
+
+        // The first order derivative must be performed on the temporum
+        // operator +/-i*d/dt
+        if self.is_temporum && self.derivative.is_empty() {
+            return if is_expr_type::<ZeroOperator>(&diff_result) {
+                Ok(diff_result)
+            } else {
+                let slice: &[Arc<Perturbation>] = std::slice::from_ref(s);
+                self.with_result_and_derivative(diff_result, PertMultichain::from_slice(slice))
+                    .build()
+            };
+        }
 
         // For each previous differentiated `AdjointMap` and (un)differentiated
         // `target`, we can also introduce a new `generator` that is
@@ -316,6 +363,8 @@ impl Expr for ExpAdjointMap {
             terms.push(diff_result);
         }
 
+        // `ad_maps` contains `AdjointMap`'s that should be extracted from the
+        // exponential adjoint map due to maximum folds of commutators
         let mut ad_maps = Vec::new();
 
         if let Some(mat_add) = downcast_from_arc::<MatrixAdd>(&self.result) {
@@ -362,6 +411,7 @@ impl PartialEq for ExpAdjointMap {
         // We also compare `result`, which may change after `clean_temporum()`
         &self.generator == &other.generator
             && &self.target == &other.target
+            && self.is_temporum == other.is_temporum
             && self.left_action == other.left_action
             && self.max_fold == other.max_fold
             && self.is_zero_strength == other.is_zero_strength
