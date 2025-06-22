@@ -66,6 +66,11 @@ impl Number {
     }
 
     #[inline]
+    pub fn imaginary_unit() -> Arc<dyn Expr> {
+        intern_expr(Arc::new(Number::Complex(Complex64::new(0.0, 1.0))))
+    }
+
+    #[inline]
     pub fn is_zero(&self, num_tol: Option<NumberTolerance>) -> bool {
         self.approx_eq_number(&Number::Integer(0), num_tol)
     }
