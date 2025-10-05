@@ -1,25 +1,4 @@
-[package]
-name = "tinned"
-version = "0.1.0"
-edition = "2024"
-
-[dependencies]
-dashmap = "5.4"
-float-cmp = "0.9"
-lazy_static = "1.4"
-num-complex = { version = "0.4", features = ["serde"] }
-num-rational = { version = "0.4", features = ["serde"] }
-num-traits = "0.2"
-once_cell = "1.21.3"
-serde = { version = "1.0", features = ["derive", "rc"] }
-serde_json = "1.0"
-thiserror = "2.0.12"
-typetag = "0.2"
-
-[dev-dependencies]
-num-integer = "0.1"
-rand = "0.9"
-
-[lib]
-name = "tinned"
-path = "src/lib.rs"
+[workspace]
+members = ["tinned_lib", "tinned_clib"]
+default-members = ["tinned_lib"]
+resolver = "3"

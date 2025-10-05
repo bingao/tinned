@@ -508,37 +508,9 @@ mod tests {
         assert!(!cmplx.is_one(Some(tol.clone())));
 
         let n1: i64 = random_range(-100..=100);
-        let f1: f64 = random_range(-100.0..=100.0);
-
-        assert_eq!(Number::Integer(n1).hash_key(), format!("Integer({n1})"));
-        assert_eq!(Number::Real(f1).hash_key(), format!("Real({f1})"));
-
-        let f2: f64 = random_range(-100.0..=100.0);
-        if f2 >= 0.0 {
-            assert_eq!(
-                Number::Complex(Complex64::new(f1, f2)).hash_key(),
-                format!("Complex({f1}+{f2}i)")
-            );
-        } else {
-            assert_eq!(
-                Number::Complex(Complex64::new(f1, f2)).hash_key(),
-                format!("Complex({f1}{f2}i)")
-            );
-        }
-
         let n2: i64 = random_range(1..=100);
-        let g = n1.gcd(&n2);
-        let new_n1 = n1 / g;
-        let new_n2 = n2 / g;
-        assert_eq!(
-            Number::Fraction(Rational64::new(n1, n2)).hash_key(),
-            format!("Fraction({new_n1}/{new_n2})")
-        );
-
-        assert!(Number::Integer(n1).is_scalar());
-        assert!(Number::Real(f1).is_scalar());
-        assert!(Number::Complex(Complex64::new(f1, f2)).is_scalar());
-        assert!(Number::Fraction(Rational64::new(n1, n2)).is_scalar());
+        let f1: f64 = random_range(-100.0..=100.0);
+        let f2: f64 = random_range(-100.0..=100.0);
 
         assert_eq!(Number::Integer(n1), Number::Integer(n1));
         assert_eq!(Number::Integer(n1), Number::Real(n1 as f64));
@@ -552,13 +524,26 @@ mod tests {
             Number::Fraction(Rational64::new(n1, n2)),
             Number::Fraction(Rational64::new(n1, n2))
         );
+    }
 
-        assert_eq!(format!("{}", Number::Integer(n1)), n1.to_string());
-        assert_eq!(format!("{}", Number::Real(f1)), f1.to_string());
-        assert_eq!(format!("{}", Number::Complex(Complex64::new(f1, f2))), format!("{f1} + {f2}i"));
+    #[test]
+    fn test_negate() {
+        let n1: i64 = random_range(-100..=100);
+        assert_eq!(Number::Integer(n1).negate(), Number::Integer(-n1));
+
+        let f1: f64 = random_range(-100.0..=100.0);
+        assert_eq!(Number::Real(f1).negate(), Number::Real(-f1));
+
+        let f2: f64 = random_range(-100.0..=100.0);
         assert_eq!(
-            format!("{}", Number::Fraction(Rational64::new(n1, n2))),
-            format!("{new_n1}/{new_n2}")
+            Number::Complex(Complex64::new(f1, f2)).negate(),
+            Number::Complex(Complex64::new(-f1, -f2))
+        );
+
+        let n2: i64 = random_range(1..=100);
+        assert_eq!(
+            Number::Fraction(Rational64::new(n1, n2)).negate(),
+            Number::Fraction(Rational64::new(-n1, n2))
         );
     }
 
@@ -741,7 +726,7 @@ mod tests {
         );
     }
 
-    // Implementation for Expr
+    // Implementation for ExprInternal and Expr
     #[test]
     fn test_impl_expr() {
         let n1: i64 = random_range(-100..=100);
@@ -754,6 +739,21 @@ mod tests {
         let cmplx: Arc<dyn Expr> = Number::Complex(Complex64::new(f1, f2)).into();
         let frac: Arc<dyn Expr> = Number::Fraction(Rational64::new(n1, n2)).into();
 
+        assert_eq!(&int, &Number::from_i64(n1));
+        assert_eq!(&real, &Number::from_f64(f1));
+        assert_eq!(&cmplx, &Number::from_complex(Complex64::new(f1, f2)));
+        assert_eq!(&frac, &Number::from_rational(Rational64::new(n1, n2)));
+
+        assert_eq!(format!("{}", int), n1.to_string());
+        assert_eq!(format!("{}", real), f1.to_string());
+        assert_eq!(format!("{}", cmplx), format!("{f1} + {f2}i"));
+
+        let g = n1.gcd(&n2);
+        let new_n1 = n1 / g;
+        let new_n2 = n2 / g;
+
+        assert_eq!(format!("{}", frac), format!("{new_n1}/{new_n2}"));
+
         assert_eq!(int.hash_key(), format!("Integer({n1})"));
         assert_eq!(real.hash_key(), format!("Real({f1})"));
 
@@ -763,25 +763,60 @@ mod tests {
             assert_eq!(cmplx.hash_key(), format!("Complex({f1}{f2}i)"));
         }
 
-        let g = n1.gcd(&n2);
-        let new_n1 = n1 / g;
-        let new_n2 = n2 / g;
         assert_eq!(frac.hash_key(), format!("Fraction({new_n1}/{new_n2})"));
+
+        assert!(int.total_order() == 0);
+        assert!(real.total_order() == 0);
+        assert!(cmplx.total_order() == 0);
+        assert!(frac.total_order() == 0);
+
+        assert!(int.deep_eq_superchains(&int));
+        assert!(!int.deep_eq_superchains(&real));
+        assert!(!int.deep_eq_superchains(&cmplx));
+        assert!(!int.deep_eq_superchains(&frac));
+        assert!(!real.deep_eq_superchains(&int));
+        assert!(real.deep_eq_superchains(&real));
+        assert!(!real.deep_eq_superchains(&cmplx));
+        assert!(!real.deep_eq_superchains(&frac));
+        assert!(!cmplx.deep_eq_superchains(&int));
+        assert!(!cmplx.deep_eq_superchains(&real));
+        assert!(cmplx.deep_eq_superchains(&cmplx));
+        assert!(!cmplx.deep_eq_superchains(&frac));
+        assert!(!frac.deep_eq_superchains(&int));
+        assert!(!frac.deep_eq_superchains(&real));
+        assert!(!frac.deep_eq_superchains(&cmplx));
+        assert!(frac.deep_eq_superchains(&frac));
+
+        assert!(int.eq_by_superchains(&int));
+        assert!(!int.eq_by_superchains(&real));
+        assert!(!int.eq_by_superchains(&cmplx));
+        assert!(!int.eq_by_superchains(&frac));
+        assert!(!real.eq_by_superchains(&int));
+        assert!(real.eq_by_superchains(&real));
+        assert!(!real.eq_by_superchains(&cmplx));
+        assert!(!real.eq_by_superchains(&frac));
+        assert!(!cmplx.eq_by_superchains(&int));
+        assert!(!cmplx.eq_by_superchains(&real));
+        assert!(cmplx.eq_by_superchains(&cmplx));
+        assert!(!cmplx.eq_by_superchains(&frac));
+        assert!(!frac.eq_by_superchains(&int));
+        assert!(!frac.eq_by_superchains(&real));
+        assert!(!frac.eq_by_superchains(&cmplx));
+        assert!(frac.eq_by_superchains(&frac));
+
+        assert_eq!(&int.replace_expr_self().unwrap(), &int);
+        assert_eq!(&real.replace_expr_self().unwrap(), &real);
+        assert_eq!(&cmplx.replace_expr_self().unwrap(), &cmplx);
+        assert_eq!(&frac.replace_expr_self().unwrap(), &frac);
+
+        //replace_expr_self
+        //replace_expr_fields
+        //retain_expr_fields
 
         assert!(int.is_scalar());
         assert!(real.is_scalar());
         assert!(cmplx.is_scalar());
         assert!(frac.is_scalar());
-
-        assert_eq!(&int, &Number::from_i64(n1));
-        assert_eq!(&real, &Number::from_f64(f1));
-        assert_eq!(&cmplx, &Number::from_complex(Complex64::new(f1, f2)));
-        assert_eq!(&frac, &Number::from_rational(Rational64::new(n1, n2)));
-
-        assert_eq!(format!("{}", int), n1.to_string());
-        assert_eq!(format!("{}", real), f1.to_string());
-        assert_eq!(format!("{}", cmplx), format!("{f1} + {f2}i"));
-        assert_eq!(format!("{}", frac), format!("{new_n1}/{new_n2}"));
     }
 
     #[test]
@@ -823,7 +858,7 @@ mod tests {
         assert_eq!(&n, &recovered);
     }
 
-    // Test utils: interning, downcast, type and identity check
+    // Test internal and public utils
     #[test]
     fn test_utils() {
         let n1: i64 = random_range(-100..=100);

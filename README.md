@@ -17,14 +17,11 @@ Tinned is licensed under Mozilla Public License Version 2.0, see the
 
 ## Installation
 
-Both SymEngine and Tinned require CMake and C++ compiler which supports C++11
-standard.
+For Rust library, run `cargo build -p tinned_lib --release`.
 
-Clone and build [forked SymEngine library](https://github.com/bingao/symengine)
-first, which has implmented derivatives for different matrix expressions.
+If you want C library, use `cargo build -p tinned_clib --release`.
 
-Then clone Tinned library and build it by setting `SymEngine_DIR` to the
-SymEngine installation or build directory.
+Optionally, `cbindgen tinned_clib --output tinned_clib/include/tinned.h`.
 
 ## Tinned APIs
 
