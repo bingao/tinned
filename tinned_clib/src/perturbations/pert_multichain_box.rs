@@ -11,6 +11,16 @@ pub struct PertMultichainBox {
 
 impl PertMultichainBox {
     #[inline]
+    pub(crate) fn new<T>(chain: T) -> Self
+    where
+        T: Into<Arc<PertMultichain>>,
+    {
+        Self {
+            inner: chain.into(),
+        }
+    }
+
+    #[inline]
     pub(crate) fn arc_clone(&self) -> Arc<PertMultichain> {
         Arc::clone(&self.inner)
     }
@@ -24,15 +34,11 @@ impl PertMultichainBox {
     pub(crate) fn as_arc_mut(&mut self) -> &mut Arc<PertMultichain> {
         &mut self.inner
     }
-}
 
-#[inline]
-pub(crate) fn pert_multichain_box_from<T: Into<Arc<PertMultichain>>>(
-    chain: T,
-) -> *mut PertMultichainBox {
-    Box::into_raw(Box::new(PertMultichainBox {
-        inner: chain.into(),
-    }))
+    #[inline]
+    pub(crate) fn into_raw(self) -> *mut PertMultichainBox {
+        Box::into_raw(Box::new(self))
+    }
 }
 
 // Borrows `&PertMultichain` or sets an error.

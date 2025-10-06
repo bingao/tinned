@@ -7,17 +7,22 @@ pub struct TinnedErrorBox {
 
 impl TinnedErrorBox {
     #[inline]
+    pub(crate) fn new(err: TinnedError) -> Self {
+        Self {
+            inner: err,
+        }
+    }
+
+    #[inline]
     pub(crate) fn as_ref(&self) -> &TinnedError {
         &self.inner
     }
-}
 
-// Internal: box -> raw pointer
-#[inline]
-fn error_box_from(err: TinnedError) -> *mut TinnedErrorBox {
-    Box::into_raw(Box::new(TinnedErrorBox {
-        inner: err,
-    }))
+    // Turn this box into a raw pointer for FFI returns
+    #[inline]
+    pub(crate) fn into_raw(self) -> *mut TinnedErrorBox {
+        Box::into_raw(Box::new(self))
+    }
 }
 
 // Internal: fill an out-err pointer (used by FFI entrypoints)
@@ -26,7 +31,9 @@ pub(crate) fn set_out_err(out_err: *mut *mut TinnedErrorBox, err: TinnedError) {
     if out_err.is_null() {
         return;
     }
+    let h = TinnedErrorBox::new(err).into_raw();
+    // With `#![deny(unsafe_op_in_unsafe_fn)]`, keep an explicit unsafe block.
     unsafe {
-        *out_err = error_box_from(err);
+        *out_err = h;
     }
 }

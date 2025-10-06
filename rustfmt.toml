@@ -1,5 +1,5 @@
 # --- General Style ---
-edition = "2021"
+edition = "2024"
 max_width = 100  # You can increase this if you prefer wider lines
 hard_tabs = false
 tab_spaces = 4

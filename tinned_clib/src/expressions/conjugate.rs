@@ -4,7 +4,7 @@ use tinned::expressions::Conjugate;
 use tinned::public::generic_error;
 
 use crate::c_support::with_downcast_expr_res;
-use crate::core::{ExprBox, TinnedErrorBox, expr_box_from, set_out_err};
+use crate::core::{ExprBox, TinnedErrorBox, set_out_err};
 
 #[unsafe(no_mangle)]
 pub extern "C" fn tinned_conjugate_new(
@@ -18,7 +18,7 @@ pub extern "C" fn tinned_conjugate_new(
     let argument = unsafe { (&*argument_ptr).arc_clone() };
 
     match Conjugate::new(argument) {
-        Ok(expr) => expr_box_from(expr),
+        Ok(expr) => ExprBox::new(expr).into_raw(),
         Err(e) => {
             set_out_err(out_err, e);
             null_mut()

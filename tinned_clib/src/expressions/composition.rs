@@ -6,7 +6,7 @@ use tinned::public::generic_error;
 use crate::c_support::{
     cstr_to_string, with_downcast_cstr, with_downcast_expr_res, with_downcast_val,
 };
-use crate::core::{ExprBox, TinnedErrorBox, expr_box_from, set_out_err};
+use crate::core::{ExprBox, TinnedErrorBox, set_out_err};
 
 #[unsafe(no_mangle)]
 pub extern "C" fn tinned_composition_new(
@@ -29,7 +29,7 @@ pub extern "C" fn tinned_composition_new(
     let inner = unsafe { (&*inner_ptr).arc_clone() };
 
     match Composition::new(name, order, inner) {
-        Ok(expr) => expr_box_from(expr),
+        Ok(expr) => ExprBox::new(expr).into_raw(),
         Err(e) => {
             set_out_err(out_err, e);
             null_mut()

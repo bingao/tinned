@@ -11,6 +11,13 @@ pub struct PerturbationBox {
 
 impl PerturbationBox {
     #[inline]
+    pub(crate) fn new(pert: Arc<Perturbation>) -> Self {
+        Self {
+            inner: pert,
+        }
+    }
+
+    #[inline]
     pub(crate) fn arc_clone(&self) -> Arc<Perturbation> {
         Arc::clone(&self.inner)
     }
@@ -19,14 +26,12 @@ impl PerturbationBox {
     pub(crate) fn as_ref(&self) -> &Perturbation {
         self.inner.as_ref()
     }
-}
 
-// Allocates from an existing `Arc<Perturbation>`.
-#[inline]
-pub(crate) fn perturbation_box_from(pert: Arc<Perturbation>) -> *mut PerturbationBox {
-    Box::into_raw(Box::new(PerturbationBox {
-        inner: pert,
-    }))
+    // Turn this handle into a raw pointer for FFI returns
+    #[inline]
+    pub(crate) fn into_raw(self) -> *mut PerturbationBox {
+        Box::into_raw(Box::new(self))
+    }
 }
 
 // Borrows `&Perturbation` or sets an error.

@@ -4,19 +4,19 @@ use tinned::core::Expr;
 use tinned::public::generic_error;
 
 use crate::c_support::{cstr_to_string, to_cstring};
-use crate::core::{ExprBox, TinnedErrorBox, expr_box_from, set_out_err, with_expr_or_err};
+use crate::core::{ExprBox, TinnedErrorBox, set_out_err, with_expr_or_err};
 
 // Clones the `Arc` inside `ExprBox`, increase the strong count, and return a
 // new pointer to a freshly boxed ExprBox that points to the same underlying
 // Rust object. Must eventually call `tinned_expr_unref()` on the returned
 // pointer.
 #[unsafe(no_mangle)]
-pub extern "C" fn tinned_expr_ref(h: *mut ExprBox) -> *mut ExprBox {
+pub extern "C" fn tinned_expr_ref(h: *const ExprBox) -> *mut ExprBox {
     if h.is_null() {
         return null_mut();
     }
     let expr = unsafe { &*h }.arc_clone();
-    expr_box_from(expr)
+    ExprBox::new(expr).into_raw()
 }
 
 // Drops `ExprBox`. That in turn drops one `Arc<dyn Expr>` strong reference.
@@ -88,7 +88,7 @@ pub extern "C" fn tinned_expr_deserialize_json(json: *const c_char) -> *mut Expr
         None => return null_mut(),
     };
     match serde_json::from_str::<Arc<dyn Expr>>(&s) {
-        Ok(arc) => expr_box_from(arc),
+        Ok(arc) => ExprBox::new(arc).into_raw(),
         Err(_) => null_mut(),
     }
 }

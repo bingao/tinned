@@ -17,9 +17,9 @@ Tinned is licensed under Mozilla Public License Version 2.0, see the
 
 ## Installation
 
-For Rust library, run `cargo build -p tinned_lib --release`.
+For Rust library, run `cargo build-lib`, or `cargo build -p tinned_lib --release`.
 
-If you want C library, use `cargo build -p tinned_clib --release`.
+If you want C library, use `cargo build-clib` or `cargo build -p tinned_clib --release`.
 
 Optionally, `cbindgen tinned_clib --output tinned_clib/include/tinned.h`.
 

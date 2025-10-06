@@ -35,12 +35,12 @@ impl ExprBox {
     pub(crate) fn as_arc(&self) -> &Arc<dyn Expr> {
         &self.inner
     }
-}
 
-// Allocates from an existing `Arc<dyn Expr>`
-#[inline]
-pub(crate) fn expr_box_from(expr: Arc<dyn Expr>) -> *mut ExprBox {
-    Box::into_raw(Box::new(ExprBox::new(expr)))
+    // Converts to raw for FFI boundaries
+    #[inline]
+    pub(crate) fn into_raw(self) -> *mut ExprBox {
+        Box::into_raw(Box::new(self))
+    }
 }
 
 // Borrows `&Arc<dyn Expr>` safely from a raw handle. Returns `None` if `h` is `NULL`.

@@ -4,7 +4,7 @@ use tinned::expressions::Add;
 use tinned::public::generic_error;
 
 use crate::c_support::{with_downcast_expr_res, with_downcast_val};
-use crate::core::{ExprBox, TinnedErrorBox, expr_box_from, set_out_err, vec_expr_from_ptrs};
+use crate::core::{ExprBox, TinnedErrorBox, set_out_err, vec_expr_from_ptrs};
 
 #[unsafe(no_mangle)]
 pub extern "C" fn tinned_add_new(
@@ -20,7 +20,7 @@ pub extern "C" fn tinned_add_new(
     };
 
     match Add::new(terms) {
-        Ok(expr) => expr_box_from(expr),
+        Ok(expr) => ExprBox::new(expr).into_raw(),
         Err(e) => {
             set_out_err(out_err, e);
             null_mut()

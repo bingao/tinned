@@ -4,7 +4,7 @@ use tinned::expressions::DotProduct;
 use tinned::public::generic_error;
 
 use crate::c_support::{with_downcast_expr_res, with_downcast_val};
-use crate::core::{ExprBox, TinnedErrorBox, expr_box_from, set_out_err};
+use crate::core::{ExprBox, TinnedErrorBox, set_out_err};
 
 #[unsafe(no_mangle)]
 pub extern "C" fn tinned_dot_product_new(
@@ -22,7 +22,7 @@ pub extern "C" fn tinned_dot_product_new(
     let ket = unsafe { (&*ket_ptr).arc_clone() };
 
     match DotProduct::new(bra, use_hermitian, ket, allow_braket_swap) {
-        Ok(expr) => expr_box_from(expr),
+        Ok(expr) => ExprBox::new(expr).into_raw(),
         Err(e) => {
             set_out_err(out_err, e);
             null_mut()

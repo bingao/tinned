@@ -6,8 +6,7 @@ use tinned::public::generic_error;
 use crate::c_support::to_cstring;
 use crate::core::{TinnedErrorBox, set_out_err};
 use crate::perturbations::{
-    PertMultichainBox, PerturbationBox, pert_multichain_box_from, vec_pert_from_ptrs,
-    with_pert_multichain_or_err,
+    PertMultichainBox, PerturbationBox, vec_pert_from_ptrs, with_pert_multichain_or_err,
 };
 
 #[unsafe(no_mangle)]
@@ -16,7 +15,7 @@ pub extern "C" fn tinned_pert_multichain_ref(h: *mut PertMultichainBox) -> *mut 
         return null_mut();
     }
     let chain = unsafe { &*h }.arc_clone();
-    pert_multichain_box_from(chain)
+    PertMultichainBox::new(chain).into_raw()
 }
 
 #[unsafe(no_mangle)]
@@ -31,7 +30,7 @@ pub extern "C" fn tinned_pert_multichain_unref(h: *mut PertMultichainBox) {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn tinned_pert_multichain_new() -> *mut PertMultichainBox {
-    pert_multichain_box_from(PertMultichain::new())
+    PertMultichainBox::new(PertMultichain::new()).into_raw()
 }
 
 #[unsafe(no_mangle)]
@@ -53,7 +52,7 @@ pub extern "C" fn tinned_pert_multichain_from_slice(
     };
 
     let chain = PertMultichain::from_slice(&slice);
-    pert_multichain_box_from(chain)
+    PertMultichainBox::new(chain).into_raw()
 }
 
 #[unsafe(no_mangle)]

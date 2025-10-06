@@ -4,16 +4,16 @@ use tinned::perturbations::Perturbation;
 use tinned::public::generic_error;
 
 use crate::c_support::{cstr_to_string, to_cstring};
-use crate::core::{ExprBox, TinnedErrorBox, expr_box_from, set_out_err};
-use crate::perturbations::{PerturbationBox, perturbation_box_from, with_perturbation_or_err};
+use crate::core::{ExprBox, TinnedErrorBox, set_out_err};
+use crate::perturbations::{PerturbationBox, with_perturbation_or_err};
 
 #[unsafe(no_mangle)]
-pub extern "C" fn tinned_perturbation_ref(h: *mut PerturbationBox) -> *mut PerturbationBox {
+pub extern "C" fn tinned_perturbation_ref(h: *const PerturbationBox) -> *mut PerturbationBox {
     if h.is_null() {
         return null_mut();
     }
     let pert = unsafe { &*h }.arc_clone();
-    perturbation_box_from(pert)
+    PerturbationBox::new(pert).into_raw()
 }
 
 #[unsafe(no_mangle)]
@@ -49,7 +49,7 @@ pub extern "C" fn tinned_perturbation_new(
     let frequency = unsafe { &*frequency_ptr }.arc_clone();
 
     let pert = Perturbation::new(name, frequency);
-    perturbation_box_from(pert)
+    PerturbationBox::new(pert).into_raw()
 }
 
 #[unsafe(no_mangle)]
@@ -67,9 +67,8 @@ pub extern "C" fn tinned_perturbation_frequency(
     out_err: *mut *mut TinnedErrorBox,
 ) -> *mut ExprBox {
     with_perturbation_or_err(h, out_err, "tinned_perturbation_frequency", |p| {
-        Arc::clone(p.frequency())
+        ExprBox::new(Arc::clone(p.frequency())).into_raw()
     })
-    .map(expr_box_from)
     .unwrap_or(null_mut())
 }
 
