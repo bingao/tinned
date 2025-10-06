@@ -1,4 +1,4 @@
 [workspace]
-members = ["tinned_lib", "tinned_clib"]
+members = ["tinned_lib", "tinned_ffi"]
 default-members = ["tinned_lib"]
 resolver = "3"

@@ -6,7 +6,7 @@ use crate::core::{TinnedErrorBox, set_out_err};
 
 // Borrows `&T` safely from a raw handle. Returns `None` if `h` is `NULL`.
 #[inline]
-pub(crate) fn with_box_or_err<H, T: ?Sized, R>(
+pub fn with_box_or_err<H, T: ?Sized, R>(
     h: *const H,
     out_err: *mut *mut TinnedErrorBox,
     caller: &'static str,

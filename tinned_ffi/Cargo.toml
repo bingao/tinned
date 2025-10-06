@@ -1,12 +1,12 @@
 [package]
-name = "tinned_clib"
+name = "tinned_ffi"
 version = "0.1.0"
 edition = "2024"
 include = ["include/**", "src/**", "Cargo.toml"]
 
 [lib]
-name = "tinned"
-crate-type = ["cdylib", "staticlib"]
+name = "tinned_ffi"
+crate-type = ["rlib", "cdylib", "staticlib"]
 
 [dependencies]
 tinned_lib = { path = "../tinned_lib" }

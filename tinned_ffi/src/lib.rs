@@ -6,3 +6,6 @@ mod core;
 mod expressions;
 mod perturbations;
 //mod public;
+
+pub use crate::c_support::with_box_or_err;
+pub use crate::core::{ExprBox, TinnedErrorBox};
