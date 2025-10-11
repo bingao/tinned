@@ -6,8 +6,9 @@ mod expressions;
 mod perturbations;
 //mod public;
 
-pub use crate::c_support::try_with_handle;
-pub use crate::core::{ExprBox, ExprSlice, TinnedErrorBox};
+pub use crate::c_support::*;
+pub use crate::core::*;
+pub use crate::perturbations::*;
 
 #[cfg(all(test, feature = "c-headers"))]
 mod header_gen {
