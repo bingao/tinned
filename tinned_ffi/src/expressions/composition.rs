@@ -1,68 +1,71 @@
-use std::{os::raw::c_char, ptr::null_mut, sync::Arc};
+use safer_ffi::prelude::*;
+use std::sync::Arc;
 
 use tinned::expressions::Composition;
 use tinned::public::generic_error;
 
 use crate::c_support::{
-    cstr_to_string, with_downcast_cstr, with_downcast_expr_res, with_downcast_val,
+    tinned_string_from_cstr, with_downcast_cstr, with_downcast_expr_res, with_downcast_val,
 };
-use crate::core::{ExprBox, TinnedErrorBox, set_out_err};
+use crate::core::{ExprBox, ExprHandle, TinnedErrorBox, set_out_err};
 
-#[unsafe(no_mangle)]
+#[ffi_export]
 pub extern "C" fn tinned_composition_new(
-    name_cstr: *const c_char,
+    name: Option<char_p::Ref<'_>>,
     order: u32,
-    inner_ptr: *const ExprBox,
-    out_err: *mut *mut TinnedErrorBox,
-) -> *mut ExprBox {
-    let Some(name) = cstr_to_string(name_cstr) else {
+    inner: Option<&ExprHandle>,
+    out_err: Option<Out<'_, TinnedErrorBox>>,
+) -> Option<ExprBox> {
+    let Some(name) = tinned_string_from_cstr(name) else {
         set_out_err(
             out_err,
             generic_error("Null or invalid name passed to tinned_composition_new", None),
         );
-        return null_mut();
+        return None;
     };
-    if inner_ptr.is_null() {
-        set_out_err(out_err, generic_error("Null inner passed to tinned_composition_new", None));
-        return null_mut();
-    }
-    let inner = unsafe { (&*inner_ptr).arc_clone() };
 
-    match Composition::new(name, order, inner) {
-        Ok(expr) => ExprBox::new(expr).into_raw(),
+    let Some(inner) = inner else {
+        set_out_err(out_err, generic_error("Null inner passed to tinned_composition_new", None));
+        return None;
+    };
+    let inner_arc = inner.clone_arc();
+
+    match Composition::new(name, order, inner_arc) {
+        Ok(expr_arc) => Some(ExprBox::new(ExprHandle::new(expr_arc))),
         Err(e) => {
             set_out_err(out_err, e);
-            null_mut()
+            None
         },
     }
 }
 
-// Get `name` (C must free).
-#[unsafe(no_mangle)]
+// Get `name` (caller must free the returned C string).
+#[ffi_export]
 pub extern "C" fn tinned_composition_name(
-    h: *const ExprBox,
-    out_err: *mut *mut TinnedErrorBox,
-) -> *mut c_char {
+    h: Option<&ExprHandle>,
+    out_err: Option<Out<'_, TinnedErrorBox>>,
+) -> Option<char_p::Box> {
     with_downcast_cstr::<Composition>(h, out_err, "tinned_composition_name", |c| {
         c.name().to_string()
     })
 }
 
 // Get `order`.
-#[unsafe(no_mangle)]
+#[ffi_export]
 pub extern "C" fn tinned_composition_order(
-    h: *const ExprBox,
-    out_err: *mut *mut TinnedErrorBox,
+    h: Option<&ExprHandle>,
+    out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> u32 {
     with_downcast_val::<Composition, u32>(h, out_err, "tinned_composition_order", |c| c.order())
+        .unwrap_or(0)
 }
 
 // Get `inner` (cloned).
-#[unsafe(no_mangle)]
+#[ffi_export]
 pub extern "C" fn tinned_composition_inner(
-    h: *const ExprBox,
-    out_err: *mut *mut TinnedErrorBox,
-) -> *mut ExprBox {
+    h: Option<&ExprHandle>,
+    out_err: Option<Out<'_, TinnedErrorBox>>,
+) -> Option<ExprBox> {
     with_downcast_expr_res::<Composition>(h, out_err, "tinned_composition_inner", |c| {
         Ok(Arc::clone(c.inner()))
     })

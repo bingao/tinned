@@ -1,60 +1,39 @@
+use safer_ffi::prelude::*;
 use std::sync::Arc;
 
 use tinned::perturbations::PertMultichain;
 
-use crate::c_support::with_box_or_err;
-use crate::core::TinnedErrorBox;
-
-pub struct PertMultichainBox {
+/// An *opaque* handle that C can only pass around
+#[derive_ReprC]
+#[repr(opaque)]
+pub struct PertMultichainHandle {
     inner: Arc<PertMultichain>,
 }
 
-impl PertMultichainBox {
+/// Owned box by C after return
+pub type PertMultichainBox = repr_c::Box<PertMultichainHandle>;
+
+impl PertMultichainHandle {
     #[inline]
-    pub(crate) fn new<T>(chain: T) -> Self
-    where
-        T: Into<Arc<PertMultichain>>,
-    {
+    pub(crate) fn new(p: Arc<PertMultichain>) -> Self {
         Self {
-            inner: chain.into(),
+            inner: p,
         }
     }
 
     #[inline]
-    pub(crate) fn arc_clone(&self) -> Arc<PertMultichain> {
+    pub(crate) fn as_ref(&self) -> &PertMultichain {
+        &*self.inner
+    }
+
+    #[inline]
+    pub(crate) fn clone_arc(&self) -> Arc<PertMultichain> {
         Arc::clone(&self.inner)
     }
 
+    // Get a unique mutable reference to the chain if the Arc is uniquely owned. Used by `tinned_pert_multichain_insert`.
     #[inline]
-    pub(crate) fn as_ref(&self) -> &PertMultichain {
-        self.inner.as_ref()
+    pub(crate) fn get_mut(&mut self) -> Option<&mut PertMultichain> {
+        Arc::get_mut(&mut self.inner)
     }
-
-    #[inline]
-    pub(crate) fn as_arc_mut(&mut self) -> &mut Arc<PertMultichain> {
-        &mut self.inner
-    }
-
-    #[inline]
-    pub(crate) fn into_raw(self) -> *mut PertMultichainBox {
-        Box::into_raw(Box::new(self))
-    }
-}
-
-// Borrows `&PertMultichain` or sets an error.
-#[inline]
-pub(crate) fn with_pert_multichain_or_err<R>(
-    h: *const PertMultichainBox,
-    out_err: *mut *mut TinnedErrorBox,
-    caller: &'static str,
-    f: impl FnOnce(&PertMultichain) -> R,
-) -> Option<R> {
-    with_box_or_err::<PertMultichainBox, PertMultichain, R>(
-        h,
-        out_err,
-        caller,
-        "PertMultichainBox",
-        PertMultichainBox::as_ref,
-        f,
-    )
 }

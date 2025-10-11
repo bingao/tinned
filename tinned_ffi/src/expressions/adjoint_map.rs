@@ -1,61 +1,62 @@
-use std::{ptr::null_mut, sync::Arc};
+use safer_ffi::prelude::*;
+use std::sync::Arc;
 
 use tinned::expressions::AdjointMap;
 use tinned::public::generic_error;
 
 use crate::c_support::{with_downcast_expr_res, with_downcast_val};
-use crate::core::{ExprBox, TinnedErrorBox, set_out_err, vec_expr_from_ptrs};
+use crate::core::{
+    ExprBox, ExprHandle, ExprSlice, TinnedErrorBox, expr_vec_from_slice, set_out_err,
+};
 
-#[unsafe(no_mangle)]
+#[ffi_export]
 pub extern "C" fn tinned_adjoint_map_new(
-    generator_ptrs: *const *const ExprBox,
-    generator_count: usize,
-    target_ptr: *const ExprBox,
+    generators: ExprSlice<'_>,
+    target: Option<&ExprHandle>,
     left_action: bool,
-    out_err: *mut *mut TinnedErrorBox,
-) -> *mut ExprBox {
-    let generators = unsafe {
-        match vec_expr_from_ptrs(generator_ptrs, generator_count, "tinned_adjoint_map_new", out_err)
-        {
-            Some(v) => v,
-            None => return null_mut(),
-        }
-    };
-
-    if target_ptr.is_null() {
-        set_out_err(out_err, generic_error("Null target passed to tinned_adjoint_map_new", None));
-        return null_mut();
-    }
-
-    let target = unsafe { (&*target_ptr).arc_clone() };
-
-    match AdjointMap::new(generators, target, Some(left_action)) {
-        Ok(expr) => ExprBox::new(expr).into_raw(),
+    out_err: Option<Out<'_, TinnedErrorBox>>,
+) -> Option<ExprBox> {
+    let generators_vec = match expr_vec_from_slice(generators, "tinned_adjoint_map_new") {
+        Ok(v) => v,
         Err(e) => {
             set_out_err(out_err, e);
-            null_mut()
+            return None;
+        },
+    };
+
+    let Some(target) = target else {
+        set_out_err(out_err, generic_error("Null target passed to tinned_adjoint_map_new", None));
+        return None;
+    };
+    let target_arc = target.clone_arc();
+
+    match AdjointMap::new(generators_vec, target_arc, Some(left_action)) {
+        Ok(expr_arc) => Some(ExprBox::new(ExprHandle::new(expr_arc))),
+        Err(e) => {
+            set_out_err(out_err, e);
+            None
         },
     }
 }
 
-// Return the number of generators.
-#[unsafe(no_mangle)]
+#[ffi_export]
 pub extern "C" fn tinned_adjoint_map_generators_count(
-    h: *const ExprBox,
-    out_err: *mut *mut TinnedErrorBox,
+    h: Option<&ExprHandle>,
+    out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> usize {
     with_downcast_val::<AdjointMap, usize>(h, out_err, "tinned_adjoint_map_generators_count", |a| {
         a.generators().len()
     })
+    .unwrap_or(0)
 }
 
-// Return the i-th generator (cloned). Caller must unref.
-#[unsafe(no_mangle)]
+// Return the i-th generator (cloned). Caller must free the returned ExprBox.
+#[ffi_export]
 pub extern "C" fn tinned_adjoint_map_generator_at(
-    h: *const ExprBox,
+    h: Option<&ExprHandle>,
     i: usize,
-    out_err: *mut *mut TinnedErrorBox,
-) -> *mut ExprBox {
+    out_err: Option<Out<'_, TinnedErrorBox>>,
+) -> Option<ExprBox> {
     with_downcast_expr_res::<AdjointMap>(h, out_err, "tinned_adjoint_map_generator_at", |a| {
         a.generators().get(i).cloned().ok_or_else(|| {
             generic_error(
@@ -69,24 +70,23 @@ pub extern "C" fn tinned_adjoint_map_generator_at(
     })
 }
 
-// Get `target` (cloned).
-#[unsafe(no_mangle)]
+#[ffi_export]
 pub extern "C" fn tinned_adjoint_map_target(
-    h: *const ExprBox,
-    out_err: *mut *mut TinnedErrorBox,
-) -> *mut ExprBox {
+    h: Option<&ExprHandle>,
+    out_err: Option<Out<'_, TinnedErrorBox>>,
+) -> Option<ExprBox> {
     with_downcast_expr_res::<AdjointMap>(h, out_err, "tinned_adjoint_map_target", |a| {
         Ok(Arc::clone(a.target()))
     })
 }
 
-// Get `left_action`.
-#[unsafe(no_mangle)]
+#[ffi_export]
 pub extern "C" fn tinned_adjoint_map_left_action(
-    h: *const ExprBox,
-    out_err: *mut *mut TinnedErrorBox,
+    h: Option<&ExprHandle>,
+    out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> bool {
     with_downcast_val::<AdjointMap, bool>(h, out_err, "tinned_adjoint_map_left_action", |a| {
         a.left_action()
     })
+    .unwrap_or(false)
 }

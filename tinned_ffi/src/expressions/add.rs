@@ -1,48 +1,51 @@
-use std::ptr::null_mut;
+use safer_ffi::prelude::*;
 
 use tinned::expressions::Add;
 use tinned::public::generic_error;
 
 use crate::c_support::{with_downcast_expr_res, with_downcast_val};
-use crate::core::{ExprBox, TinnedErrorBox, set_out_err, vec_expr_from_ptrs};
+use crate::core::{
+    ExprBox, ExprHandle, ExprSlice, TinnedErrorBox, expr_vec_from_slice, set_out_err,
+};
 
-#[unsafe(no_mangle)]
+#[ffi_export]
 pub extern "C" fn tinned_add_new(
-    term_ptrs: *const *const ExprBox,
-    term_count: usize,
-    out_err: *mut *mut TinnedErrorBox,
-) -> *mut ExprBox {
-    let terms = unsafe {
-        match vec_expr_from_ptrs(term_ptrs, term_count, "tinned_add_new", out_err) {
-            Some(v) => v,
-            None => return null_mut(),
-        }
-    };
-
-    match Add::new(terms) {
-        Ok(expr) => ExprBox::new(expr).into_raw(),
+    terms: ExprSlice<'_>,
+    out_err: Option<Out<'_, TinnedErrorBox>>,
+) -> Option<ExprBox> {
+    let terms_vec = match expr_vec_from_slice(terms, "tinned_add_new") {
+        Ok(v) => v,
         Err(e) => {
             set_out_err(out_err, e);
-            null_mut()
+            return None;
+        },
+    };
+
+    match Add::new(terms_vec) {
+        Ok(expr_arc) => Some(ExprBox::new(ExprHandle::new(expr_arc))),
+        Err(e) => {
+            set_out_err(out_err, e);
+            None
         },
     }
 }
 
-#[unsafe(no_mangle)]
+#[ffi_export]
 pub extern "C" fn tinned_add_terms_count(
-    h: *const ExprBox,
-    out_err: *mut *mut TinnedErrorBox,
+    h: Option<&ExprHandle>,
+    out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> usize {
     with_downcast_val::<Add, usize>(h, out_err, "tinned_add_terms_count", |a| a.terms().len())
+        .unwrap_or(0)
 }
 
-// Return the i-th term (cloned). Caller must unref.
-#[unsafe(no_mangle)]
+// Return the i-th term (cloned). Caller must free the returned ExprBox.
+#[ffi_export]
 pub extern "C" fn tinned_add_term_at(
-    h: *const ExprBox,
+    h: Option<&ExprHandle>,
     i: usize,
-    out_err: *mut *mut TinnedErrorBox,
-) -> *mut ExprBox {
+    out_err: Option<Out<'_, TinnedErrorBox>>,
+) -> Option<ExprBox> {
     with_downcast_expr_res::<Add>(h, out_err, "tinned_add_term_at", |a| {
         a.terms().get(i).cloned().ok_or_else(|| {
             generic_error(

@@ -1,11 +1,18 @@
+use safer_ffi::prelude::*;
+
 use tinned::core::TinnedError;
 
-// Opaque error box for FFI
-pub struct TinnedErrorBox {
+/// An *opaque* handle that C can only pass around
+#[derive_ReprC]
+#[repr(opaque)]
+pub struct TinnedErrorHandle {
     inner: TinnedError,
 }
 
-impl TinnedErrorBox {
+/// Owned box by C after return
+pub type TinnedErrorBox = repr_c::Box<TinnedErrorHandle>;
+
+impl TinnedErrorHandle {
     #[inline]
     pub(crate) fn new(err: TinnedError) -> Self {
         Self {
@@ -17,23 +24,13 @@ impl TinnedErrorBox {
     pub(crate) fn as_ref(&self) -> &TinnedError {
         &self.inner
     }
-
-    // Turn this box into a raw pointer for FFI returns
-    #[inline]
-    pub(crate) fn into_raw(self) -> *mut TinnedErrorBox {
-        Box::into_raw(Box::new(self))
-    }
 }
 
-// Internal: fill an out-err pointer (used by FFI entrypoints)
+// Internal: fill an out-err safer-ffi out-parameter (used by FFI entrypoints)
 #[inline]
-pub(crate) fn set_out_err(out_err: *mut *mut TinnedErrorBox, err: TinnedError) {
-    if out_err.is_null() {
-        return;
-    }
-    let h = TinnedErrorBox::new(err).into_raw();
-    // With `#![deny(unsafe_op_in_unsafe_fn)]`, keep an explicit unsafe block.
-    unsafe {
-        *out_err = h;
+pub(crate) fn set_out_err(out_err: Option<Out<'_, TinnedErrorBox>>, err: TinnedError) {
+    if let Some(out) = out_err {
+        let rust_box = std::boxed::Box::new(TinnedErrorHandle::new(err));
+        out.write(rust_box.into());
     }
 }

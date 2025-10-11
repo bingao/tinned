@@ -1,34 +1,19 @@
-use std::{
-    ffi::{CStr, CString},
-    os::raw::c_char,
-};
+use safer_ffi::prelude::*;
 
-// Frees a `char*` that was allocated by Rust (via `CString::into_raw`). Safe
-// to call with `NULL`.
-#[unsafe(no_mangle)]
-pub extern "C" fn tinned_free_cstring(s: *mut c_char) {
-    if s.is_null() {
-        return;
-    }
-    unsafe {
-        let _ = CString::from_raw(s);
-    }
+// Unified free for strings returned from FFI (`char_p::Box`)
+#[ffi_export]
+pub fn tinned_string_free(s: Option<char_p::Box>) {
+    drop(s);
 }
 
-// Converts a `NULL`-terminated const `char*` from C into a Rust String.
-// Returns `None` if `ptr` is `NULL`.
-pub(crate) fn cstr_to_string(ptr: *const c_char) -> Option<String> {
-    if ptr.is_null() {
-        return None;
-    }
-    // SAFETY: `ptr` must point to a valid, `NULL`-terminated C string.
-    // The caller (FFI boundary) is responsible for ensuring this.
-    unsafe { Some(CStr::from_ptr(ptr).to_string_lossy().into_owned()) }
+// C `const char*` -> `Option<String>``. `None`` if `NULL` or invalid UTF-8.
+#[inline]
+pub(crate) fn tinned_string_from_cstr(s: Option<char_p::Ref<'_>>) -> Option<String> {
+    s.map(|r| r.to_str().to_owned())
 }
 
-// Convert a Rust string (`&str` or `String`) into a heap-allocated,
-// `NULL`-terminated `char*` that C can read. C must free with
-// `tinned_free_cstring()`.
-pub(crate) fn to_cstring<S: AsRef<str>>(s: S) -> *mut c_char {
-    CString::new(s.as_ref()).map(CString::into_raw).unwrap_or(std::ptr::null_mut())
+// Rust string -> owned `char*` for C (free with `tinned_string_free`).
+#[inline]
+pub(crate) fn tinned_string_to_cstr<S: AsRef<str>>(s: S) -> char_p::Box {
+    char_p::new(s.as_ref())
 }

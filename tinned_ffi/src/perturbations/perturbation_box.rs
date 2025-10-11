@@ -1,72 +1,49 @@
+use safer_ffi::prelude::*;
 use std::sync::Arc;
 
+use tinned::core::TinnedError;
 use tinned::perturbations::Perturbation;
 
-use crate::c_support::{vec_arc_from_ptrs, with_box_or_err};
-use crate::core::TinnedErrorBox;
+use crate::c_support::try_from_slice;
 
-pub struct PerturbationBox {
+/// An *opaque* handle that C can only pass around
+#[derive_ReprC]
+#[repr(opaque)]
+pub struct PerturbationHandle {
     inner: Arc<Perturbation>,
 }
 
-impl PerturbationBox {
+/// Owned box by C after return
+pub type PerturbationBox = repr_c::Box<PerturbationHandle>;
+
+impl PerturbationHandle {
     #[inline]
-    pub(crate) fn new(pert: Arc<Perturbation>) -> Self {
+    pub(crate) fn new(p: Arc<Perturbation>) -> Self {
         Self {
-            inner: pert,
+            inner: p,
         }
     }
 
     #[inline]
-    pub(crate) fn arc_clone(&self) -> Arc<Perturbation> {
+    pub(crate) fn as_ref(&self) -> &Perturbation {
+        &*self.inner
+    }
+
+    #[inline]
+    pub(crate) fn clone_arc(&self) -> Arc<Perturbation> {
         Arc::clone(&self.inner)
     }
-
-    #[inline]
-    pub(crate) fn as_ref(&self) -> &Perturbation {
-        self.inner.as_ref()
-    }
-
-    // Turn this handle into a raw pointer for FFI returns
-    #[inline]
-    pub(crate) fn into_raw(self) -> *mut PerturbationBox {
-        Box::into_raw(Box::new(self))
-    }
 }
 
-// Borrows `&Perturbation` or sets an error.
-#[inline]
-pub(crate) fn with_perturbation_or_err<R>(
-    h: *const PerturbationBox,
-    out_err: *mut *mut TinnedErrorBox,
-    caller: &'static str,
-    f: impl FnOnce(&Perturbation) -> R,
-) -> Option<R> {
-    with_box_or_err::<PerturbationBox, Perturbation, R>(
-        h,
-        out_err,
-        caller,
-        "PerturbationBox",
-        PerturbationBox::as_ref,
-        f,
-    )
-}
+/// Borrowed slice of handles
+pub type PerturbationSlice<'a> = c_slice::Ref<'a, *const PerturbationHandle>;
 
+/// Turn a `PerturbationSlice` into `Vec<Arc<Perturbation>>`.
 #[inline]
-pub(crate) unsafe fn vec_pert_from_ptrs(
-    ptrs: *const *const PerturbationBox,
-    count: usize,
+pub fn perturbation_vec_from_slice(
+    slice: PerturbationSlice<'_>,
     caller: &'static str,
-    out_err: *mut *mut TinnedErrorBox,
-) -> Option<Vec<Arc<Perturbation>>> {
-    unsafe {
-        vec_arc_from_ptrs::<PerturbationBox, Perturbation>(
-            ptrs,
-            count,
-            caller,
-            "Perturbation",
-            out_err,
-            PerturbationBox::arc_clone,
-        )
-    }
+) -> Result<Vec<Arc<Perturbation>>, TinnedError> {
+    // Reuse the same safety/validation logic as Expr via `try_from_slice`
+    try_from_slice(slice, caller, "PerturbationHandle", |h: &PerturbationHandle| h.clone_arc())
 }

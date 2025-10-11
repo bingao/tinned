@@ -16,7 +16,7 @@ mod dot_product;
 //mod one_elec_operator;
 //mod power;
 //mod residue_parameter;
-//mod symbol;
+mod symbol;
 //mod temporum_operator;
 //mod temporum_overlap;
 //mod trace;

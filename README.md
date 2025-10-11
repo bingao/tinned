@@ -21,7 +21,7 @@ For Rust library, run `cargo build-lib`, or `cargo build -p tinned_lib --release
 
 If you want C library, use `cargo build-ffi` or `cargo build -p tinned_ffi --release`.
 
-Optionally, `cbindgen tinned_ffi --output tinned_ffi/include/tinned.h`.
+Optionally, export `CARGO_MANIFEST_DIR` and run `cargo test --features c-headers -- --exact header_gen::generate_c_header --nocapture`.
 
 ## Tinned APIs
 

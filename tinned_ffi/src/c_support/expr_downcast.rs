@@ -1,79 +1,108 @@
-use std::{os::raw::c_char, ptr::null_mut, sync::Arc};
+use safer_ffi::prelude::*;
+use std::{any::type_name, sync::Arc};
 
 use tinned::core::{Expr, TinnedError};
 use tinned::public::expression_error;
 
-use crate::c_support::to_cstring;
-use crate::core::{ExprBox, TinnedErrorBox, set_out_err, with_expr_or_err};
+use crate::c_support::{tinned_string_to_cstr, try_with_handle};
+use crate::core::{ExprBox, ExprHandle, TinnedErrorBox, set_out_err};
 
 #[inline]
 fn invalid_type_err<T: 'static>(caller: &'static str, expr: &Arc<dyn Expr>) -> TinnedError {
     let msg: &'static str = Box::leak(
-        format!("Invalid expression passed to {caller}; expected {}", std::any::type_name::<T>())
+        format!("Invalid expression passed to {caller}; expected {}", type_name::<T>())
             .into_boxed_str(),
     );
     expression_error(msg, expr, None)
 }
 
-// (1) Primitive / copy types; use Default as the fallback to avoid threading a literal.
+// Downcast helper for value-returning closures.
+// - Validates handle (NULL -> sets `out_err`, returns `None`)
+// - Downcasts to `Target` (mismatch -> sets `out_err`, returns `None`)
+// - Runs `f(&Target) -> R` and returns `Some(R)`
+// - On any error -> sets `out_err`, returns `None`
 #[inline]
-pub(crate) fn with_downcast_val<T: 'static, R: Copy + Default>(
-    h: *const ExprBox,
-    out_err: *mut *mut TinnedErrorBox,
+pub(crate) fn with_downcast_val<Target: 'static, R: Copy>(
+    h: Option<&ExprHandle>,
+    out_err: Option<Out<'_, TinnedErrorBox>>,
     caller: &'static str,
-    f: impl FnOnce(&T) -> R,
-) -> R {
-    with_expr_or_err(h, out_err, caller, |e: &Arc<dyn Expr>| {
-        if let Some(t) = e.as_any().downcast_ref::<T>() {
-            f(t)
+    f: impl FnOnce(&Target) -> R,
+) -> Option<R> {
+    try_with_handle(h, caller, "ExprHandle", |eh| {
+        let expr = eh.as_ref();
+        if let Some(t) = expr.as_any().downcast_ref::<Target>() {
+            Ok(f(t))
         } else {
-            set_out_err(out_err, invalid_type_err::<T>(caller, e));
-            R::default()
+            let expr_arc = eh.clone_arc();
+            Err(invalid_type_err::<Target>(caller, &expr_arc))
         }
     })
-    .unwrap_or_default()
+    .map_or_else(
+        |e| {
+            set_out_err(out_err, e);
+            None
+        },
+        Some,
+    )
 }
 
-// (2) C string
+// Downcast helper for string-returning closures.
+// - Validates handle (NULL -> sets `out_err`, returns `None`)
+// - Downcasts to `Target` (mismatch -> sets `out_err`, returns `None`)
+// - Runs `f(&Target) -> String` and returns `Some(char_p::Box)`
+// - On any error -> sets `out_err`, returns `None`
 #[inline]
-pub(crate) fn with_downcast_cstr<T: 'static>(
-    h: *const ExprBox,
-    out_err: *mut *mut TinnedErrorBox,
+pub(crate) fn with_downcast_cstr<Target: 'static>(
+    h: Option<&ExprHandle>,
+    out_err: Option<Out<'_, TinnedErrorBox>>,
     caller: &'static str,
-    f: impl FnOnce(&T) -> String,
-) -> *mut c_char {
-    with_expr_or_err(h, out_err, caller, |e: &Arc<dyn Expr>| {
-        if let Some(t) = e.as_any().downcast_ref::<T>() {
-            to_cstring(f(t))
+    f: impl FnOnce(&Target) -> String,
+) -> Option<char_p::Box> {
+    try_with_handle(h, caller, "ExprHandle", |eh| {
+        let expr = eh.as_ref();
+        if let Some(t) = expr.as_any().downcast_ref::<Target>() {
+            Ok(tinned_string_to_cstr(f(t)))
         } else {
-            set_out_err(out_err, invalid_type_err::<T>(caller, e));
-            null_mut()
+            let expr_arc = eh.clone_arc();
+            Err(invalid_type_err::<Target>(caller, &expr_arc))
         }
     })
-    .unwrap_or(null_mut())
+    .map_or_else(
+        |e| {
+            set_out_err(out_err, e);
+            None
+        },
+        Some,
+    )
 }
 
-// (3) Always accept a Result; For no-error paths, just return Ok(...)
+// Downcast helper for closures that produce an expression (`Arc<dyn Expr>`)
+// and return a boxed handle to C.
+// - Same validation/downcast as above
+// - Runs `f(&Target) -> Result<Arc<dyn Expr>, TinnedError>`
+// - Boxes as `ExprBox` on success
+// - Sets `out_err` and returns None on failure
 #[inline]
-pub(crate) fn with_downcast_expr_res<T: 'static>(
-    h: *const ExprBox,
-    out_err: *mut *mut TinnedErrorBox,
+pub(crate) fn with_downcast_expr_res<Target: 'static>(
+    h: Option<&ExprHandle>,
+    out_err: Option<Out<'_, TinnedErrorBox>>,
     caller: &'static str,
-    f: impl FnOnce(&T) -> Result<Arc<dyn Expr>, TinnedError>,
-) -> *mut ExprBox {
-    with_expr_or_err(h, out_err, caller, |e: &Arc<dyn Expr>| {
-        if let Some(t) = e.as_any().downcast_ref::<T>() {
-            match f(t) {
-                Ok(expr) => ExprBox::new(expr).into_raw(),
-                Err(err) => {
-                    set_out_err(out_err, err);
-                    null_mut()
-                },
-            }
+    f: impl FnOnce(&Target) -> Result<Arc<dyn Expr>, TinnedError>,
+) -> Option<ExprBox> {
+    try_with_handle(h, caller, "ExprHandle", |eh| {
+        let expr = eh.as_ref();
+        if let Some(t) = expr.as_any().downcast_ref::<Target>() {
+            f(t).map(|arc| ExprBox::new(ExprHandle::new(arc)))
         } else {
-            set_out_err(out_err, invalid_type_err::<T>(caller, e));
-            null_mut()
+            let expr_arc = eh.clone_arc();
+            Err(invalid_type_err::<Target>(caller, &expr_arc))
         }
     })
-    .unwrap_or(null_mut())
+    .map_or_else(
+        |e| {
+            set_out_err(out_err, e);
+            None
+        },
+        Some,
+    )
 }

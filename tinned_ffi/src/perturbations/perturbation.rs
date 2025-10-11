@@ -1,83 +1,117 @@
-use std::{os::raw::c_char, ptr::null_mut, sync::Arc};
+use safer_ffi::prelude::*;
+use std::sync::Arc;
 
 use tinned::perturbations::Perturbation;
 use tinned::public::generic_error;
 
-use crate::c_support::{cstr_to_string, to_cstring};
-use crate::core::{ExprBox, TinnedErrorBox, set_out_err};
-use crate::perturbations::{PerturbationBox, with_perturbation_or_err};
+use crate::c_support::{
+    tinned_string_from_cstr, tinned_string_to_cstr, try_from_handle, try_with_handle,
+};
+use crate::core::{ExprBox, ExprHandle, TinnedErrorBox, set_out_err};
+use crate::perturbations::{PerturbationBox, PerturbationHandle};
 
-#[unsafe(no_mangle)]
-pub extern "C" fn tinned_perturbation_ref(h: *const PerturbationBox) -> *mut PerturbationBox {
-    if h.is_null() {
-        return null_mut();
-    }
-    let pert = unsafe { &*h }.arc_clone();
-    PerturbationBox::new(pert).into_raw()
+// Free a perturbation (NULL-safe).
+#[ffi_export]
+pub fn tinned_perturbation_free(pert: Option<PerturbationBox>) {
+    drop(pert);
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn tinned_perturbation_unref(h: *mut PerturbationBox) {
-    if h.is_null() {
-        return;
-    }
-    unsafe {
-        drop(Box::from_raw(h));
+// Clone a perturbation (like Arc clone). Returns NULL on error / NULL input.
+#[ffi_export]
+pub fn tinned_perturbation_clone(
+    h: Option<&PerturbationHandle>,
+    out_err: Option<Out<'_, TinnedErrorBox>>,
+) -> Option<PerturbationBox> {
+    match try_from_handle(h, "tinned_perturbation_clone", "PerturbationHandle", |ph| {
+        PerturbationBox::new(PerturbationHandle::new(ph.clone_arc()))
+    }) {
+        Ok(b) => Some(b),
+        Err(e) => {
+            set_out_err(out_err, e);
+            None
+        },
     }
 }
 
-#[unsafe(no_mangle)]
+// Create a new Perturbation.
+#[ffi_export]
 pub extern "C" fn tinned_perturbation_new(
-    name_cstr: *const c_char,
-    frequency_ptr: *const ExprBox,
-    out_err: *mut *mut TinnedErrorBox,
-) -> *mut PerturbationBox {
-    let Some(name) = cstr_to_string(name_cstr) else {
+    name: Option<char_p::Ref<'_>>,
+    frequency: Option<&ExprHandle>,
+    out_err: Option<Out<'_, TinnedErrorBox>>,
+) -> Option<PerturbationBox> {
+    let Some(name) = tinned_string_from_cstr(name) else {
         set_out_err(
             out_err,
             generic_error("Null perturbation name passed to tinned_perturbation_new", None),
         );
-        return null_mut();
+        return None;
     };
-    if frequency_ptr.is_null() {
+
+    let Some(freq) = frequency else {
         set_out_err(
             out_err,
             generic_error("Null frequency passed to tinned_perturbation_new", None),
         );
-        return null_mut();
-    }
-    let frequency = unsafe { &*frequency_ptr }.arc_clone();
+        return None;
+    };
 
-    let pert = Perturbation::new(name, frequency);
-    PerturbationBox::new(pert).into_raw()
+    let freq_arc = freq.clone_arc();
+    let pert = Perturbation::new(name, freq_arc);
+    Some(PerturbationBox::new(PerturbationHandle::new(pert)))
 }
 
-#[unsafe(no_mangle)]
+// Get `name`; caller frees with tinned_string_free. NULL on error.
+#[ffi_export]
 pub extern "C" fn tinned_perturbation_name(
-    h: *const PerturbationBox,
-    out_err: *mut *mut TinnedErrorBox,
-) -> *mut c_char {
-    with_perturbation_or_err(h, out_err, "tinned_perturbation_name", |p| to_cstring(p.name()))
-        .unwrap_or(null_mut())
+    h: Option<&PerturbationHandle>,
+    out_err: Option<Out<'_, TinnedErrorBox>>,
+) -> Option<char_p::Box> {
+    match try_with_handle(h, "tinned_perturbation_name", "PerturbationHandle", |ph| {
+        let p = ph.as_ref();
+        Ok(tinned_string_to_cstr(p.name().to_string()))
+    }) {
+        Ok(s) => Some(s),
+        Err(e) => {
+            set_out_err(out_err, e);
+            None
+        },
+    }
 }
 
-#[unsafe(no_mangle)]
+// Get `frequency` (cloned). Caller must free the returned ExprBox. NULL on error.
+#[ffi_export]
 pub extern "C" fn tinned_perturbation_frequency(
-    h: *const PerturbationBox,
-    out_err: *mut *mut TinnedErrorBox,
-) -> *mut ExprBox {
-    with_perturbation_or_err(h, out_err, "tinned_perturbation_frequency", |p| {
-        ExprBox::new(Arc::clone(p.frequency())).into_raw()
-    })
-    .unwrap_or(null_mut())
+    h: Option<&PerturbationHandle>,
+    out_err: Option<Out<'_, TinnedErrorBox>>,
+) -> Option<ExprBox> {
+    match try_with_handle(h, "tinned_perturbation_frequency", "PerturbationHandle", |ph| {
+        let p = ph.as_ref();
+        let freq = Arc::clone(p.frequency());
+        Ok(ExprBox::new(ExprHandle::new(freq)))
+    }) {
+        Ok(b) => Some(b),
+        Err(e) => {
+            set_out_err(out_err, e);
+            None
+        },
+    }
 }
 
-#[unsafe(no_mangle)]
+// Display text; caller frees with tinned_string_free. NULL on error.
+#[ffi_export]
 pub extern "C" fn tinned_perturbation_display(
-    h: *const PerturbationBox,
-    out_err: *mut *mut TinnedErrorBox,
-) -> *mut c_char {
-    with_perturbation_or_err(h, out_err, "tinned_perturbation_display", |p| format!("{}", p))
-        .map(to_cstring)
-        .unwrap_or(null_mut())
+    h: Option<&PerturbationHandle>,
+    out_err: Option<Out<'_, TinnedErrorBox>>,
+) -> Option<char_p::Box> {
+    match try_with_handle(h, "tinned_perturbation_display", "PerturbationHandle", |ph| {
+        let p = ph.as_ref();
+        Ok(tinned_string_to_cstr(format!("{}", p)))
+    }) {
+        Ok(s) => Some(s),
+        Err(e) => {
+            set_out_err(out_err, e);
+            None
+        },
+    }
 }

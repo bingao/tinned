@@ -1,16 +1,21 @@
+use safer_ffi::prelude::*;
 use std::sync::Arc;
 
-use tinned::core::Expr;
+use tinned::core::{Expr, TinnedError};
 
-use crate::c_support::{vec_arc_from_ptrs, with_box_or_err};
-use crate::core::TinnedErrorBox;
+use crate::c_support::try_from_slice;
 
-// Opaque wrappers that C holds as pointers
-pub struct ExprBox {
+/// An *opaque* handle that C can only pass around
+#[derive_ReprC]
+#[repr(opaque)]
+pub struct ExprHandle {
     inner: Arc<dyn Expr>,
 }
 
-impl ExprBox {
+/// Owned box by C after return
+pub type ExprBox = repr_c::Box<ExprHandle>;
+
+impl ExprHandle {
     #[inline]
     pub(crate) fn new(expr: Arc<dyn Expr>) -> Self {
         Self {
@@ -18,61 +23,25 @@ impl ExprBox {
         }
     }
 
-    // Clones the inner `Arc` (refcount +1) and return it.
     #[inline]
-    pub(crate) fn arc_clone(&self) -> Arc<dyn Expr> {
+    pub(crate) fn as_ref(&self) -> &dyn Expr {
+        &*self.inner
+    }
+
+    #[inline]
+    pub(crate) fn clone_arc(&self) -> Arc<dyn Expr> {
         Arc::clone(&self.inner)
     }
-
-    // Borrows the inner trait object (Rust-only; never expose to C).
-    // #[inline]
-    // pub(crate) fn as_ref(&self) -> &(dyn Expr + 'static) {
-    //     self.inner.as_ref()
-    // }
-
-    // Borrow the owning `Arc` (needed when downstream APIs require `&Arc<dyn Expr>`).
-    #[inline]
-    pub(crate) fn as_arc(&self) -> &Arc<dyn Expr> {
-        &self.inner
-    }
-
-    // Converts to raw for FFI boundaries
-    #[inline]
-    pub(crate) fn into_raw(self) -> *mut ExprBox {
-        Box::into_raw(Box::new(self))
-    }
 }
 
-// Borrows `&Arc<dyn Expr>` safely from a raw handle. Returns `None` if `h` is `NULL`.
-#[inline]
-pub(crate) fn with_expr_or_err<R>(
-    h: *const ExprBox,
-    out_err: *mut *mut TinnedErrorBox,
-    caller: &'static str,
-    f: impl FnOnce(&Arc<dyn Expr>) -> R,
-) -> Option<R> {
-    with_box_or_err::<ExprBox, Arc<dyn Expr>, R>(h, out_err, caller, "ExprBox", ExprBox::as_arc, f)
-}
+/// Borrowed slice of handles
+pub type ExprSlice<'a> = c_slice::Ref<'a, *const ExprHandle>;
 
-// Converts an array of `ExprBox` to `Vec<Arc<dyn Expr>>`.
-// - `ptrs` must point to an array of `count` elements of type `*const ExprBox`,
-//   properly aligned and alive for the duration of this call.
-// - Each element may be null (we check and error out), otherwise must point to a valid `ExprBox`.
+/// Turn an `ExprSlice` into `Vec<Arc<dyn Expr>>`, or set `out_err` and return `None`.
 #[inline]
-pub(crate) unsafe fn vec_expr_from_ptrs(
-    ptrs: *const *const ExprBox,
-    count: usize,
+pub fn expr_vec_from_slice(
+    slice: ExprSlice<'_>,
     caller: &'static str,
-    out_err: *mut *mut TinnedErrorBox,
-) -> Option<Vec<Arc<dyn Expr>>> {
-    unsafe {
-        vec_arc_from_ptrs::<ExprBox, dyn Expr>(
-            ptrs,
-            count,
-            caller,
-            "Expr",
-            out_err,
-            ExprBox::arc_clone,
-        )
-    }
+) -> Result<Vec<Arc<dyn Expr>>, TinnedError> {
+    try_from_slice(slice, caller, "ExprHandle", |h: &ExprHandle| h.clone_arc())
 }
