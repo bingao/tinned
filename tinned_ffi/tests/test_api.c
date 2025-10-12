@@ -1,7 +1,5 @@
 #include <stdio.h>
 
-#include "tinned.h"
-
 typedef int (*test_fn)(void);
 typedef struct { const char* name; test_fn fn; } test_entry;
 

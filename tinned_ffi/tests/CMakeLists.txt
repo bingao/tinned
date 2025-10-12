@@ -1,12 +1,12 @@
 cmake_minimum_required(VERSION 3.20)
 project(tinned_c_tests C)
 
-# --- Options users can override -------------------------
+# Options users can override
 set(WORKSPACE_DIR "${CMAKE_CURRENT_LIST_DIR}/../.." CACHE PATH "Path to Cargo workspace root")
 set(TINNED_CRATE_DIR "${CMAKE_CURRENT_LIST_DIR}/.." CACHE PATH "Path to Rust FFI crate")
 set(CARGO_PROFILE "release" CACHE STRING "cargo profile: debug or release")
 set(TINNED_FEATURES "c-headers" CACHE STRING "Cargo features for building/generating headers")
-# --------------------------------------------------------
+option(TINNED_GENERATE_HEADER "Generate include/tinned.h via cargo test" ON)
 
 # Target dir
 if(DEFINED ENV{CARGO_TARGET_DIR})
@@ -24,23 +24,28 @@ else()
   set(PROFILE_DIR "debug")
 endif()
 
-# Generate header via your test-based generator
+# Path to the header either way (may already exist)
 set(GEN_HEADER "${TINNED_CRATE_DIR}/include/tinned.h")
-add_custom_command(
-  OUTPUT "${GEN_HEADER}"
-  COMMAND ${CMAKE_COMMAND} -E env
-          RUSTFLAGS=$ENV{RUSTFLAGS}
-          cargo test
-          --manifest-path "${TINNED_CRATE_DIR}/Cargo.toml"
-          --features "${TINNED_FEATURES}"
-          -- --exact header_gen::generate_c_header --nocapture
-  BYPRODUCTS "${GEN_HEADER}"
-  WORKING_DIRECTORY "${TINNED_CRATE_DIR}"
-  COMMENT "Generating tinned.h via safer-ffi header builder"
-  VERBATIM
-)
 
-add_custom_target(generate_header ALL DEPENDS "${GEN_HEADER}")
+# Generate header via the test-based generator
+if(TINNED_GENERATE_HEADER)
+  add_custom_command(
+    OUTPUT "${GEN_HEADER}"
+    COMMAND ${CMAKE_COMMAND} -E env
+            RUSTFLAGS=$ENV{RUSTFLAGS}
+            cargo test
+            --manifest-path "${TINNED_CRATE_DIR}/Cargo.toml"
+            --features "${TINNED_FEATURES}"
+            -- --exact header_gen::generate_c_header --nocapture
+    BYPRODUCTS "${GEN_HEADER}"
+    WORKING_DIRECTORY "${TINNED_CRATE_DIR}"
+    COMMENT "Generating tinned.h via safer-ffi header builder"
+    VERBATIM
+  )
+  add_custom_target(generate_header ALL DEPENDS "${GEN_HEADER}")
+else()
+  message(STATUS "Skipping header generation; expecting preexisting: ${GEN_HEADER}")
+endif()
 
 # Build the Rust FFI library
 add_custom_target(rust_lib ALL
@@ -94,7 +99,11 @@ target_include_directories(test_api PRIVATE
 )
 
 target_link_libraries(test_api PRIVATE tinned_ffi)
-add_dependencies(test_api generate_header)
+
+# Only depend on header generation when enabled
+if(TINNED_GENERATE_HEADER)
+  add_dependencies(test_api generate_header)
+endif()
 
 # Make sure the Rust runtime library is found at run-time
 if (APPLE)

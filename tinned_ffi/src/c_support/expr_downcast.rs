@@ -1,5 +1,5 @@
 use safer_ffi::prelude::*;
-use std::{any::type_name, sync::Arc};
+use std::sync::Arc;
 
 use tinned::core::{Expr, TinnedError};
 use tinned::public::expression_error;
@@ -8,9 +8,9 @@ use crate::c_support::{tinned_string_to_cstr, try_with_handle};
 use crate::core::{ExprBox, ExprHandle, TinnedErrorBox, tinned_error_new};
 
 #[inline]
-fn invalid_type_err<T: 'static>(caller: &'static str, expr: &Arc<dyn Expr>) -> TinnedError {
+fn invalid_type_err(caller: &'static str, expr: &Arc<dyn Expr>) -> TinnedError {
     let msg: &'static str = Box::leak(
-        format!("Invalid expression passed to {caller}; expected {}", type_name::<T>())
+        format!("Invalid expression passed to {caller}; expected {}", expr.type_name())
             .into_boxed_str(),
     );
     expression_error(msg, expr, None)
@@ -34,7 +34,7 @@ pub(crate) fn with_downcast_val<Target: 'static, R: Copy>(
             Ok(f(t))
         } else {
             let expr_arc = eh.clone_arc();
-            Err(invalid_type_err::<Target>(caller, &expr_arc))
+            Err(invalid_type_err(caller, &expr_arc))
         }
     })
     .map_or_else(
@@ -64,7 +64,7 @@ pub(crate) fn with_downcast_cstr<Target: 'static>(
             Ok(tinned_string_to_cstr(f(t)))
         } else {
             let expr_arc = eh.clone_arc();
-            Err(invalid_type_err::<Target>(caller, &expr_arc))
+            Err(invalid_type_err(caller, &expr_arc))
         }
     })
     .map_or_else(
@@ -95,7 +95,7 @@ pub(crate) fn with_downcast_expr_res<Target: 'static>(
             f(t).map(|arc| ExprBox::new(ExprHandle::new(arc)))
         } else {
             let expr_arc = eh.clone_arc();
-            Err(invalid_type_err::<Target>(caller, &expr_arc))
+            Err(invalid_type_err(caller, &expr_arc))
         }
     })
     .map_or_else(
