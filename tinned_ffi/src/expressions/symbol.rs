@@ -6,7 +6,7 @@ use tinned::expressions::Symbol;
 use tinned::public::generic_error;
 
 use crate::c_support::{tinned_string_from_cstr, with_downcast_cstr};
-use crate::core::{ExprBox, ExprHandle, TinnedErrorBox, set_out_err};
+use crate::core::{ExprBox, ExprHandle, TinnedErrorBox, tinned_error_new};
 
 /// Create a new `Symbol` expression.
 /// - `name`: UTF-8 C string (nullable). On NULL/invalid, sets `out_err` and returns `None`.
@@ -17,7 +17,7 @@ pub extern "C" fn tinned_symbol_new(
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> Option<ExprBox> {
     let Some(name) = tinned_string_from_cstr(name) else {
-        set_out_err(
+        tinned_error_new(
             out_err,
             generic_error("Null or invalid name passed to tinned_symbol_new", None),
         );
@@ -36,10 +36,5 @@ pub extern "C" fn tinned_symbol_name(
     h: Option<&ExprHandle>,
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> Option<char_p::Box> {
-    with_downcast_cstr::<Symbol>(
-        h,
-        out_err,
-        "tinned_symbol_name",
-        |s| s.name().to_string(),
-    )
+    with_downcast_cstr::<Symbol>(h, out_err, "tinned_symbol_name", |s| s.name().to_string())
 }

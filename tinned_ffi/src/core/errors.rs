@@ -4,7 +4,37 @@ use std::fmt::Write;
 
 use tinned::core::TinnedError;
 
-use crate::core::{TinnedErrorBox, TinnedErrorHandle};
+/// An *opaque* handle that C can only pass around
+#[derive_ReprC]
+#[repr(opaque)]
+pub struct TinnedErrorHandle {
+    inner: TinnedError,
+}
+
+/// Owned box by C after return
+pub type TinnedErrorBox = repr_c::Box<TinnedErrorHandle>;
+
+impl TinnedErrorHandle {
+    #[inline]
+    pub(crate) fn new(err: TinnedError) -> Self {
+        Self {
+            inner: err,
+        }
+    }
+
+    #[inline]
+    pub(crate) fn as_ref(&self) -> &TinnedError {
+        &self.inner
+    }
+}
+
+// Creates an opaque handle for an error and fill into a box (used by FFI entrypoints).
+#[inline]
+pub fn tinned_error_new(out_err: Option<Out<'_, TinnedErrorBox>>, err: TinnedError) {
+    if let Some(out) = out_err {
+        out.write(TinnedErrorBox::new(TinnedErrorHandle::new(err)));
+    }
+}
 
 // Public: free the error box
 #[ffi_export]

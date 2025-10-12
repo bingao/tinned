@@ -5,7 +5,7 @@ use tinned::expressions::Conjugate;
 use tinned::public::generic_error;
 
 use crate::c_support::with_downcast_expr_res;
-use crate::core::{ExprBox, ExprHandle, TinnedErrorBox, set_out_err};
+use crate::core::{ExprBox, ExprHandle, TinnedErrorBox, tinned_error_new};
 
 #[ffi_export]
 pub extern "C" fn tinned_conjugate_new(
@@ -13,7 +13,10 @@ pub extern "C" fn tinned_conjugate_new(
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> Option<ExprBox> {
     let Some(argument) = argument else {
-        set_out_err(out_err, generic_error("Null argument passed to tinned_conjugate_new", None));
+        tinned_error_new(
+            out_err,
+            generic_error("Null argument passed to tinned_conjugate_new", None),
+        );
         return None;
     };
     let arg_arc = argument.clone_arc();
@@ -21,7 +24,7 @@ pub extern "C" fn tinned_conjugate_new(
     match Conjugate::new(arg_arc) {
         Ok(expr_arc) => Some(ExprBox::new(ExprHandle::new(expr_arc))),
         Err(e) => {
-            set_out_err(out_err, e);
+            tinned_error_new(out_err, e);
             None
         },
     }

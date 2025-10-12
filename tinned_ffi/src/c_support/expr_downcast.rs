@@ -5,7 +5,7 @@ use tinned::core::{Expr, TinnedError};
 use tinned::public::expression_error;
 
 use crate::c_support::{tinned_string_to_cstr, try_with_handle};
-use crate::core::{ExprBox, ExprHandle, TinnedErrorBox, set_out_err};
+use crate::core::{ExprBox, ExprHandle, TinnedErrorBox, tinned_error_new};
 
 #[inline]
 fn invalid_type_err<T: 'static>(caller: &'static str, expr: &Arc<dyn Expr>) -> TinnedError {
@@ -39,7 +39,7 @@ pub(crate) fn with_downcast_val<Target: 'static, R: Copy>(
     })
     .map_or_else(
         |e| {
-            set_out_err(out_err, e);
+            tinned_error_new(out_err, e);
             None
         },
         Some,
@@ -69,7 +69,7 @@ pub(crate) fn with_downcast_cstr<Target: 'static>(
     })
     .map_or_else(
         |e| {
-            set_out_err(out_err, e);
+            tinned_error_new(out_err, e);
             None
         },
         Some,
@@ -100,7 +100,7 @@ pub(crate) fn with_downcast_expr_res<Target: 'static>(
     })
     .map_or_else(
         |e| {
-            set_out_err(out_err, e);
+            tinned_error_new(out_err, e);
             None
         },
         Some,

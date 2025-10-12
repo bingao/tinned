@@ -1,14 +1,57 @@
 use safer_ffi::prelude::*;
 use std::sync::Arc;
 
+use tinned::core::TinnedError;
 use tinned::perturbations::Perturbation;
 use tinned::public::generic_error;
 
 use crate::c_support::{
-    tinned_string_from_cstr, tinned_string_to_cstr, try_from_handle, try_with_handle,
+    tinned_string_from_cstr, tinned_string_to_cstr, try_from_handle, try_from_slice,
+    try_with_handle,
 };
-use crate::core::{ExprBox, ExprHandle, TinnedErrorBox, set_out_err};
-use crate::perturbations::{PerturbationBox, PerturbationHandle};
+use crate::core::{ExprBox, ExprHandle, TinnedErrorBox, tinned_error_new};
+
+/// An *opaque* handle that C can only pass around
+#[derive_ReprC]
+#[repr(opaque)]
+pub struct PerturbationHandle {
+    inner: Arc<Perturbation>,
+}
+
+/// Owned box by C after return
+pub type PerturbationBox = repr_c::Box<PerturbationHandle>;
+
+impl PerturbationHandle {
+    #[inline]
+    pub(crate) fn new(p: Arc<Perturbation>) -> Self {
+        Self {
+            inner: p,
+        }
+    }
+
+    #[inline]
+    pub(crate) fn as_ref(&self) -> &Perturbation {
+        &*self.inner
+    }
+
+    #[inline]
+    pub(crate) fn clone_arc(&self) -> Arc<Perturbation> {
+        Arc::clone(&self.inner)
+    }
+}
+
+/// Borrowed slice of handles
+pub type PerturbationSlice<'a> = c_slice::Ref<'a, *const PerturbationHandle>;
+
+/// Turn a `PerturbationSlice` into `Vec<Arc<Perturbation>>`.
+#[inline]
+pub fn perturbation_vec_from_slice(
+    slice: PerturbationSlice<'_>,
+    caller: &'static str,
+) -> Result<Vec<Arc<Perturbation>>, TinnedError> {
+    // Reuse the same safety/validation logic as Expr via `try_from_slice`
+    try_from_slice(slice, caller, "PerturbationHandle", |h: &PerturbationHandle| h.clone_arc())
+}
 
 // Free a perturbation (NULL-safe).
 #[ffi_export]
@@ -27,7 +70,7 @@ pub fn tinned_perturbation_clone(
     }) {
         Ok(b) => Some(b),
         Err(e) => {
-            set_out_err(out_err, e);
+            tinned_error_new(out_err, e);
             None
         },
     }
@@ -41,7 +84,7 @@ pub extern "C" fn tinned_perturbation_new(
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> Option<PerturbationBox> {
     let Some(name) = tinned_string_from_cstr(name) else {
-        set_out_err(
+        tinned_error_new(
             out_err,
             generic_error("Null perturbation name passed to tinned_perturbation_new", None),
         );
@@ -49,7 +92,7 @@ pub extern "C" fn tinned_perturbation_new(
     };
 
     let Some(freq) = frequency else {
-        set_out_err(
+        tinned_error_new(
             out_err,
             generic_error("Null frequency passed to tinned_perturbation_new", None),
         );
@@ -73,7 +116,7 @@ pub extern "C" fn tinned_perturbation_name(
     }) {
         Ok(s) => Some(s),
         Err(e) => {
-            set_out_err(out_err, e);
+            tinned_error_new(out_err, e);
             None
         },
     }
@@ -92,7 +135,7 @@ pub extern "C" fn tinned_perturbation_frequency(
     }) {
         Ok(b) => Some(b),
         Err(e) => {
-            set_out_err(out_err, e);
+            tinned_error_new(out_err, e);
             None
         },
     }
@@ -110,7 +153,7 @@ pub extern "C" fn tinned_perturbation_display(
     }) {
         Ok(s) => Some(s),
         Err(e) => {
-            set_out_err(out_err, e);
+            tinned_error_new(out_err, e);
             None
         },
     }

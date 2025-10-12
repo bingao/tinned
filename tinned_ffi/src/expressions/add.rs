@@ -5,7 +5,7 @@ use tinned::public::generic_error;
 
 use crate::c_support::{with_downcast_expr_res, with_downcast_val};
 use crate::core::{
-    ExprBox, ExprHandle, ExprSlice, TinnedErrorBox, expr_vec_from_slice, set_out_err,
+    ExprBox, ExprHandle, ExprSlice, TinnedErrorBox, expr_vec_from_slice, tinned_error_new,
 };
 
 #[ffi_export]
@@ -16,7 +16,7 @@ pub extern "C" fn tinned_add_new(
     let terms_vec = match expr_vec_from_slice(terms, "tinned_add_new") {
         Ok(v) => v,
         Err(e) => {
-            set_out_err(out_err, e);
+            tinned_error_new(out_err, e);
             return None;
         },
     };
@@ -24,7 +24,7 @@ pub extern "C" fn tinned_add_new(
     match Add::new(terms_vec) {
         Ok(expr_arc) => Some(ExprBox::new(ExprHandle::new(expr_arc))),
         Err(e) => {
-            set_out_err(out_err, e);
+            tinned_error_new(out_err, e);
             None
         },
     }

@@ -6,7 +6,7 @@ use tinned::public::generic_error;
 
 use crate::c_support::{with_downcast_expr_res, with_downcast_val};
 use crate::core::{
-    ExprBox, ExprHandle, ExprSlice, TinnedErrorBox, expr_vec_from_slice, set_out_err,
+    ExprBox, ExprHandle, ExprSlice, TinnedErrorBox, expr_vec_from_slice, tinned_error_new,
 };
 
 #[ffi_export]
@@ -19,13 +19,16 @@ pub extern "C" fn tinned_adjoint_map_new(
     let generators_vec = match expr_vec_from_slice(generators, "tinned_adjoint_map_new") {
         Ok(v) => v,
         Err(e) => {
-            set_out_err(out_err, e);
+            tinned_error_new(out_err, e);
             return None;
         },
     };
 
     let Some(target) = target else {
-        set_out_err(out_err, generic_error("Null target passed to tinned_adjoint_map_new", None));
+        tinned_error_new(
+            out_err,
+            generic_error("Null target passed to tinned_adjoint_map_new", None),
+        );
         return None;
     };
     let target_arc = target.clone_arc();
@@ -33,7 +36,7 @@ pub extern "C" fn tinned_adjoint_map_new(
     match AdjointMap::new(generators_vec, target_arc, Some(left_action)) {
         Ok(expr_arc) => Some(ExprBox::new(ExprHandle::new(expr_arc))),
         Err(e) => {
-            set_out_err(out_err, e);
+            tinned_error_new(out_err, e);
             None
         },
     }

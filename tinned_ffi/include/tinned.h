@@ -235,6 +235,38 @@ tinned_expr_serialize_json (
     ExprHandle_t const * h,
     TinnedErrorHandle_t * * out_err);
 
+/** <No documentation available> */
+typedef struct NumberToleranceHandle NumberToleranceHandle_t;
+
+/** <No documentation available> */
+NumberToleranceHandle_t *
+tinned_get_global_number_tolerance (void);
+
+/** <No documentation available> */
+double
+tinned_number_tolerance_abs_error (
+    NumberToleranceHandle_t const * h);
+
+/** <No documentation available> */
+void
+tinned_number_tolerance_free (
+    NumberToleranceHandle_t * tol);
+
+/** <No documentation available> */
+NumberToleranceHandle_t *
+tinned_number_tolerance_new (
+    double abs_error,
+    double rel_error);
+
+/** <No documentation available> */
+double
+tinned_number_tolerance_rel_error (
+    NumberToleranceHandle_t const * h);
+
+/** <No documentation available> */
+NumberToleranceHandle_t *
+tinned_number_tolerance_zero (void);
+
 /** \brief
  *  An *opaque* handle that C can only pass around
  */
@@ -392,6 +424,11 @@ tinned_perturbation_new (
     char const * name,
     ExprHandle_t const * frequency,
     TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+void
+tinned_set_global_number_tolerance (
+    NumberToleranceHandle_t const * h);
 
 /** <No documentation available> */
 void

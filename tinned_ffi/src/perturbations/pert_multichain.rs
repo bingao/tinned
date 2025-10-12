@@ -5,11 +5,43 @@ use tinned::perturbations::PertMultichain;
 use tinned::public::generic_error;
 
 use crate::c_support::{tinned_string_to_cstr, try_from_handle, try_with_handle};
-use crate::core::{TinnedErrorBox, set_out_err};
-use crate::perturbations::{
-    PertMultichainBox, PertMultichainHandle, PerturbationHandle, PerturbationSlice,
-    perturbation_vec_from_slice,
-};
+use crate::core::{TinnedErrorBox, tinned_error_new};
+use crate::perturbations::{PerturbationHandle, PerturbationSlice, perturbation_vec_from_slice};
+
+/// An *opaque* handle that C can only pass around
+#[derive_ReprC]
+#[repr(opaque)]
+pub struct PertMultichainHandle {
+    inner: Arc<PertMultichain>,
+}
+
+/// Owned box by C after return
+pub type PertMultichainBox = repr_c::Box<PertMultichainHandle>;
+
+impl PertMultichainHandle {
+    #[inline]
+    pub(crate) fn new(p: Arc<PertMultichain>) -> Self {
+        Self {
+            inner: p,
+        }
+    }
+
+    #[inline]
+    pub(crate) fn as_ref(&self) -> &PertMultichain {
+        &*self.inner
+    }
+
+    #[inline]
+    pub(crate) fn clone_arc(&self) -> Arc<PertMultichain> {
+        Arc::clone(&self.inner)
+    }
+
+    // Get a unique mutable reference to the chain if the Arc is uniquely owned. Used by `tinned_pert_multichain_insert`.
+    #[inline]
+    pub(crate) fn get_mut(&mut self) -> Option<&mut PertMultichain> {
+        Arc::get_mut(&mut self.inner)
+    }
+}
 
 // Free a perturbation multichain (NULL-safe).
 #[ffi_export]
@@ -28,7 +60,7 @@ pub fn tinned_pert_multichain_clone(
     }) {
         Ok(b) => Some(b),
         Err(e) => {
-            set_out_err(out_err, e);
+            tinned_error_new(out_err, e);
             None
         },
     }
@@ -50,7 +82,7 @@ pub extern "C" fn tinned_pert_multichain_from_slice(
     {
         Ok(v) => v,
         Err(e) => {
-            set_out_err(out_err, e);
+            tinned_error_new(out_err, e);
             return None;
         },
     };
@@ -73,7 +105,7 @@ pub extern "C" fn tinned_pert_multichain_add(
         }) {
             Ok(v) => v,
             Err(e) => {
-                set_out_err(out_err, e);
+                tinned_error_new(out_err, e);
                 return None;
             },
         };
@@ -85,7 +117,7 @@ pub extern "C" fn tinned_pert_multichain_add(
     }) {
         Ok(b) => Some(b),
         Err(e) => {
-            set_out_err(out_err, e);
+            tinned_error_new(out_err, e);
             None
         },
     }
@@ -104,14 +136,14 @@ pub extern "C" fn tinned_pert_multichain_insert(
         }) {
             Ok(v) => v,
             Err(e) => {
-                set_out_err(out_err, e);
+                tinned_error_new(out_err, e);
                 return false;
             },
         };
 
     // Validate the chain handle (needs to be present and uniquely owned).
     let Some(handle) = h else {
-        set_out_err(
+        tinned_error_new(
             out_err,
             generic_error(
                 "Null PertMultichainHandle pointer in tinned_pert_multichain_insert",
@@ -123,7 +155,7 @@ pub extern "C" fn tinned_pert_multichain_insert(
 
     // Get a unique mutable reference to the chain (fails if shared).
     let Some(chain) = handle.get_mut() else {
-        set_out_err(
+        tinned_error_new(
             out_err,
             generic_error(
                 "Chain handle is shared; use tinned_pert_multichain_add() or clone first",
@@ -152,7 +184,7 @@ pub extern "C" fn tinned_pert_multichain_get_order(
         }) {
             Ok(v) => v,
             Err(e) => {
-                set_out_err(out_err, e);
+                tinned_error_new(out_err, e);
                 return 0;
             },
         };
@@ -162,7 +194,7 @@ pub extern "C" fn tinned_pert_multichain_get_order(
     }) {
         Ok(n) => n,
         Err(e) => {
-            set_out_err(out_err, e);
+            tinned_error_new(out_err, e);
             0
         },
     }
@@ -179,7 +211,7 @@ pub extern "C" fn tinned_pert_multichain_is_empty(
     }) {
         Ok(v) => v,
         Err(e) => {
-            set_out_err(out_err, e);
+            tinned_error_new(out_err, e);
             true
         },
     }
@@ -196,7 +228,7 @@ pub extern "C" fn tinned_pert_multichain_total_order(
     }) {
         Ok(v) => v,
         Err(e) => {
-            set_out_err(out_err, e);
+            tinned_error_new(out_err, e);
             0
         },
     }
@@ -222,7 +254,7 @@ pub extern "C" fn tinned_pert_multichain_is_subchain(
     match res {
         Ok(v) => v,
         Err(e) => {
-            set_out_err(out_err, e);
+            tinned_error_new(out_err, e);
             false
         },
     }
@@ -252,7 +284,7 @@ pub extern "C" fn tinned_pert_multichain_is_superchain(
     match res {
         Ok(v) => v,
         Err(e) => {
-            set_out_err(out_err, e);
+            tinned_error_new(out_err, e);
             false
         },
     }
@@ -278,7 +310,7 @@ pub extern "C" fn tinned_pert_multichain_has_overlap(
     match res {
         Ok(v) => v,
         Err(e) => {
-            set_out_err(out_err, e);
+            tinned_error_new(out_err, e);
             false
         },
     }
@@ -295,7 +327,7 @@ pub extern "C" fn tinned_pert_multichain_display(
     }) {
         Ok(s) => Some(s),
         Err(e) => {
-            set_out_err(out_err, e);
+            tinned_error_new(out_err, e);
             None
         },
     }

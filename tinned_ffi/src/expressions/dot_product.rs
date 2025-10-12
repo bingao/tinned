@@ -5,7 +5,7 @@ use tinned::expressions::DotProduct;
 use tinned::public::generic_error;
 
 use crate::c_support::{with_downcast_expr_res, with_downcast_val};
-use crate::core::{ExprBox, ExprHandle, TinnedErrorBox, set_out_err};
+use crate::core::{ExprBox, ExprHandle, TinnedErrorBox, tinned_error_new};
 
 #[ffi_export]
 pub extern "C" fn tinned_dot_product_new(
@@ -16,11 +16,11 @@ pub extern "C" fn tinned_dot_product_new(
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> Option<ExprBox> {
     let Some(bra) = bra else {
-        set_out_err(out_err, generic_error("Null bra passed to tinned_dot_product_new", None));
+        tinned_error_new(out_err, generic_error("Null bra passed to tinned_dot_product_new", None));
         return None;
     };
     let Some(ket) = ket else {
-        set_out_err(out_err, generic_error("Null ket passed to tinned_dot_product_new", None));
+        tinned_error_new(out_err, generic_error("Null ket passed to tinned_dot_product_new", None));
         return None;
     };
 
@@ -30,7 +30,7 @@ pub extern "C" fn tinned_dot_product_new(
     match DotProduct::new(bra_arc, use_hermitian, ket_arc, allow_braket_swap) {
         Ok(expr_arc) => Some(ExprBox::new(ExprHandle::new(expr_arc))),
         Err(e) => {
-            set_out_err(out_err, e);
+            tinned_error_new(out_err, e);
             None
         },
     }

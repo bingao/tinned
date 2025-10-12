@@ -1,13 +1,55 @@
 use safer_ffi::prelude::*;
 use std::sync::Arc;
 
-use tinned::core::Expr;
+use tinned::core::{Expr, TinnedError};
 use tinned::public::generic_error;
 
 use crate::c_support::{
-    tinned_string_from_cstr, tinned_string_to_cstr, try_from_handle, try_with_handle,
+    tinned_string_from_cstr, tinned_string_to_cstr, try_from_handle, try_from_slice,
+    try_with_handle,
 };
-use crate::core::{ExprBox, ExprHandle, TinnedErrorBox, set_out_err};
+use crate::core::{TinnedErrorBox, tinned_error_new};
+
+/// An *opaque* handle that C can only pass around
+#[derive_ReprC]
+#[repr(opaque)]
+pub struct ExprHandle {
+    inner: Arc<dyn Expr>,
+}
+
+/// Owned box by C after return
+pub type ExprBox = repr_c::Box<ExprHandle>;
+
+impl ExprHandle {
+    #[inline]
+    pub(crate) fn new(expr: Arc<dyn Expr>) -> Self {
+        Self {
+            inner: expr,
+        }
+    }
+
+    #[inline]
+    pub(crate) fn as_ref(&self) -> &dyn Expr {
+        &*self.inner
+    }
+
+    #[inline]
+    pub(crate) fn clone_arc(&self) -> Arc<dyn Expr> {
+        Arc::clone(&self.inner)
+    }
+}
+
+/// Borrowed slice of handles
+pub type ExprSlice<'a> = c_slice::Ref<'a, *const ExprHandle>;
+
+/// Turn an `ExprSlice` into `Vec<Arc<dyn Expr>>`, or set `out_err` and return `None`.
+#[inline]
+pub fn expr_vec_from_slice(
+    slice: ExprSlice<'_>,
+    caller: &'static str,
+) -> Result<Vec<Arc<dyn Expr>>, TinnedError> {
+    try_from_slice(slice, caller, "ExprHandle", |h: &ExprHandle| h.clone_arc())
+}
 
 // Free an expression (NULL-safe).
 #[ffi_export]
@@ -26,7 +68,7 @@ pub fn tinned_expr_clone(
     }) {
         Ok(b) => Some(b),
         Err(e) => {
-            set_out_err(out_err, e);
+            tinned_error_new(out_err, e);
             None
         },
     }
@@ -44,7 +86,7 @@ pub fn tinned_expr_is_scalar(
     }) {
         Ok(v) => v,
         Err(e) => {
-            set_out_err(out_err, e);
+            tinned_error_new(out_err, e);
             false
         },
     }
@@ -62,7 +104,7 @@ pub fn tinned_expr_hash_key(
     }) {
         Ok(s) => Some(s),
         Err(e) => {
-            set_out_err(out_err, e);
+            tinned_error_new(out_err, e);
             None
         },
     }
@@ -80,7 +122,7 @@ pub fn tinned_expr_display(
     }) {
         Ok(s) => Some(s),
         Err(e) => {
-            set_out_err(out_err, e);
+            tinned_error_new(out_err, e);
             None
         },
     }
@@ -100,7 +142,7 @@ pub fn tinned_expr_serialize_json(
     }) {
         Ok(s) => Some(s),
         Err(e) => {
-            set_out_err(out_err, e);
+            tinned_error_new(out_err, e);
             None
         },
     }
@@ -116,7 +158,7 @@ pub fn tinned_expr_deserialize_json(
     let s = match tinned_string_from_cstr(json) {
         Some(s) => s,
         None => {
-            set_out_err(
+            tinned_error_new(
                 out_err,
                 generic_error("tinned_expr_deserialize_json: NULL or non-UTF-8 json", None),
             );
@@ -127,7 +169,7 @@ pub fn tinned_expr_deserialize_json(
     match serde_json::from_str::<Arc<dyn Expr>>(&s) {
         Ok(expr) => Some(ExprBox::new(ExprHandle::new(expr))),
         Err(err) => {
-            set_out_err(
+            tinned_error_new(
                 out_err,
                 generic_error("Failed to deserialize expression from JSON", Some(Box::new(err))),
             );

@@ -4,11 +4,12 @@ mod c_support;
 mod core;
 mod expressions;
 mod perturbations;
-//mod public;
+mod public;
 
 pub use crate::c_support::*;
 pub use crate::core::*;
 pub use crate::perturbations::*;
+pub use crate::public::*;
 
 #[cfg(all(test, feature = "c-headers"))]
 mod header_gen {
