@@ -26,9 +26,9 @@ impl TinnedErrorHandle {
     }
 }
 
-// Internal: fill an out-err safer-ffi out-parameter (used by FFI entrypoints)
+// Fill an out-err safer-ffi out-parameter (used by FFI entrypoints)
 #[inline]
-pub(crate) fn set_out_err(out_err: Option<Out<'_, TinnedErrorBox>>, err: TinnedError) {
+pub fn set_out_err(out_err: Option<Out<'_, TinnedErrorBox>>, err: TinnedError) {
     if let Some(out) = out_err {
         let rust_box = std::boxed::Box::new(TinnedErrorHandle::new(err));
         out.write(rust_box.into());
