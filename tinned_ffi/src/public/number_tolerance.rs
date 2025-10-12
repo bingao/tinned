@@ -12,19 +12,19 @@ pub type NumberToleranceBox = repr_c::Box<NumberToleranceHandle>;
 
 impl NumberToleranceHandle {
     #[inline]
-    fn new(tol: NumberTolerance) -> Self {
+    pub fn new(tol: NumberTolerance) -> Self {
         Self {
             inner: tol,
         }
     }
 
     #[inline]
-    fn as_ref(&self) -> &NumberTolerance {
+    pub fn as_ref(&self) -> &NumberTolerance {
         &self.inner
     }
 
     //#[inline]
-    //fn into_inner(self: repr_c::Box<Self>) -> NumberTolerance { repr_c::Box::into_inner(self).inner }
+    //pub fn into_inner(self: repr_c::Box<Self>) -> NumberTolerance { repr_c::Box::into_inner(self).inner }
 }
 
 #[ffi_export]
