@@ -1,3 +1,4 @@
 [alias]
 build-lib = "build -p tinned_lib --release"
-build-ffi = "build -p tinned_ffi --release"
+build-ffi = "build -p tinned_ffi --profile release-ffi"
+gen-headers = "test -p tinned_ffi --features c-headers --profile release -- --exact header_gen::generate_c_header --nocapture"

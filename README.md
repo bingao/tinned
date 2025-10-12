@@ -19,9 +19,9 @@ Tinned is licensed under Mozilla Public License Version 2.0, see the
 
 For Rust library, run `cargo build-lib`, or `cargo build -p tinned_lib --release`.
 
-If you want C library, use `cargo build-ffi` or `cargo build -p tinned_ffi --release`.
+If you want C library, use `cargo build-ffi` or `cargo build -p tinned_ffi --profile release-ffi`.
 
-Optionally, export `CARGO_MANIFEST_DIR` and run `cargo test --features c-headers -- --exact header_gen::generate_c_header --nocapture`.
+Optionally, run `cargo gen-headers `, or `cargo test --features c-headers --profile release-ffi -- --exact header_gen::generate_c_header --nocapture`.
 
 ## Tinned APIs
 

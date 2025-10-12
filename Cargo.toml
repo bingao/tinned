@@ -2,3 +2,15 @@
 members = ["tinned_lib", "tinned_ffi"]
 default-members = ["tinned_lib"]
 resolver = "3"
+
+[profile.dev]
+panic = "unwind"
+
+[profile.release]
+panic = "unwind"
+
+[profile.release-ffi]
+inherits = "release"
+panic = "abort"
+lto = true
+codegen-units = 1

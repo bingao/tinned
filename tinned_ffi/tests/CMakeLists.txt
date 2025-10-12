@@ -4,9 +4,8 @@ project(tinned_c_tests C)
 # Options users can override
 set(WORKSPACE_DIR "${CMAKE_CURRENT_LIST_DIR}/../.." CACHE PATH "Path to Cargo workspace root")
 set(TINNED_CRATE_DIR "${CMAKE_CURRENT_LIST_DIR}/.." CACHE PATH "Path to Rust FFI crate")
-set(CARGO_PROFILE "release" CACHE STRING "cargo profile: debug or release")
+set(CARGO_PROFILE "release-ffi" CACHE STRING "Cargo profile: debug, release, or release-ffi")
 set(TINNED_FEATURES "c-headers" CACHE STRING "Cargo features for building/generating headers")
-option(TINNED_GENERATE_HEADER "Generate include/tinned.h via cargo test" ON)
 
 # Target dir
 if(DEFINED ENV{CARGO_TARGET_DIR})
@@ -19,32 +18,15 @@ endif()
 if (CARGO_PROFILE STREQUAL "release")
   set(CARGO_BUILD_ARGS --release)
   set(PROFILE_DIR "release")
-else()
-  set(CARGO_BUILD_ARGS "")     # debug build has no flag
+elseif (CARGO_PROFILE STREQUAL "debug")
+  set(CARGO_BUILD_ARGS "")
   set(PROFILE_DIR "debug")
-endif()
-
-# Path to the header either way (may already exist)
-set(GEN_HEADER "${TINNED_CRATE_DIR}/include/tinned.h")
-
-# Generate header via the test-based generator
-if(TINNED_GENERATE_HEADER)
-  add_custom_command(
-    OUTPUT "${GEN_HEADER}"
-    COMMAND ${CMAKE_COMMAND} -E env
-            RUSTFLAGS=$ENV{RUSTFLAGS}
-            cargo test
-            --manifest-path "${TINNED_CRATE_DIR}/Cargo.toml"
-            --features "${TINNED_FEATURES}"
-            -- --exact header_gen::generate_c_header --nocapture
-    BYPRODUCTS "${GEN_HEADER}"
-    WORKING_DIRECTORY "${TINNED_CRATE_DIR}"
-    COMMENT "Generating tinned.h via safer-ffi header builder"
-    VERBATIM
-  )
-  add_custom_target(generate_header ALL DEPENDS "${GEN_HEADER}")
+elseif (CARGO_PROFILE STREQUAL "release-ffi")
+  # Use the workspace's named profile that has panic = "abort"
+  set(CARGO_BUILD_ARGS --profile release-ffi)
+  set(PROFILE_DIR "release-ffi")
 else()
-  message(STATUS "Skipping header generation; expecting preexisting: ${GEN_HEADER}")
+  message(FATAL_ERROR "Unknown CARGO_PROFILE='${CARGO_PROFILE}'. Use debug, release, or release-ffi.")
 endif()
 
 # Build the Rust FFI library
@@ -92,18 +74,13 @@ add_executable(test_api
   # add more test_*.c files here
 )
 
-# Include the generated header & test includes
+# Include the Rust FFI header & test includes
 target_include_directories(test_api PRIVATE
   "${TINNED_CRATE_DIR}/include"
   "${CMAKE_CURRENT_LIST_DIR}"
 )
 
 target_link_libraries(test_api PRIVATE tinned_ffi)
-
-# Only depend on header generation when enabled
-if(TINNED_GENERATE_HEADER)
-  add_dependencies(test_api generate_header)
-endif()
 
 # Make sure the Rust runtime library is found at run-time
 if (APPLE)
