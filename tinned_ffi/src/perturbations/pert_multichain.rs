@@ -20,25 +20,25 @@ pub type PertMultichainBox = repr_c::Box<PertMultichainHandle>;
 
 impl PertMultichainHandle {
     #[inline]
-    pub(crate) fn new(p: Arc<PertMultichain>) -> Self {
+    pub fn new(p: Arc<PertMultichain>) -> Self {
         Self {
             inner: p,
         }
     }
 
     #[inline]
-    pub(crate) fn as_ref(&self) -> &PertMultichain {
+    pub fn as_ref(&self) -> &PertMultichain {
         &*self.inner
     }
 
     #[inline]
-    pub(crate) fn clone_arc(&self) -> Arc<PertMultichain> {
+    pub fn clone_arc(&self) -> Arc<PertMultichain> {
         Arc::clone(&self.inner)
     }
 
     // Get a unique mutable reference to the chain if the Arc is uniquely owned. Used by `tinned_pert_multichain_insert`.
     #[inline]
-    pub(crate) fn get_mut(&mut self) -> Option<&mut PertMultichain> {
+    pub fn get_mut(&mut self) -> Option<&mut PertMultichain> {
         Arc::get_mut(&mut self.inner)
     }
 }

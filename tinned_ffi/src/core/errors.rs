@@ -16,14 +16,14 @@ pub type TinnedErrorBox = repr_c::Box<TinnedErrorHandle>;
 
 impl TinnedErrorHandle {
     #[inline]
-    pub(crate) fn new(err: TinnedError) -> Self {
+    pub fn new(err: TinnedError) -> Self {
         Self {
             inner: err,
         }
     }
 
     #[inline]
-    pub(crate) fn as_ref(&self) -> &TinnedError {
+    pub fn as_ref(&self) -> &TinnedError {
         &self.inner
     }
 }

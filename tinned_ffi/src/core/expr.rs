@@ -22,19 +22,19 @@ pub type ExprBox = repr_c::Box<ExprHandle>;
 
 impl ExprHandle {
     #[inline]
-    pub(crate) fn new(expr: Arc<dyn Expr>) -> Self {
+    pub fn new(expr: Arc<dyn Expr>) -> Self {
         Self {
             inner: expr,
         }
     }
 
     #[inline]
-    pub(crate) fn as_ref(&self) -> &dyn Expr {
+    pub fn as_ref(&self) -> &dyn Expr {
         &*self.inner
     }
 
     #[inline]
-    pub(crate) fn clone_arc(&self) -> Arc<dyn Expr> {
+    pub fn clone_arc(&self) -> Arc<dyn Expr> {
         Arc::clone(&self.inner)
     }
 }

@@ -23,19 +23,19 @@ pub type PerturbationBox = repr_c::Box<PerturbationHandle>;
 
 impl PerturbationHandle {
     #[inline]
-    pub(crate) fn new(p: Arc<Perturbation>) -> Self {
+    pub fn new(p: Arc<Perturbation>) -> Self {
         Self {
             inner: p,
         }
     }
 
     #[inline]
-    pub(crate) fn as_ref(&self) -> &Perturbation {
+    pub fn as_ref(&self) -> &Perturbation {
         &*self.inner
     }
 
     #[inline]
-    pub(crate) fn clone_arc(&self) -> Arc<Perturbation> {
+    pub fn clone_arc(&self) -> Arc<Perturbation> {
         Arc::clone(&self.inner)
     }
 }
