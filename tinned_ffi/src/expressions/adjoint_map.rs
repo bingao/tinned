@@ -4,7 +4,7 @@ use std::sync::Arc;
 use tinned::expressions::AdjointMap;
 use tinned::public::generic_error;
 
-use crate::c_support::{with_downcast_expr_res, with_downcast_val};
+use crate::c_support::{with_downcast_expr, with_downcast_val};
 use crate::core::{
     ExprBox, ExprHandle, ExprSlice, TinnedErrorBox, expr_vec_from_slice, tinned_error_new,
 };
@@ -42,54 +42,16 @@ pub extern "C" fn tinned_adjoint_map_new(
     }
 }
 
-#[ffi_export]
-pub extern "C" fn tinned_adjoint_map_generators_count(
-    h: Option<&ExprHandle>,
-    out_err: Option<Out<'_, TinnedErrorBox>>,
-) -> usize {
-    with_downcast_val::<AdjointMap, usize>(h, out_err, "tinned_adjoint_map_generators_count", |a| {
-        a.generators().len()
-    })
-    .unwrap_or(0)
-}
+impl_val_getters!(
+    AdjointMap;
+    tinned_adjoint_map_generators_count: usize => |a| a.generators().len(); default = 0,
+    tinned_adjoint_map_left_action: bool => |a| a.left_action(); default = false,
+);
 
 // Return the i-th generator (cloned). Caller must free the returned ExprBox.
-#[ffi_export]
-pub extern "C" fn tinned_adjoint_map_generator_at(
-    h: Option<&ExprHandle>,
-    i: usize,
-    out_err: Option<Out<'_, TinnedErrorBox>>,
-) -> Option<ExprBox> {
-    with_downcast_expr_res::<AdjointMap>(h, out_err, "tinned_adjoint_map_generator_at", |a| {
-        a.generators().get(i).cloned().ok_or_else(|| {
-            generic_error(
-                format!(
-                    "Index {i} out of bounds (len = {}) in tinned_adjoint_map_generator_at",
-                    a.generators().len()
-                ),
-                None,
-            )
-        })
-    })
-}
+impl_expr_index_getter!(tinned_adjoint_map_generator_at : AdjointMap => generators);
 
-#[ffi_export]
-pub extern "C" fn tinned_adjoint_map_target(
-    h: Option<&ExprHandle>,
-    out_err: Option<Out<'_, TinnedErrorBox>>,
-) -> Option<ExprBox> {
-    with_downcast_expr_res::<AdjointMap>(h, out_err, "tinned_adjoint_map_target", |a| {
-        Ok(Arc::clone(a.target()))
-    })
-}
-
-#[ffi_export]
-pub extern "C" fn tinned_adjoint_map_left_action(
-    h: Option<&ExprHandle>,
-    out_err: Option<Out<'_, TinnedErrorBox>>,
-) -> bool {
-    with_downcast_val::<AdjointMap, bool>(h, out_err, "tinned_adjoint_map_left_action", |a| {
-        a.left_action()
-    })
-    .unwrap_or(false)
-}
+impl_expr_getters!(
+    AdjointMap;
+    tinned_adjoint_map_target => |adj| Ok(Arc::clone(adj.target())),
+);

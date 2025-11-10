@@ -29,12 +29,8 @@ pub extern "C" fn tinned_symbol_new(
     Some(ExprBox::new(ExprHandle::new(expr_arc)))
 }
 
-/// Get the `name` of a `Symbol`.
-/// - Returns a newly allocated C string; free with `tinned_string_free`.
-#[ffi_export]
-pub extern "C" fn tinned_symbol_name(
-    h: Option<&ExprHandle>,
-    out_err: Option<Out<'_, TinnedErrorBox>>,
-) -> Option<char_p::Box> {
-    with_downcast_cstr::<Symbol>(h, out_err, "tinned_symbol_name", |s| s.name().to_string())
-}
+// Get the `name` of a `Symbol`.
+// - Returns a newly allocated C string; free with `tinned_string_free`.
+impl_cstr_getter!(
+    tinned_symbol_name : Symbol => |s| s.name().to_string()
+);

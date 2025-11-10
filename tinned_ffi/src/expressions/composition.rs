@@ -5,7 +5,7 @@ use tinned::expressions::Composition;
 use tinned::public::generic_error;
 
 use crate::c_support::{
-    tinned_string_from_cstr, with_downcast_cstr, with_downcast_expr_res, with_downcast_val,
+    tinned_string_from_cstr, with_downcast_cstr, with_downcast_expr, with_downcast_val,
 };
 use crate::core::{ExprBox, ExprHandle, TinnedErrorBox, tinned_error_new};
 
@@ -43,33 +43,18 @@ pub extern "C" fn tinned_composition_new(
 }
 
 // Get `name` (caller must free the returned C string).
-#[ffi_export]
-pub extern "C" fn tinned_composition_name(
-    h: Option<&ExprHandle>,
-    out_err: Option<Out<'_, TinnedErrorBox>>,
-) -> Option<char_p::Box> {
-    with_downcast_cstr::<Composition>(h, out_err, "tinned_composition_name", |c| {
-        c.name().to_string()
-    })
-}
+impl_cstr_getter!(
+    tinned_composition_name : Composition => |c| c.name().to_string()
+);
 
 // Get `order`.
-#[ffi_export]
-pub extern "C" fn tinned_composition_order(
-    h: Option<&ExprHandle>,
-    out_err: Option<Out<'_, TinnedErrorBox>>,
-) -> u32 {
-    with_downcast_val::<Composition, u32>(h, out_err, "tinned_composition_order", |c| c.order())
-        .unwrap_or(0)
-}
+impl_val_getters!(
+    Composition;
+    tinned_composition_order: u32 => |c| c.order(); default = 0,
+);
 
 // Get `inner` (cloned).
-#[ffi_export]
-pub extern "C" fn tinned_composition_inner(
-    h: Option<&ExprHandle>,
-    out_err: Option<Out<'_, TinnedErrorBox>>,
-) -> Option<ExprBox> {
-    with_downcast_expr_res::<Composition>(h, out_err, "tinned_composition_inner", |c| {
-        Ok(Arc::clone(c.inner()))
-    })
-}
+impl_expr_getters!(
+    Composition;
+    tinned_composition_inner => |c| Ok(Arc::clone(c.inner())),
+);

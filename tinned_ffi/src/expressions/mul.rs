@@ -1,6 +1,6 @@
 use safer_ffi::prelude::*;
 
-use tinned::expressions::Add;
+use tinned::expressions::Mul;
 use tinned::public::generic_error;
 
 use crate::c_support::{with_downcast_expr, with_downcast_val};
@@ -9,11 +9,11 @@ use crate::core::{
 };
 
 #[ffi_export]
-pub extern "C" fn tinned_add_new(
+pub extern "C" fn tinned_mul_new(
     terms: ExprSlice<'_>,
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> Option<ExprBox> {
-    let terms_vec = match expr_vec_from_slice(terms, "tinned_add_new") {
+    let terms_vec = match expr_vec_from_slice(terms, "tinned_mul_new") {
         Ok(v) => v,
         Err(e) => {
             tinned_error_new(out_err, e);
@@ -21,7 +21,7 @@ pub extern "C" fn tinned_add_new(
         },
     };
 
-    match Add::new(terms_vec) {
+    match Mul::new(terms_vec) {
         Ok(expr_arc) => Some(ExprBox::new(ExprHandle::new(expr_arc))),
         Err(e) => {
             tinned_error_new(out_err, e);
@@ -30,10 +30,15 @@ pub extern "C" fn tinned_add_new(
     }
 }
 
-impl_val_getters!(
-    Add;
-    tinned_add_terms_count: usize => |add| add.terms().len(); default = 0,
+impl_expr_getters!(
+    Mul;
+    tinned_mul_coefficient => |mul| Ok(mul.coefficient().into()),
 );
 
-// Return the i-th term (cloned). Caller must free the returned ExprBox.
-impl_expr_index_getter!(tinned_add_term_at : Add => terms);
+impl_val_getters!(
+    Mul;
+    tinned_mul_factors_count: usize => |mul| mul.factors().len(); default = 0,
+);
+
+// Return the i-th factor (cloned). Caller must free the returned ExprBox.
+impl_expr_index_getter!(tinned_mul_factor_at : Mul => factors);

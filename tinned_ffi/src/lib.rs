@@ -1,5 +1,8 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 
+#[macro_use]
+mod macros;
+
 mod c_support;
 mod core;
 mod expressions;

@@ -4,7 +4,7 @@ use std::sync::Arc;
 use tinned::expressions::DotProduct;
 use tinned::public::generic_error;
 
-use crate::c_support::{with_downcast_expr_res, with_downcast_val};
+use crate::c_support::{with_downcast_expr, with_downcast_val};
 use crate::core::{ExprBox, ExprHandle, TinnedErrorBox, tinned_error_new};
 
 #[ffi_export]
@@ -36,50 +36,14 @@ pub extern "C" fn tinned_dot_product_new(
     }
 }
 
-// Get `bra` (cloned).
-#[ffi_export]
-pub extern "C" fn tinned_dot_product_bra(
-    h: Option<&ExprHandle>,
-    out_err: Option<Out<'_, TinnedErrorBox>>,
-) -> Option<ExprBox> {
-    with_downcast_expr_res::<DotProduct>(h, out_err, "tinned_dot_product_bra", |dp| {
-        Ok(Arc::clone(dp.bra()))
-    })
-}
+impl_expr_getters!(
+    DotProduct;
+    tinned_dot_product_bra => |dp| Ok(Arc::clone(dp.bra())),
+    tinned_dot_product_ket => |dp| Ok(Arc::clone(dp.ket())),
+    tinned_dot_product_conjugate => |dp| dp.conjugate(),
+);
 
-// Get `ket` (cloned).
-#[ffi_export]
-pub extern "C" fn tinned_dot_product_ket(
-    h: Option<&ExprHandle>,
-    out_err: Option<Out<'_, TinnedErrorBox>>,
-) -> Option<ExprBox> {
-    with_downcast_expr_res::<DotProduct>(h, out_err, "tinned_dot_product_ket", |dp| {
-        Ok(Arc::clone(dp.ket()))
-    })
-}
-
-// Get `allow_braket_swap`.
-#[ffi_export]
-pub extern "C" fn tinned_dot_product_allow_braket_swap(
-    h: Option<&ExprHandle>,
-    out_err: Option<Out<'_, TinnedErrorBox>>,
-) -> bool {
-    with_downcast_val::<DotProduct, bool>(
-        h,
-        out_err,
-        "tinned_dot_product_allow_braket_swap",
-        |dp| dp.allow_braket_swap(),
-    )
-    .unwrap_or(false)
-}
-
-// Compute `conjugate()` and return a new expression.
-#[ffi_export]
-pub extern "C" fn tinned_dot_product_conjugate(
-    h: Option<&ExprHandle>,
-    out_err: Option<Out<'_, TinnedErrorBox>>,
-) -> Option<ExprBox> {
-    with_downcast_expr_res::<DotProduct>(h, out_err, "tinned_dot_product_conjugate", |dp| {
-        dp.conjugate()
-    })
-}
+impl_val_getters!(
+    DotProduct;
+    tinned_dot_product_allow_braket_swap: bool => |dp| dp.allow_braket_swap(); default = false,
+);

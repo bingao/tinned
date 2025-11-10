@@ -196,6 +196,158 @@ tinned_error_free (
 
 /** <No documentation available> */
 ExprHandle_t *
+tinned_exch_corr_energy_density_matrix (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** \brief
+ *  An *opaque* handle that C can only pass around
+ */
+typedef struct PertMultichainHandle PertMultichainHandle_t;
+
+/** <No documentation available> */
+PertMultichainHandle_t *
+tinned_exch_corr_energy_derivative (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_exch_corr_energy_grid_weight (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+char *
+tinned_exch_corr_energy_name (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_exch_corr_energy_new (
+    char const * name,
+    ExprHandle_t const * grid_weight,
+    ExprHandle_t const * density_matrix,
+    ExprHandle_t const * overlap_distribution,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_exch_corr_energy_overlap_distribution (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_exch_corr_energy_xc_energy (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_exch_corr_potential_density_matrix (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+PertMultichainHandle_t *
+tinned_exch_corr_potential_derivative (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_exch_corr_potential_grid_weight (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+char *
+tinned_exch_corr_potential_name (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_exch_corr_potential_new (
+    char const * name,
+    ExprHandle_t const * grid_weight,
+    ExprHandle_t const * density_matrix,
+    ExprHandle_t const * overlap_distribution,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_exch_corr_potential_overlap_distribution (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_exch_corr_potential_xc_potential (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+PertMultichainHandle_t *
+tinned_exp_adjoint_map_derivative (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_exp_adjoint_map_generator (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+bool
+tinned_exp_adjoint_map_is_temporum (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+bool
+tinned_exp_adjoint_map_is_zero_strength (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+bool
+tinned_exp_adjoint_map_left_action (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+uint32_t
+tinned_exp_adjoint_map_max_fold (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_exp_adjoint_map_new (
+    ExprHandle_t const * generator,
+    ExprHandle_t const * target,
+    bool left_action,
+    uint32_t max_fold,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_exp_adjoint_map_result (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_exp_adjoint_map_target (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+ExprHandle_t *
 tinned_expr_clone (
     ExprHandle_t const * h,
     TinnedErrorHandle_t * * out_err);
@@ -243,6 +395,211 @@ NumberToleranceHandle_t *
 tinned_get_global_number_tolerance (void);
 
 /** <No documentation available> */
+ExprHandle_t *
+tinned_hermitian_transpose_argument (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_hermitian_transpose_new (
+    ExprHandle_t const * argument,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+PertMultichainHandle_t *
+tinned_lag_multiplier_derivative (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+char *
+tinned_lag_multiplier_name (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_lag_multiplier_new (
+    char const * name,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_matrix_add_new (
+    slice_ref_ExprHandle_const_ptr_t terms,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_matrix_add_term_at (
+    ExprHandle_t const * h,
+    size_t i,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+size_t
+tinned_matrix_add_terms_count (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_matrix_mul_coefficient (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_matrix_mul_factor_at (
+    ExprHandle_t const * h,
+    size_t i,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+size_t
+tinned_matrix_mul_factors_count (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_matrix_mul_new (
+    slice_ref_ExprHandle_const_ptr_t terms,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_mul_coefficient (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_mul_factor_at (
+    ExprHandle_t const * h,
+    size_t i,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+size_t
+tinned_mul_factors_count (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_mul_new (
+    slice_ref_ExprHandle_const_ptr_t terms,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+PertMultichainHandle_t *
+tinned_non_elec_function_dependencies (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+PertMultichainHandle_t *
+tinned_non_elec_function_derivative (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+char *
+tinned_non_elec_function_name (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_non_elec_function_new (
+    char const * name,
+    PertMultichainHandle_t const * dependencies,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_number_conjugate (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+typedef struct CComplex64 {
+    /** <No documentation available> */
+    double re;
+
+    /** <No documentation available> */
+    double im;
+} CComplex64_t;
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_number_from_complex (
+    CComplex64_t z);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_number_from_f64 (
+    double f);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_number_from_i64 (
+    int64_t n);
+
+/** <No documentation available> */
+typedef struct CRational64 {
+    /** <No documentation available> */
+    int64_t num;
+
+    /** <No documentation available> */
+    int64_t den;
+} CRational64_t;
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_number_from_rational (
+    CRational64_t q,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_number_imaginary_unit (void);
+
+/** <No documentation available> */
+bool
+tinned_number_is_one (
+    ExprHandle_t const * h,
+    NumberToleranceHandle_t const * tol,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+bool
+tinned_number_is_zero (
+    ExprHandle_t const * h,
+    NumberToleranceHandle_t const * tol,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_number_minus_one (void);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_number_negate (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_number_one (void);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_number_one_half (void);
+
+/** <No documentation available> */
 double
 tinned_number_tolerance_abs_error (
     NumberToleranceHandle_t const * h);
@@ -267,10 +624,34 @@ tinned_number_tolerance_rel_error (
 NumberToleranceHandle_t *
 tinned_number_tolerance_zero (void);
 
-/** \brief
- *  An *opaque* handle that C can only pass around
- */
-typedef struct PertMultichainHandle PertMultichainHandle_t;
+/** <No documentation available> */
+ExprHandle_t *
+tinned_number_zero (void);
+
+/** <No documentation available> */
+PertMultichainHandle_t *
+tinned_one_elec_operator_dependencies (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+PertMultichainHandle_t *
+tinned_one_elec_operator_derivative (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+char *
+tinned_one_elec_operator_name (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_one_elec_operator_new (
+    char const * name,
+    PertMultichainHandle_t const * dependencies,
+    TinnedErrorHandle_t * * out_err);
 
 /** \brief
  *  An *opaque* handle that C can only pass around
@@ -426,6 +807,65 @@ tinned_perturbation_new (
     TinnedErrorHandle_t * * out_err);
 
 /** <No documentation available> */
+ExprHandle_t *
+tinned_power_base (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+int64_t
+tinned_power_exponent (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_power_new (
+    ExprHandle_t const * base,
+    int64_t exponent,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_residue_parameter_excited_state (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_residue_parameter_new (
+    slice_ref_PerturbationHandle_const_ptr_t perturbations,
+    ExprHandle_t const * excited_state,
+    ExprHandle_t const * parameter,
+    bool positive_frequency,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_residue_parameter_parameter (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+PerturbationHandle_t *
+tinned_residue_parameter_perturbation_at (
+    ExprHandle_t const * h,
+    size_t i,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+size_t
+tinned_residue_parameter_perturbations_count (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+bool
+tinned_residue_parameter_positive_frequency (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
 void
 tinned_set_global_number_tolerance (
     NumberToleranceHandle_t const * h);
@@ -435,10 +875,7 @@ void
 tinned_string_free (
     char * s);
 
-/** \brief
- *  Get the `name` of a `Symbol`.
- *  - Returns a newly allocated C string; free with `tinned_string_free`.
- */
+/** <No documentation available> */
 char *
 tinned_symbol_name (
     ExprHandle_t const * h,
@@ -453,6 +890,195 @@ ExprHandle_t *
 tinned_symbol_new (
     char const * name,
     TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_temporum_operator_argument (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+PertMultichainHandle_t *
+tinned_temporum_operator_derivative (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_temporum_operator_frequency (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+bool
+tinned_temporum_operator_is_forward (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_temporum_operator_new (
+    ExprHandle_t const * argument,
+    bool is_forward,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_temporum_overlap_braket (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+PertMultichainHandle_t *
+tinned_temporum_overlap_dependencies (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+PertMultichainHandle_t *
+tinned_temporum_overlap_derivative (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+bool
+tinned_temporum_overlap_is_zero_strength (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_temporum_overlap_new (
+    PertMultichainHandle_t const * dependencies,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_trace_argument (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_trace_new (
+    ExprHandle_t const * argument,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_transpose_argument (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_transpose_new (
+    ExprHandle_t const * argument,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+bool
+tinned_two_elec_energy_allow_density_swap (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+PertMultichainHandle_t *
+tinned_two_elec_energy_dependencies (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+PertMultichainHandle_t *
+tinned_two_elec_energy_derivative (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_two_elec_energy_inner_density (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+char *
+tinned_two_elec_energy_name (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_two_elec_energy_new (
+    char const * name,
+    ExprHandle_t const * inner_density,
+    ExprHandle_t const * outer_density,
+    bool allow_density_swap,
+    PertMultichainHandle_t const * dependencies,
+    PertMultichainHandle_t const * derivative,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_two_elec_energy_outer_density (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_two_elec_operator_density (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+PertMultichainHandle_t *
+tinned_two_elec_operator_dependencies (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+PertMultichainHandle_t *
+tinned_two_elec_operator_derivative (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+char *
+tinned_two_elec_operator_name (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_two_elec_operator_new (
+    char const * name,
+    ExprHandle_t const * density,
+    PertMultichainHandle_t const * dependencies,
+    PertMultichainHandle_t const * derivative,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+PertMultichainHandle_t *
+tinned_wfn_parameter_derivative (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+char *
+tinned_wfn_parameter_name (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_wfn_parameter_new (
+    char const * name,
+    TinnedErrorHandle_t * * out_err);
+
+/** \brief
+ *  Create a new `ZeroOperator` expression.
+ */
+ExprHandle_t *
+tinned_zero_operator_new (void);
 
 
 #ifdef __cplusplus
