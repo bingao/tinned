@@ -6,7 +6,7 @@ use tinned::perturbations::Perturbation;
 use tinned::public::generic_error;
 
 use crate::c_support::{
-    tinned_string_from_cstr, tinned_string_to_cstr, try_from_handle, try_from_slice,
+    tinned_string_from_cstr, tinned_string_to_cstr, try_from_handle, try_vec_from_slice,
     try_with_handle,
 };
 use crate::core::{ExprBox, ExprHandle, TinnedErrorBox, tinned_error_new};
@@ -49,8 +49,8 @@ pub fn perturbation_vec_from_slice(
     slice: PerturbationSlice<'_>,
     caller: &'static str,
 ) -> Result<Vec<Arc<Perturbation>>, TinnedError> {
-    // Reuse the same safety/validation logic as Expr via `try_from_slice`
-    try_from_slice(slice, caller, "PerturbationHandle", |h: &PerturbationHandle| h.clone_arc())
+    // Reuse the same safety/validation logic as Expr via `try_vec_from_slice`
+    try_vec_from_slice(slice, caller, "PerturbationHandle", |h: &PerturbationHandle| h.clone_arc())
 }
 
 // Free a perturbation (NULL-safe).

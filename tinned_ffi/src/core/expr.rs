@@ -1,14 +1,10 @@
 use safer_ffi::prelude::*;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use tinned::core::{Expr, TinnedError};
-use tinned::public::generic_error;
 
-use crate::c_support::{
-    tinned_string_from_cstr, tinned_string_to_cstr, try_from_handle, try_from_slice,
-    try_with_handle,
-};
-use crate::core::{TinnedErrorBox, tinned_error_new};
+use crate::c_support::{try_map_from_slices, try_set_from_slice, try_vec_from_slice};
 
 /// An *opaque* handle that C can only pass around
 #[derive_ReprC]
@@ -48,132 +44,38 @@ pub fn expr_vec_from_slice(
     slice: ExprSlice<'_>,
     caller: &'static str,
 ) -> Result<Vec<Arc<dyn Expr>>, TinnedError> {
-    try_from_slice(slice, caller, "ExprHandle", |h: &ExprHandle| h.clone_arc())
+    try_vec_from_slice(slice, caller, "ExprHandle", |h: &ExprHandle| h.clone_arc())
+}
+
+// Build a HashSet<Arc<dyn Expr>> from an ExprSlice.
+#[inline]
+pub fn expr_set_from_slice(
+    slice: ExprSlice<'_>,
+    caller: &'static str,
+) -> Result<HashSet<Arc<dyn Expr>>, TinnedError> {
+    try_set_from_slice::<ExprHandle, dyn Expr>(slice, caller, "ExprHandle", |h| h.clone_arc())
+}
+
+// Build a HashMap<Arc<dyn Expr>, Arc<dyn Expr>> from parallel ExprSlices.
+#[inline]
+pub fn expr_map_from_slices(
+    keys: ExprSlice<'_>,
+    values: ExprSlice<'_>,
+    caller: &'static str,
+) -> Result<HashMap<Arc<dyn Expr>, Arc<dyn Expr>>, TinnedError> {
+    try_map_from_slices::<ExprHandle, ExprHandle, dyn Expr, dyn Expr>(
+        keys,
+        values,
+        caller,
+        "ExprHandle(key)",
+        "ExprHandle(value)",
+        |h| h.clone_arc(),
+        |h| h.clone_arc(),
+    )
 }
 
 // Free an expression (NULL-safe).
 #[ffi_export]
 pub fn tinned_expr_free(expr: Option<ExprBox>) {
     drop(expr);
-}
-
-// Clone an expression (like Arc clone). Returns NULL on error / NULL input.
-#[ffi_export]
-pub fn tinned_expr_clone(
-    h: Option<&ExprHandle>,
-    out_err: Option<Out<'_, TinnedErrorBox>>,
-) -> Option<ExprBox> {
-    match try_from_handle(h, "tinned_expr_clone", "ExprHandle", |eh| {
-        ExprBox::new(ExprHandle::new(eh.clone_arc()))
-    }) {
-        Ok(b) => Some(b),
-        Err(e) => {
-            tinned_error_new(out_err, e);
-            None
-        },
-    }
-}
-
-// Whether the expression is scalar. Returns false on error. NULL input.
-#[ffi_export]
-pub fn tinned_expr_is_scalar(
-    h: Option<&ExprHandle>,
-    out_err: Option<Out<'_, TinnedErrorBox>>,
-) -> bool {
-    match try_with_handle(h, "tinned_expr_is_scalar", "ExprHandle", |eh| {
-        let expr = eh.as_ref();
-        Ok(expr.is_scalar())
-    }) {
-        Ok(v) => v,
-        Err(e) => {
-            tinned_error_new(out_err, e);
-            false
-        },
-    }
-}
-
-// Hash key as a string; free with `tinned_string_free`. NULL on error.
-#[ffi_export]
-pub fn tinned_expr_hash_key(
-    h: Option<&ExprHandle>,
-    out_err: Option<Out<'_, TinnedErrorBox>>,
-) -> Option<char_p::Box> {
-    match try_with_handle(h, "tinned_expr_hash_key", "ExprHandle", |eh| {
-        let expr = eh.as_ref();
-        Ok(tinned_string_to_cstr(expr.hash_key()))
-    }) {
-        Ok(s) => Some(s),
-        Err(e) => {
-            tinned_error_new(out_err, e);
-            None
-        },
-    }
-}
-
-// Display text; free with `tinned_string_free`. NULL on error.
-#[ffi_export]
-pub fn tinned_expr_display(
-    h: Option<&ExprHandle>,
-    out_err: Option<Out<'_, TinnedErrorBox>>,
-) -> Option<char_p::Box> {
-    match try_with_handle(h, "tinned_expr_display", "ExprHandle", |eh| {
-        let expr = eh.clone_arc();
-        Ok(tinned_string_to_cstr(format!("{}", expr)))
-    }) {
-        Ok(s) => Some(s),
-        Err(e) => {
-            tinned_error_new(out_err, e);
-            None
-        },
-    }
-}
-
-// Serialize to JSON; free with `tinned_string_free`. NULL on error.
-#[ffi_export]
-pub fn tinned_expr_serialize_json(
-    h: Option<&ExprHandle>,
-    out_err: Option<Out<'_, TinnedErrorBox>>,
-) -> Option<char_p::Box> {
-    match try_with_handle(h, "tinned_expr_serialize_json", "ExprHandle", |eh| {
-        let expr = eh.as_ref();
-        serde_json::to_string(expr).map(tinned_string_to_cstr).map_err(|err| {
-            generic_error("Failed to serialize expression to JSON", Some(Box::new(err)))
-        })
-    }) {
-        Ok(s) => Some(s),
-        Err(e) => {
-            tinned_error_new(out_err, e);
-            None
-        },
-    }
-}
-
-// Deserialize from JSON. `json` is nullable `const char*`.
-// Returns NULL on error. Use `tinned_expr_free` to free the result.
-#[ffi_export]
-pub fn tinned_expr_deserialize_json(
-    json: Option<char_p::Ref<'_>>,
-    out_err: Option<Out<'_, TinnedErrorBox>>,
-) -> Option<ExprBox> {
-    let s = match tinned_string_from_cstr(json) {
-        Some(s) => s,
-        None => {
-            tinned_error_new(
-                out_err,
-                generic_error("tinned_expr_deserialize_json: NULL or non-UTF-8 json", None),
-            );
-            return None;
-        },
-    };
-
-    match serde_json::from_str::<Arc<dyn Expr>>(&s) {
-        Ok(expr) => Some(ExprBox::new(ExprHandle::new(expr))),
-        Err(err) => {
-            tinned_error_new(
-                out_err,
-                generic_error("Failed to deserialize expression from JSON", Some(Box::new(err))),
-            );
-            None
-        },
-    }
 }
