@@ -1,5 +1,5 @@
 use safer_ffi::prelude::*;
-use std::collections::{BTreeMap, HashSet};
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use tinned::core::{Expr, TinnedError};
@@ -9,8 +9,8 @@ use crate::c_support::{
     tinned_string_from_cstr, tinned_string_to_cstr, try_from_handle, try_with_handle,
 };
 use crate::core::{
-    ExprBox, ExprHandle, ExprSlice, TinnedErrorBox, expr_map_from_slices, expr_set_from_slice,
-    tinned_error_new,
+    ExprBox, ExprHandle, ExprSlice, ExprSuperchainBox, ExprSuperchainHandle, TinnedErrorBox,
+    expr_map_from_slices, expr_set_from_slice, tinned_error_new,
 };
 use crate::perturbations::{PerturbationHandle, PerturbationSlice, perturbation_vec_from_slice};
 use crate::public::NumberToleranceHandle;
@@ -25,6 +25,25 @@ fn with_expr_arc<R>(
         let expr = eh.clone_arc();
         f(expr)
     })
+}
+
+#[inline]
+fn ffi_return_val<R>(
+    h: Option<&ExprHandle>,
+    caller: &'static str,
+    out_err: Option<Out<'_, TinnedErrorBox>>,
+    f: impl FnOnce(&dyn Expr) -> Result<R, TinnedError>,
+) -> R
+where
+    R: Default,
+{
+    match with_expr_arc(h, caller, |arc| f(arc.as_ref())) {
+        Ok(v) => v,
+        Err(e) => {
+            tinned_error_new(out_err, e);
+            R::default()
+        },
+    }
 }
 
 #[inline]
@@ -64,7 +83,12 @@ pub fn tinned_expr_type_name(
     h: Option<&ExprHandle>,
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> Option<char_p::Box> {
-    ffi_return_string(h, "tinned_expr_type_name", out_err, |expr| Ok(expr.type_name().to_string()))
+    ffi_return_string(h, "tinned_expr_type_name", out_err, |expr| {
+        let full = expr.type_name();
+        let s = full.strip_prefix("dyn ").unwrap_or(full);
+        let no_generics = s.split('<').next().unwrap_or(s);
+        Ok(no_generics.rsplit("::").next().unwrap_or(no_generics).to_string())
+    })
 }
 
 #[ffi_export]
@@ -101,16 +125,7 @@ pub fn tinned_expr_is_scalar(
     h: Option<&ExprHandle>,
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> bool {
-    match try_with_handle(h, "tinned_expr_is_scalar", "ExprHandle", |eh| {
-        let expr = eh.as_ref();
-        Ok(expr.is_scalar())
-    }) {
-        Ok(v) => v,
-        Err(e) => {
-            tinned_error_new(out_err, e);
-            false
-        },
-    }
+    ffi_return_val(h, "tinned_expr_is_scalar", out_err, |e| Ok(e.is_scalar()))
 }
 
 // Clone an expression (like Arc clone). Returns NULL on error / NULL input.
@@ -194,15 +209,9 @@ pub fn tinned_expr_eliminate(
         None => Vec::new(),
     };
 
-    match try_with_handle(h, "tinned_expr_eliminate", "ExprHandle", |eh| {
-        eh.as_ref().eliminate(&param, &perts, min_order).map(|e| ExprBox::new(ExprHandle::new(e)))
-    }) {
-        Ok(b) => Some(b),
-        Err(e) => {
-            tinned_error_new(out_err, e);
-            None
-        },
-    }
+    ffi_return_exprbox(h, "tinned_expr_eliminate", out_err, move |expr| {
+        expr.eliminate(&param, &perts, min_order)
+    })
 }
 
 // Checks if any expression in `set` exists in the current expression.
@@ -212,7 +221,7 @@ pub fn tinned_expr_exist_any(
     set: Option<ExprSlice<'_>>,
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> bool {
-    let set_hs = match set {
+    let expr_set = match set {
         Some(slice) => match expr_set_from_slice(slice, "tinned_expr_exist_any") {
             Ok(s) => s,
             Err(e) => {
@@ -222,26 +231,17 @@ pub fn tinned_expr_exist_any(
         },
         None => HashSet::new(),
     };
-
-    match try_with_handle(h, "tinned_expr_exist_any", "ExprHandle", |eh| {
-        Ok(eh.as_ref().exist_any(&set_hs))
-    }) {
-        Ok(v) => v,
-        Err(e) => {
-            tinned_error_new(out_err, e);
-            false
-        },
-    }
+    ffi_return_val(h, "tinned_expr_exist_any", out_err, |e| Ok(e.exist_any(&expr_set)))
 }
 
 // Finds a given expression `s` and all its higher-order "differentiated" ones in the current expression.
 #[ffi_export]
-pub fn tinned_expr_find_superchains_json(
+pub fn tinned_expr_find_superchains(
     h: Option<&ExprHandle>,
     s: Option<&ExprHandle>,
     out_err: Option<Out<'_, TinnedErrorBox>>,
-) -> Option<char_p::Box> {
-    let s_expr = match try_from_handle(s, "tinned_expr_find_superchains_json", "ExprHandle", |eh| {
+) -> Option<ExprSuperchainBox> {
+    let s_expr = match try_from_handle(s, "tinned_expr_find_superchains_new", "ExprHandle", |eh| {
         eh.clone_arc()
     }) {
         Ok(x) => x,
@@ -251,23 +251,23 @@ pub fn tinned_expr_find_superchains_json(
         },
     };
 
-    match try_with_handle(h, "tinned_expr_find_superchains_json", "ExprHandle", |eh| {
-        let map = eh.as_ref().find_superchains(&s_expr);
+    match try_with_handle(h, "tinned_expr_find_superchains_new", "ExprHandle", |eh| {
+        let superchains = eh.as_ref().find_superchains(&s_expr);
 
-        // Convert HashSet<Arc<dyn Expr>> -> Vec<Arc<dyn Expr>> for JSON.
-        let mut out: BTreeMap<u32, Vec<Arc<dyn Expr>>> = BTreeMap::new();
-        for (k, vset) in map {
-            let mut v: Vec<Arc<dyn Expr>> = vset.into_iter().collect();
-            // Optional: stable order by hash_key to keep output deterministic.
+        let mut orders: Vec<u32> = superchains.keys().copied().collect();
+        orders.sort_unstable();
+
+        let mut order_exprs = Vec::with_capacity(orders.len());
+        for order in &orders {
+            let mut v: Vec<Arc<dyn Expr>> =
+                superchains.get(order).unwrap().iter().cloned().collect();
             v.sort_by(|a, b| a.hash_key().cmp(&b.hash_key()));
-            out.insert(k, v);
+            order_exprs.push(v);
         }
 
-        serde_json::to_string(&out).map(tinned_string_to_cstr).map_err(|err| {
-            generic_error("Failed to serialize find_superchains map to JSON", Some(Box::new(err)))
-        })
+        Ok(ExprSuperchainBox::new(ExprSuperchainHandle::new(orders, order_exprs)))
     }) {
-        Ok(s) => Some(s),
+        Ok(b) => Some(b),
         Err(e) => {
             tinned_error_new(out_err, e);
             None
@@ -282,8 +282,8 @@ pub fn tinned_expr_remove(
     set: Option<ExprSlice<'_>>,
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> Option<ExprBox> {
-    let set_hs = match set {
-        Some(slc) => match expr_set_from_slice(slc, "tinned_expr_remove") {
+    let expr_set = match set {
+        Some(slice) => match expr_set_from_slice(slice, "tinned_expr_remove") {
             Ok(s) => s,
             Err(e) => {
                 tinned_error_new(out_err, e);
@@ -292,7 +292,7 @@ pub fn tinned_expr_remove(
         },
         None => Default::default(),
     };
-    ffi_return_exprbox(h, "tinned_expr_remove", out_err, move |expr| expr.remove(&set_hs))
+    ffi_return_exprbox(h, "tinned_expr_remove", out_err, move |expr| expr.remove(&expr_set))
 }
 
 #[ffi_export]
@@ -303,7 +303,7 @@ pub fn tinned_expr_replace(
     exact_equality: bool,
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> Option<ExprBox> {
-    let map = match (keys, values) {
+    let expr_map = match (keys, values) {
         (Some(k), Some(v)) => match expr_map_from_slices(k, v, "tinned_expr_replace") {
             Ok(m) => m,
             Err(e) => {
@@ -319,16 +319,9 @@ pub fn tinned_expr_replace(
             return None;
         },
     };
-
-    match try_with_handle(h, "tinned_expr_replace", "ExprHandle", |eh| {
-        eh.as_ref().replace(&map, exact_equality).map(|e| ExprBox::new(ExprHandle::new(e)))
-    }) {
-        Ok(b) => Some(b),
-        Err(e) => {
-            tinned_error_new(out_err, e);
-            None
-        },
-    }
+    ffi_return_exprbox(h, "tinned_expr_replace", out_err, move |expr| {
+        expr.replace(&expr_map, exact_equality)
+    })
 }
 
 #[ffi_export]
@@ -338,7 +331,7 @@ pub fn tinned_expr_retain(
     exact_equality: bool,
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> Option<ExprBox> {
-    let set_hs = match set {
+    let expr_set = match set {
         Some(slice) => match expr_set_from_slice(slice, "tinned_expr_retain") {
             Ok(s) => s,
             Err(e) => {
@@ -348,16 +341,9 @@ pub fn tinned_expr_retain(
         },
         None => HashSet::new(),
     };
-
-    match try_with_handle(h, "tinned_expr_retain", "ExprHandle", |eh| {
-        eh.as_ref().retain(&set_hs, exact_equality).map(|e| ExprBox::new(ExprHandle::new(e)))
-    }) {
-        Ok(b) => Some(b),
-        Err(e) => {
-            tinned_error_new(out_err, e);
-            None
-        },
-    }
+    ffi_return_exprbox(h, "tinned_expr_retain", out_err, move |expr| {
+        expr.retain(&expr_set, exact_equality)
+    })
 }
 
 // Deserialize from JSON. `json` is nullable `const char*`.

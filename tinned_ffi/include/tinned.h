@@ -347,6 +347,16 @@ tinned_exp_adjoint_map_target (
     TinnedErrorHandle_t * * out_err);
 
 /** <No documentation available> */
+typedef struct NumberToleranceHandle NumberToleranceHandle_t;
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_expr_clean_temporum (
+    ExprHandle_t const * h,
+    NumberToleranceHandle_t const * tol,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
 ExprHandle_t *
 tinned_expr_clone (
     ExprHandle_t const * h,
@@ -358,10 +368,79 @@ tinned_expr_deserialize_json (
     char const * json,
     TinnedErrorHandle_t * * out_err);
 
+/** \brief
+ *  An *opaque* handle that C can only pass around
+ */
+typedef struct PerturbationHandle PerturbationHandle_t;
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_expr_differentiate (
+    ExprHandle_t const * h,
+    PerturbationHandle_t const * s,
+    TinnedErrorHandle_t * * out_err);
+
 /** <No documentation available> */
 char *
 tinned_expr_display (
     ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** \brief
+ *  `&'lt [T]` but with a guaranteed `#[repr(C)]` layout.
+ *
+ *  # C layout (for some given type T)
+ *
+ *  ```c
+ *  typedef struct {
+ *  // Cannot be NULL
+ *  T * ptr;
+ *  size_t len;
+ *  } slice_T;
+ *  ```
+ *
+ *  # Nullable pointer?
+ *
+ *  If you want to support the above typedef, but where the `ptr` field is
+ *  allowed to be `NULL` (with the contents of `len` then being undefined)
+ *  use the `Option< slice_ptr<_> >` type.
+ */
+typedef struct slice_ref_PerturbationHandle_const_ptr {
+    /** \brief
+     *  Pointer to the first element (if any).
+     */
+    PerturbationHandle_t const * const * ptr;
+
+    /** \brief
+     *  Element count
+     */
+    size_t len;
+} slice_ref_PerturbationHandle_const_ptr_t;
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_expr_eliminate (
+    ExprHandle_t const * h,
+    ExprHandle_t const * parameter,
+    slice_ref_PerturbationHandle_const_ptr_t perturbations,
+    uint32_t min_order,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+bool
+tinned_expr_exist_any (
+    ExprHandle_t const * h,
+    slice_ref_ExprHandle_const_ptr_t set,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+typedef struct ExprSuperchainHandle ExprSuperchainHandle_t;
+
+/** <No documentation available> */
+ExprSuperchainHandle_t *
+tinned_expr_find_superchains (
+    ExprHandle_t const * h,
+    ExprHandle_t const * s,
     TinnedErrorHandle_t * * out_err);
 
 /** <No documentation available> */
@@ -382,13 +461,73 @@ tinned_expr_is_scalar (
     TinnedErrorHandle_t * * out_err);
 
 /** <No documentation available> */
+ExprHandle_t *
+tinned_expr_remove (
+    ExprHandle_t const * h,
+    slice_ref_ExprHandle_const_ptr_t set,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_expr_replace (
+    ExprHandle_t const * h,
+    slice_ref_ExprHandle_const_ptr_t keys,
+    slice_ref_ExprHandle_const_ptr_t values,
+    bool exact_equality,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_expr_retain (
+    ExprHandle_t const * h,
+    slice_ref_ExprHandle_const_ptr_t set,
+    bool exact_equality,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
 char *
 tinned_expr_serialize_json (
     ExprHandle_t const * h,
     TinnedErrorHandle_t * * out_err);
 
+/** \brief
+ *  Free a superchains object (NULL-safe).
+ */
+void
+tinned_expr_superchains_free (
+    ExprSuperchainHandle_t * h);
+
 /** <No documentation available> */
-typedef struct NumberToleranceHandle NumberToleranceHandle_t;
+size_t
+tinned_expr_superchains_len (
+    ExprSuperchainHandle_t const * h);
+
+/** <No documentation available> */
+uint32_t
+tinned_expr_superchains_order_at (
+    ExprSuperchainHandle_t const * h,
+    size_t order_idx,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_expr_superchains_order_expr_at (
+    ExprSuperchainHandle_t const * h,
+    size_t order_idx,
+    size_t expr_idx,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+size_t
+tinned_expr_superchains_order_len (
+    ExprSuperchainHandle_t const * h,
+    size_t order_idx);
+
+/** <No documentation available> */
+char *
+tinned_expr_type_name (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
 
 /** <No documentation available> */
 NumberToleranceHandle_t *
@@ -653,11 +792,6 @@ tinned_one_elec_operator_new (
     PertMultichainHandle_t const * dependencies,
     TinnedErrorHandle_t * * out_err);
 
-/** \brief
- *  An *opaque* handle that C can only pass around
- */
-typedef struct PerturbationHandle PerturbationHandle_t;
-
 /** <No documentation available> */
 PertMultichainHandle_t *
 tinned_pert_multichain_add (
@@ -681,37 +815,6 @@ tinned_pert_multichain_display (
 void
 tinned_pert_multichain_free (
     PertMultichainHandle_t * chain);
-
-/** \brief
- *  `&'lt [T]` but with a guaranteed `#[repr(C)]` layout.
- *
- *  # C layout (for some given type T)
- *
- *  ```c
- *  typedef struct {
- *  // Cannot be NULL
- *  T * ptr;
- *  size_t len;
- *  } slice_T;
- *  ```
- *
- *  # Nullable pointer?
- *
- *  If you want to support the above typedef, but where the `ptr` field is
- *  allowed to be `NULL` (with the contents of `len` then being undefined)
- *  use the `Option< slice_ptr<_> >` type.
- */
-typedef struct slice_ref_PerturbationHandle_const_ptr {
-    /** \brief
-     *  Pointer to the first element (if any).
-     */
-    PerturbationHandle_t const * const * ptr;
-
-    /** \brief
-     *  Element count
-     */
-    size_t len;
-} slice_ref_PerturbationHandle_const_ptr_t;
 
 /** <No documentation available> */
 PertMultichainHandle_t *

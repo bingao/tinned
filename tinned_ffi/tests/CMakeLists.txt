@@ -70,6 +70,7 @@ add_dependencies(tinned_ffi rust_lib)
 # C tests
 add_executable(test_api
   "${TINNED_CRATE_DIR}/tests/test_api.c"
+  "${TINNED_CRATE_DIR}/tests/test_one_elec_operator.c"
   "${TINNED_CRATE_DIR}/tests/test_symbol.c"
   # add more test_*.c files here
 )
