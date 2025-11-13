@@ -28,16 +28,16 @@ fn with_expr_arc<R>(
 }
 
 #[inline]
-fn ffi_return_val<R>(
+fn ffi_expr_return_val<R>(
     h: Option<&ExprHandle>,
     caller: &'static str,
     out_err: Option<Out<'_, TinnedErrorBox>>,
-    f: impl FnOnce(&dyn Expr) -> Result<R, TinnedError>,
+    f: impl FnOnce(Arc<dyn Expr>) -> Result<R, TinnedError>,
 ) -> R
 where
     R: Default,
 {
-    match with_expr_arc(h, caller, |arc| f(arc.as_ref())) {
+    match with_expr_arc(h, caller, f) {
         Ok(v) => v,
         Err(e) => {
             tinned_error_new(out_err, e);
@@ -47,7 +47,7 @@ where
 }
 
 #[inline]
-fn ffi_return_string(
+fn ffi_expr_return_cstr(
     h: Option<&ExprHandle>,
     caller: &'static str,
     out_err: Option<Out<'_, TinnedErrorBox>>,
@@ -63,7 +63,7 @@ fn ffi_return_string(
 }
 
 #[inline]
-fn ffi_return_exprbox(
+fn ffi_expr_return_exprbox(
     h: Option<&ExprHandle>,
     caller: &'static str,
     out_err: Option<Out<'_, TinnedErrorBox>>,
@@ -83,7 +83,7 @@ pub fn tinned_expr_type_name(
     h: Option<&ExprHandle>,
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> Option<char_p::Box> {
-    ffi_return_string(h, "tinned_expr_type_name", out_err, |expr| {
+    ffi_expr_return_cstr(h, "tinned_expr_type_name", out_err, |expr| {
         let full = expr.type_name();
         let s = full.strip_prefix("dyn ").unwrap_or(full);
         let no_generics = s.split('<').next().unwrap_or(s);
@@ -96,7 +96,7 @@ pub fn tinned_expr_hash_key(
     h: Option<&ExprHandle>,
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> Option<char_p::Box> {
-    ffi_return_string(h, "tinned_expr_hash_key", out_err, |expr| Ok(expr.hash_key()))
+    ffi_expr_return_cstr(h, "tinned_expr_hash_key", out_err, |expr| Ok(expr.hash_key()))
 }
 
 #[ffi_export]
@@ -104,7 +104,7 @@ pub fn tinned_expr_display(
     h: Option<&ExprHandle>,
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> Option<char_p::Box> {
-    ffi_return_string(h, "tinned_expr_display", out_err, |expr| Ok(format!("{}", expr)))
+    ffi_expr_return_cstr(h, "tinned_expr_display", out_err, |expr| Ok(format!("{}", expr)))
 }
 
 #[ffi_export]
@@ -112,7 +112,7 @@ pub fn tinned_expr_serialize_json(
     h: Option<&ExprHandle>,
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> Option<char_p::Box> {
-    ffi_return_string(h, "tinned_expr_serialize_json", out_err, |expr| {
+    ffi_expr_return_cstr(h, "tinned_expr_serialize_json", out_err, |expr| {
         serde_json::to_string(expr.as_ref()).map_err(|err| {
             generic_error("Failed to serialize expression to JSON", Some(Box::new(err)))
         })
@@ -125,7 +125,7 @@ pub fn tinned_expr_is_scalar(
     h: Option<&ExprHandle>,
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> bool {
-    ffi_return_val(h, "tinned_expr_is_scalar", out_err, |e| Ok(e.is_scalar()))
+    ffi_expr_return_val(h, "tinned_expr_is_scalar", out_err, |e| Ok(e.is_scalar()))
 }
 
 // Clone an expression (like Arc clone). Returns NULL on error / NULL input.
@@ -153,7 +153,7 @@ pub fn tinned_expr_clean_temporum(
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> Option<ExprBox> {
     let tol_opt: Option<NumberTolerance> = tol.map(|t| t.as_ref().clone());
-    ffi_return_exprbox(h, "tinned_expr_clean_temporum", out_err, move |expr| {
+    ffi_expr_return_exprbox(h, "tinned_expr_clean_temporum", out_err, move |expr| {
         expr.clean_temporum(tol_opt)
     })
 }
@@ -174,7 +174,7 @@ pub fn tinned_expr_differentiate(
             return None;
         },
     };
-    ffi_return_exprbox(h, "tinned_expr_differentiate", out_err, move |expr| {
+    ffi_expr_return_exprbox(h, "tinned_expr_differentiate", out_err, move |expr| {
         expr.differentiate(&pert)
     })
 }
@@ -209,7 +209,7 @@ pub fn tinned_expr_eliminate(
         None => Vec::new(),
     };
 
-    ffi_return_exprbox(h, "tinned_expr_eliminate", out_err, move |expr| {
+    ffi_expr_return_exprbox(h, "tinned_expr_eliminate", out_err, move |expr| {
         expr.eliminate(&param, &perts, min_order)
     })
 }
@@ -231,7 +231,7 @@ pub fn tinned_expr_exist_any(
         },
         None => HashSet::new(),
     };
-    ffi_return_val(h, "tinned_expr_exist_any", out_err, |e| Ok(e.exist_any(&expr_set)))
+    ffi_expr_return_val(h, "tinned_expr_exist_any", out_err, |e| Ok(e.exist_any(&expr_set)))
 }
 
 // Finds a given expression `s` and all its higher-order "differentiated" ones in the current expression.
@@ -292,7 +292,7 @@ pub fn tinned_expr_remove(
         },
         None => Default::default(),
     };
-    ffi_return_exprbox(h, "tinned_expr_remove", out_err, move |expr| expr.remove(&expr_set))
+    ffi_expr_return_exprbox(h, "tinned_expr_remove", out_err, move |expr| expr.remove(&expr_set))
 }
 
 #[ffi_export]
@@ -319,7 +319,7 @@ pub fn tinned_expr_replace(
             return None;
         },
     };
-    ffi_return_exprbox(h, "tinned_expr_replace", out_err, move |expr| {
+    ffi_expr_return_exprbox(h, "tinned_expr_replace", out_err, move |expr| {
         expr.replace(&expr_map, exact_equality)
     })
 }
@@ -341,7 +341,7 @@ pub fn tinned_expr_retain(
         },
         None => HashSet::new(),
     };
-    ffi_return_exprbox(h, "tinned_expr_retain", out_err, move |expr| {
+    ffi_expr_return_exprbox(h, "tinned_expr_retain", out_err, move |expr| {
         expr.retain(&expr_set, exact_equality)
     })
 }

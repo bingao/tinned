@@ -1,73 +1,101 @@
-// This is a direct benefit of Rust's monomorphization and lazy compilation --
-// unused generic code does not cause a build failure.
+use std::sync::Arc;
 
-// Clearly document that accept() is a generic hook -- users can ignore it
-// unless they need evaluation.
-//
-// Consider adding a test evaluator in your own crate to ensure correctness of
-// visitor plumbing, but behind a dev-only feature flag, so it doesn't bloat
-// your public API.
+use crate::core::{Expr, TinnedError};
+use crate::expressions::{
+    Add, AdjointMap, Composition, Conjugate, DotProduct, ExchCorrEnergy, ExchCorrPotential,
+    ExpAdjointMap, HermitianTranspose, LagMultiplier, MatrixAdd, MatrixMul, Mul, NonElecFunction,
+    Number, OneElecOperator, Power, ResidueParameter, Symbol, TemporumOperator, TemporumOverlap,
+    Trace, Transpose, TwoElecEnergy, TwoElecOperator, WfnParameter, ZeroOperator,
+};
+use crate::public::downcast_from_arc;
 
+#[cfg_attr(feature = "ffi", derive(safer_ffi::derive_ReprC))]
+#[cfg_attr(feature = "ffi", repr(C))]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum ExprTag {
+    Add,
+    AdjointMap,
+    Composition,
+    Conjugate,
+    DotProduct,
+    ExchCorrEnergy,
+    ExchCorrPotential,
+    ExpAdjointMap,
+    HermitianTranspose,
+    LagMultiplier,
+    MatrixAdd,
+    MatrixMul,
+    Mul,
+    NonElecFunction,
+    Number,
+    OneElecOperator,
+    Power,
+    ResidueParameter,
+    Symbol,
+    TemporumOperator,
+    TemporumOverlap,
+    Trace,
+    Transpose,
+    TwoElecEnergy,
+    TwoElecOperator,
+    WfnParameter,
+    ZeroOperator,
+}
+
+// A general expression visitor that users need to develop their own ones
 pub trait ExprVisitor {
-    type Output;
+    // Called for expressions that have children to iterate, such as addition and multiplication
+    fn begin(&mut self, tag: ExprTag, arity: usize) -> Result<(), TinnedError>;
 
-    fn visit_number(&mut self, n: &Number) -> Result<Self::Output, EvalError>;
-    fn visit_add(&mut self, add: &Add) -> Result<Self::Output, EvalError>;
-    fn visit_mul(&mut self, mul: &Mul) -> Result<Self::Output, EvalError>;
-    // Add other visit_* methods as needed
+    // Called for leaf expressions, which users can access their fields and perform corresponding actions
+    fn leaf(&mut self, tag: ExprTag, expr: &Arc<dyn Expr>) -> Result<(), TinnedError>;
+
+    // Called after all children being visited
+    fn end(&mut self, tag: ExprTag, arity: usize) -> Result<(), TinnedError>;
 }
 
-// Step 2: Add accept() to the Expr trait
-pub trait Expr: Debug + Send + Sync {
-    fn accept<V: crate::public::expr_visitor::ExprVisitor>(&self, visitor: &mut V) -> Result<V::Output, EvalError>;
+// Visit an expression using post-order traversal
+pub fn walk_expr_postorder<V: ExprVisitor>(
+    root: &Arc<dyn Expr>,
+    visitor: &mut V,
+) -> Result<(), TinnedError> {
+    fn walk<V: ExprVisitor>(expr: &Arc<dyn Expr>, visitor: &mut V) -> Result<(), TinnedError> {
+        // Leaf expressions
+        if downcast_from_arc::<Number>(expr).is_some() {
+            return visitor.leaf(Number, expr);
+        }
+        if downcast_from_arc::<Symbol>(expr).is_some() {
+            return visitor.leaf(Symbol, expr);
+        }
+        if downcast_from_arc::<ZeroOperator>(expr).is_some() {
+            return visitor.leaf(ZeroOperator, expr);
+        }
+
+        // Composite expressions
+        if let Some(add) = downcast_from_arc::<Add>(expr) {
+            visitor.begin(Add, add.terms().len())?;
+            for term in add.terms() {
+                walk(term, visitor)?;
+            }
+            return visitor.end(Add, add.terms().len());
+        }
+        if let Some(mul) = downcast_from_arc::<Mul>(expr) {
+            visitor.begin(Mul, mul.factors().len()+1)?;
+            walk(mul.coefficient().into(), visitor)?;
+            for factor in mul.factors() {
+                walk(factor, visitor)?;
+            }
+            return visitor.end(Mul, mul.factors().len()+1);
+        }
+        //if let Some(p) = downcast_from_arc::<Power>(e) {
+        //    v.begin(Power, 2)?;
+        //    walk(p.base(), v)?; // base
+        //    walk(p.exponent(), v)?; // exponent (adjust if exponent is int)
+        //    return v.end(Power, 2);
+        //}
+
+        Ok(())
+    }
+
+    walk(root, visitor)
 }
-
-// Step 3: Implement accept in each concrete expression type
-impl Expr for Add {
-    fn accept<V: ExprVisitor>(&self, visitor: &mut V) -> Result<V::Output, EvalError> {
-        visitor.visit_add(self)
-    }
-}
-
-impl Expr for Number {
-    fn accept<V: ExprVisitor>(&self, visitor: &mut V) -> Result<V::Output, EvalError> {
-        visitor.visit_number(self)
-    }
-}
-
-// Re-export for user convenience
-// In src/lib.rs: pub use public::expr_visitor::ExprVisitor;
-
-// Step 4: Users implement their own evaluator
-
-pub struct NumericEvaluator;
-
-impl ExprVisitor for NumericEvaluator {
-    type Output = f64;
-
-    fn visit_number(&mut self, n: &Number) -> Result<Self::Output, EvalError> {
-        n.as_f64() // for example
-    }
-
-    fn visit_add(&mut self, add: &Add) -> Result<Self::Output, EvalError> {
-        add.terms()
-            .iter()
-            .map(|term| term.accept(self))
-            .sum()
-    }
-
-    fn visit_mul(&mut self, mul: &Mul) -> Result<Self::Output, EvalError> {
-        mul.terms()
-            .iter()
-            .map(|term| term.accept(self))
-            .product()
-    }
-}
-
-// Step 5: Evaluation entry point
-
-let expr: Arc<dyn Expr> = ...;
-
-let mut evaluator = NumericEvaluator;
-let result: f64 = expr.accept(&mut evaluator)?;
-

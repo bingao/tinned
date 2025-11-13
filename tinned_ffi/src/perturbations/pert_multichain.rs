@@ -6,7 +6,9 @@ use tinned::public::generic_error;
 
 use crate::c_support::{tinned_string_to_cstr, try_from_handle, try_with_handle};
 use crate::core::{TinnedErrorBox, tinned_error_new};
-use crate::perturbations::{PerturbationHandle, PerturbationSlice, perturbation_vec_from_slice};
+use crate::perturbations::{
+    PerturbationBox, PerturbationHandle, PerturbationSlice, perturbation_vec_from_slice,
+};
 
 /// An *opaque* handle that C can only pass around
 #[derive_ReprC]
@@ -49,19 +51,63 @@ pub fn tinned_pert_multichain_free(chain: Option<PertMultichainBox>) {
     drop(chain);
 }
 
-// Clone a perturbation multichain (like Arc clone). Returns NULL on error / NULL input.
-#[ffi_export]
-pub fn tinned_pert_multichain_clone(
+#[inline]
+fn with_pert_multichain_ref<R>(
     h: Option<&PertMultichainHandle>,
+    caller: &'static str,
+    f: impl FnOnce(&PertMultichain) -> Result<R, TinnedError>,
+) -> Result<R, TinnedError> {
+    try_with_handle(h, caller, "PertMultichainHandle", |ph| {
+        let chain = ph.as_ref();
+        f(chain)
+    })
+}
+
+#[inline]
+fn with_two_pert_multichain_refs<R>(
+    lhs: Option<&PertMultichainHandle>,
+    rhs: Option<&PertMultichainHandle>,
+    caller: &'static str,
+    f: impl FnOnce(&PertMultichain, &PertMultichain) -> Result<R, TinnedError>,
+) -> Result<R, TinnedError> {
+    with_pert_multichain_ref(lhs, caller, |l| with_pert_multichain_ref(rhs, caller, |r| f(l, r)))
+}
+
+#[inline]
+fn ffi_pert_multichain_return_val<R>(
+    h: Option<&PertMultichainHandle>,
+    caller: &'static str,
     out_err: Option<Out<'_, TinnedErrorBox>>,
-) -> Option<PertMultichainBox> {
-    match try_from_handle(h, "tinned_pert_multichain_clone", "PertMultichainandle", |ph| {
-        PertMultichainBox::new(PertMultichainHandle::new(ph.clone_arc()))
-    }) {
-        Ok(b) => Some(b),
+    f: impl FnOnce(&PertMultichain) -> Result<R, TinnedError>,
+) -> R
+where
+    R: Default,
+{
+    match with_pert_multichain_ref(h, caller, f) {
+        Ok(v) => v,
         Err(e) => {
             tinned_error_new(out_err, e);
-            None
+            R::default()
+        },
+    }
+}
+
+#[inline]
+fn ffi_pert_multichain_binary_return_val<R>(
+    lhs: Option<&PertMultichainHandle>,
+    rhs: Option<&PertMultichainHandle>,
+    caller: &'static str,
+    out_err: Option<Out<'_, TinnedErrorBox>>,
+    f: impl FnOnce(&PertMultichain, &PertMultichain) -> Result<R, TinnedError>,
+) -> R
+where
+    R: Default,
+{
+    match with_two_pert_multichain_refs(lhs, rhs, caller, f) {
+        Ok(v) => v,
+        Err(e) => {
+            tinned_error_new(out_err, e);
+            R::default()
         },
     }
 }
@@ -91,6 +137,23 @@ pub extern "C" fn tinned_pert_multichain_from_slice(
     Some(PertMultichainBox::new(PertMultichainHandle::new(Arc::new(chain))))
 }
 
+// Clone a perturbation multichain (like Arc clone). Returns NULL on error / NULL input.
+#[ffi_export]
+pub fn tinned_pert_multichain_clone(
+    h: Option<&PertMultichainHandle>,
+    out_err: Option<Out<'_, TinnedErrorBox>>,
+) -> Option<PertMultichainBox> {
+    match try_from_handle(h, "tinned_pert_multichain_clone", "PertMultichainandle", |ph| {
+        PertMultichainBox::new(PertMultichainHandle::new(ph.clone_arc()))
+    }) {
+        Ok(b) => Some(b),
+        Err(e) => {
+            tinned_error_new(out_err, e);
+            None
+        },
+    }
+}
+
 // Return a new PertMultichain with `p` added. Caller must free the returned box with `tinned_pert_multichain_free`.
 #[ffi_export]
 pub extern "C" fn tinned_pert_multichain_add(
@@ -111,16 +174,10 @@ pub extern "C" fn tinned_pert_multichain_add(
         };
 
     // Validate the chain handle and build a new chain with the perturbation added.
-    match try_with_handle(h, "tinned_pert_multichain_add", "PertMultichainHandle", |mh| {
-        let new_chain = mh.as_ref().with_added_perturbation(&pert_arc);
-        Ok(PertMultichainBox::new(PertMultichainHandle::new(Arc::new(new_chain))))
-    }) {
-        Ok(b) => Some(b),
-        Err(e) => {
-            tinned_error_new(out_err, e);
-            None
-        },
-    }
+    ffi_pert_multichain_return_val(h, "tinned_pert_multichain_add", out_err, |chain| {
+        let new_chain = chain.with_added_perturbation(&pert_arc);
+        Ok(Some(PertMultichainBox::new(PertMultichainHandle::new(Arc::new(new_chain)))))
+    })
 }
 
 #[ffi_export]
@@ -188,16 +245,9 @@ pub extern "C" fn tinned_pert_multichain_get_order(
                 return 0;
             },
         };
-
-    match try_with_handle(h, "tinned_pert_multichain_get_order", "PertMultichainHandle", |mh| {
-        Ok(mh.as_ref().get_order(&pert_arc))
-    }) {
-        Ok(n) => n,
-        Err(e) => {
-            tinned_error_new(out_err, e);
-            0
-        },
-    }
+    ffi_pert_multichain_return_val(h, "tinned_pert_multichain_get_order", out_err, |chain| {
+        Ok(chain.get_order(&pert_arc))
+    })
 }
 
 // Returns `true` on error/`NULL` input.
@@ -206,15 +256,9 @@ pub extern "C" fn tinned_pert_multichain_is_empty(
     h: Option<&PertMultichainHandle>,
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> bool {
-    match try_with_handle(h, "tinned_pert_multichain_is_empty", "PertMultichainHandle", |mh| {
-        Ok(mh.as_ref().is_empty())
-    }) {
-        Ok(v) => v,
-        Err(e) => {
-            tinned_error_new(out_err, e);
-            true
-        },
-    }
+    ffi_pert_multichain_return_val(h, "tinned_pert_multichain_is_empty", out_err, |chain| {
+        Ok(chain.is_empty())
+    })
 }
 
 // Returns 0 on error/`NULL` input.
@@ -223,15 +267,25 @@ pub extern "C" fn tinned_pert_multichain_total_order(
     h: Option<&PertMultichainHandle>,
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> u32 {
-    match try_with_handle(h, "tinned_pert_multichain_total_order", "PertMultichainHandle", |mh| {
-        Ok(mh.as_ref().total_order())
-    }) {
-        Ok(v) => v,
-        Err(e) => {
-            tinned_error_new(out_err, e);
-            0
-        },
-    }
+    ffi_pert_multichain_return_val(h, "tinned_pert_multichain_total_order", out_err, |chain| {
+        Ok(chain.total_order())
+    })
+}
+
+// Returns a cloned vector of the perturbation multichain
+#[ffi_export]
+pub extern "C" fn tinned_pert_multichain_to_vec(
+    h: Option<&PertMultichainHandle>,
+    out_err: Option<Out<'_, TinnedErrorBox>>,
+) -> repr_c::Vec<PerturbationBox> {
+    ffi_pert_multichain_return_val(h, "tinned_pert_multichain_to_vec", out_err, |chain| {
+        let perts = chain.to_vec();
+        let mut out = repr_c::Vec::with_capacity(perts.len());
+        for p in perts {
+            out.push(PerturbationBox::new(PerturbationHandle::new(p)));
+        }
+        Ok(out)
+    })
 }
 
 // Returns `false` on error/`NULL` input.
@@ -241,23 +295,13 @@ pub extern "C" fn tinned_pert_multichain_is_subchain(
     rhs: Option<&PertMultichainHandle>,
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> bool {
-    let res =
-        try_with_handle(lhs, "tinned_pert_multichain_is_subchain", "PertMultichainHandle", |lh| {
-            try_with_handle(
-                rhs,
-                "tinned_pert_multichain_is_subchain",
-                "PertMultichainHandle",
-                |rh| Ok(lh.as_ref().is_subchain(rh.as_ref())),
-            )
-        });
-
-    match res {
-        Ok(v) => v,
-        Err(e) => {
-            tinned_error_new(out_err, e);
-            false
-        },
-    }
+    ffi_pert_multichain_binary_return_val(
+        lhs,
+        rhs,
+        "tinned_pert_multichain_is_subchain",
+        out_err,
+        |l, r| Ok(l.is_subchain(r)),
+    )
 }
 
 // Returns `false` on error/`NULL` input.
@@ -267,27 +311,13 @@ pub extern "C" fn tinned_pert_multichain_is_superchain(
     rhs: Option<&PertMultichainHandle>,
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> bool {
-    let res = try_with_handle(
+    ffi_pert_multichain_binary_return_val(
         lhs,
+        rhs,
         "tinned_pert_multichain_is_superchain",
-        "PertMultichainHandle",
-        |lh| {
-            try_with_handle(
-                rhs,
-                "tinned_pert_multichain_is_superchain",
-                "PertMultichainHandle",
-                |rh| Ok(lh.as_ref().is_superchain(rh.as_ref())),
-            )
-        },
-    );
-
-    match res {
-        Ok(v) => v,
-        Err(e) => {
-            tinned_error_new(out_err, e);
-            false
-        },
-    }
+        out_err,
+        |l, r| Ok(l.is_superchain(r)),
+    )
 }
 
 // Returns `false` on error/`NULL` input.
@@ -297,23 +327,13 @@ pub extern "C" fn tinned_pert_multichain_has_overlap(
     rhs: Option<&PertMultichainHandle>,
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> bool {
-    let res =
-        try_with_handle(lhs, "tinned_pert_multichain_has_overlap", "PertMultichainHandle", |lh| {
-            try_with_handle(
-                rhs,
-                "tinned_pert_multichain_has_overlap",
-                "PertMultichainHandle",
-                |rh| Ok(lh.as_ref().has_overlap(rh.as_ref())),
-            )
-        });
-
-    match res {
-        Ok(v) => v,
-        Err(e) => {
-            tinned_error_new(out_err, e);
-            false
-        },
-    }
+    ffi_pert_multichain_binary_return_val(
+        lhs,
+        rhs,
+        "tinned_pert_multichain_has_overlap",
+        out_err,
+        |l, r| Ok(l.has_overlap(r)),
+    )
 }
 
 // Display text; caller frees with `tinned_string_free`. `NULL` on error.
@@ -322,13 +342,7 @@ pub extern "C" fn tinned_pert_multichain_display(
     h: Option<&PertMultichainHandle>,
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> Option<char_p::Box> {
-    match try_with_handle(h, "tinned_pert_multichain_display", "PertMultichainHandle", |mh| {
-        Ok(tinned_string_to_cstr(format!("{}", mh.as_ref())))
-    }) {
-        Ok(s) => Some(s),
-        Err(e) => {
-            tinned_error_new(out_err, e);
-            None
-        },
-    }
+    ffi_pert_multichain_return_val(h, "tinned_pert_multichain_display", out_err, |chain| {
+        Ok(Some(tinned_string_to_cstr(format!("{}", chain))))
+    })
 }

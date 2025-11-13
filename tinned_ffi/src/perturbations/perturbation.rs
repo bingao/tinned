@@ -40,38 +40,39 @@ impl PerturbationHandle {
     }
 }
 
-/// Borrowed slice of handles
-pub type PerturbationSlice<'a> = c_slice::Ref<'a, *const PerturbationHandle>;
-
-/// Turn a `PerturbationSlice` into `Vec<Arc<Perturbation>>`.
-#[inline]
-pub fn perturbation_vec_from_slice(
-    slice: PerturbationSlice<'_>,
-    caller: &'static str,
-) -> Result<Vec<Arc<Perturbation>>, TinnedError> {
-    // Reuse the same safety/validation logic as Expr via `try_vec_from_slice`
-    try_vec_from_slice(slice, caller, "PerturbationHandle", |h: &PerturbationHandle| h.clone_arc())
-}
-
 // Free a perturbation (NULL-safe).
 #[ffi_export]
 pub fn tinned_perturbation_free(pert: Option<PerturbationBox>) {
     drop(pert);
 }
 
-// Clone a perturbation (like Arc clone). Returns NULL on error / NULL input.
-#[ffi_export]
-pub fn tinned_perturbation_clone(
+#[inline]
+fn with_perturbation_ref<R>(
     h: Option<&PerturbationHandle>,
+    caller: &'static str,
+    f: impl FnOnce(&Perturbation) -> Result<R, TinnedError>,
+) -> Result<R, TinnedError> {
+    try_with_handle(h, caller, "PerturbationHandle", |ph| {
+        let pert = ph.as_ref();
+        f(pert)
+    })
+}
+
+#[inline]
+fn ffi_perturbation_return_val<R>(
+    h: Option<&PerturbationHandle>,
+    caller: &'static str,
     out_err: Option<Out<'_, TinnedErrorBox>>,
-) -> Option<PerturbationBox> {
-    match try_from_handle(h, "tinned_perturbation_clone", "PerturbationHandle", |ph| {
-        PerturbationBox::new(PerturbationHandle::new(ph.clone_arc()))
-    }) {
-        Ok(b) => Some(b),
+    f: impl FnOnce(&Perturbation) -> Result<R, TinnedError>,
+) -> R
+where
+    R: Default,
+{
+    match with_perturbation_ref(h, caller, f) {
+        Ok(v) => v,
         Err(e) => {
             tinned_error_new(out_err, e);
-            None
+            R::default()
         },
     }
 }
@@ -104,34 +105,14 @@ pub extern "C" fn tinned_perturbation_new(
     Some(PerturbationBox::new(PerturbationHandle::new(pert)))
 }
 
-// Get `name`; caller frees with tinned_string_free. NULL on error.
+// Clone a perturbation (like Arc clone). Returns NULL on error / NULL input.
 #[ffi_export]
-pub extern "C" fn tinned_perturbation_name(
+pub fn tinned_perturbation_clone(
     h: Option<&PerturbationHandle>,
     out_err: Option<Out<'_, TinnedErrorBox>>,
-) -> Option<char_p::Box> {
-    match try_with_handle(h, "tinned_perturbation_name", "PerturbationHandle", |ph| {
-        let p = ph.as_ref();
-        Ok(tinned_string_to_cstr(p.name().to_string()))
-    }) {
-        Ok(s) => Some(s),
-        Err(e) => {
-            tinned_error_new(out_err, e);
-            None
-        },
-    }
-}
-
-// Get `frequency` (cloned). Caller must free the returned ExprBox. NULL on error.
-#[ffi_export]
-pub extern "C" fn tinned_perturbation_frequency(
-    h: Option<&PerturbationHandle>,
-    out_err: Option<Out<'_, TinnedErrorBox>>,
-) -> Option<ExprBox> {
-    match try_with_handle(h, "tinned_perturbation_frequency", "PerturbationHandle", |ph| {
-        let p = ph.as_ref();
-        let freq = Arc::clone(p.frequency());
-        Ok(ExprBox::new(ExprHandle::new(freq)))
+) -> Option<PerturbationBox> {
+    match try_from_handle(h, "tinned_perturbation_clone", "PerturbationHandle", |ph| {
+        PerturbationBox::new(PerturbationHandle::new(ph.clone_arc()))
     }) {
         Ok(b) => Some(b),
         Err(e) => {
@@ -141,20 +122,56 @@ pub extern "C" fn tinned_perturbation_frequency(
     }
 }
 
+// Get `name`; caller frees with tinned_string_free. NULL on error.
+#[ffi_export]
+pub extern "C" fn tinned_perturbation_name(
+    h: Option<&PerturbationHandle>,
+    out_err: Option<Out<'_, TinnedErrorBox>>,
+) -> Option<char_p::Box> {
+    ffi_perturbation_return_val(h, "tinned_perturbation_name", out_err, |pert| {
+        Ok(Some(tinned_string_to_cstr(pert.name())))
+    })
+}
+
+// Get `frequency` (cloned). Caller must free the returned ExprBox. NULL on error.
+#[ffi_export]
+pub extern "C" fn tinned_perturbation_frequency(
+    h: Option<&PerturbationHandle>,
+    out_err: Option<Out<'_, TinnedErrorBox>>,
+) -> Option<ExprBox> {
+    ffi_perturbation_return_val(h, "tinned_perturbation_frequency", out_err, |pert| {
+        let freq = Arc::clone(pert.frequency());
+        Ok(Some(ExprBox::new(ExprHandle::new(freq))))
+    })
+}
+
 // Display text; caller frees with tinned_string_free. NULL on error.
 #[ffi_export]
 pub extern "C" fn tinned_perturbation_display(
     h: Option<&PerturbationHandle>,
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> Option<char_p::Box> {
-    match try_with_handle(h, "tinned_perturbation_display", "PerturbationHandle", |ph| {
-        let p = ph.as_ref();
-        Ok(tinned_string_to_cstr(format!("{}", p)))
-    }) {
-        Ok(s) => Some(s),
-        Err(e) => {
-            tinned_error_new(out_err, e);
-            None
-        },
-    }
+    ffi_perturbation_return_val(h, "tinned_perturbation_display", out_err, |pert| {
+        Ok(Some(tinned_string_to_cstr(format!("{}", pert))))
+    })
+}
+
+/// Borrowed slice of handles
+pub type PerturbationSlice<'a> = c_slice::Ref<'a, *const PerturbationHandle>;
+
+/// Turn a `PerturbationSlice` into `Vec<Arc<Perturbation>>`.
+#[inline]
+pub fn perturbation_vec_from_slice(
+    slice: PerturbationSlice<'_>,
+    caller: &'static str,
+) -> Result<Vec<Arc<Perturbation>>, TinnedError> {
+    // Reuse the same safety/validation logic as Expr via `try_vec_from_slice`
+    try_vec_from_slice(slice, caller, "PerturbationHandle", |h: &PerturbationHandle| h.clone_arc())
+}
+
+/// Free a vector of `repr_c::Vec<PerturbationBox>`.
+/// Dropping the Vec drops each PerturbationBox, which decrements Arc counts.
+#[ffi_export]
+pub fn tinned_perturbation_vec_free(_v: repr_c::Vec<PerturbationBox>) {
+    // Intentionally empty. Taking by value and returning lets _v drop here.
 }

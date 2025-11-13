@@ -1,5 +1,6 @@
 pub mod compare;
 pub mod error_helpers;
+pub mod expr_visitor;
 pub mod inspect;
 pub mod number_tolerance;
 pub mod operations;
@@ -9,6 +10,7 @@ pub use error_helpers::{
     expression_error, generic_error, generic_expression_error, multi_expression_error,
     multi_perturbation_error, perturbation_error, unreachable_error,
 };
+pub use expr_visitor::{ExprTag, ExprVisitor, eval_traverse};
 pub use inspect::{downcast_from_arc, downcast_from_ref, is_expr_type};
 pub use number_tolerance::{NumberTolerance, get_number_tolerance, set_number_tolerance};
 pub use operations::{

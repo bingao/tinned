@@ -9,7 +9,7 @@ name = "tinned_ffi"
 crate-type = ["rlib", "cdylib", "staticlib"]
 
 [dependencies]
-tinned_lib = { path = "../tinned_lib" }
+tinned_lib = { path = "../tinned_lib", features = ["ffi"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 safer-ffi = { version = "0.1.13", features = ["proc_macros"] }
