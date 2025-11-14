@@ -1,10 +1,19 @@
+use safer_ffi::prelude::*;
+use std::sync::Arc;
+
+use tinned::core::{Expr, TinnedError};
+use tinned::public::{ExprTag, ExprVisitor, generic_error, walk_expr_postorder};
+
+use crate::c_support::try_from_handle;
+use crate::core::{ExprBox, ExprHandle, TinnedErrorBox, tinned_error_new};
+
 #[repr(C)]
-#[derive(safer_ffi::derive_ReprC)]
+#[derive_ReprC]
 pub struct CExprVisitor {
     pub ctx: *mut core::ffi::c_void,
     pub begin_node: extern "C" fn(*mut core::ffi::c_void, ExprTag, usize) -> bool,
-    // Owned handle transferred to C; C must free it.
-    pub on_leaf: extern "C" fn(*mut core::ffi::c_void, ExprTag, ExprHandle) -> bool,
+    // Owned handle transferred to C; C must free it with tinned_expr_free.
+    pub on_leaf: extern "C" fn(*mut core::ffi::c_void, ExprTag, ExprBox) -> bool,
     pub end_node: extern "C" fn(*mut core::ffi::c_void, ExprTag, usize) -> bool,
 }
 
@@ -17,17 +26,17 @@ impl ExprVisitor for CVisitorBridge {
         if (self.visitor.begin_node)(self.visitor.ctx, tag, arity) {
             Ok(())
         } else {
-            Err(TinnedError::msg_static("begin_node returned false"))
+            Err(generic_error("begin_node returned false", None))
         }
     }
 
     fn leaf(&mut self, tag: ExprTag, expr: &Arc<dyn Expr>) -> Result<(), TinnedError> {
         // Build an owned handle for C. C must free it.
-        let h = ExprHandle::new(Arc::clone(expr));
+        let h = ExprBox::new(ExprHandle::new(Arc::clone(expr)));
         if (self.visitor.on_leaf)(self.visitor.ctx, tag, h) {
             Ok(())
         } else {
-            Err(TinnedError::new_static("on_leaf returned false"))
+            Err(generic_error("on_leaf returned false", None))
         }
     }
 
@@ -35,7 +44,7 @@ impl ExprVisitor for CVisitorBridge {
         if (self.visitor.end_node)(self.visitor.ctx, tag, arity) {
             Ok(())
         } else {
-            Err(TinnedError::msg_static("end_node returned false"))
+            Err(generic_error("end_node returned false", None))
         }
     }
 }

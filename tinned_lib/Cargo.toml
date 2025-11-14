@@ -15,10 +15,15 @@ serde = { version = "1.0", features = ["derive", "rc"] }
 serde_json = "1.0"
 thiserror = "2.0.12"
 typetag = "0.2"
+safer-ffi = { version = "0.1.13", optional = true }
 
 [dev-dependencies]
 num-integer = "0.1"
 rand = "0.9"
+
+[features]
+default = []
+ffi = ["dep:safer-ffi"]
 
 [lib]
 name = "tinned"

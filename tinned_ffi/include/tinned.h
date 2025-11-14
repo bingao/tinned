@@ -867,6 +867,26 @@ tinned_pert_multichain_is_superchain (
 PertMultichainHandle_t *
 tinned_pert_multichain_new (void);
 
+/** \brief
+ *  Same as [`Vec<T>`][`rust::Vec`], but with guaranteed `#[repr(C)]` layout
+ */
+typedef struct Vec_PerturbationHandle_ptr {
+    /** <No documentation available> */
+    PerturbationHandle_t * * ptr;
+
+    /** <No documentation available> */
+    size_t len;
+
+    /** <No documentation available> */
+    size_t cap;
+} Vec_PerturbationHandle_ptr_t;
+
+/** <No documentation available> */
+Vec_PerturbationHandle_ptr_t
+tinned_pert_multichain_to_vec (
+    PertMultichainHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
 /** <No documentation available> */
 uint32_t
 tinned_pert_multichain_total_order (
@@ -908,6 +928,14 @@ tinned_perturbation_new (
     char const * name,
     ExprHandle_t const * frequency,
     TinnedErrorHandle_t * * out_err);
+
+/** \brief
+ *  Free a vector of `repr_c::Vec<PerturbationBox>`.
+ *  Dropping the Vec drops each PerturbationBox, which decrements Arc counts.
+ */
+void
+tinned_perturbation_vec_free (
+    Vec_PerturbationHandle_ptr_t _v);
 
 /** <No documentation available> */
 ExprHandle_t *
@@ -1157,6 +1185,94 @@ tinned_two_elec_operator_new (
     ExprHandle_t const * density,
     PertMultichainHandle_t const * dependencies,
     PertMultichainHandle_t const * derivative,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+/** \remark Has the same ABI as `uint32_t` **/
+#ifdef DOXYGEN
+typedef
+#endif
+enum ExprTag {
+    /** <No documentation available> */
+    EXPR_TAG_ADD,
+    /** <No documentation available> */
+    EXPR_TAG_ADJOINT_MAP,
+    /** <No documentation available> */
+    EXPR_TAG_COMPOSITION,
+    /** <No documentation available> */
+    EXPR_TAG_CONJUGATE,
+    /** <No documentation available> */
+    EXPR_TAG_DOT_PRODUCT,
+    /** <No documentation available> */
+    EXPR_TAG_EXCH_CORR_ENERGY,
+    /** <No documentation available> */
+    EXPR_TAG_EXCH_CORR_POTENTIAL,
+    /** <No documentation available> */
+    EXPR_TAG_EXP_ADJOINT_MAP,
+    /** <No documentation available> */
+    EXPR_TAG_HERMITIAN_TRANSPOSE,
+    /** <No documentation available> */
+    EXPR_TAG_LAG_MULTIPLIER,
+    /** <No documentation available> */
+    EXPR_TAG_MATRIX_ADD,
+    /** <No documentation available> */
+    EXPR_TAG_MATRIX_MUL,
+    /** <No documentation available> */
+    EXPR_TAG_MUL,
+    /** <No documentation available> */
+    EXPR_TAG_NON_ELEC_FUNCTION,
+    /** <No documentation available> */
+    EXPR_TAG_NUMBER,
+    /** <No documentation available> */
+    EXPR_TAG_ONE_ELEC_OPERATOR,
+    /** <No documentation available> */
+    EXPR_TAG_POWER,
+    /** <No documentation available> */
+    EXPR_TAG_RESIDUE_PARAMETER,
+    /** <No documentation available> */
+    EXPR_TAG_SYMBOL,
+    /** <No documentation available> */
+    EXPR_TAG_TEMPORUM_OPERATOR,
+    /** <No documentation available> */
+    EXPR_TAG_TEMPORUM_OVERLAP,
+    /** <No documentation available> */
+    EXPR_TAG_TRACE,
+    /** <No documentation available> */
+    EXPR_TAG_TRANSPOSE,
+    /** <No documentation available> */
+    EXPR_TAG_TWO_ELEC_ENERGY,
+    /** <No documentation available> */
+    EXPR_TAG_TWO_ELEC_OPERATOR,
+    /** <No documentation available> */
+    EXPR_TAG_WFN_PARAMETER,
+    /** <No documentation available> */
+    EXPR_TAG_ZERO_OPERATOR,
+}
+#ifndef DOXYGEN
+; typedef uint32_t
+#endif
+ExprTag_t;
+
+/** <No documentation available> */
+typedef struct CExprVisitor {
+    /** <No documentation available> */
+    void * ctx;
+
+    /** <No documentation available> */
+    bool (*begin_node)(void *, ExprTag_t, size_t);
+
+    /** <No documentation available> */
+    bool (*on_leaf)(void *, ExprTag_t, ExprHandle_t *);
+
+    /** <No documentation available> */
+    bool (*end_node)(void *, ExprTag_t, size_t);
+} CExprVisitor_t;
+
+/** <No documentation available> */
+bool
+tinned_walk_expr_postorder (
+    ExprHandle_t const * h,
+    CExprVisitor_t visitor,
     TinnedErrorHandle_t * * out_err);
 
 /** <No documentation available> */

@@ -1,6 +1,7 @@
 use safer_ffi::prelude::*;
 use std::sync::Arc;
 
+use tinned::core::TinnedError;
 use tinned::perturbations::PertMultichain;
 use tinned::public::generic_error;
 
@@ -278,14 +279,26 @@ pub extern "C" fn tinned_pert_multichain_to_vec(
     h: Option<&PertMultichainHandle>,
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> repr_c::Vec<PerturbationBox> {
-    ffi_pert_multichain_return_val(h, "tinned_pert_multichain_to_vec", out_err, |chain| {
-        let perts = chain.to_vec();
-        let mut out = repr_c::Vec::with_capacity(perts.len());
-        for p in perts {
-            out.push(PerturbationBox::new(PerturbationHandle::new(p)));
+    match try_with_handle(h, "tinned_pert_multichain_to_vec", "PertMultichainHandle", |ph| {
+        let perts = ph.as_ref().to_vec();
+
+        // Build a standard Vec first
+        let mut v: Vec<PerturbationBox> = Vec::with_capacity(perts.len());
+        for pert in perts {
+            v.push(PerturbationBox::new(PerturbationHandle::new(pert)));
         }
+
+        // Then convert to repr_c::Vec
+        let out: repr_c::Vec<PerturbationBox> = v.into();
         Ok(out)
-    })
+    }) {
+        Ok(v) => v,
+        Err(e) => {
+            tinned_error_new(out_err, e);
+            // Build an empty std Vec and convert to repr_c::Vec as the fallback
+            Vec::<PerturbationBox>::new().into()
+        },
+    }
 }
 
 // Returns `false` on error/`NULL` input.

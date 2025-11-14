@@ -10,7 +10,7 @@ mod perturbations;
 mod public;
 
 // Re-export `ExprTag`` for convenience
-pub use tinned_lib::ExprTag;
+pub use tinned::ExprTag;
 
 pub use crate::c_support::*;
 pub use crate::core::*;

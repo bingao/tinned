@@ -10,7 +10,7 @@ pub use error_helpers::{
     expression_error, generic_error, generic_expression_error, multi_expression_error,
     multi_perturbation_error, perturbation_error, unreachable_error,
 };
-pub use expr_visitor::{ExprTag, ExprVisitor, eval_traverse};
+pub use expr_visitor::{ExprTag, ExprVisitor, walk_expr_postorder};
 pub use inspect::{downcast_from_arc, downcast_from_ref, is_expr_type};
 pub use number_tolerance::{NumberTolerance, get_number_tolerance, set_number_tolerance};
 pub use operations::{
