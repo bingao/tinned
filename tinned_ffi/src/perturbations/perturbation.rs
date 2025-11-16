@@ -40,10 +40,17 @@ impl PerturbationHandle {
     }
 }
 
-// Free a perturbation (NULL-safe).
+/// Free a perturbation (NULL-safe).
 #[ffi_export]
 pub fn tinned_perturbation_free(pert: Option<PerturbationBox>) {
     drop(pert);
+}
+
+/// Free a vector of `repr_c::Vec<PerturbationBox>`.
+/// Dropping the Vec drops each PerturbationBox, which decrements Arc counts.
+#[ffi_export]
+pub fn tinned_perturbation_vec_free(_v: repr_c::Vec<PerturbationBox>) {
+    // Intentionally empty. Taking by value and returning lets _v drop here.
 }
 
 #[inline]
@@ -167,11 +174,4 @@ pub fn perturbation_vec_from_slice(
 ) -> Result<Vec<Arc<Perturbation>>, TinnedError> {
     // Reuse the same safety/validation logic as Expr via `try_vec_from_slice`
     try_vec_from_slice(slice, caller, "PerturbationHandle", |h: &PerturbationHandle| h.clone_arc())
-}
-
-/// Free a vector of `repr_c::Vec<PerturbationBox>`.
-/// Dropping the Vec drops each PerturbationBox, which decrements Arc counts.
-#[ffi_export]
-pub fn tinned_perturbation_vec_free(_v: repr_c::Vec<PerturbationBox>) {
-    // Intentionally empty. Taking by value and returning lets _v drop here.
 }

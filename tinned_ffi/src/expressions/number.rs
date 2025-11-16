@@ -5,7 +5,7 @@ use tinned::core::Expr;
 use tinned::expressions::Number;
 use tinned::public::generic_error;
 
-use crate::c_support::{with_downcast_expr, with_downcast_val};
+use crate::c_support::{ffi_map_expr_as, ffi_map_expr_as_copy};
 use crate::core::{CComplex64, CRational64, ExprBox, ExprHandle, TinnedErrorBox, tinned_error_new};
 use crate::public::NumberToleranceHandle;
 
@@ -84,7 +84,7 @@ pub extern "C" fn tinned_number_is_zero(
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> bool {
     let num_tol = tol.map(NumberToleranceHandle::as_ref).cloned();
-    with_downcast_val::<Number, bool>(h, out_err, "tinned_number_is_zero", |num| {
+    ffi_map_expr_as_copy::<Number, bool>(h, out_err, "tinned_number_is_zero", |num| {
         num.is_zero(num_tol)
     })
     .unwrap_or(false)
@@ -97,7 +97,7 @@ pub extern "C" fn tinned_number_is_one(
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> bool {
     let num_tol = tol.map(NumberToleranceHandle::as_ref).cloned();
-    with_downcast_val::<Number, bool>(h, out_err, "tinned_number_is_one", |num| num.is_one(num_tol))
+    ffi_map_expr_as_copy::<Number, bool>(h, out_err, "tinned_number_is_one", |num| num.is_one(num_tol))
         .unwrap_or(false)
 }
 

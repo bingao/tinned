@@ -5,7 +5,7 @@ use tinned::expressions::TemporumOverlap;
 use tinned::perturbations::PertMultichain;
 use tinned::public::generic_error;
 
-use crate::c_support::{with_downcast_expr, with_downcast_pert_multichain, with_downcast_val};
+use crate::c_support::{ffi_map_expr_as, ffi_map_expr_as_copy};
 use crate::core::{ExprBox, ExprHandle, TinnedErrorBox, tinned_error_new};
 use crate::perturbations::{PertMultichainBox, PertMultichainHandle};
 
@@ -44,10 +44,10 @@ impl_expr_getters!(
 
 // Get `derivative` (cloned).
 impl_pert_multichain_getter!(
-    tinned_temporum_overlap_derivative : TemporumOverlap => |op| Ok(Arc::new(op.derivative().clone()))
+    tinned_temporum_overlap_derivative : TemporumOverlap => |op| op.derivative().clone()
 );
 
 // Get `dependencies` (cloned).
 impl_pert_multichain_getter!(
-    tinned_temporum_overlap_dependencies : TemporumOverlap => |op| Ok(Arc::new(op.dependencies().clone()))
+    tinned_temporum_overlap_dependencies : TemporumOverlap => |op| op.dependencies().clone()
 );

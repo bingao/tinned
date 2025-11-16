@@ -5,7 +5,9 @@ macro_rules! impl_cstr_getter {
             h: Option<&ExprHandle>,
             out_err: Option<Out<'_, TinnedErrorBox>>,
         ) -> Option<char_p::Box> {
-            with_downcast_cstr::<$type_name>(h, out_err, stringify!($fn_name), |$obj| $body)
+            ffi_map_expr_as::<$type_name, _>(h, out_err, stringify!($fn_name), |$obj| {
+                Ok(tinned_string_to_cstr($body))
+            })
         }
     };
 }
@@ -18,39 +20,16 @@ macro_rules! impl_expr_getters {
                 h: Option<&ExprHandle>,
                 out_err: Option<Out<'_, TinnedErrorBox>>,
             ) -> Option<ExprBox> {
-                with_downcast_expr::<$type_name>(
+                ffi_map_expr_as::<$type_name, _>(
                     h,
                     out_err,
                     stringify!($fn_name),
-                    |$obj| $body
+                    |$obj| {
+                        $body.map(|arc| ExprBox::new(ExprHandle::new(arc)))
+                    }
                 )
             }
         )+
-    };
-}
-
-macro_rules! impl_expr_index_getter {
-    ($fn_name:ident : $type_name:path => $collection:ident) => {
-        #[ffi_export]
-        pub extern "C" fn $fn_name(
-            h: Option<&ExprHandle>,
-            i: usize,
-            out_err: Option<Out<'_, TinnedErrorBox>>,
-        ) -> Option<ExprBox> {
-            with_downcast_expr::<$type_name>(h, out_err, stringify!($fn_name), |obj| {
-                obj.$collection().get(i).cloned().ok_or_else(|| {
-                    generic_error(
-                        format!(
-                            "Index {} out of bounds (len = {}) in {}",
-                            i,
-                            obj.$collection().len(),
-                            stringify!($fn_name)
-                        ),
-                        None,
-                    )
-                })
-            })
-        }
     };
 }
 
@@ -62,7 +41,7 @@ macro_rules! impl_val_getters {
                 h: Option<&ExprHandle>,
                 out_err: Option<Out<'_, TinnedErrorBox>>,
             ) -> $return_type {
-                with_downcast_val::<$type_name, $return_type>(
+                ffi_map_expr_as_copy::<$type_name, $return_type>(
                     h,
                     out_err,
                     stringify!($fn_name),
@@ -81,9 +60,16 @@ macro_rules! impl_pert_multichain_getter {
             h: Option<&ExprHandle>,
             out_err: Option<Out<'_, TinnedErrorBox>>,
         ) -> Option<PertMultichainBox> {
-            with_downcast_pert_multichain::<$type_name>(h, out_err, stringify!($fn_name), |$obj| {
-                $body
-            })
+            ffi_map_expr_as::<$type_name, _>(
+                h,
+                out_err,
+                stringify!($fn_name),
+                |$obj| {
+                    let chain = Arc::new($body);
+                    Ok(PertMultichainBox::new(PertMultichainHandle::new(chain)))
+                },
+            )
+
         }
     };
 }

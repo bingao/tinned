@@ -4,7 +4,7 @@ use std::sync::Arc;
 use tinned::expressions::Trace;
 use tinned::public::generic_error;
 
-use crate::c_support::with_downcast_expr;
+use crate::c_support::ffi_map_expr_as;
 use crate::core::{ExprBox, ExprHandle, TinnedErrorBox, tinned_error_new};
 
 #[ffi_export]

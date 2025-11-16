@@ -4,7 +4,8 @@ use std::sync::Arc;
 use tinned::expressions::ResidueParameter;
 use tinned::public::generic_error;
 
-use crate::c_support::{with_downcast_expr, with_downcast_pert, with_downcast_val};
+use crate::PerturbationHandle;
+use crate::c_support::{ffi_map_expr_as, ffi_map_expr_as_copy};
 use crate::core::{ExprBox, ExprHandle, TinnedErrorBox, tinned_error_new};
 use crate::perturbations::{PerturbationBox, PerturbationSlice, perturbation_vec_from_slice};
 
@@ -57,34 +58,24 @@ pub extern "C" fn tinned_residue_parameter_new(
 impl_val_getters!(
     ResidueParameter;
     tinned_residue_parameter_positive_frequency: bool => |res| res.positive_frequency(); default = false,
-    tinned_residue_parameter_perturbations_count: usize => |res| res.perturbations().len(); default = 0,
 );
 
-// Return the i-th perturbation (cloned). Caller must free the returned PerturbationBox.
+// Returns a cloned vector of perturbations
 #[ffi_export]
-pub extern "C" fn tinned_residue_parameter_perturbation_at(
+pub extern "C" fn tinned_residue_parameter_perturbations(
     h: Option<&ExprHandle>,
-    i: usize,
     out_err: Option<Out<'_, TinnedErrorBox>>,
-) -> Option<PerturbationBox> {
-    with_downcast_pert::<ResidueParameter>(
-        h,
-        out_err,
-        "tinned_residue_parameter_perturbation_at",
-        |res| {
-            res.perturbations().get(i).cloned().ok_or_else(|| {
-                generic_error(
-                    format!(
-                        "Index {} out of bounds (len = {}) in {}",
-                        i,
-                        res.perturbations().len(),
-                        "tinned_residue_parameter_perturbation_at"
-                    ),
-                    None,
-                )
-            })
-        },
-    )
+) -> repr_c::Vec<PerturbationBox> {
+    match ffi_map_expr_as::<ResidueParameter, _>(h, out_err, "tinned_residue_parameter_perturbations", |res| {
+        let mut perturbations: Vec<PerturbationBox> = Vec::with_capacity(res.perturbations().len());
+        for pert in res.perturbations() {
+            perturbations.push(PerturbationBox::new(PerturbationHandle::new(Arc::clone(pert))));
+        }
+        Ok(perturbations.into())
+    }) {
+        Some(perturbations) => perturbations,
+        None => Vec::<PerturbationBox>::new().into(),
+    }
 }
 
 impl_expr_getters!(

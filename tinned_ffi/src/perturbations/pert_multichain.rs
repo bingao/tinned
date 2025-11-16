@@ -280,16 +280,16 @@ pub extern "C" fn tinned_pert_multichain_to_vec(
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> repr_c::Vec<PerturbationBox> {
     match try_with_handle(h, "tinned_pert_multichain_to_vec", "PertMultichainHandle", |ph| {
-        let perts = ph.as_ref().to_vec();
+        let vec_perts = ph.as_ref().to_vec();
 
         // Build a standard Vec first
-        let mut v: Vec<PerturbationBox> = Vec::with_capacity(perts.len());
-        for pert in perts {
-            v.push(PerturbationBox::new(PerturbationHandle::new(pert)));
+        let mut vec_pert_boxes: Vec<PerturbationBox> = Vec::with_capacity(vec_perts.len());
+        for pert in vec_perts {
+            vec_pert_boxes.push(PerturbationBox::new(PerturbationHandle::new(pert)));
         }
 
         // Then convert to repr_c::Vec
-        let out: repr_c::Vec<PerturbationBox> = v.into();
+        let out: repr_c::Vec<PerturbationBox> = vec_pert_boxes.into();
         Ok(out)
     }) {
         Ok(v) => v,

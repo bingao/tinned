@@ -43,6 +43,13 @@ pub fn tinned_expr_free(expr: Option<ExprBox>) {
     drop(expr);
 }
 
+/// Free a vector of `repr_c::Vec<ExprBox>`.
+/// Dropping the Vec drops each ExprBox, which decrements Arc counts.
+#[ffi_export]
+pub fn tinned_expr_vec_free(_v: repr_c::Vec<ExprBox>) {
+    // Intentionally empty. Taking by value and returning lets _v drop here.
+}
+
 /// Borrowed slice of handles
 pub type ExprSlice<'a> = c_slice::Ref<'a, *const ExprHandle>;
 

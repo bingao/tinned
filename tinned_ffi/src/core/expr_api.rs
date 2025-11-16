@@ -100,6 +100,26 @@ pub fn tinned_expr_hash_key(
 }
 
 #[ffi_export]
+pub extern "C" fn tinned_expr_eq(
+    lhs: Option<&ExprHandle>,
+    rhs: Option<&ExprHandle>,
+    out_err: Option<Out<'_, TinnedErrorBox>>,
+) -> bool {
+    ffi_expr_return_val(
+        lhs,
+        "tinned_expr_eq(lhs)",
+        out_err,
+        |l| {
+            with_expr_arc(
+                rhs,
+                "tinned_expr_eq(rhs)",
+                |r| Ok(l.as_ref() == r.as_ref()),
+            )
+        },
+    )
+}
+
+#[ffi_export]
 pub fn tinned_expr_display(
     h: Option<&ExprHandle>,
     out_err: Option<Out<'_, TinnedErrorBox>>,

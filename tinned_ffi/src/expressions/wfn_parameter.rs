@@ -5,10 +5,10 @@ use tinned::expressions::WfnParameter;
 use tinned::public::generic_error;
 
 use crate::c_support::{
-    tinned_string_from_cstr, with_downcast_cstr, with_downcast_pert_multichain,
+    tinned_string_from_cstr, ffi_map_expr_as, tinned_string_to_cstr,
 };
 use crate::core::{ExprBox, ExprHandle, TinnedErrorBox, tinned_error_new};
-use crate::perturbations::PertMultichainBox;
+use crate::perturbations::{PertMultichainHandle, PertMultichainBox};
 
 #[ffi_export]
 pub extern "C" fn tinned_wfn_parameter_new(
@@ -39,5 +39,5 @@ impl_cstr_getter!(
 
 // Get `derivative` (cloned).
 impl_pert_multichain_getter!(
-    tinned_wfn_parameter_derivative : WfnParameter => |obj| Ok(Arc::new(obj.derivative().clone()))
+    tinned_wfn_parameter_derivative : WfnParameter => |obj| obj.derivative().clone()
 );

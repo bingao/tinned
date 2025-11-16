@@ -1,9 +1,8 @@
 use safer_ffi::prelude::*;
 
 use tinned::expressions::Mul;
-use tinned::public::generic_error;
 
-use crate::c_support::{with_downcast_expr, with_downcast_val};
+use crate::c_support::{ffi_map_expr_as, ffi_map_expr_as_exprvec};
 use crate::core::{
     ExprBox, ExprHandle, ExprSlice, TinnedErrorBox, expr_vec_from_slice, tinned_error_new,
 };
@@ -35,10 +34,11 @@ impl_expr_getters!(
     tinned_mul_coefficient => |mul| Ok(mul.coefficient().into()),
 );
 
-impl_val_getters!(
-    Mul;
-    tinned_mul_factors_count: usize => |mul| mul.factors().len(); default = 0,
-);
-
-// Return the i-th factor (cloned). Caller must free the returned ExprBox.
-impl_expr_index_getter!(tinned_mul_factor_at : Mul => factors);
+// Returns a cloned vector of factors
+#[ffi_export]
+pub extern "C" fn tinned_mul_factors(
+    h: Option<&ExprHandle>,
+    out_err: Option<Out<'_, TinnedErrorBox>>,
+) -> repr_c::Vec<ExprBox> {
+    ffi_map_expr_as_exprvec::<Mul>(h, out_err, "tinned_mul_factors", |mul| mul.factors())
+}

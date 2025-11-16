@@ -6,7 +6,7 @@ use tinned::perturbations::PertMultichain;
 use tinned::public::generic_error;
 
 use crate::c_support::{
-    tinned_string_from_cstr, with_downcast_cstr, with_downcast_pert_multichain,
+    tinned_string_from_cstr, ffi_map_expr_as, tinned_string_to_cstr,
 };
 use crate::core::{ExprBox, ExprHandle, TinnedErrorBox, tinned_error_new};
 use crate::perturbations::{PertMultichainBox, PertMultichainHandle};
@@ -47,10 +47,10 @@ impl_cstr_getter!(
 
 // Get `derivative` (cloned).
 impl_pert_multichain_getter!(
-    tinned_one_elec_operator_derivative : OneElecOperator => |op| Ok(Arc::new(op.derivative().clone()))
+    tinned_one_elec_operator_derivative : OneElecOperator => |op| op.derivative().clone()
 );
 
 // Get `dependencies` (cloned).
 impl_pert_multichain_getter!(
-    tinned_one_elec_operator_dependencies : OneElecOperator => |op| Ok(Arc::new(op.dependencies().clone()))
+    tinned_one_elec_operator_dependencies : OneElecOperator => |op| op.dependencies().clone()
 );

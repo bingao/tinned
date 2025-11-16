@@ -4,9 +4,9 @@ use std::sync::Arc;
 use tinned::expressions::TemporumOperator;
 use tinned::public::generic_error;
 
-use crate::c_support::{with_downcast_expr, with_downcast_pert_multichain, with_downcast_val};
+use crate::c_support::{ffi_map_expr_as, ffi_map_expr_as_copy};
 use crate::core::{ExprBox, ExprHandle, TinnedErrorBox, tinned_error_new};
-use crate::perturbations::PertMultichainBox;
+use crate::perturbations::{PertMultichainHandle, PertMultichainBox};
 
 #[ffi_export]
 pub extern "C" fn tinned_temporum_operator_new(
@@ -44,6 +44,19 @@ impl_expr_getters!(
 );
 
 // Get `derivative` (cloned).
-impl_pert_multichain_getter!(
-    tinned_temporum_operator_derivative : TemporumOperator => |op| op.derivative().map(|mc| Arc::new(mc.clone()))
-);
+#[ffi_export]
+pub extern "C" fn tinned_temporum_operator_derivative(
+    h: Option<&ExprHandle>,
+    out_err: Option<Out<'_, TinnedErrorBox>>,
+) -> Option<PertMultichainBox> {
+    ffi_map_expr_as::<TemporumOperator, _>(
+        h,
+        out_err,
+        "tinned_temporum_operator_derivative",
+        |op| {
+            op.derivative().map(|chain| {
+                PertMultichainBox::new(PertMultichainHandle::new(Arc::new(chain.clone())))
+            })
+        }
+    )
+}

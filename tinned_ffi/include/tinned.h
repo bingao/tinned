@@ -64,29 +64,29 @@ tinned_add_new (
     slice_ref_ExprHandle_const_ptr_t terms,
     TinnedErrorHandle_t * * out_err);
 
+/** \brief
+ *  Same as [`Vec<T>`][`rust::Vec`], but with guaranteed `#[repr(C)]` layout
+ */
+typedef struct Vec_ExprHandle_ptr {
+    /** <No documentation available> */
+    ExprHandle_t * * ptr;
+
+    /** <No documentation available> */
+    size_t len;
+
+    /** <No documentation available> */
+    size_t cap;
+} Vec_ExprHandle_ptr_t;
+
 /** <No documentation available> */
-ExprHandle_t *
-tinned_add_term_at (
+Vec_ExprHandle_ptr_t
+tinned_add_terms (
     ExprHandle_t const * h,
-    size_t i,
     TinnedErrorHandle_t * * out_err);
 
 /** <No documentation available> */
-size_t
-tinned_add_terms_count (
-    ExprHandle_t const * h,
-    TinnedErrorHandle_t * * out_err);
-
-/** <No documentation available> */
-ExprHandle_t *
-tinned_adjoint_map_generator_at (
-    ExprHandle_t const * h,
-    size_t i,
-    TinnedErrorHandle_t * * out_err);
-
-/** <No documentation available> */
-size_t
-tinned_adjoint_map_generators_count (
+Vec_ExprHandle_ptr_t
+tinned_adjoint_map_generators (
     ExprHandle_t const * h,
     TinnedErrorHandle_t * * out_err);
 
@@ -428,6 +428,13 @@ tinned_expr_eliminate (
 
 /** <No documentation available> */
 bool
+tinned_expr_eq (
+    ExprHandle_t const * lhs,
+    ExprHandle_t const * rhs,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+bool
 tinned_expr_exist_any (
     ExprHandle_t const * h,
     slice_ref_ExprHandle_const_ptr_t set,
@@ -529,6 +536,14 @@ tinned_expr_type_name (
     ExprHandle_t const * h,
     TinnedErrorHandle_t * * out_err);
 
+/** \brief
+ *  Free a vector of `repr_c::Vec<ExprBox>`.
+ *  Dropping the Vec drops each ExprBox, which decrements Arc counts.
+ */
+void
+tinned_expr_vec_free (
+    Vec_ExprHandle_ptr_t _v);
+
 /** <No documentation available> */
 NumberToleranceHandle_t *
 tinned_get_global_number_tolerance (void);
@@ -570,15 +585,8 @@ tinned_matrix_add_new (
     TinnedErrorHandle_t * * out_err);
 
 /** <No documentation available> */
-ExprHandle_t *
-tinned_matrix_add_term_at (
-    ExprHandle_t const * h,
-    size_t i,
-    TinnedErrorHandle_t * * out_err);
-
-/** <No documentation available> */
-size_t
-tinned_matrix_add_terms_count (
+Vec_ExprHandle_ptr_t
+tinned_matrix_add_terms (
     ExprHandle_t const * h,
     TinnedErrorHandle_t * * out_err);
 
@@ -589,15 +597,8 @@ tinned_matrix_mul_coefficient (
     TinnedErrorHandle_t * * out_err);
 
 /** <No documentation available> */
-ExprHandle_t *
-tinned_matrix_mul_factor_at (
-    ExprHandle_t const * h,
-    size_t i,
-    TinnedErrorHandle_t * * out_err);
-
-/** <No documentation available> */
-size_t
-tinned_matrix_mul_factors_count (
+Vec_ExprHandle_ptr_t
+tinned_matrix_mul_factors (
     ExprHandle_t const * h,
     TinnedErrorHandle_t * * out_err);
 
@@ -614,15 +615,8 @@ tinned_mul_coefficient (
     TinnedErrorHandle_t * * out_err);
 
 /** <No documentation available> */
-ExprHandle_t *
-tinned_mul_factor_at (
-    ExprHandle_t const * h,
-    size_t i,
-    TinnedErrorHandle_t * * out_err);
-
-/** <No documentation available> */
-size_t
-tinned_mul_factors_count (
+Vec_ExprHandle_ptr_t
+tinned_mul_factors (
     ExprHandle_t const * h,
     TinnedErrorHandle_t * * out_err);
 
@@ -905,7 +899,9 @@ tinned_perturbation_display (
     PerturbationHandle_t const * h,
     TinnedErrorHandle_t * * out_err);
 
-/** <No documentation available> */
+/** \brief
+ *  Free a perturbation (NULL-safe).
+ */
 void
 tinned_perturbation_free (
     PerturbationHandle_t * pert);
@@ -978,15 +974,8 @@ tinned_residue_parameter_parameter (
     TinnedErrorHandle_t * * out_err);
 
 /** <No documentation available> */
-PerturbationHandle_t *
-tinned_residue_parameter_perturbation_at (
-    ExprHandle_t const * h,
-    size_t i,
-    TinnedErrorHandle_t * * out_err);
-
-/** <No documentation available> */
-size_t
-tinned_residue_parameter_perturbations_count (
+Vec_PerturbationHandle_ptr_t
+tinned_residue_parameter_perturbations (
     ExprHandle_t const * h,
     TinnedErrorHandle_t * * out_err);
 

@@ -4,7 +4,7 @@ use std::sync::Arc;
 use tinned::expressions::AdjointMap;
 use tinned::public::generic_error;
 
-use crate::c_support::{with_downcast_expr, with_downcast_val};
+use crate::c_support::{ffi_map_expr_as, ffi_map_expr_as_copy, ffi_map_expr_as_exprvec};
 use crate::core::{
     ExprBox, ExprHandle, ExprSlice, TinnedErrorBox, expr_vec_from_slice, tinned_error_new,
 };
@@ -44,12 +44,17 @@ pub extern "C" fn tinned_adjoint_map_new(
 
 impl_val_getters!(
     AdjointMap;
-    tinned_adjoint_map_generators_count: usize => |a| a.generators().len(); default = 0,
     tinned_adjoint_map_left_action: bool => |a| a.left_action(); default = false,
 );
 
-// Return the i-th generator (cloned). Caller must free the returned ExprBox.
-impl_expr_index_getter!(tinned_adjoint_map_generator_at : AdjointMap => generators);
+// Returns a cloned vector of generators
+#[ffi_export]
+pub extern "C" fn tinned_adjoint_map_generators(
+    h: Option<&ExprHandle>,
+    out_err: Option<Out<'_, TinnedErrorBox>>,
+) -> repr_c::Vec<ExprBox> {
+    ffi_map_expr_as_exprvec::<AdjointMap>(h, out_err, "tinned_adjoint_map_generators", |adj| adj.generators())
+}
 
 impl_expr_getters!(
     AdjointMap;

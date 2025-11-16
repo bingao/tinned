@@ -1,9 +1,8 @@
 use safer_ffi::prelude::*;
 
 use tinned::expressions::Add;
-use tinned::public::generic_error;
 
-use crate::c_support::{with_downcast_expr, with_downcast_val};
+use crate::c_support::ffi_map_expr_as_exprvec;
 use crate::core::{
     ExprBox, ExprHandle, ExprSlice, TinnedErrorBox, expr_vec_from_slice, tinned_error_new,
 };
@@ -30,10 +29,11 @@ pub extern "C" fn tinned_add_new(
     }
 }
 
-impl_val_getters!(
-    Add;
-    tinned_add_terms_count: usize => |add| add.terms().len(); default = 0,
-);
-
-// Return the i-th term (cloned). Caller must free the returned ExprBox.
-impl_expr_index_getter!(tinned_add_term_at : Add => terms);
+// Returns a cloned vector of terms
+#[ffi_export]
+pub extern "C" fn tinned_add_terms(
+    h: Option<&ExprHandle>,
+    out_err: Option<Out<'_, TinnedErrorBox>>,
+) -> repr_c::Vec<ExprBox> {
+    ffi_map_expr_as_exprvec::<Add>(h, out_err, "tinned_add_terms", |add| add.terms())
+}

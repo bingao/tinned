@@ -2,17 +2,14 @@ use safer_ffi::prelude::*;
 use std::sync::Arc;
 
 use tinned::core::{Expr, TinnedError};
-use tinned::perturbations::{PertMultichain, Perturbation};
+use tinned::inspect::downcast_from_ref;
 use tinned::public::expression_error;
 
-use crate::c_support::{tinned_string_to_cstr, try_with_handle};
-use crate::core::{ExprBox, ExprHandle, TinnedErrorBox, tinned_error_new};
-use crate::perturbations::{
-    PertMultichainBox, PertMultichainHandle, PerturbationBox, PerturbationHandle,
-};
+use crate::c_support::try_with_handle;
+use crate::core::{ExprHandle, ExprBox, TinnedErrorBox, tinned_error_new};
 
 #[inline]
-fn invalid_type_err(caller: &'static str, expr: &Arc<dyn Expr>) -> TinnedError {
+fn invalid_expr_type(caller: &'static str, expr: &Arc<dyn Expr>) -> TinnedError {
     let msg: &'static str = Box::leak(
         format!("Invalid expression passed to {caller}; expected {}", expr.type_name())
             .into_boxed_str(),
@@ -20,154 +17,69 @@ fn invalid_type_err(caller: &'static str, expr: &Arc<dyn Expr>) -> TinnedError {
     expression_error(msg, expr, None)
 }
 
-// Downcast helper for value-returning closures.
+// Expr downcast helper
 // - Validates handle (NULL -> sets `out_err`, returns `None`)
 // - Downcasts to `Target` (mismatch -> sets `out_err`, returns `None`)
-// - Runs `f(&Target) -> R` and returns `Some(R)`
+// - Runs `f(&Target) -> Result<R, TinnedError>` and returns `Some(R)`
 // - On any error -> sets `out_err`, returns `None`
 #[inline]
-pub(crate) fn with_downcast_val<Target: 'static, R: Copy>(
+pub(crate) fn ffi_map_expr_as<Target: 'static, R>(
+    h: Option<&ExprHandle>,
+    out_err: Option<Out<'_, TinnedErrorBox>>,
+    caller: &'static str,
+    f: impl FnOnce(&Target) -> Result<R, TinnedError>,
+) -> Option<R> {
+    let res = try_with_handle(h, caller, "ExprHandle", |eh| {
+        let expr = eh.as_ref();
+        if let Some(t) = downcast_from_ref::<Target>(expr) {
+            f(t)
+        } else {
+            let expr_arc = eh.clone_arc();
+            Err(invalid_expr_type(caller, &expr_arc))
+        }
+    });
+
+    match res {
+        Ok(v) => Some(v),
+        Err(e) => {
+            tinned_error_new(out_err, e);
+            None
+        }
+    }
+}
+
+// Expr downcast helper for for small-copy returns.
+#[inline]
+pub(crate) fn ffi_map_expr_as_copy<Target: 'static, R: Copy>(
     h: Option<&ExprHandle>,
     out_err: Option<Out<'_, TinnedErrorBox>>,
     caller: &'static str,
     f: impl FnOnce(&Target) -> R,
 ) -> Option<R> {
-    try_with_handle(h, caller, "ExprHandle", |eh| {
-        let expr = eh.as_ref();
-        if let Some(t) = expr.as_any().downcast_ref::<Target>() {
-            Ok(f(t))
-        } else {
-            let expr_arc = eh.clone_arc();
-            Err(invalid_type_err(caller, &expr_arc))
-        }
-    })
-    .map_or_else(
-        |e| {
-            tinned_error_new(out_err, e);
-            None
-        },
-        Some,
-    )
+    ffi_map_expr_as::<Target, R>(h, out_err, caller, |t| Ok(f(t)))
 }
 
-// Downcast helper for string-returning closures.
-// - Validates handle (NULL -> sets `out_err`, returns `None`)
-// - Downcasts to `Target` (mismatch -> sets `out_err`, returns `None`)
-// - Runs `f(&Target) -> String` and returns `Some(char_p::Box)`
-// - On any error -> sets `out_err`, returns `None`
+// Expr downcast helper for for &[Arc<dyn Expr>]returns.
 #[inline]
-pub(crate) fn with_downcast_cstr<Target: 'static>(
+pub(crate) fn ffi_map_expr_as_exprvec<Target: 'static>(
     h: Option<&ExprHandle>,
     out_err: Option<Out<'_, TinnedErrorBox>>,
     caller: &'static str,
-    f: impl FnOnce(&Target) -> String,
-) -> Option<char_p::Box> {
-    try_with_handle(h, caller, "ExprHandle", |eh| {
-        let expr = eh.as_ref();
-        if let Some(t) = expr.as_any().downcast_ref::<Target>() {
-            Ok(tinned_string_to_cstr(f(t)))
-        } else {
-            let expr_arc = eh.clone_arc();
-            Err(invalid_type_err(caller, &expr_arc))
-        }
-    })
-    .map_or_else(
-        |e| {
-            tinned_error_new(out_err, e);
-            None
-        },
-        Some,
-    )
-}
+    to_slice: impl FnOnce(&Target) -> &[Arc<dyn Expr>],
+) -> repr_c::Vec<ExprBox> {
+    match ffi_map_expr_as::<Target, _>(h, out_err, caller, |t| {
+        let slice = to_slice(t);
 
-// Downcast helper for closures that produce an expression (`Arc<dyn Expr>`)
-// and return a boxed handle to C.
-// - Same validation/downcast as above
-// - Runs `f(&Target) -> Result<Arc<dyn Expr>, TinnedError>`
-// - Boxes as `ExprBox` on success
-// - Sets `out_err` and returns None on failure
-#[inline]
-pub(crate) fn with_downcast_expr<Target: 'static>(
-    h: Option<&ExprHandle>,
-    out_err: Option<Out<'_, TinnedErrorBox>>,
-    caller: &'static str,
-    f: impl FnOnce(&Target) -> Result<Arc<dyn Expr>, TinnedError>,
-) -> Option<ExprBox> {
-    try_with_handle(h, caller, "ExprHandle", |eh| {
-        let expr = eh.as_ref();
-        if let Some(t) = expr.as_any().downcast_ref::<Target>() {
-            f(t).map(|arc| ExprBox::new(ExprHandle::new(arc)))
-        } else {
-            let expr_arc = eh.clone_arc();
-            Err(invalid_type_err(caller, &expr_arc))
+        // Build a standard Vec<ExprBox> first
+        let mut v: Vec<ExprBox> = Vec::with_capacity(slice.len());
+        for expr_arc in slice {
+            v.push(ExprBox::new(ExprHandle::new(Arc::clone(expr_arc))));
         }
-    })
-    .map_or_else(
-        |e| {
-            tinned_error_new(out_err, e);
-            None
-        },
-        Some,
-    )
-}
 
-// Downcast helper for closures that produce a perturbation (`Arc<Perturbation>`)
-// and return a boxed handle to C.
-// - Same validation/downcast as above
-// - Runs `f(&Target) -> Result<Arc<Perturbation>, TinnedError>`
-// - Boxes as `PerturbationBox` on success
-// - Sets `out_err` and returns None on failure
-#[inline]
-pub(crate) fn with_downcast_pert<Target: 'static>(
-    h: Option<&ExprHandle>,
-    out_err: Option<Out<'_, TinnedErrorBox>>,
-    caller: &'static str,
-    f: impl FnOnce(&Target) -> Result<Arc<Perturbation>, TinnedError>,
-) -> Option<PerturbationBox> {
-    try_with_handle(h, caller, "ExprHandle", |eh| {
-        let expr = eh.as_ref();
-        if let Some(t) = expr.as_any().downcast_ref::<Target>() {
-            f(t).map(|arc| PerturbationBox::new(PerturbationHandle::new(arc)))
-        } else {
-            let expr_arc = eh.clone_arc();
-            Err(invalid_type_err(caller, &expr_arc))
-        }
-    })
-    .map_or_else(
-        |e| {
-            tinned_error_new(out_err, e);
-            None
-        },
-        Some,
-    )
-}
-
-// Downcast helper for perturbation multichain closures.
-// - Validates handle (NULL -> sets `out_err`, returns `None`)
-// - Downcasts to `Target` (mismatch -> sets `out_err`, returns `None`)
-// - Runs `f(&Target) -> &PertMultichain` and returns `Some(PertMultichain)`
-// - On any error -> sets `out_err`, returns `None`
-#[inline]
-pub(crate) fn with_downcast_pert_multichain<Target: 'static>(
-    h: Option<&ExprHandle>,
-    out_err: Option<Out<'_, TinnedErrorBox>>,
-    caller: &'static str,
-    f: impl FnOnce(&Target) -> Result<Arc<PertMultichain>, TinnedError>,
-) -> Option<PertMultichainBox> {
-    try_with_handle(h, caller, "ExprHandle", |eh| {
-        let expr = eh.as_ref();
-        if let Some(t) = expr.as_any().downcast_ref::<Target>() {
-            f(t).map(|arc| PertMultichainBox::new(PertMultichainHandle::new(arc)))
-        } else {
-            let expr_arc = eh.clone_arc();
-            Err(invalid_type_err(caller, &expr_arc))
-        }
-    })
-    .map_or_else(
-        |e| {
-            tinned_error_new(out_err, e);
-            None
-        },
-        Some,
-    )
+        // Convert to repr_c::Vec<ExprBox>
+        Ok(v.into())
+    }) {
+        Some(v) => v,
+        None => Vec::<ExprBox>::new().into(),
+    }
 }

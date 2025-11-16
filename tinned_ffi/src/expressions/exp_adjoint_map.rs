@@ -4,9 +4,9 @@ use std::sync::Arc;
 use tinned::expressions::ExpAdjointMap;
 use tinned::public::generic_error;
 
-use crate::c_support::{with_downcast_expr, with_downcast_pert_multichain, with_downcast_val};
+use crate::c_support::{ffi_map_expr_as, ffi_map_expr_as_copy};
 use crate::core::{ExprBox, ExprHandle, TinnedErrorBox, tinned_error_new};
-use crate::perturbations::PertMultichainBox;
+use crate::perturbations::{PertMultichainHandle, PertMultichainBox};
 
 #[ffi_export]
 pub extern "C" fn tinned_exp_adjoint_map_new(
@@ -64,5 +64,5 @@ impl_val_getters!(
 
 // Get `derivative` (cloned).
 impl_pert_multichain_getter!(
-    tinned_exp_adjoint_map_derivative : ExpAdjointMap => |ead| Ok(Arc::new(ead.derivative().clone()))
+    tinned_exp_adjoint_map_derivative : ExpAdjointMap => |ead| ead.derivative().clone()
 );
