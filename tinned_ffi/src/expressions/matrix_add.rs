@@ -9,7 +9,7 @@ use crate::core::{
 
 #[ffi_export]
 pub extern "C" fn tinned_matrix_add_new(
-    terms: ExprSlice<'_>,
+    terms: &ExprSlice,
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> Option<ExprBox> {
     let terms_vec = match expr_vec_from_slice(terms, "tinned_matrix_add_new") {

@@ -6,8 +6,7 @@ use tinned::perturbations::PertMultichain;
 use tinned::public::generic_error;
 
 use crate::c_support::{
-    tinned_string_from_cstr,
-    ffi_map_expr_as_copy, ffi_map_expr_as, tinned_string_to_cstr,
+    ffi_map_expr_as, ffi_map_expr_as_copy, tinned_string_from_cstr, tinned_string_to_cstr,
 };
 use crate::core::{ExprBox, ExprHandle, TinnedErrorBox, tinned_error_new};
 use crate::perturbations::{PertMultichainBox, PertMultichainHandle};

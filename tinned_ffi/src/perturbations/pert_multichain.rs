@@ -1,14 +1,17 @@
 use safer_ffi::prelude::*;
+use std::collections::BTreeMap;
+use std::slice;
 use std::sync::Arc;
 
 use tinned::core::TinnedError;
-use tinned::perturbations::PertMultichain;
+use tinned::perturbations::{PertMultichain, Perturbation};
 use tinned::public::generic_error;
 
 use crate::c_support::{tinned_string_to_cstr, try_from_handle, try_with_handle};
 use crate::core::{TinnedErrorBox, tinned_error_new};
 use crate::perturbations::{
-    PerturbationBox, PerturbationHandle, PerturbationSlice, perturbation_vec_from_slice,
+    PerturbationBox, PerturbationEntry, PerturbationEntrySlice, PerturbationHandle,
+    PerturbationSlice, perturbation_vec_from_slice,
 };
 
 /// An *opaque* handle that C can only pass around
@@ -121,8 +124,46 @@ pub extern "C" fn tinned_pert_multichain_new() -> PertMultichainBox {
 }
 
 #[ffi_export]
+pub extern "C" fn tinned_pert_multichain_from_entries(
+    entries: PerturbationEntrySlice,
+    out_err: Option<Out<'_, TinnedErrorBox>>,
+) -> Option<PertMultichainBox> {
+    // Turn the raw slice into a Rust slice, with basic validation
+    let raw_entries: &[PerturbationEntry] = if entries.len == 0 {
+        &[]
+    } else {
+        if entries.ptr.is_null() {
+            let err = generic_error(
+                "Null PerturbationEntry slice pointer in tinned_pert_multichain_from_entries",
+                None,
+            );
+            tinned_error_new(out_err, err);
+            return None;
+        }
+
+        unsafe { slice::from_raw_parts(entries.ptr, entries.len) }
+    };
+
+    // Build the BTreeMap<Arc<Perturbation>, u32>
+    let mut map: BTreeMap<Arc<Perturbation>, u32> = BTreeMap::new();
+
+    for entry in raw_entries {
+        let handle_box = entry.perturbation();
+        let pert_arc = handle_box.clone_arc();
+        let max_order = entry.max_order();
+        // Overwrite on duplicate keys
+        map.insert(pert_arc, max_order);
+    }
+
+    // Build the PertMultichain and wrap it
+    let chain = PertMultichain::from_map(map);
+    let handle = PertMultichainHandle::new(Arc::new(chain));
+    Some(PertMultichainBox::new(handle))
+}
+
+#[ffi_export]
 pub extern "C" fn tinned_pert_multichain_from_slice(
-    perturbations: PerturbationSlice<'_>,
+    perturbations: &PerturbationSlice,
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> Option<PertMultichainBox> {
     let vec = match perturbation_vec_from_slice(perturbations, "tinned_pert_multichain_from_slice")

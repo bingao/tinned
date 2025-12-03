@@ -60,16 +60,10 @@ macro_rules! impl_pert_multichain_getter {
             h: Option<&ExprHandle>,
             out_err: Option<Out<'_, TinnedErrorBox>>,
         ) -> Option<PertMultichainBox> {
-            ffi_map_expr_as::<$type_name, _>(
-                h,
-                out_err,
-                stringify!($fn_name),
-                |$obj| {
-                    let chain = Arc::new($body);
-                    Ok(PertMultichainBox::new(PertMultichainHandle::new(chain)))
-                },
-            )
-
+            ffi_map_expr_as::<$type_name, _>(h, out_err, stringify!($fn_name), |$obj| {
+                let chain = Arc::new($body);
+                Ok(PertMultichainBox::new(PertMultichainHandle::new(chain)))
+            })
         }
     };
 }

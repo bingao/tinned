@@ -11,7 +11,7 @@ use crate::core::{
 
 #[ffi_export]
 pub extern "C" fn tinned_adjoint_map_new(
-    generators: ExprSlice<'_>,
+    generators: &ExprSlice,
     target: Option<&ExprHandle>,
     left_action: bool,
     out_err: Option<Out<'_, TinnedErrorBox>>,
@@ -53,7 +53,9 @@ pub extern "C" fn tinned_adjoint_map_generators(
     h: Option<&ExprHandle>,
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> repr_c::Vec<ExprBox> {
-    ffi_map_expr_as_exprvec::<AdjointMap>(h, out_err, "tinned_adjoint_map_generators", |adj| adj.generators())
+    ffi_map_expr_as_exprvec::<AdjointMap>(h, out_err, "tinned_adjoint_map_generators", |adj| {
+        adj.generators()
+    })
 }
 
 impl_expr_getters!(

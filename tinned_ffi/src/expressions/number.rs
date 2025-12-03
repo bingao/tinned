@@ -97,8 +97,10 @@ pub extern "C" fn tinned_number_is_one(
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> bool {
     let num_tol = tol.map(NumberToleranceHandle::as_ref).cloned();
-    ffi_map_expr_as_copy::<Number, bool>(h, out_err, "tinned_number_is_one", |num| num.is_one(num_tol))
-        .unwrap_or(false)
+    ffi_map_expr_as_copy::<Number, bool>(h, out_err, "tinned_number_is_one", |num| {
+        num.is_one(num_tol)
+    })
+    .unwrap_or(false)
 }
 
 impl_expr_getters!(

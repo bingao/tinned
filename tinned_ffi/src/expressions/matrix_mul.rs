@@ -10,7 +10,7 @@ use crate::core::{
 
 #[ffi_export]
 pub extern "C" fn tinned_matrix_mul_new(
-    terms: ExprSlice<'_>,
+    terms: &ExprSlice,
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> Option<ExprBox> {
     let terms_vec = match expr_vec_from_slice(terms, "tinned_matrix_mul_new") {
@@ -41,5 +41,7 @@ pub extern "C" fn tinned_matrix_mul_factors(
     h: Option<&ExprHandle>,
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> repr_c::Vec<ExprBox> {
-    ffi_map_expr_as_exprvec::<MatrixMul>(h, out_err, "tinned_matrix_mul_factors", |mul| mul.factors())
+    ffi_map_expr_as_exprvec::<MatrixMul>(h, out_err, "tinned_matrix_mul_factors", |mul| {
+        mul.factors()
+    })
 }

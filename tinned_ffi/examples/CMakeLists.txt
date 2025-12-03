@@ -70,24 +70,24 @@ add_dependencies(tinned_ffi rust_lib)
 # Examples
 add_executable(oper_dao
   "${TINNED_CRATE_DIR}/examples/oper_dao.c"
-  #"${TINNED_CRATE_DIR}/examples/expr_visitor_dao.c"
+  "${TINNED_CRATE_DIR}/examples/expr_traversal.c"
 )
-#add_executable(xc_energy
-#  "${TINNED_CRATE_DIR}/examples/xc_energy.c"
-#)
+add_executable(xc_energy
+  "${TINNED_CRATE_DIR}/examples/xc_energy.c"
+)
 
 # Include the Rust FFI header & example includes
 target_include_directories(oper_dao PRIVATE
   "${TINNED_CRATE_DIR}/include"
   "${CMAKE_CURRENT_LIST_DIR}"
 )
-#target_include_directories(xc_energy PRIVATE
-#  "${TINNED_CRATE_DIR}/include"
-#  "${CMAKE_CURRENT_LIST_DIR}"
-#)
+target_include_directories(xc_energy PRIVATE
+  "${TINNED_CRATE_DIR}/include"
+  "${CMAKE_CURRENT_LIST_DIR}"
+)
 
 target_link_libraries(oper_dao PRIVATE tinned_ffi)
-#target_link_libraries(xc_energy PRIVATE tinned_ffi)
+target_link_libraries(xc_energy PRIVATE tinned_ffi)
 
 # Make sure the Rust runtime library is found at run-time
 if (APPLE)
@@ -95,19 +95,19 @@ if (APPLE)
     BUILD_RPATH "@loader_path"
     INSTALL_RPATH "@loader_path"
   )
-  #set_target_properties(xc_energy PROPERTIES
-  #  BUILD_RPATH "@loader_path"
-  #  INSTALL_RPATH "@loader_path"
-  #)
+  set_target_properties(xc_energy PROPERTIES
+    BUILD_RPATH "@loader_path"
+    INSTALL_RPATH "@loader_path"
+  )
 elseif(UNIX AND NOT APPLE)
   set_target_properties(oper_dao PROPERTIES
     BUILD_RPATH "\$ORIGIN"
     INSTALL_RPATH "\$ORIGIN"
   )
-  #set_target_properties(xc_energy PROPERTIES
-  #  BUILD_RPATH "\$ORIGIN"
-  #  INSTALL_RPATH "\$ORIGIN"
-  #)
+  set_target_properties(xc_energy PROPERTIES
+    BUILD_RPATH "\$ORIGIN"
+    INSTALL_RPATH "\$ORIGIN"
+  )
 endif()
 
 # Also copy the Rust runtime next to the executables (robust across platforms)
@@ -117,9 +117,9 @@ add_custom_command(TARGET oper_dao POST_BUILD
           "$<TARGET_FILE_DIR:oper_dao>"
   COMMENT "Copying Rust runtime next to oper_dao"
 )
-#add_custom_command(TARGET xc_energy POST_BUILD
-#  COMMAND ${CMAKE_COMMAND} -E copy_if_different
-#          "${RUST_RUNTIME}"
-#          "$<TARGET_FILE_DIR:xc_energy>"
-#  COMMENT "Copying Rust runtime next to xc_energy"
-#)
+add_custom_command(TARGET xc_energy POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E copy_if_different
+          "${RUST_RUNTIME}"
+          "$<TARGET_FILE_DIR:xc_energy>"
+  COMMENT "Copying Rust runtime next to xc_energy"
+)

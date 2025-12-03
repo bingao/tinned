@@ -11,7 +11,7 @@ use crate::perturbations::{PerturbationBox, PerturbationSlice, perturbation_vec_
 
 #[ffi_export]
 pub extern "C" fn tinned_residue_parameter_new(
-    perturbations: PerturbationSlice<'_>,
+    perturbations: &PerturbationSlice,
     excited_state: Option<&ExprHandle>,
     parameter: Option<&ExprHandle>,
     positive_frequency: bool,
@@ -66,13 +66,19 @@ pub extern "C" fn tinned_residue_parameter_perturbations(
     h: Option<&ExprHandle>,
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> repr_c::Vec<PerturbationBox> {
-    match ffi_map_expr_as::<ResidueParameter, _>(h, out_err, "tinned_residue_parameter_perturbations", |res| {
-        let mut perturbations: Vec<PerturbationBox> = Vec::with_capacity(res.perturbations().len());
-        for pert in res.perturbations() {
-            perturbations.push(PerturbationBox::new(PerturbationHandle::new(Arc::clone(pert))));
-        }
-        Ok(perturbations.into())
-    }) {
+    match ffi_map_expr_as::<ResidueParameter, _>(
+        h,
+        out_err,
+        "tinned_residue_parameter_perturbations",
+        |res| {
+            let mut perturbations: Vec<PerturbationBox> =
+                Vec::with_capacity(res.perturbations().len());
+            for pert in res.perturbations() {
+                perturbations.push(PerturbationBox::new(PerturbationHandle::new(Arc::clone(pert))));
+            }
+            Ok(perturbations.into())
+        },
+    ) {
         Some(perturbations) => perturbations,
         None => Vec::<PerturbationBox>::new().into(),
     }

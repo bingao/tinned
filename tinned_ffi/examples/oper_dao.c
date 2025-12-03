@@ -4,6 +4,8 @@
 #include "tinned.h"
 #include "tinned_cleanup.h"
 
+#include "expr_traversal.h"
+
 int main(void) {
     TinnedErrorHandle_t* err = NULL;
 
@@ -50,21 +52,19 @@ int main(void) {
     TINNED_SAFE_FREE_EXPR(freq_b);
 
     // Create dependencies with respect to perturbations
-    PertMultichainHandle_t* dependencies = tinned_pert_multichain_new();
-    bool ok = tinned_pert_multichain_insert(dependencies, pert_a, &err);
-    if (!ok) {
+    PerturbationEntry_t pert_entries[2];
+    pert_entries[0] = tinned_perturbation_entry_new(pert_a, 1);
+    pert_entries[1] = tinned_perturbation_entry_new(pert_b, 2);
+    PerturbationEntrySlice_t pert_slice = {
+        .ptr = pert_entries,
+        .len = 2,
+    };
+
+    PertMultichainHandle_t* dependencies = tinned_pert_multichain_from_entries(pert_slice, &err);
+    if (!dependencies) {
         fprintf(
             stderr,
-            "Failed to insert perturbation a into dependencies, with error message: %s\n",
-            tinned_error_display(err)
-        );
-        return 1;
-    }
-    ok = tinned_pert_multichain_insert(dependencies, pert_b, &err);
-    if (!ok) {
-        fprintf(
-            stderr,
-            "Failed to insert perturbation b into dependencies, with error message: %s\n",
+            "Failed to create dependencies, with error message: %s\n",
             tinned_error_display(err)
         );
         return 1;
@@ -106,12 +106,12 @@ int main(void) {
     TINNED_SAFE_FREE_PERT_MULTICHAIN(dependencies);
 
     // Create the one-electron energy
-    const ExprHandle_t* hD_terms[2] = {oper_1el, ao_dens};
-    slice_ref_ExprHandle_const_ptr_t hD_slice = {
+    ExprHandle_t const * const hD_terms[2] = {oper_1el, ao_dens};
+    ExprSlice_t hD_slice = {
         .ptr = hD_terms,
         .len = 2,
     };
-    ExprHandle_t* hD = tinned_matrix_mul_new(hD_slice, &err);
+    ExprHandle_t* hD = tinned_matrix_mul_new(&hD_slice, &err);
     if (!hD) {
         fprintf(
             stderr,
@@ -134,12 +134,12 @@ int main(void) {
     TINNED_SAFE_FREE_EXPR(ao_dens);
 
     // Create the energy
-    const ExprHandle_t* energy_terms[2] = {energy_1el, energy_2el};
-    slice_ref_ExprHandle_const_ptr_t energy_slice = {
+    ExprHandle_t const * const energy_terms[2] = {energy_1el, energy_2el};
+    ExprSlice_t energy_slice = {
         .ptr = energy_terms,
         .len = 2,
     };
-    ExprHandle_t* energy = tinned_add_new(energy_slice, &err);
+    ExprHandle_t* energy = tinned_add_new(&energy_slice, &err);
     if (!energy) {
         fprintf(
             stderr,
@@ -182,8 +182,36 @@ int main(void) {
         return 1;
     }
 
-    fprintf(stdout, "E = %s\n", str_energy);
-    fprintf(stdout, "E^{a} = %s\n", str_energy_a);
+    fprintf(stdout, "E = %s\n\n", str_energy);
+    fprintf(stdout, "E^{a} = %s\n\n", str_energy_a);
+
+    // Traverse the expression tree
+    TraversalCtx ctx = {
+        .depth = 0,
+        .node_count = 0,
+        .leaf_count = 0,
+    };
+
+    CExprVisitor_t visitor = {
+        .ctx       = &ctx,
+        .begin_node = traversal_begin_node,
+        .on_leaf    = traversal_on_leaf,
+        .end_node   = traversal_end_node,
+    };
+
+    bool ok = tinned_walk_expr_postorder(energy_a, visitor, &err);
+    if (!ok) {
+        fprintf(
+            stderr,
+            "Failed to traverse the differentiated energy, with error message: %s\n",
+            tinned_error_display(err)
+        );
+        return 1;
+    }
+
+    fprintf(stdout, "\nTraversal finished.\n");
+    fprintf(stdout, "Visited nodes: %zu\n", ctx.node_count);
+    fprintf(stdout, "Visited leaves: %zu\n", ctx.leaf_count);
 
     // Cleanup
     TINNED_SAFE_FREE_STR(str_energy);

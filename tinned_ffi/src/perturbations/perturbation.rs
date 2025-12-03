@@ -163,15 +163,70 @@ pub extern "C" fn tinned_perturbation_display(
     })
 }
 
+// One (perturbation, max_order) entry
+#[repr(C)]
+#[derive_ReprC]
+pub struct PerturbationEntry {
+    perturbation: repr_c::Box<PerturbationHandle>,
+    max_order: u32,
+}
+
+impl PerturbationEntry {
+    #[inline]
+    pub fn new(perturbation: repr_c::Box<PerturbationHandle>, max_order: u32) -> Self {
+        Self {
+            perturbation,
+            max_order,
+        }
+    }
+
+    #[inline]
+    pub fn perturbation(&self) -> &repr_c::Box<PerturbationHandle> {
+        &self.perturbation
+    }
+
+    #[inline]
+    pub fn max_order(&self) -> u32 {
+        self.max_order
+    }
+}
+
+// FFI constructor for C
+#[ffi_export]
+pub extern "C" fn tinned_perturbation_entry_new(
+    perturbation: repr_c::Box<PerturbationHandle>,
+    max_order: u32,
+) -> PerturbationEntry {
+    PerturbationEntry::new(perturbation, max_order)
+}
+
 /// Borrowed slice of handles
-pub type PerturbationSlice<'a> = c_slice::Ref<'a, *const PerturbationHandle>;
+#[repr(C)]
+#[derive_ReprC]
+pub struct PerturbationSlice {
+    pub ptr: *const *const PerturbationHandle,
+    pub len: usize,
+}
 
 /// Turn a `PerturbationSlice` into `Vec<Arc<Perturbation>>`.
 #[inline]
 pub fn perturbation_vec_from_slice(
-    slice: PerturbationSlice<'_>,
+    slice: &PerturbationSlice,
     caller: &'static str,
 ) -> Result<Vec<Arc<Perturbation>>, TinnedError> {
-    // Reuse the same safety/validation logic as Expr via `try_vec_from_slice`
-    try_vec_from_slice(slice, caller, "PerturbationHandle", |h: &PerturbationHandle| h.clone_arc())
+    try_vec_from_slice(
+        slice.ptr,
+        slice.len,
+        caller,
+        "PerturbationHandle",
+        |h: &PerturbationHandle| h.clone_arc(),
+    )
+}
+
+/// Slice of `PerturbationEntry`
+#[repr(C)]
+#[derive_ReprC]
+pub struct PerturbationEntrySlice {
+    pub ptr: *const PerturbationEntry,
+    pub len: usize,
 }

@@ -105,18 +105,9 @@ pub extern "C" fn tinned_expr_eq(
     rhs: Option<&ExprHandle>,
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> bool {
-    ffi_expr_return_val(
-        lhs,
-        "tinned_expr_eq(lhs)",
-        out_err,
-        |l| {
-            with_expr_arc(
-                rhs,
-                "tinned_expr_eq(rhs)",
-                |r| Ok(l.as_ref() == r.as_ref()),
-            )
-        },
-    )
+    ffi_expr_return_val(lhs, "tinned_expr_eq(lhs)", out_err, |l| {
+        with_expr_arc(rhs, "tinned_expr_eq(rhs)", |r| Ok(l.as_ref() == r.as_ref()))
+    })
 }
 
 #[ffi_export]
@@ -204,7 +195,7 @@ pub fn tinned_expr_differentiate(
 pub fn tinned_expr_eliminate(
     h: Option<&ExprHandle>,
     parameter: Option<&ExprHandle>,
-    perturbations: Option<PerturbationSlice<'_>>,
+    perturbations: Option<&PerturbationSlice>,
     min_order: u32,
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> Option<ExprBox> {
@@ -238,7 +229,7 @@ pub fn tinned_expr_eliminate(
 #[ffi_export]
 pub fn tinned_expr_exist_any(
     h: Option<&ExprHandle>,
-    set: Option<ExprSlice<'_>>,
+    set: Option<&ExprSlice>,
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> bool {
     let expr_set = match set {
@@ -299,7 +290,7 @@ pub fn tinned_expr_find_superchains(
 #[ffi_export]
 pub fn tinned_expr_remove(
     h: Option<&ExprHandle>,
-    set: Option<ExprSlice<'_>>,
+    set: Option<&ExprSlice>,
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> Option<ExprBox> {
     let expr_set = match set {
@@ -318,8 +309,8 @@ pub fn tinned_expr_remove(
 #[ffi_export]
 pub fn tinned_expr_replace(
     h: Option<&ExprHandle>,
-    keys: Option<ExprSlice<'_>>,
-    values: Option<ExprSlice<'_>>,
+    keys: Option<&ExprSlice>,
+    values: Option<&ExprSlice>,
     exact_equality: bool,
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> Option<ExprBox> {
@@ -347,7 +338,7 @@ pub fn tinned_expr_replace(
 #[ffi_export]
 pub fn tinned_expr_retain(
     h: Option<&ExprHandle>,
-    set: Option<ExprSlice<'_>>,
+    set: Option<&ExprSlice>,
     exact_equality: bool,
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> Option<ExprBox> {

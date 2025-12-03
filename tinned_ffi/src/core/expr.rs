@@ -51,36 +51,43 @@ pub fn tinned_expr_vec_free(_v: repr_c::Vec<ExprBox>) {
 }
 
 /// Borrowed slice of handles
-pub type ExprSlice<'a> = c_slice::Ref<'a, *const ExprHandle>;
+#[repr(C)]
+#[derive_ReprC]
+pub struct ExprSlice {
+    pub ptr: *const *const ExprHandle,
+    pub len: usize,
+}
 
 /// Turn an `ExprSlice` into `Vec<Arc<dyn Expr>>`, or set `out_err` and return `None`.
 #[inline]
 pub fn expr_vec_from_slice(
-    slice: ExprSlice<'_>,
+    slice: &ExprSlice,
     caller: &'static str,
 ) -> Result<Vec<Arc<dyn Expr>>, TinnedError> {
-    try_vec_from_slice(slice, caller, "ExprHandle", |h: &ExprHandle| h.clone_arc())
+    try_vec_from_slice(slice.ptr, slice.len, caller, "ExprHandle", |h: &ExprHandle| h.clone_arc())
 }
 
 // Build a HashSet<Arc<dyn Expr>> from an ExprSlice.
 #[inline]
 pub fn expr_set_from_slice(
-    slice: ExprSlice<'_>,
+    slice: &ExprSlice,
     caller: &'static str,
 ) -> Result<HashSet<Arc<dyn Expr>>, TinnedError> {
-    try_set_from_slice::<ExprHandle, dyn Expr>(slice, caller, "ExprHandle", |h| h.clone_arc())
+    try_set_from_slice(slice.ptr, slice.len, caller, "ExprHandle", |h| h.clone_arc())
 }
 
 // Build a HashMap<Arc<dyn Expr>, Arc<dyn Expr>> from parallel ExprSlices.
 #[inline]
 pub fn expr_map_from_slices(
-    keys: ExprSlice<'_>,
-    values: ExprSlice<'_>,
+    keys: &ExprSlice,
+    values: &ExprSlice,
     caller: &'static str,
 ) -> Result<HashMap<Arc<dyn Expr>, Arc<dyn Expr>>, TinnedError> {
-    try_map_from_slices::<ExprHandle, ExprHandle, dyn Expr, dyn Expr>(
-        keys,
-        values,
+    try_map_from_slices(
+        keys.ptr,
+        keys.len,
+        values.ptr,
+        values.len,
         caller,
         "ExprHandle(key)",
         "ExprHandle(value)",

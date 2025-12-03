@@ -6,7 +6,7 @@ use tinned::inspect::downcast_from_ref;
 use tinned::public::expression_error;
 
 use crate::c_support::try_with_handle;
-use crate::core::{ExprHandle, ExprBox, TinnedErrorBox, tinned_error_new};
+use crate::core::{ExprBox, ExprHandle, TinnedErrorBox, tinned_error_new};
 
 #[inline]
 fn invalid_expr_type(caller: &'static str, expr: &Arc<dyn Expr>) -> TinnedError {
@@ -44,7 +44,7 @@ pub(crate) fn ffi_map_expr_as<Target: 'static, R>(
         Err(e) => {
             tinned_error_new(out_err, e);
             None
-        }
+        },
     }
 }
 

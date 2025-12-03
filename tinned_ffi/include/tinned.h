@@ -23,35 +23,15 @@ typedef struct ExprHandle ExprHandle_t;
 #include <stdint.h>
 
 /** \brief
- *  `&'lt [T]` but with a guaranteed `#[repr(C)]` layout.
- *
- *  # C layout (for some given type T)
- *
- *  ```c
- *  typedef struct {
- *  // Cannot be NULL
- *  T * ptr;
- *  size_t len;
- *  } slice_T;
- *  ```
- *
- *  # Nullable pointer?
- *
- *  If you want to support the above typedef, but where the `ptr` field is
- *  allowed to be `NULL` (with the contents of `len` then being undefined)
- *  use the `Option< slice_ptr<_> >` type.
+ *  Borrowed slice of handles
  */
-typedef struct slice_ref_ExprHandle_const_ptr {
-    /** \brief
-     *  Pointer to the first element (if any).
-     */
+typedef struct ExprSlice {
+    /** <No documentation available> */
     ExprHandle_t const * const * ptr;
 
-    /** \brief
-     *  Element count
-     */
+    /** <No documentation available> */
     size_t len;
-} slice_ref_ExprHandle_const_ptr_t;
+} ExprSlice_t;
 
 /** \brief
  *  An *opaque* handle that C can only pass around
@@ -61,7 +41,7 @@ typedef struct TinnedErrorHandle TinnedErrorHandle_t;
 /** <No documentation available> */
 ExprHandle_t *
 tinned_add_new (
-    slice_ref_ExprHandle_const_ptr_t terms,
+    ExprSlice_t const * terms,
     TinnedErrorHandle_t * * out_err);
 
 /** \brief
@@ -102,7 +82,7 @@ tinned_adjoint_map_left_action (
 /** <No documentation available> */
 ExprHandle_t *
 tinned_adjoint_map_new (
-    slice_ref_ExprHandle_const_ptr_t generators,
+    ExprSlice_t const * generators,
     ExprHandle_t const * target,
     bool left_action,
     TinnedErrorHandle_t * * out_err);
@@ -387,42 +367,22 @@ tinned_expr_display (
     TinnedErrorHandle_t * * out_err);
 
 /** \brief
- *  `&'lt [T]` but with a guaranteed `#[repr(C)]` layout.
- *
- *  # C layout (for some given type T)
- *
- *  ```c
- *  typedef struct {
- *  // Cannot be NULL
- *  T * ptr;
- *  size_t len;
- *  } slice_T;
- *  ```
- *
- *  # Nullable pointer?
- *
- *  If you want to support the above typedef, but where the `ptr` field is
- *  allowed to be `NULL` (with the contents of `len` then being undefined)
- *  use the `Option< slice_ptr<_> >` type.
+ *  Borrowed slice of handles
  */
-typedef struct slice_ref_PerturbationHandle_const_ptr {
-    /** \brief
-     *  Pointer to the first element (if any).
-     */
+typedef struct PerturbationSlice {
+    /** <No documentation available> */
     PerturbationHandle_t const * const * ptr;
 
-    /** \brief
-     *  Element count
-     */
+    /** <No documentation available> */
     size_t len;
-} slice_ref_PerturbationHandle_const_ptr_t;
+} PerturbationSlice_t;
 
 /** <No documentation available> */
 ExprHandle_t *
 tinned_expr_eliminate (
     ExprHandle_t const * h,
     ExprHandle_t const * parameter,
-    slice_ref_PerturbationHandle_const_ptr_t perturbations,
+    PerturbationSlice_t const * perturbations,
     uint32_t min_order,
     TinnedErrorHandle_t * * out_err);
 
@@ -437,7 +397,7 @@ tinned_expr_eq (
 bool
 tinned_expr_exist_any (
     ExprHandle_t const * h,
-    slice_ref_ExprHandle_const_ptr_t set,
+    ExprSlice_t const * set,
     TinnedErrorHandle_t * * out_err);
 
 /** <No documentation available> */
@@ -471,15 +431,15 @@ tinned_expr_is_scalar (
 ExprHandle_t *
 tinned_expr_remove (
     ExprHandle_t const * h,
-    slice_ref_ExprHandle_const_ptr_t set,
+    ExprSlice_t const * set,
     TinnedErrorHandle_t * * out_err);
 
 /** <No documentation available> */
 ExprHandle_t *
 tinned_expr_replace (
     ExprHandle_t const * h,
-    slice_ref_ExprHandle_const_ptr_t keys,
-    slice_ref_ExprHandle_const_ptr_t values,
+    ExprSlice_t const * keys,
+    ExprSlice_t const * values,
     bool exact_equality,
     TinnedErrorHandle_t * * out_err);
 
@@ -487,7 +447,7 @@ tinned_expr_replace (
 ExprHandle_t *
 tinned_expr_retain (
     ExprHandle_t const * h,
-    slice_ref_ExprHandle_const_ptr_t set,
+    ExprSlice_t const * set,
     bool exact_equality,
     TinnedErrorHandle_t * * out_err);
 
@@ -581,7 +541,7 @@ tinned_lag_multiplier_new (
 /** <No documentation available> */
 ExprHandle_t *
 tinned_matrix_add_new (
-    slice_ref_ExprHandle_const_ptr_t terms,
+    ExprSlice_t const * terms,
     TinnedErrorHandle_t * * out_err);
 
 /** <No documentation available> */
@@ -605,7 +565,7 @@ tinned_matrix_mul_factors (
 /** <No documentation available> */
 ExprHandle_t *
 tinned_matrix_mul_new (
-    slice_ref_ExprHandle_const_ptr_t terms,
+    ExprSlice_t const * terms,
     TinnedErrorHandle_t * * out_err);
 
 /** <No documentation available> */
@@ -623,7 +583,7 @@ tinned_mul_factors (
 /** <No documentation available> */
 ExprHandle_t *
 tinned_mul_new (
-    slice_ref_ExprHandle_const_ptr_t terms,
+    ExprSlice_t const * terms,
     TinnedErrorHandle_t * * out_err);
 
 /** <No documentation available> */
@@ -811,9 +771,35 @@ tinned_pert_multichain_free (
     PertMultichainHandle_t * chain);
 
 /** <No documentation available> */
+typedef struct PerturbationEntry {
+    /** <No documentation available> */
+    PerturbationHandle_t * perturbation;
+
+    /** <No documentation available> */
+    uint32_t max_order;
+} PerturbationEntry_t;
+
+/** \brief
+ *  Slice of `PerturbationEntry`
+ */
+typedef struct PerturbationEntrySlice {
+    /** <No documentation available> */
+    PerturbationEntry_t const * ptr;
+
+    /** <No documentation available> */
+    size_t len;
+} PerturbationEntrySlice_t;
+
+/** <No documentation available> */
+PertMultichainHandle_t *
+tinned_pert_multichain_from_entries (
+    PerturbationEntrySlice_t entries,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
 PertMultichainHandle_t *
 tinned_pert_multichain_from_slice (
-    slice_ref_PerturbationHandle_const_ptr_t perturbations,
+    PerturbationSlice_t const * perturbations,
     TinnedErrorHandle_t * * out_err);
 
 /** <No documentation available> */
@@ -899,6 +885,12 @@ tinned_perturbation_display (
     PerturbationHandle_t const * h,
     TinnedErrorHandle_t * * out_err);
 
+/** <No documentation available> */
+PerturbationEntry_t
+tinned_perturbation_entry_new (
+    PerturbationHandle_t * perturbation,
+    uint32_t max_order);
+
 /** \brief
  *  Free a perturbation (NULL-safe).
  */
@@ -961,7 +953,7 @@ tinned_residue_parameter_excited_state (
 /** <No documentation available> */
 ExprHandle_t *
 tinned_residue_parameter_new (
-    slice_ref_PerturbationHandle_const_ptr_t perturbations,
+    PerturbationSlice_t const * perturbations,
     ExprHandle_t const * excited_state,
     ExprHandle_t const * parameter,
     bool positive_frequency,
