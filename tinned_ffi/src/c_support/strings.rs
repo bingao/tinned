@@ -1,6 +1,7 @@
 use safer_ffi::prelude::*;
 
 // Unified free for strings returned from FFI (`char_p::Box`)
+#[cfg(feature = "tinned-ffi")]
 #[ffi_export]
 pub fn tinned_string_free(s: Option<char_p::Box>) {
     drop(s);

@@ -18,4 +18,10 @@ num-complex = "0.4.6"
 num-rational = "0.4.2"
 
 [features]
-c-headers = ["safer-ffi/headers"]
+default = []
+
+# FFI surface
+tinned-ffi = []
+
+# Generate C headers for tinned
+c-headers = ["safer-ffi/headers", "tinned-ffi"]
