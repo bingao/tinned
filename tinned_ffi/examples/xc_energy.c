@@ -283,6 +283,8 @@ int main(void)
         return 1;
     }
 
+    TINNED_SAFE_FREE_PERT_MULTICHAIN(dependencies);
+
     // Make exchange-correlation energy functional and potential operator
     ExprHandle_t* Exc = tinned_exch_corr_energy_new("GGA", weight, D, Omega, &err);
     if (!Exc) {
