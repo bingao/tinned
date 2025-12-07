@@ -12,7 +12,7 @@ use crate::internal::intern_expr;
 use crate::perturbations::Perturbation;
 use crate::public::{
     NumberTolerance, downcast_from_arc, downcast_from_ref, expression_error,
-    generic_expression_error, is_expr_type, is_one_expr,
+    generic_expression_error, is_expr_type, is_one_expr, is_zero_expr,
 };
 
 /// Dot product of a bra and a ket (inner product)
@@ -244,6 +244,14 @@ impl Expr for DotProduct {
             self.allow_braket_swap,
             self.is_scalar,
         )?;
+
+        // Early return for zero differentiated bra and/or ket 
+        if is_zero_expr(&diff_bra_dp, None) {
+            return Ok(diff_ket_dp);
+        } else if is_zero_expr(&diff_ket_dp, None) {
+            return Ok(diff_bra_dp);
+        }
+
         if self.is_scalar {
             Add::new(vec![diff_bra_dp, diff_ket_dp])
         } else {
