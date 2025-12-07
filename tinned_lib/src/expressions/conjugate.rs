@@ -192,7 +192,7 @@ mod tests {
         );
         assert_eq!(&Conjugate::new(conj_mat_mul.clone()).unwrap(), &argument);
 
-        argument = DotProduct::new(op_a.clone(), true, op_b.clone(), false).unwrap();
+        argument = DotProduct::new(op_a.clone(), true, op_b.clone(), false, None).unwrap();
         let mut conj_dot = Conjugate::new(argument.clone()).unwrap();
 
         assert!(conj_dot.is_scalar());
@@ -202,13 +202,14 @@ mod tests {
                 Conjugate::new(op_a.clone()).unwrap(),
                 true,
                 Conjugate::new(op_b.clone()).unwrap(),
-                false
+                false,
+                None,
             )
             .unwrap()
         );
         assert_eq!(&Conjugate::new(conj_dot.clone()).unwrap(), &argument);
 
-        argument = DotProduct::new(op_a.clone(), false, op_b.clone(), false).unwrap();
+        argument = DotProduct::new(op_a.clone(), false, op_b.clone(), false, None).unwrap();
         conj_dot = Conjugate::new(argument.clone()).unwrap();
 
         assert!(conj_dot.is_scalar());
@@ -218,7 +219,8 @@ mod tests {
                 Conjugate::new(op_a.clone()).unwrap(),
                 false,
                 Conjugate::new(op_b.clone()).unwrap(),
-                false
+                false,
+                None,
             )
             .unwrap()
         );
@@ -257,7 +259,7 @@ mod tests {
         );
 
         argument =
-            DotProduct::new(make_wfn_parameter(""), true, make_wfn_parameter(""), false).unwrap();
+            DotProduct::new(make_wfn_parameter(""), true, make_wfn_parameter(""), false, None).unwrap();
         op = Conjugate::new(argument.clone()).unwrap();
 
         assert_eq!(

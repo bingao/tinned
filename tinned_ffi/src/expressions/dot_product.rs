@@ -13,6 +13,7 @@ pub extern "C" fn tinned_dot_product_new(
     use_hermitian: bool,
     ket: Option<&ExprHandle>,
     allow_braket_swap: bool,
+    is_scalar: bool,
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> Option<ExprBox> {
     let Some(bra) = bra else {
@@ -27,7 +28,7 @@ pub extern "C" fn tinned_dot_product_new(
     let bra_arc = bra.clone_arc();
     let ket_arc = ket.clone_arc();
 
-    match DotProduct::new(bra_arc, use_hermitian, ket_arc, allow_braket_swap) {
+    match DotProduct::new(bra_arc, use_hermitian, ket_arc, allow_braket_swap, Some(is_scalar)) {
         Ok(expr_arc) => Some(ExprBox::new(ExprHandle::new(expr_arc))),
         Err(e) => {
             tinned_error_new(out_err, e);

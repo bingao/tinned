@@ -45,14 +45,32 @@ macro_rules! impl_expr_common_methods {
             self
         }
 
-        #[inline]
-        fn is_scalar(&self) -> bool {
-            $is_scalar
-        }
+        impl_is_scalar!($is_scalar);
 
         #[inline]
         fn clone_expr(&self) -> Arc<dyn Expr> {
             Arc::new(self.clone())
+        }
+    };
+}
+
+macro_rules! impl_is_scalar {
+    (true) => {
+        #[inline]
+        fn is_scalar(&self) -> bool {
+            true
+        }
+    };
+    (false) => {
+        #[inline]
+        fn is_scalar(&self) -> bool {
+            false
+        }
+    };
+    ($is_scalar:tt) => {
+        #[inline]
+        fn is_scalar(&self) -> bool {
+            self.$is_scalar
         }
     };
 }
@@ -63,5 +81,12 @@ macro_rules! impl_zero_expr {
     };
     (false) => {
         Ok(ZeroOperator::new())
+    };
+    ($is_scalar:expr) => {
+        if $is_scalar {
+            Ok(Number::zero())
+        } else {
+            Ok(ZeroOperator::new())
+        }
     };
 }

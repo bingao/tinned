@@ -103,7 +103,7 @@ macro_rules! impl_binary_expr_common_methods {
         #[inline]
         fn remove(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
             if set.iter().any(|expr| self.eq_expr(expr.as_ref())) {
-                return impl_zero_expr!($is_scalar);
+                impl_binary_expr_common_methods!(@binary_expr_return_zero self, $is_scalar);
             }
 
             impl_binary_expr_arg_operation!(
@@ -147,6 +147,19 @@ macro_rules! impl_binary_expr_common_methods {
         $build_expr:expr,
         false
     ) => { };
+
+    (@binary_expr_return_zero $self:ident, true) => {
+        return impl_zero_expr!(true);
+    };
+
+    (@binary_expr_return_zero $self:ident, false) => {
+        return impl_zero_expr!(false);
+    };
+
+    // field case: called like `..., is_scalar, ...`
+    (@binary_expr_return_zero $self:ident, $field:ident) => {
+        return impl_zero_expr!($self.$field);
+    };
 }
 
 macro_rules! impl_binary_expr_arg_operation {
