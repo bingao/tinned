@@ -218,8 +218,8 @@ impl Expr for DotProduct {
         })?;
 
         Add::new(vec![
-            Self::make_dot_product(diff_bra, self.ket.clone(), self.allow_braket_swap, true)?,
-            Self::make_dot_product(self.bra.clone(), diff_ket, self.allow_braket_swap, true)?,
+            Self::make_dot_product(diff_bra, self.ket.clone(), self.allow_braket_swap, self.is_scalar)?,
+            Self::make_dot_product(self.bra.clone(), diff_ket, self.allow_braket_swap, self.is_scalar)?,
         ])
     }
 }
