@@ -259,7 +259,8 @@ mod tests {
         );
 
         argument =
-            DotProduct::new(make_wfn_parameter(""), true, make_wfn_parameter(""), false, None).unwrap();
+            DotProduct::new(make_wfn_parameter(""), true, make_wfn_parameter(""), false, None)
+                .unwrap();
         op = Conjugate::new(argument.clone()).unwrap();
 
         assert_eq!(
