@@ -162,6 +162,7 @@ tinned_dot_product_new (
     bool use_hermitian,
     ExprHandle_t const * ket,
     bool allow_braket_swap,
+    bool is_scalar,
     TinnedErrorHandle_t * * out_err);
 
 /** <No documentation available> */
