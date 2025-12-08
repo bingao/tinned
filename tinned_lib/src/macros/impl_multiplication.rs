@@ -78,7 +78,13 @@ macro_rules! impl_mul_traits {
                 let (new_coef, new_mul) = impl_mul_traits!(
                     @mul_coef_operation
                     self.coefficient,
-                    |coef: &Arc<dyn Expr>| coef.retain_expr_fields(set, exact_equality),
+                    |coef: &Arc<dyn Expr>| {
+                        if crate::public::is_expr_type::<Number>(coef) {
+                            Ok(Number::zero())
+                        } else {
+                            coef.retain_expr_fields(set, exact_equality)
+                        }
+                    },
                     concat!(stringify!($type_name), "::retain_expr_fields() failed"),
                     $is_scalar
                 );

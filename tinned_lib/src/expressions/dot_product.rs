@@ -245,7 +245,7 @@ impl Expr for DotProduct {
             self.is_scalar,
         )?;
 
-        // Early return for zero differentiated bra and/or ket 
+        // Early return for zero differentiated bra and/or ket
         if is_zero_expr(&diff_bra_dp, None) {
             return Ok(diff_ket_dp);
         } else if is_zero_expr(&diff_ket_dp, None) {
