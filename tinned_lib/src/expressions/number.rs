@@ -12,7 +12,7 @@ use crate::core::expr_internal::sealed::ExprInternal;
 use crate::core::{Expr, TinnedError};
 use crate::internal::intern_expr;
 use crate::public::{
-    NumberTolerance, downcast_from_ref, generic_error, get_number_tolerance, unreachable_error,
+    NumberTolerance, downcast_from_ref, generic_error, get_number_tolerance,
 };
 
 // Define an enum to store different number types
@@ -337,11 +337,12 @@ impl ExprInternal for Number {
         _set: &HashSet<Arc<dyn Expr>>,
         _exact_equality: bool,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
-        Err(unreachable_error(
-            "Number::retain_expr_fields() is not expected to be called",
-            &self.clone_expr(),
-            None,
-        ))
+        //Err(unreachable_error(
+        //    "Number::retain_expr_fields() is not expected to be called",
+        //    &self.clone_expr(),
+        //    None,
+        //))
+        Ok(Number::zero())
     }
 }
 

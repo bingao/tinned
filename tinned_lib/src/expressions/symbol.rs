@@ -6,7 +6,7 @@ use typetag;
 use crate::core::expr_internal::sealed::ExprInternal;
 use crate::core::{Expr, TinnedError};
 use crate::expressions::Number;
-use crate::public::{downcast_from_ref, unreachable_error};
+use crate::public::downcast_from_ref;
 
 /// A scalar symbolic constant that becomes 0 after differentiation.
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -51,11 +51,12 @@ impl ExprInternal for Symbol {
         _set: &HashSet<Arc<dyn Expr>>,
         _exact_equality: bool,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
-        Err(unreachable_error(
-            "Symbol::retain_expr_fields() is not expected to be called",
-            &self.clone_expr(),
-            None,
-        ))
+        //Err(unreachable_error(
+        //    "Symbol::retain_expr_fields() is not expected to be called",
+        //    &self.clone_expr(),
+        //    None,
+        //))
+        Ok(Number::zero())
     }
 }
 
