@@ -331,6 +331,7 @@ impl ExprInternal for Number {
         Ok(self.clone_expr())
     }
 
+    // `retain_expr_fields` may be called by MatrixMul and Mul
     #[inline]
     fn retain_expr_fields(
         &self,

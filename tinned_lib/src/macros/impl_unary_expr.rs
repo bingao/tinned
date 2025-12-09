@@ -108,7 +108,7 @@ macro_rules! impl_unary_expr_internal_methods {
             impl_unary_expr_arg_operation!(
                 self,
                 $arg_field,
-                |arg: &Arc<dyn Expr>| arg.retain_expr_fields(set, exact_equality),
+                |arg: &Arc<dyn Expr>| arg.retain(set, exact_equality),
                 concat!(stringify!($type_name), "::retain_expr_fields() failed"),
                 $build_expr
             )
