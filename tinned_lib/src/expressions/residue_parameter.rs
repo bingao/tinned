@@ -7,9 +7,10 @@ use crate::core::expr_internal::sealed::ExprInternal;
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{LagMultiplier, WfnParameter, ZeroOperator};
 use crate::internal::{intern_expr, multi_perturbation_format, multi_perturbation_hash};
-use crate::perturbations::Perturbation;
+use crate::perturbations::{PertMultichain, Perturbation};
 use crate::public::{
     downcast_from_arc, downcast_from_ref, expression_error, generic_expression_error, is_expr_type,
+    unreachable_error,
 };
 
 /// A ResidueParameter is a perturbed parameter with the sum of frequencies of
@@ -56,6 +57,21 @@ impl ResidueParameter {
     #[inline]
     pub fn parameter(&self) -> &Arc<dyn Expr> {
         &self.parameter
+    }
+
+    #[inline]
+    pub fn derivative(&self) -> Result<&PertMultichain, TinnedError> {
+        if let Some(wfn) = downcast_from_arc::<WfnParameter>(&self.parameter) {
+            Ok(wfn.derivative())
+        } else if let Some(lag) = downcast_from_arc::<LagMultiplier>(&self.parameter) {
+            Ok(lag.derivative())
+        } else {
+            Err(unreachable_error(
+                "ResidueParameter::derivative() gets a parameter neither WfnParameter nor LagMultiplier",
+                &self.parameter,
+                None,
+            ))
+        }
     }
 }
 

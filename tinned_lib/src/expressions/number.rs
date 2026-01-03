@@ -11,9 +11,7 @@ use typetag;
 use crate::core::expr_internal::sealed::ExprInternal;
 use crate::core::{Expr, TinnedError};
 use crate::internal::intern_expr;
-use crate::public::{
-    NumberTolerance, downcast_from_ref, generic_error, get_number_tolerance,
-};
+use crate::public::{NumberTolerance, downcast_from_ref, generic_error, get_number_tolerance};
 
 // Define an enum to store different number types
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]

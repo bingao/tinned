@@ -5,7 +5,7 @@ use typetag;
 
 use crate::core::expr_internal::sealed::ExprInternal;
 use crate::core::{Expr, TinnedError};
-use crate::expressions::{MatrixAdd, WfnParameter, ZeroOperator, ResidueParameter};
+use crate::expressions::{MatrixAdd, ResidueParameter, WfnParameter, ZeroOperator};
 use crate::perturbations::{PertMultichain, Perturbation};
 use crate::public::{
     differentiate_expr, downcast_from_arc, downcast_from_ref, expression_error,
@@ -98,7 +98,9 @@ impl TwoElecOperatorBuilder {
             return Ok(self.density);
         }
 
-        if is_expr_type::<WfnParameter>(&self.density) || is_expr_type::<ResidueParameter>(&self.density) {
+        if is_expr_type::<WfnParameter>(&self.density)
+            || is_expr_type::<ResidueParameter>(&self.density)
+        {
             if self.dependencies.is_subchain(&self.derivative) {
                 Ok(crate::internal::intern_expr(Arc::new(TwoElecOperator {
                     name: self.name,

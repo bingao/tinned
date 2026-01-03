@@ -5,7 +5,9 @@ use typetag;
 
 use crate::core::expr_internal::sealed::ExprInternal;
 use crate::core::{Expr, TinnedError};
-use crate::expressions::{MatrixMul, OneElecOperator, WfnParameter, ZeroOperator};
+use crate::expressions::{
+    MatrixMul, OneElecOperator, ResidueParameter, WfnParameter, ZeroOperator,
+};
 use crate::perturbations::{PertMultichain, Perturbation};
 use crate::public::{
     NumberTolerance, downcast_from_arc, downcast_from_ref, expression_error,
@@ -54,9 +56,11 @@ impl TemporumOperator {
             Ok(op.derivative())
         } else if let Some(wfn) = downcast_from_arc::<WfnParameter>(&self.argument) {
             Ok(wfn.derivative())
+        } else if let Some(residue) = downcast_from_arc::<ResidueParameter>(&self.argument) {
+            residue.derivative()
         } else {
             Err(unreachable_error(
-                "TemporumOperator::frequency() gets an argument neither OneElecOperator nor WfnParameter",
+                "TemporumOperator::derivative() gets an argument neither OneElecOperator nor WfnParameter",
                 &self.argument,
                 None,
             ))
@@ -103,6 +107,7 @@ impl TemporumOperatorBuilder {
 
         if is_expr_type::<OneElecOperator>(&self.argument)
             || is_expr_type::<WfnParameter>(&self.argument)
+            || is_expr_type::<ResidueParameter>(&self.argument)
         {
             Ok(crate::internal::intern_expr(Arc::new(TemporumOperator {
                 is_forward: self.is_forward,

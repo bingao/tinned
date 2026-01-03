@@ -5,7 +5,9 @@ use typetag;
 
 use crate::core::expr_internal::sealed::ExprInternal;
 use crate::core::{Expr, TinnedError};
-use crate::expressions::{Add, Number, TwoElecOperator, WfnParameter, ZeroOperator, ResidueParameter};
+use crate::expressions::{
+    Add, Number, ResidueParameter, TwoElecOperator, WfnParameter, ZeroOperator,
+};
 use crate::perturbations::{PertMultichain, Perturbation};
 use crate::public::{
     differentiate_expr, downcast_from_arc, downcast_from_ref, expression_error,
@@ -175,7 +177,9 @@ impl TwoElecEnergyBuilder {
             return Ok(Number::zero());
         }
 
-        if !is_expr_type::<WfnParameter>(&self.inner_density) && !is_expr_type::<ResidueParameter>(&self.inner_density) {
+        if !is_expr_type::<WfnParameter>(&self.inner_density)
+            && !is_expr_type::<ResidueParameter>(&self.inner_density)
+        {
             return Err(expression_error(
                 "TwoElecEnergyBuilder::build() - inner density must be WfnParameter or ResidueParameter",
                 &self.inner_density,

@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{
-    Composition, MatrixMul, NonElecFunction, OneElecOperator, Trace, WfnParameter, ResidueParameter,
+    Composition, MatrixMul, NonElecFunction, OneElecOperator, ResidueParameter, Trace, WfnParameter,
 };
 use crate::public::{expression_error, is_expr_type};
 
@@ -14,7 +14,9 @@ pub(crate) fn validate_xc_inputs(
     grid_weight: &Arc<dyn Expr>,
     overlap_distribution: &Arc<dyn Expr>,
 ) -> Result<(), TinnedError> {
-    if !is_expr_type::<WfnParameter>(density_matrix) && !is_expr_type::<ResidueParameter>(density_matrix) {
+    if !is_expr_type::<WfnParameter>(density_matrix)
+        && !is_expr_type::<ResidueParameter>(density_matrix)
+    {
         return Err(expression_error(
             "validate_xc_inputs() - density matrix must be WfnParameter or ResidueParameter",
             density_matrix,
