@@ -38,6 +38,7 @@ macro_rules! impl_mul_traits {
                 )
             }
 
+            //FIXME: This method should be tested
             fn retain_expr_fields(
                 &self,
                 set: &HashSet<Arc<dyn Expr>>,

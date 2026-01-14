@@ -147,12 +147,15 @@ pub trait Expr: Debug + Send + Sync + ExprInternal {
         }
     }
 
-    // If the parameter `exact_equality` is `true`, the method keeps only
-    // expressions in `set` while removes others from the current expression.
-    // If the parameter `exact_equality` is `false`, the method keeps only
-    // expressions in `set` and their higher-order derivatives, while removes
-    // (1) those with lower-order and unrelated derivatives, and (2) other
-    // nonmatching expressions from the current expression.
+    // If the parameter `exact_equality` is `true`, the method keeps terms in
+    // the current expression that contain ALL expressions in `set`, while
+    // other terms are removed from the current expression.
+    //
+    // If the parameter `exact_equality` is `false`, terms kept in the current
+    // expression should contain ALL expressions in `set` or their higher-order
+    // derivatives. Other terms are removed from the current expression even if
+    // they contain lower-order or unrelated derivatives of any expression in
+    // `set`.
     #[inline]
     fn retain(
         &self,
@@ -160,9 +163,9 @@ pub trait Expr: Debug + Send + Sync + ExprInternal {
         exact_equality: bool,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
         let found = if exact_equality {
-            set.iter().any(|expr| self.eq_expr(expr.as_ref()))
+            set.iter().all(|expr| self.eq_expr(expr.as_ref()))
         } else {
-            set.iter().any(|expr| self.eq_by_superchains(expr))
+            set.iter().all(|expr| self.eq_by_superchains(expr))
         };
 
         if found {
