@@ -41,7 +41,7 @@ macro_rules! impl_mul_traits {
             //FIXME: This method should be tested
             fn retain_expr_fields(
                 &self,
-                set: &HashSet<Arc<dyn Expr>>,
+                expr: &Arc<dyn Expr>,
                 exact_equality: bool,
             ) -> Result<Arc<dyn Expr>, TinnedError> {
                 let mut num_changes = 0;
@@ -51,7 +51,7 @@ macro_rules! impl_mul_traits {
                     = Vec::with_capacity(self.factors.len());
 
                 for factor in &self.factors {
-                    let new_factor = factor.retain(set, exact_equality).map_err(|e| {
+                    let new_factor = factor.retain_expr(expr, exact_equality).map_err(|e| {
                         generic_expression_error(
                             concat!(stringify!($type_name), "::retain_expr_fields() failed"),
                             self,
@@ -79,7 +79,7 @@ macro_rules! impl_mul_traits {
                 let (new_coef, new_mul) = impl_mul_traits!(
                     @mul_coef_operation
                     self.coefficient,
-                    |coef: &Arc<dyn Expr>| coef.retain(set, exact_equality),
+                    |coef: &Arc<dyn Expr>| coef.retain_expr(expr, exact_equality),
                     concat!(stringify!($type_name), "::retain_expr_fields() failed"),
                     $is_scalar
                 );

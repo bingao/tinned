@@ -169,12 +169,12 @@ impl ExprInternal for AdjointMap {
     #[inline]
     fn retain_expr_fields(
         &self,
-        set: &HashSet<Arc<dyn Expr>>,
+        expr: &Arc<dyn Expr>,
         exact_equality: bool,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
         impl_adjoint_map_operation!(
             self,
-            |x: &Arc<dyn Expr>| x.retain(set, exact_equality),
+            |x: &Arc<dyn Expr>| x.retain_expr(expr, exact_equality),
             "AdjointMap::retain_expr_fields() failed"
         )
     }

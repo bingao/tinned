@@ -333,7 +333,7 @@ impl ExprInternal for Number {
     #[inline]
     fn retain_expr_fields(
         &self,
-        _set: &HashSet<Arc<dyn Expr>>,
+        _expr: &Arc<dyn Expr>,
         _exact_equality: bool,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
         //Err(unreachable_error(
@@ -342,6 +342,11 @@ impl ExprInternal for Number {
         //    None,
         //))
         Ok(Number::zero())
+    }
+
+    #[inline]
+    fn is_exact_zero(&self) -> bool {
+        self.approx_eq_number(&Number::Integer(0), Some(NumberTolerance::new(0.0, 0.0)))
     }
 }
 
@@ -373,7 +378,7 @@ impl Expr for Number {
         set: &HashSet<Arc<dyn Expr>>,
         _exact_equality: bool,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
-        if set.iter().any(|expr| self.eq_expr(expr.as_ref())) {
+        if set.iter().all(|expr| self.eq_expr(expr.as_ref())) {
             Ok(self.clone_expr())
         } else {
             Ok(Number::zero())

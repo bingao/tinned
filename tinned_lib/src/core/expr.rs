@@ -147,32 +147,57 @@ pub trait Expr: Debug + Send + Sync + ExprInternal {
         }
     }
 
-    // If the parameter `exact_equality` is `true`, the method keeps terms in
-    // the current expression that contain ALL expressions in `set`, while
-    // other terms are removed from the current expression.
-    //
-    // If the parameter `exact_equality` is `false`, terms kept in the current
-    // expression should contain ALL expressions in `set` or their higher-order
-    // derivatives. Other terms are removed from the current expression even if
-    // they contain lower-order or unrelated derivatives of any expression in
-    // `set`.
+    // Performs `retain_expr()` method on all expressions in `set` one by one.
     #[inline]
     fn retain(
         &self,
         set: &HashSet<Arc<dyn Expr>>,
         exact_equality: bool,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
+        let mut iter = set.iter();
+
+        let first = match iter.next() {
+            Some(x) => x,
+            None => return Ok(self.clone_expr()),
+        };
+
+        let mut result = self.retain_expr(first, exact_equality)?;
+
+        for expr in iter {
+            if result.is_exact_zero() {
+                break;
+            }
+            result = result.retain_expr(expr, exact_equality)?;
+        }
+
+        Ok(result)
+    }
+
+    // If the parameter `exact_equality` is `true`, the method keeps
+    // sub-expressions in the current expression that contain the given `expr`,
+    // while other sub-expressions are removed from the current expression.
+    //
+    // If the parameter `exact_equality` is `false`, sub-expressions kept
+    // should contain either `expr` or its higher-order derivatives. Other
+    // sub-expressions are removed even if they contain lower-order or
+    // unrelated derivatives of `expr`.
+    #[inline]
+    fn retain_expr(
+        &self,
+        expr: &Arc<dyn Expr>,
+        exact_equality: bool,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
         let found = if exact_equality {
-            set.iter().all(|expr| self.eq_expr(expr.as_ref()))
+            self.eq_expr(expr.as_ref())
         } else {
-            set.iter().all(|expr| self.eq_by_superchains(expr))
+            self.eq_by_superchains(expr)
         };
 
         if found {
             return Ok(self.clone_expr());
         }
 
-        self.retain_expr_fields(set, exact_equality)
+        self.retain_expr_fields(expr, exact_equality)
     }
 }
 

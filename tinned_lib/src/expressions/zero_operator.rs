@@ -45,7 +45,7 @@ impl ExprInternal for ZeroOperator {
     #[inline]
     fn retain_expr_fields(
         &self,
-        _set: &HashSet<Arc<dyn Expr>>,
+        _expr: &Arc<dyn Expr>,
         _exact_equality: bool,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
         Err(crate::public::unreachable_error(
@@ -53,6 +53,11 @@ impl ExprInternal for ZeroOperator {
             &self.clone_expr(),
             None,
         ))
+    }
+
+    #[inline]
+    fn is_exact_zero(&self) -> bool {
+        true
     }
 }
 

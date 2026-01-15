@@ -33,13 +33,13 @@ macro_rules! impl_add_traits {
 
             fn retain_expr_fields(
                 &self,
-                set: &HashSet<Arc<dyn Expr>>,
+                expr: &Arc<dyn Expr>,
                 exact_equality: bool,
             ) -> Result<Arc<dyn Expr>, TinnedError> {
                 impl_add_traits!(
                     @add_termwise_operation
                     self,
-                    |term: &Arc<dyn Expr>| term.retain(set, exact_equality),
+                    |term: &Arc<dyn Expr>| term.retain_expr(expr, exact_equality),
                     concat!(stringify!($type_name), "::retain_expr_fields() failed"),
                     $is_scalar
                 )

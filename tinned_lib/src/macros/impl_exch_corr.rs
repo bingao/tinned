@@ -159,14 +159,14 @@ macro_rules! impl_exch_corr_traits {
             #[inline]
             fn retain_expr_fields(
                 &self,
-                set: &HashSet<Arc<dyn Expr>>,
+                expr: &Arc<dyn Expr>,
                 exact_equality: bool,
             ) -> Result<Arc<dyn Expr>, TinnedError> {
                 impl_exch_corr_traits!(
                     @grid_expr_operation
                     self,
                     $grid_expr_name,
-                    |grid_expr: &Arc<dyn Expr>| grid_expr.retain(set, exact_equality),
+                    |grid_expr: &Arc<dyn Expr>| grid_expr.retain_expr(expr, exact_equality),
                     concat!(stringify!($type_name), "::retain_expr_fields() failed"),
                     $is_scalar,
                     false

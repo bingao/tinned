@@ -27,14 +27,14 @@ macro_rules! impl_binary_expr_internal_methods {
         #[inline]
         fn retain_expr_fields(
             &self,
-            set: &HashSet<Arc<dyn Expr>>,
+            expr: &Arc<dyn Expr>,
             exact_equality: bool,
         ) -> Result<Arc<dyn Expr>, TinnedError> {
             impl_binary_expr_arg_operation!(
                 self,
                 $first_argument,
                 $second_argument,
-                |arg: &Arc<dyn Expr>| arg.retain(set, exact_equality),
+                |arg: &Arc<dyn Expr>| arg.retain_expr(expr, exact_equality),
                 concat!(stringify!($type_name), "::retain_expr_fields() failed"),
                 $build_expr
             )

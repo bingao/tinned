@@ -1,5 +1,5 @@
 pub(crate) mod sealed {
-    use std::collections::{HashMap, HashSet};
+    use std::collections::HashMap;
     use std::fmt;
     use std::sync::Arc;
 
@@ -67,11 +67,17 @@ pub(crate) mod sealed {
             _exact_equality: bool,
         ) -> Result<Arc<dyn crate::core::expr::Expr>, TinnedError>;
 
-        // Performs `retain()` method on the expression's field(s) if it has any.
+        // Performs `retain_expr()` method on the expression's field(s) if it has any.
         fn retain_expr_fields(
             &self,
-            set: &HashSet<Arc<dyn crate::core::expr::Expr>>,
+            expr: &Arc<dyn crate::core::expr::Expr>,
             exact_equality: bool,
         ) -> Result<Arc<dyn crate::core::expr::Expr>, TinnedError>;
+
+        // Returns if the expression is exactly zero
+        #[inline]
+        fn is_exact_zero(&self) -> bool {
+            false
+        }
     }
 }

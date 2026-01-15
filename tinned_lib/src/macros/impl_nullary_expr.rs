@@ -201,7 +201,7 @@ macro_rules! impl_nullary_expr_traits {
             #[inline]
             fn retain_expr_fields(
                 &self,
-                _set: &HashSet<Arc<dyn Expr>>,
+                _expr: &Arc<dyn Expr>,
                 _exact_equality: bool,
             ) -> Result<Arc<dyn Expr>, TinnedError> {
                 impl_zero_expr!($is_scalar)
