@@ -10,7 +10,9 @@ typedef struct {
     size_t leaf_count;
 } TraversalCtx;
 
+//FIXME: Change name to assembling nodes
 bool traversal_begin_node(void *ctx, ExprTag_t tag, size_t arity);
+//FIXME: Leaf node should be some basic and non-assembling node
 bool traversal_on_leaf(void *ctx, ExprTag_t tag, ExprHandle_t* expr);
 bool traversal_end_node(void *ctx, ExprTag_t tag, size_t arity);
 

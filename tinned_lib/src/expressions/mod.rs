@@ -33,7 +33,7 @@ pub use conjugate::Conjugate;
 pub use dot_product::DotProduct;
 pub use exch_corr_energy::{ExchCorrEnergy, ExchCorrEnergyBuilder};
 pub use exch_corr_potential::{ExchCorrPotential, ExchCorrPotentialBuilder};
-pub use exp_adjoint_map::ExpAdjointMap;
+pub use exp_adjoint_map::{ExpAdjointMap, ExpAdjointMapBuilder};
 pub use hermitian_transpose::HermitianTranspose;
 pub use lag_multiplier::{LagMultiplier, LagMultiplierBuilder};
 pub use matrix_add::MatrixAdd;

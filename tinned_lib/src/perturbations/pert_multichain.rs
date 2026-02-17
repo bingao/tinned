@@ -191,7 +191,7 @@ impl PertMultichain {
 
     /// Generates a compact string suitable for hashing a perturbation multichain.
     #[inline]
-    pub(crate) fn hash_key(&self) -> String {
+    pub fn hash_key(&self) -> String {
         let map = self.0.lock().unwrap();
         let mut parts = Vec::with_capacity(map.len());
         for (pert, order) in map.iter() {

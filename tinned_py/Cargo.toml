@@ -1,0 +1,18 @@
+[package]
+name = "tinned_py"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[lib]
+name = "tinned"
+crate-type = ["cdylib"]
+
+[dependencies]
+num-complex = "0.4.6"
+num-rational = "0.4.2"
+pyo3 = { version = "0.28", features = ["extension-module", "num-complex"] }
+serde_json = "1.0"
+thiserror = "2"
+
+tinned_lib = { path = "../tinned_lib" }

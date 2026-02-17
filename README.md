@@ -23,6 +23,8 @@ If you want C library, use `cargo build-ffi` or `cargo build -p tinned_ffi --pro
 
 Optionally, run `cargo gen-headers`, or `cargo test --features c-headers --profile release-ffi -- --exact header_gen::generate_c_header --nocapture`.
 
+For Python interface, run `maturin build` and `pip install .`.
+
 ## Tinned APIs
 
 Tinned currently provides C++ interface. Classes in Tinned that can be useful
