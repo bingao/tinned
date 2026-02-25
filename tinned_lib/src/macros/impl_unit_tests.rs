@@ -106,7 +106,8 @@ macro_rules! test_nullary_expr {
             &$type_name {
                 name: $oper_name.into(),
                 dependencies: deps.clone(),
-                derivative: $deriv.clone()
+                derivative: $deriv.clone(),
+                has_zeroth_order: false,
             }
         );
 
@@ -121,15 +122,16 @@ macro_rules! test_nullary_expr {
         assert_eq!(
             op1.hash_key(),
             format!(
-                "{}({}; [{}]; [{}])",
+                "{}({}; [{}]; [{}]; {})",
                 stringify!($type_name),
                 $oper_name,
                 deps.hash_key(),
                 $deriv.hash_key(),
+                false,
             )
         );
         assert_eq!(op1.is_scalar(), $is_scalar);
-        assert_eq!(format!("{}", op1), format!("{}^({})", $oper_name, $deriv));
+        assert_eq!(format!("{}", op1), format!("{}({})^({})", $oper_name, false, $deriv));
 
         let op3 = $type_name::builder($oper_name)
             .dependencies(deps.clone())
@@ -206,7 +208,7 @@ macro_rules! test_nullary_expr {
                 .build()
                 .unwrap();
 
-            let p: Arc<Perturbation> = deps.keys().first().cloned().unwrap();
+            let p: Arc<$crate::perturbations::Perturbation> = deps.keys().first().cloned().unwrap();
             let diff_op = op.differentiate(&p).unwrap();
             deriv.insert(&p);
 
