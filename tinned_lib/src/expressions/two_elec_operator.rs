@@ -32,7 +32,7 @@ impl TwoElecOperator {
     }
 
     #[inline]
-    fn with_density(&self, density: Arc<dyn Expr>) -> TwoElecOperatorBuilder {
+    pub fn with_density(&self, density: Arc<dyn Expr>) -> TwoElecOperatorBuilder {
         TwoElecOperatorBuilder {
             name: self.name.clone(),
             density,
