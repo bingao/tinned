@@ -331,7 +331,11 @@ impl Eq for TemporumOverlap {}
 
 impl std::fmt::Display for TemporumOverlap {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "op(T)^{}", self.derivative)
+        if self.derivative.is_empty() {
+            write!(f, "op(T)")
+        } else {
+            write!(f, "op(T)^{}", self.derivative)
+        }
     }
 }
 
