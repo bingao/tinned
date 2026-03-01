@@ -42,7 +42,7 @@ impl TwoElecOperator {
     }
 
     #[inline]
-    fn with_derivative(&self, derivative: PertMultichain) -> TwoElecOperatorBuilder {
+    pub fn with_derivative(&self, derivative: PertMultichain) -> TwoElecOperatorBuilder {
         TwoElecOperatorBuilder {
             name: self.name.clone(),
             density: self.density.clone(),
