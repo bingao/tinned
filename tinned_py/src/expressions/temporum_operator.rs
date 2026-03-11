@@ -1,6 +1,6 @@
 use pyo3::prelude::*;
 
-use tinned::{TemporumOperator, TinnedError, generic_expression_error};
+use tinned::TemporumOperator;
 
 use crate::core::{errors::to_pyerr, expr::PyExpr};
 use crate::perturbations::pert_multichain::PyPertMultichain;
@@ -26,80 +26,43 @@ pub fn temporum_operator_new(argument: PyExpr, is_forward: Option<bool>) -> PyRe
     Ok(PyExpr::new(out))
 }
 
-/// Return is_forward for a TemporumOperator.
-///
-/// Errors if the input expression is not a TemporumOperator.
-#[pyfunction]
-pub fn temporum_operator_is_forward(expr: PyExpr) -> PyResult<bool> {
-    let inner = expr.inner().clone();
+impl_expr_getter_interface!(
+    fn_name = temporum_operator_is_forward,
+    fn_doc = impl_expr_getter_doc!("i*d/dt (True), or -i*d/dt (False)", TemporumOperator),
+    expr_ty = TemporumOperator,
+    out_ty = bool,
+    body = |op: &TemporumOperator| Ok(op.is_forward())
+);
 
-    let top_ref = inner.as_any().downcast_ref::<TemporumOperator>().ok_or_else(|| {
-to_pyerr(generic_expression_error(
-    "temporum_operator_is_forward() expected a TemporumOperator expression",
-    &inner,
-    None,
-))    })?;
+impl_expr_getter_interface!(
+    fn_name = temporum_operator_argument,
+    fn_doc = impl_expr_getter_doc!("argument", TemporumOperator),
+    expr_ty = TemporumOperator,
+    out_ty = PyExpr,
+    body = |op: &TemporumOperator| Ok(PyExpr::new(op.argument().clone()))
+);
 
-    Ok(top_ref.is_forward())
-}
+impl_expr_getter_interface!(
+    fn_name = temporum_operator_derivative,
+    fn_doc = impl_expr_getter_doc!("derivative", TemporumOperator),
+    expr_ty = TemporumOperator,
+    out_ty = PyPertMultichain,
+    body = |op: &TemporumOperator| {
+        let derivative = op.derivative().map_err(to_pyerr)?;
+        Ok(PyPertMultichain::new(derivative.clone()))
+    }
+);
 
-/// Return argument for a TemporumOperator as a PyExpr.
-///
-/// Errors if the input expression is not a TemporumOperator.
-#[pyfunction]
-pub fn temporum_operator_argument(expr: PyExpr) -> PyResult<PyExpr> {
-    let inner = expr.inner().clone();
-
-    let top_ref = inner.as_any().downcast_ref::<TemporumOperator>().ok_or_else(|| {
-        to_pyerr(TinnedError::ExpressionError {
-            message: "temporum_operator_argument() expected a TemporumOperator expression",
-            expression: inner.to_string(),
-            source: None,
-        })
-    })?;
-
-    Ok(PyExpr::new(top_ref.argument().clone()))
-}
-
-/// Return derivative for a TemporumOperator.
-///
-/// Errors if the input expression is not a TemporumOperator.
-#[pyfunction]
-pub fn temporum_operator_derivative(expr: PyExpr) -> PyResult<PyPertMultichain> {
-    let inner = expr.inner().clone();
-
-    let top_ref = inner.as_any().downcast_ref::<TemporumOperator>().ok_or_else(|| {
-        to_pyerr(TinnedError::ExpressionError {
-            message: "temporum_operator_derivative() expected a TemporumOperator expression",
-            expression: inner.to_string(),
-            source: None,
-        })
-    })?;
-
-    let d = top_ref.derivative().map_err(to_pyerr)?;
-    Ok(PyPertMultichain::new(d.clone()))
-}
-
-/// Return frequency expression for a TemporumOperator.
-///
-/// For unperturbed argument, frequency returns zero.
-///
-/// Errors if the input expression is not a TemporumOperator.
-#[pyfunction]
-pub fn temporum_operator_frequency(expr: PyExpr) -> PyResult<PyExpr> {
-    let inner = expr.inner().clone();
-
-    let top_ref = inner.as_any().downcast_ref::<TemporumOperator>().ok_or_else(|| {
-        to_pyerr(TinnedError::ExpressionError {
-            message: "temporum_operator_frequency() expected a TemporumOperator expression",
-            expression: inner.to_string(),
-            source: None,
-        })
-    })?;
-
-    let f = top_ref.frequency().map_err(to_pyerr)?;
-    Ok(PyExpr::new(f))
-}
+impl_expr_getter_interface!(
+    fn_name = temporum_operator_frequency,
+    fn_doc = impl_expr_getter_doc!("frequency", TemporumOperator),
+    expr_ty = TemporumOperator,
+    out_ty = PyExpr,
+    body = |op: &TemporumOperator| {
+        let freq = op.frequency().map_err(to_pyerr)?;
+        Ok(PyExpr::new(freq))
+    }
+);
 
 pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(temporum_operator_new, m)?)?;

@@ -2,6 +2,9 @@
 pub mod impl_addition;
 
 #[macro_use]
+pub mod impl_common_methods;
+
+#[macro_use]
 pub mod impl_exch_corr;
 
 #[macro_use]

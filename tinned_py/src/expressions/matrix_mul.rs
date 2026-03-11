@@ -2,7 +2,7 @@ use pyo3::prelude::*;
 use std::sync::Arc;
 use std::vec::Vec;
 
-use tinned::{Expr, MatrixMul, TinnedError};
+use tinned::{Expr, MatrixMul};
 
 use crate::core::{errors::to_pyerr, expr::PyExpr};
 
@@ -21,41 +21,21 @@ pub fn matrix_mul_new(terms: Vec<PyExpr>) -> PyResult<PyExpr> {
     Ok(PyExpr::new(out))
 }
 
-/// Return the coefficient of a MatrixMul as a PyExpr.
-///
-/// Errors if the input expression is not a MatrixMul.
-#[pyfunction]
-pub fn matrix_mul_coefficient(expr: PyExpr) -> PyResult<PyExpr> {
-    let inner = expr.inner().clone();
+impl_expr_getter_interface!(
+    fn_name = matrix_mul_coefficient,
+    fn_doc = impl_expr_getter_doc!("coefficient", MatrixMul),
+    expr_ty = MatrixMul,
+    out_ty = PyExpr,
+    body = |mul: &MatrixMul| Ok(PyExpr::new(mul.coefficient().clone()))
+);
 
-    let mul_ref = inner.as_any().downcast_ref::<MatrixMul>().ok_or_else(|| {
-        to_pyerr(TinnedError::ExpressionError {
-            message: "matrix_mul_coefficient() expected a MatrixMul expression",
-            expression: inner.to_string(),
-            source: None,
-        })
-    })?;
-
-    Ok(PyExpr::new(mul_ref.coefficient().clone()))
-}
-
-/// Return the factors of a MatrixMul (excluding the coefficient).
-///
-/// Errors if the input expression is not a MatrixMul.
-#[pyfunction]
-pub fn matrix_mul_factors(expr: PyExpr) -> PyResult<Vec<PyExpr>> {
-    let inner = expr.inner().clone();
-
-    let mul_ref = inner.as_any().downcast_ref::<MatrixMul>().ok_or_else(|| {
-        to_pyerr(TinnedError::ExpressionError {
-            message: "matrix_mul_factors() expected a MatrixMul expression",
-            expression: inner.to_string(),
-            source: None,
-        })
-    })?;
-
-    Ok(mul_ref.factors().iter().cloned().map(PyExpr::new).collect())
-}
+impl_expr_getter_interface!(
+    fn_name = matrix_mul_factors,
+    fn_doc = impl_expr_getter_doc!("factors (excluding the coefficient)", MatrixMul),
+    expr_ty = MatrixMul,
+    out_ty = Vec<PyExpr>,
+    body = |mul: &MatrixMul| Ok(mul.factors().iter().cloned().map(PyExpr::new).collect())
+);
 
 pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(matrix_mul_new, m)?)?;

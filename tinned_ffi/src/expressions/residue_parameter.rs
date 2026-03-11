@@ -5,7 +5,7 @@ use tinned::expressions::ResidueParameter;
 use tinned::public::generic_error;
 
 use crate::PerturbationHandle;
-use crate::c_support::{ffi_map_expr_as, ffi_map_expr_as_copy};
+use crate::c_support::ffi_map_expr_as;
 use crate::core::{ExprBox, ExprHandle, TinnedErrorBox, tinned_error_new};
 use crate::perturbations::{PerturbationBox, PerturbationSlice, perturbation_vec_from_slice};
 

@@ -1,8 +1,9 @@
 use pyo3::prelude::*;
 
+use tinned::NonElecFunction;
+
 impl_nullary_expr_interface!(
-    type_name = tinned::NonElecFunction,
-    type_label = "NonElecFunction",
+    expr_ty = NonElecFunction,
     has_deps = true,
     new_fn = non_elec_function_new,
     name_fn = non_elec_function_name,

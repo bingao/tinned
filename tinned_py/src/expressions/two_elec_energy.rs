@@ -1,6 +1,6 @@
 use pyo3::prelude::*;
 
-use tinned::{TinnedError, TwoElecEnergy, TwoElecOperator};
+use tinned::{TwoElecEnergy, TwoElecOperator, expression_error};
 
 use crate::core::{errors::to_pyerr, expr::PyExpr};
 use crate::perturbations::pert_multichain::PyPertMultichain;
@@ -67,11 +67,11 @@ pub fn two_elec_energy_from_operator(
     let inner = two_elec_op.inner().clone();
 
     let op_ref = inner.as_any().downcast_ref::<TwoElecOperator>().ok_or_else(|| {
-        to_pyerr(TinnedError::ExpressionError {
-            message: "two_elec_energy_from_operator() expected a TwoElecOperator expression",
-            expression: inner.to_string(),
-            source: None,
-        })
+        to_pyerr(expression_error(
+            "two_elec_energy_from_operator() expected a TwoElecOperator expression",
+            &inner,
+            None,
+        ))
     })?;
 
     let mut b = TwoElecEnergy::builder_from_operator(op_ref);
@@ -93,113 +93,53 @@ pub fn two_elec_energy_from_operator(
     Ok(PyExpr::new(out))
 }
 
-/// Return name for a TwoElecEnergy.
-///
-/// Errors if the input expression is not a TwoElecEnergy.
-#[pyfunction]
-pub fn two_elec_energy_name(expr: PyExpr) -> PyResult<String> {
-    let inner = expr.inner().clone();
+impl_expr_getter_interface!(
+    fn_name = two_elec_energy_name,
+    fn_doc = impl_expr_getter_doc!("name", TwoElecEnergy),
+    expr_ty = TwoElecEnergy,
+    out_ty = String,
+    body = |op: &TwoElecEnergy| Ok(op.name().to_string())
+);
 
-    let e_ref = inner.as_any().downcast_ref::<TwoElecEnergy>().ok_or_else(|| {
-        to_pyerr(TinnedError::ExpressionError {
-            message: "two_elec_energy_name() expected a TwoElecEnergy expression",
-            expression: inner.to_string(),
-            source: None,
-        })
-    })?;
+impl_expr_getter_interface!(
+    fn_name = two_elec_energy_inner_density,
+    fn_doc = impl_expr_getter_doc!("inner density", TwoElecEnergy),
+    expr_ty = TwoElecEnergy,
+    out_ty = PyExpr,
+    body = |op: &TwoElecEnergy| Ok(PyExpr::new(op.inner_density().clone()))
+);
 
-    Ok(e_ref.name().to_string())
-}
+impl_expr_getter_interface!(
+    fn_name = two_elec_energy_outer_density,
+    fn_doc = impl_expr_getter_doc!("outer density", TwoElecEnergy),
+    expr_ty = TwoElecEnergy,
+    out_ty = PyExpr,
+    body = |op: &TwoElecEnergy| Ok(PyExpr::new(op.outer_density().clone()))
+);
 
-/// Return inner_density for a TwoElecEnergy as a PyExpr.
-///
-/// Errors if the input expression is not a TwoElecEnergy.
-#[pyfunction]
-pub fn two_elec_energy_inner_density(expr: PyExpr) -> PyResult<PyExpr> {
-    let inner = expr.inner().clone();
+impl_expr_getter_interface!(
+    fn_name = two_elec_energy_allow_density_swap,
+    fn_doc = impl_expr_getter_doc!("whether density swapping is allowed", TwoElecEnergy),
+    expr_ty = TwoElecEnergy,
+    out_ty = bool,
+    body = |op: &TwoElecEnergy| Ok(op.allow_density_swap())
+);
 
-    let e_ref = inner.as_any().downcast_ref::<TwoElecEnergy>().ok_or_else(|| {
-        to_pyerr(TinnedError::ExpressionError {
-            message: "two_elec_energy_inner_density() expected a TwoElecEnergy expression",
-            expression: inner.to_string(),
-            source: None,
-        })
-    })?;
+impl_expr_getter_interface!(
+    fn_name = two_elec_energy_dependencies,
+    fn_doc = impl_expr_getter_doc!("dependencies", TwoElecEnergy),
+    expr_ty = TwoElecEnergy,
+    out_ty = PyPertMultichain,
+    body = |op: &TwoElecEnergy| Ok(PyPertMultichain::new(op.dependencies().clone()))
+);
 
-    Ok(PyExpr::new(e_ref.inner_density().clone()))
-}
-
-/// Return outer_density for a TwoElecEnergy as a PyExpr.
-///
-/// Errors if the input expression is not a TwoElecEnergy.
-#[pyfunction]
-pub fn two_elec_energy_outer_density(expr: PyExpr) -> PyResult<PyExpr> {
-    let inner = expr.inner().clone();
-
-    let e_ref = inner.as_any().downcast_ref::<TwoElecEnergy>().ok_or_else(|| {
-        to_pyerr(TinnedError::ExpressionError {
-            message: "two_elec_energy_outer_density() expected a TwoElecEnergy expression",
-            expression: inner.to_string(),
-            source: None,
-        })
-    })?;
-
-    Ok(PyExpr::new(e_ref.outer_density().clone()))
-}
-
-/// Return allow_density_swap for a TwoElecEnergy.
-///
-/// Errors if the input expression is not a TwoElecEnergy.
-#[pyfunction]
-pub fn two_elec_energy_allow_density_swap(expr: PyExpr) -> PyResult<bool> {
-    let inner = expr.inner().clone();
-
-    let e_ref = inner.as_any().downcast_ref::<TwoElecEnergy>().ok_or_else(|| {
-        to_pyerr(TinnedError::ExpressionError {
-            message: "two_elec_energy_allow_density_swap() expected a TwoElecEnergy expression",
-            expression: inner.to_string(),
-            source: None,
-        })
-    })?;
-
-    Ok(e_ref.allow_density_swap())
-}
-
-/// Return dependencies for a TwoElecEnergy.
-///
-/// Errors if the input expression is not a TwoElecEnergy.
-#[pyfunction]
-pub fn two_elec_energy_dependencies(expr: PyExpr) -> PyResult<PyPertMultichain> {
-    let inner = expr.inner().clone();
-
-    let e_ref = inner.as_any().downcast_ref::<TwoElecEnergy>().ok_or_else(|| {
-        to_pyerr(TinnedError::ExpressionError {
-            message: "two_elec_energy_dependencies() expected a TwoElecEnergy expression",
-            expression: inner.to_string(),
-            source: None,
-        })
-    })?;
-
-    Ok(PyPertMultichain::new(e_ref.dependencies().clone()))
-}
-
-/// Return derivative for a TwoElecEnergy.
-///
-/// Errors if the input expression is not a TwoElecEnergy.
-#[pyfunction]
-pub fn two_elec_energy_derivative(expr: PyExpr) -> PyResult<PyPertMultichain> {
-    let inner = expr.inner().clone();
-
-    let e_ref = inner.as_any().downcast_ref::<TwoElecEnergy>().ok_or_else(|| {
-        to_pyerr(TinnedError::ExpressionError {
-            message: "two_elec_energy_derivative() expected a TwoElecEnergy expression",
-            expression: inner.to_string(),
-            source: None,
-        })
-    })?;
-
-    Ok(PyPertMultichain::new(e_ref.derivative().clone()))
-}
+impl_expr_getter_interface!(
+    fn_name = two_elec_energy_derivative,
+    fn_doc = impl_expr_getter_doc!("derivative", TwoElecEnergy),
+    expr_ty = TwoElecEnergy,
+    out_ty = PyPertMultichain,
+    body = |op: &TwoElecEnergy| Ok(PyPertMultichain::new(op.derivative().clone()))
+);
 
 pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(two_elec_energy_new, m)?)?;

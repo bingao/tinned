@@ -1,6 +1,6 @@
 use pyo3::prelude::*;
 
-use tinned::{TinnedError, TwoElecOperator};
+use tinned::TwoElecOperator;
 
 use crate::core::{errors::to_pyerr, expr::PyExpr};
 use crate::perturbations::pert_multichain::PyPertMultichain;
@@ -35,77 +35,37 @@ pub fn two_elec_operator_new(
     Ok(PyExpr::new(out))
 }
 
-/// Return name for a TwoElecOperator.
-///
-/// Errors if the input expression is not a TwoElecOperator.
-#[pyfunction]
-pub fn two_elec_operator_name(expr: PyExpr) -> PyResult<String> {
-    let inner = expr.inner().clone();
+impl_expr_getter_interface!(
+    fn_name = two_elec_operator_name,
+    fn_doc = impl_expr_getter_doc!("name", TwoElecOperator),
+    expr_ty = TwoElecOperator,
+    out_ty = String,
+    body = |op: &TwoElecOperator| Ok(op.name().to_string())
+);
 
-    let op_ref = inner.as_any().downcast_ref::<TwoElecOperator>().ok_or_else(|| {
-        to_pyerr(TinnedError::ExpressionError {
-            message: "two_elec_operator_name() expected a TwoElecOperator expression",
-            expression: inner.to_string(),
-            source: None,
-        })
-    })?;
+impl_expr_getter_interface!(
+    fn_name = two_elec_operator_density,
+    fn_doc = impl_expr_getter_doc!("density", TwoElecOperator),
+    expr_ty = TwoElecOperator,
+    out_ty = PyExpr,
+    body = |op: &TwoElecOperator| Ok(PyExpr::new(op.density().clone()))
+);
 
-    Ok(op_ref.name().to_string())
-}
+impl_expr_getter_interface!(
+    fn_name = two_elec_operator_dependencies,
+    fn_doc = impl_expr_getter_doc!("dependencies", TwoElecOperator),
+    expr_ty = TwoElecOperator,
+    out_ty = PyPertMultichain,
+    body = |op: &TwoElecOperator| Ok(PyPertMultichain::new(op.dependencies().clone()))
+);
 
-/// Return density for a TwoElecOperator as a PyExpr.
-///
-/// Errors if the input expression is not a TwoElecOperator.
-#[pyfunction]
-pub fn two_elec_operator_density(expr: PyExpr) -> PyResult<PyExpr> {
-    let inner = expr.inner().clone();
-
-    let op_ref = inner.as_any().downcast_ref::<TwoElecOperator>().ok_or_else(|| {
-        to_pyerr(TinnedError::ExpressionError {
-            message: "two_elec_operator_density() expected a TwoElecOperator expression",
-            expression: inner.to_string(),
-            source: None,
-        })
-    })?;
-
-    Ok(PyExpr::new(op_ref.density().clone()))
-}
-
-/// Return dependencies for a TwoElecOperator.
-///
-/// Errors if the input expression is not a TwoElecOperator.
-#[pyfunction]
-pub fn two_elec_operator_dependencies(expr: PyExpr) -> PyResult<PyPertMultichain> {
-    let inner = expr.inner().clone();
-
-    let op_ref = inner.as_any().downcast_ref::<TwoElecOperator>().ok_or_else(|| {
-        to_pyerr(TinnedError::ExpressionError {
-            message: "two_elec_operator_dependencies() expected a TwoElecOperator expression",
-            expression: inner.to_string(),
-            source: None,
-        })
-    })?;
-
-    Ok(PyPertMultichain::new(op_ref.dependencies().clone()))
-}
-
-/// Return derivative for a TwoElecOperator.
-///
-/// Errors if the input expression is not a TwoElecOperator.
-#[pyfunction]
-pub fn two_elec_operator_derivative(expr: PyExpr) -> PyResult<PyPertMultichain> {
-    let inner = expr.inner().clone();
-
-    let op_ref = inner.as_any().downcast_ref::<TwoElecOperator>().ok_or_else(|| {
-        to_pyerr(TinnedError::ExpressionError {
-            message: "two_elec_operator_derivative() expected a TwoElecOperator expression",
-            expression: inner.to_string(),
-            source: None,
-        })
-    })?;
-
-    Ok(PyPertMultichain::new(op_ref.derivative().clone()))
-}
+impl_expr_getter_interface!(
+    fn_name = two_elec_operator_derivative,
+    fn_doc = impl_expr_getter_doc!("derivative", TwoElecOperator),
+    expr_ty = TwoElecOperator,
+    out_ty = PyPertMultichain,
+    body = |op: &TwoElecOperator| Ok(PyPertMultichain::new(op.derivative().clone()))
+);
 
 pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(two_elec_operator_new, m)?)?;

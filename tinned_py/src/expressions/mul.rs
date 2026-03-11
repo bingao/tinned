@@ -2,7 +2,7 @@ use pyo3::prelude::*;
 use std::sync::Arc;
 use std::vec::Vec;
 
-use tinned::{Expr, Mul, TinnedError};
+use tinned::{Expr, Mul};
 
 use crate::core::{errors::to_pyerr, expr::PyExpr};
 
@@ -21,44 +21,26 @@ pub fn mul_new(terms: Vec<PyExpr>) -> PyResult<PyExpr> {
     Ok(PyExpr::new(out))
 }
 
-/// Return the coefficient of a Mul as a PyExpr.
-///
-/// Errors if the input expression is not a Mul.
-#[pyfunction]
-pub fn mul_coefficient(expr: PyExpr) -> PyResult<PyExpr> {
-    let inner = expr.inner().clone();
+impl_expr_getter_interface!(
+    fn_name = mul_coefficient,
+    fn_doc = impl_expr_getter_doc!("coefficient", Mul),
+    expr_ty = Mul,
+    out_ty = PyExpr,
+    body = |mul: &Mul| {
+        // Convert &Number to Arc<dyn Expr> and wrap in PyExpr.
+        let coeff_expr: Arc<dyn Expr> = mul.coefficient().clone().into();
 
-    let mul_ref = inner.as_any().downcast_ref::<Mul>().ok_or_else(|| {
-        to_pyerr(TinnedError::ExpressionError {
-            message: "mul_coefficient() expected a Mul expression",
-            expression: inner.to_string(),
-            source: None,
-        })
-    })?;
+        Ok(PyExpr::new(coeff_expr))
+    }
+);
 
-    // Convert &Number to Arc<dyn Expr> and wrap in PyExpr.
-    let coeff_expr: Arc<dyn Expr> = mul_ref.coefficient().clone().into();
-
-    Ok(PyExpr::new(coeff_expr))
-}
-
-/// Return the factors of a Mul (excluding the numeric coefficient).
-///
-/// Errors if the input expression is not a Mul.
-#[pyfunction]
-pub fn mul_factors(expr: PyExpr) -> PyResult<Vec<PyExpr>> {
-    let inner = expr.inner().clone();
-
-    let mul_ref = inner.as_any().downcast_ref::<Mul>().ok_or_else(|| {
-        to_pyerr(TinnedError::ExpressionError {
-            message: "mul_factors() expected a Mul expression",
-            expression: inner.to_string(),
-            source: None,
-        })
-    })?;
-
-    Ok(mul_ref.factors().iter().cloned().map(PyExpr::new).collect())
-}
+impl_expr_getter_interface!(
+    fn_name = mul_factors,
+    fn_doc = impl_expr_getter_doc!("factors (excluding the coefficient)", Mul),
+    expr_ty = Mul,
+    out_ty = Vec<PyExpr>,
+    body = |mul: &Mul| Ok(mul.factors().iter().cloned().map(PyExpr::new).collect())
+);
 
 pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(mul_new, m)?)?;

@@ -1,8 +1,9 @@
 use pyo3::prelude::*;
 
+use tinned::ExchCorrPotential;
+
 impl_exch_corr_interface!(
-    type_name = tinned::ExchCorrPotential,
-    type_label = "ExchCorrPotential",
+    expr_ty = ExchCorrPotential,
     build_fn = exch_corr_potential_build,
     name_fn = exch_corr_potential_name,
     grid_weight_fn = exch_corr_potential_grid_weight,
@@ -11,6 +12,5 @@ impl_exch_corr_interface!(
     grid_expr_fn = exch_corr_potential_xc_potential,
     derivative_fn = exch_corr_potential_derivative,
     register_fn = register,
-    grid_expr_method = xc_potential,
-    downcast_err_msg_prefix = "exch_corr_potential_"
+    grid_expr_method = xc_potential
 );

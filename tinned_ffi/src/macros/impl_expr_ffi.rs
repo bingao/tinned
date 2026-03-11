@@ -1,13 +1,18 @@
 macro_rules! impl_cstr_getter {
     ($fn_name:ident : $type_name:path => |$obj:ident| $body:expr) => {
-        #[ffi_export]
+        #[::safer_ffi::ffi_export]
         pub extern "C" fn $fn_name(
-            h: Option<&ExprHandle>,
-            out_err: Option<Out<'_, TinnedErrorBox>>,
-        ) -> Option<char_p::Box> {
-            ffi_map_expr_as::<$type_name, _>(h, out_err, stringify!($fn_name), |$obj| {
-                Ok(tinned_string_to_cstr($body))
-            })
+            h: ::std::option::Option<&$crate::core::ExprHandle>,
+            out_err: ::std::option::Option<
+                ::safer_ffi::prelude::Out<'_, $crate::core::TinnedErrorBox>,
+            >,
+        ) -> ::std::option::Option<::safer_ffi::prelude::char_p::Box> {
+            $crate::c_support::ffi_map_expr_as::<$type_name, _>(
+                h,
+                out_err,
+                stringify!($fn_name),
+                |$obj| Ok($crate::c_support::tinned_string_to_cstr($body)),
+            )
         }
     };
 }
@@ -15,17 +20,17 @@ macro_rules! impl_cstr_getter {
 macro_rules! impl_expr_getters {
     ($type_name:path; $( $fn_name:ident => |$obj:ident| $body:expr ),+ $(,)?) => {
         $(
-            #[ffi_export]
+            #[::safer_ffi::ffi_export]
             pub extern "C" fn $fn_name(
-                h: Option<&ExprHandle>,
-                out_err: Option<Out<'_, TinnedErrorBox>>,
-            ) -> Option<ExprBox> {
-                ffi_map_expr_as::<$type_name, _>(
+                h: ::std::option::Option<&$crate::core::ExprHandle>,
+                out_err: ::std::option::Option<::safer_ffi::prelude::Out<'_, $crate::core::TinnedErrorBox>>,
+            ) -> ::std::option::Option<$crate::core::ExprBox> {
+                $crate::c_support::ffi_map_expr_as::<$type_name, _>(
                     h,
                     out_err,
                     stringify!($fn_name),
                     |$obj| {
-                        $body.map(|arc| ExprBox::new(ExprHandle::new(arc)))
+                        $body.map(|arc| $crate::core::ExprBox::new($crate::core::ExprHandle::new(arc)))
                     }
                 )
             }
@@ -36,12 +41,12 @@ macro_rules! impl_expr_getters {
 macro_rules! impl_val_getters {
     ($type_name:path; $( $fn_name:ident : $return_type:ty => |$obj:ident| $body:expr ; default = $def:expr ),+ $(,)?) => {
         $(
-            #[ffi_export]
+            #[::safer_ffi::ffi_export]
             pub extern "C" fn $fn_name(
-                h: Option<&ExprHandle>,
-                out_err: Option<Out<'_, TinnedErrorBox>>,
+                h: ::std::option::Option<&$crate::core::ExprHandle>,
+                out_err: ::std::option::Option<::safer_ffi::prelude::Out<'_, $crate::core::TinnedErrorBox>>,
             ) -> $return_type {
-                ffi_map_expr_as_copy::<$type_name, $return_type>(
+                $crate::c_support::ffi_map_expr_as_copy::<$type_name, $return_type>(
                     h,
                     out_err,
                     stringify!($fn_name),
@@ -55,15 +60,24 @@ macro_rules! impl_val_getters {
 
 macro_rules! impl_pert_multichain_getter {
     ($fn_name:ident : $type_name:path => |$obj:ident| $body:expr) => {
-        #[ffi_export]
+        #[::safer_ffi::ffi_export]
         pub extern "C" fn $fn_name(
-            h: Option<&ExprHandle>,
-            out_err: Option<Out<'_, TinnedErrorBox>>,
-        ) -> Option<PertMultichainBox> {
-            ffi_map_expr_as::<$type_name, _>(h, out_err, stringify!($fn_name), |$obj| {
-                let chain = Arc::new($body);
-                Ok(PertMultichainBox::new(PertMultichainHandle::new(chain)))
-            })
+            h: ::std::option::Option<&$crate::core::ExprHandle>,
+            out_err: ::std::option::Option<
+                ::safer_ffi::prelude::Out<'_, $crate::core::TinnedErrorBox>,
+            >,
+        ) -> ::std::option::Option<$crate::perturbations::PertMultichainBox> {
+            $crate::c_support::ffi_map_expr_as::<$type_name, _>(
+                h,
+                out_err,
+                stringify!($fn_name),
+                |$obj| {
+                    let chain = ::std::sync::Arc::new($body);
+                    Ok($crate::perturbations::PertMultichainBox::new(
+                        $crate::perturbations::PertMultichainHandle::new(chain),
+                    ))
+                },
+            )
         }
     };
 }

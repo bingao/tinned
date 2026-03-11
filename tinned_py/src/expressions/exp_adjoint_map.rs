@@ -1,6 +1,6 @@
 use pyo3::prelude::*;
 
-use tinned::{ExpAdjointMap, TinnedError};
+use tinned::ExpAdjointMap;
 
 use crate::core::{errors::to_pyerr, expr::PyExpr};
 use crate::perturbations::pert_multichain::PyPertMultichain;
@@ -42,7 +42,7 @@ pub fn exp_adjoint_map_new(
 /// Args:
 ///   generator: Generator expression.
 ///   is_forward: If True uses i*d/dt, otherwise -i*d/dt.
-///   left_action: Optional bool.
+///   left_action: Optional bool. If True: exp(X)*Y*exp(-X), otherwise exp(-X)*Y*exp(X).
 ///   max_fold: Optional u32 truncation.
 ///
 /// Returns:
@@ -67,141 +67,70 @@ pub fn exp_adjoint_map_temporum_new(
     Ok(PyExpr::new(out))
 }
 
-/// Return the generator of an ExpAdjointMap expression.
-#[pyfunction]
-pub fn exp_adjoint_map_generator(expr: PyExpr) -> PyResult<PyExpr> {
-    let inner = expr.inner().clone();
+impl_expr_getter_interface!(
+    fn_name = exp_adjoint_map_generator,
+    fn_doc = impl_expr_getter_doc!("generator", ExpAdjointMap),
+    expr_ty = ExpAdjointMap,
+    out_ty = PyExpr,
+    body = |op: &ExpAdjointMap| Ok(PyExpr::new(op.generator().clone()))
+);
 
-    let m_ref = inner.as_any().downcast_ref::<ExpAdjointMap>().ok_or_else(|| {
-        to_pyerr(TinnedError::ExpressionError {
-            message: "exp_adjoint_map_generator() expected an ExpAdjointMap expression",
-            expression: inner.to_string(),
-            source: None,
-        })
-    })?;
+impl_expr_getter_interface!(
+    fn_name = exp_adjoint_map_target,
+    fn_doc = impl_expr_getter_doc!("target", ExpAdjointMap),
+    expr_ty = ExpAdjointMap,
+    out_ty = PyExpr,
+    body = |op: &ExpAdjointMap| Ok(PyExpr::new(op.target().clone()))
+);
 
-    Ok(PyExpr::new(m_ref.generator().clone()))
-}
+impl_expr_getter_interface!(
+    fn_name = exp_adjoint_map_is_temporum,
+    fn_doc =
+        impl_expr_getter_doc!("whether target is the time-differentiated generator", ExpAdjointMap),
+    expr_ty = ExpAdjointMap,
+    out_ty = bool,
+    body = |op: &ExpAdjointMap| Ok(op.is_temporum())
+);
 
-/// Return the target of an ExpAdjointMap expression.
-#[pyfunction]
-pub fn exp_adjoint_map_target(expr: PyExpr) -> PyResult<PyExpr> {
-    let inner = expr.inner().clone();
+impl_expr_getter_interface!(
+    fn_name = exp_adjoint_map_left_action,
+    fn_doc = impl_expr_getter_doc!("Boolean value of left action", ExpAdjointMap),
+    expr_ty = ExpAdjointMap,
+    out_ty = bool,
+    body = |op: &ExpAdjointMap| Ok(op.left_action())
+);
 
-    let m_ref = inner.as_any().downcast_ref::<ExpAdjointMap>().ok_or_else(|| {
-        to_pyerr(TinnedError::ExpressionError {
-            message: "exp_adjoint_map_target() expected an ExpAdjointMap expression",
-            expression: inner.to_string(),
-            source: None,
-        })
-    })?;
+impl_expr_getter_interface!(
+    fn_name = exp_adjoint_map_max_fold,
+    fn_doc = impl_expr_getter_doc!("maximum fold", ExpAdjointMap),
+    expr_ty = ExpAdjointMap,
+    out_ty = u32,
+    body = |op: &ExpAdjointMap| Ok(op.max_fold())
+);
 
-    Ok(PyExpr::new(m_ref.target().clone()))
-}
+impl_expr_getter_interface!(
+    fn_name = exp_adjoint_map_is_zero_strength,
+    fn_doc = impl_expr_getter_doc!("whether evaluated at zero-field strength", ExpAdjointMap),
+    expr_ty = ExpAdjointMap,
+    out_ty = bool,
+    body = |op: &ExpAdjointMap| Ok(op.is_zero_strength())
+);
 
-/// Return whether this ExpAdjointMap is in temporum mode.
-///
-/// If True, target is obtained by performing time differentiation
-/// on generator.
-#[pyfunction]
-pub fn exp_adjoint_map_is_temporum(expr: PyExpr) -> PyResult<bool> {
-    let inner = expr.inner().clone();
+impl_expr_getter_interface!(
+    fn_name = exp_adjoint_map_result,
+    fn_doc = impl_expr_getter_doc!("result expression", ExpAdjointMap),
+    expr_ty = ExpAdjointMap,
+    out_ty = PyExpr,
+    body = |op: &ExpAdjointMap| Ok(PyExpr::new(op.result().clone()))
+);
 
-    let m_ref = inner.as_any().downcast_ref::<ExpAdjointMap>().ok_or_else(|| {
-        to_pyerr(TinnedError::ExpressionError {
-            message: "exp_adjoint_map_is_temporum() expected an ExpAdjointMap expression",
-            expression: inner.to_string(),
-            source: None,
-        })
-    })?;
-
-    Ok(m_ref.is_temporum())
-}
-
-/// Return whether this ExpAdjointMap uses left action.
-///
-/// If True: exp(X)*Y*exp(-X).
-/// If False: exp(-X)*Y*exp(X).
-#[pyfunction]
-pub fn exp_adjoint_map_left_action(expr: PyExpr) -> PyResult<bool> {
-    let inner = expr.inner().clone();
-
-    let m_ref = inner.as_any().downcast_ref::<ExpAdjointMap>().ok_or_else(|| {
-        to_pyerr(TinnedError::ExpressionError {
-            message: "exp_adjoint_map_left_action() expected an ExpAdjointMap expression",
-            expression: inner.to_string(),
-            source: None,
-        })
-    })?;
-
-    Ok(m_ref.left_action())
-}
-
-/// Return the maximum fold of an ExpAdjointMap expression.
-#[pyfunction]
-pub fn exp_adjoint_map_max_fold(expr: PyExpr) -> PyResult<u32> {
-    let inner = expr.inner().clone();
-
-    let m_ref = inner.as_any().downcast_ref::<ExpAdjointMap>().ok_or_else(|| {
-        to_pyerr(TinnedError::ExpressionError {
-            message: "exp_adjoint_map_max_fold() expected an ExpAdjointMap expression",
-            expression: inner.to_string(),
-            source: None,
-        })
-    })?;
-
-    Ok(m_ref.max_fold())
-}
-
-/// Return whether the generator strength is zero for this ExpAdjointMap expression.
-#[pyfunction]
-pub fn exp_adjoint_map_is_zero_strength(expr: PyExpr) -> PyResult<bool> {
-    let inner = expr.inner().clone();
-
-    let m_ref = inner.as_any().downcast_ref::<ExpAdjointMap>().ok_or_else(|| {
-        to_pyerr(TinnedError::ExpressionError {
-            message: "exp_adjoint_map_is_zero_strength() expected an ExpAdjointMap expression",
-            expression: inner.to_string(),
-            source: None,
-        })
-    })?;
-
-    Ok(m_ref.is_zero_strength())
-}
-
-/// Return the result expression stored inside ExpAdjointMap.
-///
-/// This is the differentiated expression of the exponential adjoint map.
-#[pyfunction]
-pub fn exp_adjoint_map_result(expr: PyExpr) -> PyResult<PyExpr> {
-    let inner = expr.inner().clone();
-
-    let m_ref = inner.as_any().downcast_ref::<ExpAdjointMap>().ok_or_else(|| {
-        to_pyerr(TinnedError::ExpressionError {
-            message: "exp_adjoint_map_result() expected an ExpAdjointMap expression",
-            expression: inner.to_string(),
-            source: None,
-        })
-    })?;
-
-    Ok(PyExpr::new(m_ref.result().clone()))
-}
-
-/// Return the derivative of an ExpAdjointMap expression.
-#[pyfunction]
-pub fn exp_adjoint_map_derivative(expr: PyExpr) -> PyResult<PyPertMultichain> {
-    let inner = expr.inner().clone();
-
-    let m_ref = inner.as_any().downcast_ref::<ExpAdjointMap>().ok_or_else(|| {
-        to_pyerr(TinnedError::ExpressionError {
-            message: "exp_adjoint_map_derivative() expected an ExpAdjointMap expression",
-            expression: inner.to_string(),
-            source: None,
-        })
-    })?;
-
-    Ok(PyPertMultichain::new(m_ref.derivative().clone()))
-}
+impl_expr_getter_interface!(
+    fn_name = exp_adjoint_map_derivative,
+    fn_doc = impl_expr_getter_doc!("derivative", ExpAdjointMap),
+    expr_ty = ExpAdjointMap,
+    out_ty = PyPertMultichain,
+    body = |op: &ExpAdjointMap| Ok(PyPertMultichain::new(op.derivative().clone()))
+);
 
 pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(exp_adjoint_map_new, m)?)?;

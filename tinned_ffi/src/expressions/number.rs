@@ -5,7 +5,7 @@ use tinned::core::Expr;
 use tinned::expressions::Number;
 use tinned::public::generic_error;
 
-use crate::c_support::{ffi_map_expr_as, ffi_map_expr_as_copy};
+use crate::c_support::ffi_map_expr_as_copy;
 use crate::core::{CComplex64, CRational64, ExprBox, ExprHandle, TinnedErrorBox, tinned_error_new};
 use crate::public::NumberToleranceHandle;
 

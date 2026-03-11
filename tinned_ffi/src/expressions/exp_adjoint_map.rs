@@ -4,9 +4,7 @@ use std::sync::Arc;
 use tinned::expressions::ExpAdjointMap;
 use tinned::public::generic_error;
 
-use crate::c_support::{ffi_map_expr_as, ffi_map_expr_as_copy};
 use crate::core::{ExprBox, ExprHandle, TinnedErrorBox, tinned_error_new};
-use crate::perturbations::{PertMultichainBox, PertMultichainHandle};
 
 #[ffi_export]
 pub extern "C" fn tinned_exp_adjoint_map_new(

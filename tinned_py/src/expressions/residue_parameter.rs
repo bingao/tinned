@@ -2,7 +2,7 @@ use pyo3::prelude::*;
 use std::sync::Arc;
 use std::vec::Vec;
 
-use tinned::{ResidueParameter, TinnedError};
+use tinned::ResidueParameter;
 
 use crate::core::{errors::to_pyerr, expr::PyExpr};
 use crate::perturbations::{pert_multichain::PyPertMultichain, perturbation::PyPerturbation};
@@ -15,7 +15,7 @@ use crate::perturbations::{pert_multichain::PyPertMultichain, perturbation::PyPe
 ///   parameter: Perturbed parameter expression.
 ///   positive_frequency: Optional bool which indicates the sum of frequencies of
 ///      some perturbations approaches the energy of an excited state from the
-///      positive or negative side. Defaults to True.
+///      positive or negative side. Defaults to True, positive side.
 ///
 /// Returns:
 ///   A PyExpr wrapping the constructed expression (interned), or ZeroOperator under the builder rules.
@@ -45,100 +45,51 @@ pub fn residue_parameter_new(
     Ok(PyExpr::new(out))
 }
 
-/// Return whether the sum of frequencies of some perturbations approaches the
-/// energy of an excited state from the positive or negative side.
-///
-/// Errors if the input expression is not a ResidueParameter.
-#[pyfunction]
-pub fn residue_parameter_positive_frequency(expr: PyExpr) -> PyResult<bool> {
-    let inner = expr.inner().clone();
+impl_expr_getter_interface!(
+    fn_name = residue_parameter_positive_frequency,
+    fn_doc = impl_expr_getter_doc!(
+        "whether the sum of perturbation frequencies approaches an exitation energy from the positive side",
+        ResidueParameter
+    ),
+    expr_ty = ResidueParameter,
+    out_ty = bool,
+    body = |op: &ResidueParameter| Ok(op.positive_frequency())
+);
 
-    let res_ref = inner
-        .as_any()
-        .downcast_ref::<ResidueParameter>()
-        .ok_or_else(|| {
-            to_pyerr(TinnedError::ExpressionError {
-                message: "residue_parameter_positive_frequency() expected a ResidueParameter expression",
-                expression: inner.to_string(),
-                source: None,
-            })
-        })?;
+impl_expr_getter_interface!(
+    fn_name = residue_parameter_perturbations,
+    fn_doc = impl_expr_getter_doc!("perturbations", ResidueParameter),
+    expr_ty = ResidueParameter,
+    out_ty = Vec<PyPerturbation>,
+    body = |residue: &ResidueParameter| Ok(residue.perturbations().iter().cloned().map(PyPerturbation::new).collect())
+);
 
-    Ok(res_ref.positive_frequency())
-}
+impl_expr_getter_interface!(
+    fn_name = residue_parameter_excited_state,
+    fn_doc = impl_expr_getter_doc!("excited state", ResidueParameter),
+    expr_ty = ResidueParameter,
+    out_ty = PyExpr,
+    body = |residue: &ResidueParameter| Ok(PyExpr::new(residue.excited_state().clone()))
+);
 
-/// Return perturbations for a ResidueParameter.
-///
-/// Errors if the input expression is not a ResidueParameter.
-#[pyfunction]
-pub fn residue_parameter_perturbations(expr: PyExpr) -> PyResult<Vec<PyPerturbation>> {
-    let inner = expr.inner().clone();
+impl_expr_getter_interface!(
+    fn_name = residue_parameter_parameter,
+    fn_doc = impl_expr_getter_doc!("perturbed parameter", ResidueParameter),
+    expr_ty = ResidueParameter,
+    out_ty = PyExpr,
+    body = |residue: &ResidueParameter| Ok(PyExpr::new(residue.parameter().clone()))
+);
 
-    let res_ref = inner.as_any().downcast_ref::<ResidueParameter>().ok_or_else(|| {
-        to_pyerr(TinnedError::ExpressionError {
-            message: "residue_parameter_perturbations() expected a ResidueParameter expression",
-            expression: inner.to_string(),
-            source: None,
-        })
-    })?;
-
-    Ok(res_ref.perturbations().iter().cloned().map(PyPerturbation::new).collect())
-}
-
-/// Return excited state for a ResidueParameter as a PyExpr.
-///
-/// Errors if the input expression is not a ResidueParameter.
-#[pyfunction]
-pub fn residue_parameter_excited_state(expr: PyExpr) -> PyResult<PyExpr> {
-    let inner = expr.inner().clone();
-
-    let res_ref = inner.as_any().downcast_ref::<ResidueParameter>().ok_or_else(|| {
-        to_pyerr(TinnedError::ExpressionError {
-            message: "residue_parameter_excited_state() expected a ResidueParameter expression",
-            expression: inner.to_string(),
-            source: None,
-        })
-    })?;
-
-    Ok(PyExpr::new(res_ref.excited_state().clone()))
-}
-
-/// Return perturbed parameter for a ResidueParameter as a PyExpr.
-///
-/// Errors if the input expression is not a ResidueParameter.
-#[pyfunction]
-pub fn residue_parameter_parameter(expr: PyExpr) -> PyResult<PyExpr> {
-    let inner = expr.inner().clone();
-
-    let res_ref = inner.as_any().downcast_ref::<ResidueParameter>().ok_or_else(|| {
-        to_pyerr(TinnedError::ExpressionError {
-            message: "residue_parameter_parameter() expected a ResidueParameter expression",
-            expression: inner.to_string(),
-            source: None,
-        })
-    })?;
-
-    Ok(PyExpr::new(res_ref.parameter().clone()))
-}
-
-/// Return derivative for a ResidueParameter.
-///
-/// Errors if the input expression is not a ResidueParameter.
-#[pyfunction]
-pub fn residue_parameter_derivative(expr: PyExpr) -> PyResult<PyPertMultichain> {
-    let inner = expr.inner().clone();
-
-    let res_ref = inner.as_any().downcast_ref::<ResidueParameter>().ok_or_else(|| {
-        to_pyerr(TinnedError::ExpressionError {
-            message: "residue_parameter_derivative() expected a ResidueParameter expression",
-            expression: inner.to_string(),
-            source: None,
-        })
-    })?;
-
-    let d = res_ref.derivative().map_err(to_pyerr)?;
-    Ok(PyPertMultichain::new(d.clone()))
-}
+impl_expr_getter_interface!(
+    fn_name = residue_parameter_derivative,
+    fn_doc = impl_expr_getter_doc!("derivative", ResidueParameter),
+    expr_ty = ResidueParameter,
+    out_ty = PyPertMultichain,
+    body = |residue: &ResidueParameter| {
+        let derivative = residue.derivative().map_err(to_pyerr)?;
+        Ok(PyPertMultichain::new(derivative.clone()))
+    }
+);
 
 pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(residue_parameter_new, m)?)?;

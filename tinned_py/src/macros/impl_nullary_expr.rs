@@ -1,7 +1,6 @@
 macro_rules! impl_nullary_expr_interface {
     (
-        type_name = $type_name:ty,
-        type_label = $type_label:literal,
+        expr_ty = $expr_ty:ty,
         has_deps = $has_deps:tt,
         new_fn = $new_fn:ident,
         name_fn = $name_fn:ident,
@@ -10,52 +9,32 @@ macro_rules! impl_nullary_expr_interface {
         register_fn = $register_fn:ident
     ) => {
         impl_nullary_expr_interface!(@new_fn
-            type_name = $type_name,
-            type_label = $type_label,
+            expr_ty = $expr_ty,
             has_deps = $has_deps,
             new_fn = $new_fn
         );
 
-        #[doc = concat!("Return the name of a ", $type_label, " expression.")]
-        #[pyo3::prelude::pyfunction]
-        pub fn $name_fn(expr: $crate::core::expr::PyExpr) -> ::pyo3::PyResult<::std::string::String> {
-            let inner = expr.inner().clone();
+        impl_expr_getter_interface!(
+            fn_name = $name_fn,
+            fn_doc = impl_expr_getter_doc!("name", $expr_ty),
+            expr_ty = $expr_ty,
+            out_ty = ::std::string::String,
+            body = |op: &$expr_ty| Ok(op.name().to_string())
+        );
 
-            let op_ref = inner.as_any().downcast_ref::<$type_name>().ok_or_else(|| {
-                $crate::core::errors::to_pyerr(tinned::TinnedError::ExpressionError {
-                    message: concat!(stringify!($name_fn), "() expected a ", $type_label, " expression"),
-                    expression: inner.to_string(),
-                    source: None,
-                })
-            })?;
-
-            Ok(op_ref.name().to_string())
-        }
-
-        #[doc = concat!("Return the derivative of a ", $type_label, " expression.")]
-        #[pyo3::prelude::pyfunction]
-        pub fn $derivative_fn(
-            expr: $crate::core::expr::PyExpr,
-        ) -> ::pyo3::PyResult<$crate::perturbations::pert_multichain::PyPertMultichain> {
-            let inner = expr.inner().clone();
-
-            let op_ref = inner.as_any().downcast_ref::<$type_name>().ok_or_else(|| {
-                $crate::core::errors::to_pyerr(tinned::TinnedError::ExpressionError {
-                    message: concat!(stringify!($derivative_fn), "() expected a ", $type_label, " expression"),
-                    expression: inner.to_string(),
-                    source: None,
-                })
-            })?;
-
-            Ok($crate::perturbations::pert_multichain::PyPertMultichain::new(
-                op_ref.derivative().clone(),
+        impl_expr_getter_interface!(
+            fn_name = $derivative_fn,
+            fn_doc = impl_expr_getter_doc!("derivative", $expr_ty),
+            expr_ty = $expr_ty,
+            out_ty = $crate::perturbations::pert_multichain::PyPertMultichain,
+            body = |op: &$expr_ty| Ok($crate::perturbations::pert_multichain::PyPertMultichain::new(
+                op.derivative().clone(),
             ))
-        }
+        );
 
         $(
             impl_nullary_expr_interface!(@deps_fn
-                type_name = $type_name,
-                type_label = $type_label,
+                expr_ty = $expr_ty,
                 deps_fn = $deps_fn
             );
         )?
@@ -72,13 +51,12 @@ macro_rules! impl_nullary_expr_interface {
     };
 
     (@new_fn
-        type_name = $type_name:ty,
-        type_label = $type_label:literal,
+        expr_ty = $expr_ty:ty,
         has_deps = true,
         new_fn = $new_fn:ident
     ) => {
         #[doc = concat!(
-            "Create a ", $type_label, " expression.\n\n",
+            "Create a ", stringify!($expr_ty), " expression.\n\n",
             "Args:\n",
             "  name: Name.\n",
             "  derivative: Optional PertMultichain (default empty).\n",
@@ -88,13 +66,13 @@ macro_rules! impl_nullary_expr_interface {
             "Notes:\n",
             "  If dependencies is not a superchain of derivative, the Rust constructor returns a zero expression."
         )]
-        #[pyo3::prelude::pyfunction]
+        #[::pyo3::prelude::pyfunction]
         pub fn $new_fn(
             name: ::std::string::String,
             derivative: ::std::option::Option<&::pyo3::Bound<'_, $crate::perturbations::pert_multichain::PyPertMultichain>>,
             dependencies: ::std::option::Option<&::pyo3::Bound<'_, $crate::perturbations::pert_multichain::PyPertMultichain>>,
         ) -> ::pyo3::PyResult<$crate::core::expr::PyExpr> {
-            let mut b = <$type_name>::builder(name);
+            let mut b = <$expr_ty>::builder(name);
 
             if let Some(deps) = dependencies {
                 b = b.dependencies(deps.borrow().inner().clone());
@@ -109,25 +87,24 @@ macro_rules! impl_nullary_expr_interface {
     };
 
     (@new_fn
-        type_name = $type_name:ty,
-        type_label = $type_label:literal,
+        expr_ty = $expr_ty:ty,
         has_deps = false,
         new_fn = $new_fn:ident
     ) => {
         #[doc = concat!(
-            "Create a ", $type_label, " expression.\n\n",
+            "Create a ", stringify!($expr_ty), " expression.\n\n",
             "Args:\n",
             "  name: Name.\n",
             "  derivative: Optional PertMultichain (default empty).\n\n",
             "Returns:\n",
             "  A PyExpr wrapping the constructed expression (interned)."
         )]
-        #[pyo3::prelude::pyfunction]
+        #[::pyo3::prelude::pyfunction]
         pub fn $new_fn(
             name: ::std::string::String,
             derivative: ::std::option::Option<&::pyo3::Bound<'_, $crate::perturbations::pert_multichain::PyPertMultichain>>,
         ) -> ::pyo3::PyResult<$crate::core::expr::PyExpr> {
-            let mut b = <$type_name>::builder(name);
+            let mut b = <$expr_ty>::builder(name);
 
             if let Some(deriv) = derivative {
                 b = b.derivative(deriv.borrow().inner().clone());
@@ -139,28 +116,17 @@ macro_rules! impl_nullary_expr_interface {
     };
 
     (@deps_fn
-        type_name = $type_name:ty,
-        type_label = $type_label:literal,
+        expr_ty = $expr_ty:ty,
         deps_fn = $deps_fn:ident
     ) => {
-        #[doc = concat!("Return the dependencies of a ", $type_label, " expression.")]
-        #[pyo3::prelude::pyfunction]
-        pub fn $deps_fn(
-            expr: $crate::core::expr::PyExpr,
-        ) -> ::pyo3::PyResult<$crate::perturbations::pert_multichain::PyPertMultichain> {
-            let inner = expr.inner().clone();
-
-            let op_ref = inner.as_any().downcast_ref::<$type_name>().ok_or_else(|| {
-                $crate::core::errors::to_pyerr(tinned::TinnedError::ExpressionError {
-                    message: concat!(stringify!($deps_fn), "() expected a ", $type_label, " expression"),
-                    expression: inner.to_string(),
-                    source: None,
-                })
-            })?;
-
-            Ok($crate::perturbations::pert_multichain::PyPertMultichain::new(
-                op_ref.dependencies().clone(),
+        impl_expr_getter_interface!(
+            fn_name = $deps_fn,
+            fn_doc = impl_expr_getter_doc!("dependencies", $expr_ty),
+            expr_ty = $expr_ty,
+            out_ty = $crate::perturbations::pert_multichain::PyPertMultichain,
+            body = |op: &$expr_ty| Ok($crate::perturbations::pert_multichain::PyPertMultichain::new(
+                op.dependencies().clone(),
             ))
-        }
+        );
     };
 }

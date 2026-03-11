@@ -1,6 +1,6 @@
 use pyo3::prelude::*;
 
-use tinned::{TemporumOverlap, TinnedError};
+use tinned::TemporumOverlap;
 
 use crate::core::{errors::to_pyerr, expr::PyExpr};
 use crate::perturbations::pert_multichain::PyPertMultichain;
@@ -21,77 +21,37 @@ pub fn temporum_overlap_new(dependencies: &Bound<'_, PyPertMultichain>) -> PyRes
     Ok(PyExpr::new(out))
 }
 
-/// Return is_zero_strength for a TemporumOverlap.
-///
-/// Errors if the input expression is not a TemporumOverlap.
-#[pyfunction]
-pub fn temporum_overlap_is_zero_strength(expr: PyExpr) -> PyResult<bool> {
-    let inner = expr.inner().clone();
+impl_expr_getter_interface!(
+    fn_name = temporum_overlap_is_zero_strength,
+    fn_doc = impl_expr_getter_doc!("whether evaluated at zero-field strength", TemporumOverlap),
+    expr_ty = TemporumOverlap,
+    out_ty = bool,
+    body = |op: &TemporumOverlap| Ok(op.is_zero_strength())
+);
 
-    let ov_ref = inner.as_any().downcast_ref::<TemporumOverlap>().ok_or_else(|| {
-        to_pyerr(TinnedError::ExpressionError {
-            message: "temporum_overlap_is_zero_strength() expected a TemporumOverlap expression",
-            expression: inner.to_string(),
-            source: None,
-        })
-    })?;
+impl_expr_getter_interface!(
+    fn_name = temporum_overlap_braket,
+    fn_doc = impl_expr_getter_doc!("braket expression", TemporumOverlap),
+    expr_ty = TemporumOverlap,
+    out_ty = PyExpr,
+    body = |op: &TemporumOverlap| Ok(PyExpr::new(op.braket().clone()))
+);
 
-    Ok(ov_ref.is_zero_strength())
-}
+impl_expr_getter_interface!(
+    fn_name = temporum_overlap_dependencies,
+    fn_doc = impl_expr_getter_doc!("dependencies", TemporumOverlap),
+    expr_ty = TemporumOverlap,
+    out_ty = PyPertMultichain,
+    body = |op: &TemporumOverlap| Ok(PyPertMultichain::new(op.dependencies().clone()))
+);
 
-/// Return braket for a TemporumOverlap as a PyExpr.
-///
-/// Errors if the input expression is not a TemporumOverlap.
-#[pyfunction]
-pub fn temporum_overlap_braket(expr: PyExpr) -> PyResult<PyExpr> {
-    let inner = expr.inner().clone();
-
-    let ov_ref = inner.as_any().downcast_ref::<TemporumOverlap>().ok_or_else(|| {
-        to_pyerr(TinnedError::ExpressionError {
-            message: "temporum_overlap_braket() expected a TemporumOverlap expression",
-            expression: inner.to_string(),
-            source: None,
-        })
-    })?;
-
-    Ok(PyExpr::new(ov_ref.braket().clone()))
-}
-
-/// Return dependencies for a TemporumOverlap.
-///
-/// Errors if the input expression is not a TemporumOverlap.
-#[pyfunction]
-pub fn temporum_overlap_dependencies(expr: PyExpr) -> PyResult<PyPertMultichain> {
-    let inner = expr.inner().clone();
-
-    let ov_ref = inner.as_any().downcast_ref::<TemporumOverlap>().ok_or_else(|| {
-        to_pyerr(TinnedError::ExpressionError {
-            message: "temporum_overlap_dependencies() expected a TemporumOverlap expression",
-            expression: inner.to_string(),
-            source: None,
-        })
-    })?;
-
-    Ok(PyPertMultichain::new(ov_ref.dependencies().clone()))
-}
-
-/// Return derivative for a TemporumOverlap.
-///
-/// Errors if the input expression is not a TemporumOverlap.
-#[pyfunction]
-pub fn temporum_overlap_derivative(expr: PyExpr) -> PyResult<PyPertMultichain> {
-    let inner = expr.inner().clone();
-
-    let ov_ref = inner.as_any().downcast_ref::<TemporumOverlap>().ok_or_else(|| {
-        to_pyerr(TinnedError::ExpressionError {
-            message: "temporum_overlap_derivative() expected a TemporumOverlap expression",
-            expression: inner.to_string(),
-            source: None,
-        })
-    })?;
-
-    Ok(PyPertMultichain::new(ov_ref.derivative().clone()))
-}
+impl_expr_getter_interface!(
+    fn_name = temporum_overlap_derivative,
+    fn_doc = impl_expr_getter_doc!("derivative", TemporumOverlap),
+    expr_ty = TemporumOverlap,
+    out_ty = PyPertMultichain,
+    body = |op: &TemporumOverlap| Ok(PyPertMultichain::new(op.derivative().clone()))
+);
 
 pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(temporum_overlap_new, m)?)?;

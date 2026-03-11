@@ -1,7 +1,7 @@
 use pyo3::prelude::*;
 use std::sync::Arc;
 
-use tinned::{Expr, Power, TinnedError};
+use tinned::{Expr, Power};
 
 use crate::core::{errors::to_pyerr, expr::PyExpr};
 
@@ -21,41 +21,21 @@ pub fn power_new(base: PyExpr, exponent: i64) -> PyResult<PyExpr> {
     Ok(PyExpr::new(out))
 }
 
-/// Return the base of a Power as a PyExpr.
-///
-/// Errors if the input expression is not a Power.
-#[pyfunction]
-pub fn power_base(expr: PyExpr) -> PyResult<PyExpr> {
-    let inner = expr.inner().clone();
+impl_expr_getter_interface!(
+    fn_name = power_base,
+    fn_doc = impl_expr_getter_doc!("base", Power),
+    expr_ty = Power,
+    out_ty = PyExpr,
+    body = |power: &Power| Ok(PyExpr::new(power.base().clone()))
+);
 
-    let pow_ref = inner.as_any().downcast_ref::<Power>().ok_or_else(|| {
-        to_pyerr(TinnedError::ExpressionError {
-            message: "power_base() expected a Power expression",
-            expression: inner.to_string(),
-            source: None,
-        })
-    })?;
-
-    Ok(PyExpr::new(pow_ref.base().clone()))
-}
-
-/// Return the exponent of a Power.
-///
-/// Errors if the input expression is not a Power.
-#[pyfunction]
-pub fn power_exponent(expr: PyExpr) -> PyResult<i64> {
-    let inner = expr.inner().clone();
-
-    let pow_ref = inner.as_any().downcast_ref::<Power>().ok_or_else(|| {
-        to_pyerr(TinnedError::ExpressionError {
-            message: "power_exponent() expected a Power expression",
-            expression: inner.to_string(),
-            source: None,
-        })
-    })?;
-
-    Ok(pow_ref.exponent())
-}
+impl_expr_getter_interface!(
+    fn_name = power_exponent,
+    fn_doc = impl_expr_getter_doc!("exponent", Power),
+    expr_ty = Power,
+    out_ty = i64,
+    body = |power: &Power| Ok(power.exponent())
+);
 
 pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(power_new, m)?)?;

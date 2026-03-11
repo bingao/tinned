@@ -4,8 +4,8 @@ use crate::core::{Expr, TinnedError};
 use crate::expressions::{
     Add, AdjointMap, Composition, Conjugate, DotProduct, ExchCorrEnergy, ExchCorrPotential,
     ExpAdjointMap, HermitianTranspose, LagMultiplier, MatrixAdd, MatrixMul, Mul, NonElecFunction,
-    Number, OneElecOperator, Power, ResidueParameter, Symbol, TemporumOperator, TemporumOverlap,
-    Trace, Transpose, TwoElecEnergy, TwoElecOperator, WfnParameter, ZeroOperator,
+    Number, OneElecOperator, Power, ResidueParameter, SubExpr, Symbol, TemporumOperator,
+    TemporumOverlap, Trace, Transpose, TwoElecEnergy, TwoElecOperator, WfnParameter, ZeroOperator,
 };
 use crate::public::downcast_from_arc;
 
@@ -31,6 +31,7 @@ pub enum ExprTag {
     OneElecOperator,
     Power,
     ResidueParameter,
+    SubExpr,
     Symbol,
     TemporumOperator,
     TemporumOverlap,
@@ -162,6 +163,11 @@ pub fn walk_expr_postorder<V: ExprVisitor>(
                 walk(factor, visitor)?;
             }
             return visitor.end(ExprTag::MatrixMul, mul.factors().len() + 1);
+        }
+        if let Some(sub_expr) = downcast_from_arc::<SubExpr>(expr) {
+            visitor.begin(ExprTag::SubExpr, 1)?;
+            walk(sub_expr.expression(), visitor)?;
+            return visitor.end(ExprTag::Add, 1);
         }
 
         Ok(())

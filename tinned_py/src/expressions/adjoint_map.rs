@@ -1,7 +1,7 @@
 use pyo3::prelude::*;
 use std::sync::Arc;
 
-use tinned::{AdjointMap, Expr, TinnedError};
+use tinned::{AdjointMap, Expr};
 
 use crate::core::{errors::to_pyerr, expr::PyExpr};
 
@@ -29,53 +29,29 @@ pub fn adjoint_map_new(
     Ok(PyExpr::new(out))
 }
 
-/// Return the generators of an AdjointMap expression as a list.
-#[pyfunction]
-pub fn adjoint_map_generators(expr: PyExpr) -> PyResult<Vec<PyExpr>> {
-    let inner = expr.inner().clone();
+impl_expr_getter_interface!(
+    fn_name = adjoint_map_generators,
+    fn_doc = impl_expr_getter_doc!("generators", AdjointMap),
+    expr_ty = AdjointMap,
+    out_ty = Vec<PyExpr>,
+    body = |op: &AdjointMap| Ok(op.generators().iter().cloned().map(PyExpr::new).collect())
+);
 
-    let adj_ref = inner.as_any().downcast_ref::<AdjointMap>().ok_or_else(|| {
-        to_pyerr(TinnedError::ExpressionError {
-            message: "adjoint_map_generators() expected an AdjointMap expression",
-            expression: inner.to_string(),
-            source: None,
-        })
-    })?;
+impl_expr_getter_interface!(
+    fn_name = adjoint_map_target,
+    fn_doc = impl_expr_getter_doc!("target", AdjointMap),
+    expr_ty = AdjointMap,
+    out_ty = PyExpr,
+    body = |op: &AdjointMap| Ok(PyExpr::new(op.target().clone()))
+);
 
-    Ok(adj_ref.generators().iter().cloned().map(PyExpr::new).collect())
-}
-
-/// Return the target of an AdjointMap expression.
-#[pyfunction]
-pub fn adjoint_map_target(expr: PyExpr) -> PyResult<PyExpr> {
-    let inner = expr.inner().clone();
-
-    let adj_ref = inner.as_any().downcast_ref::<AdjointMap>().ok_or_else(|| {
-        to_pyerr(TinnedError::ExpressionError {
-            message: "adjoint_map_target() expected an AdjointMap expression",
-            expression: inner.to_string(),
-            source: None,
-        })
-    })?;
-
-    Ok(PyExpr::new(adj_ref.target().clone()))
-}
-
-/// Return whether an AdjointMap expression uses left action.
-#[pyfunction]
-pub fn adjoint_map_left_action(expr: PyExpr) -> PyResult<bool> {
-    let inner = expr.inner().clone();
-
-    let adj_ref = inner.as_any().downcast_ref::<AdjointMap>().ok_or_else(|| {
-        to_pyerr(TinnedError::ExpressionError {
-            message: "adjoint_map_left_action() expected an AdjointMap expression",
-            expression: inner.to_string(),
-            source: None,
-        })
-    })?;
-
-    Ok(adj_ref.left_action())
-}
+impl_expr_getter_interface!(
+    fn_name = adjoint_map_left_action,
+    fn_doc = impl_expr_getter_doc!("Boolean value of left action", AdjointMap),
+    expr_ty = AdjointMap,
+    out_ty = bool,
+    body = |op: &AdjointMap| Ok(op.left_action())
+);
 
 pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(adjoint_map_new, m)?)?;

@@ -41,7 +41,7 @@ pub fn expression_error(
 }
 
 #[inline]
-pub fn generic_expression_error<E: Expr>(
+pub fn generic_expression_error<E: Expr + ?Sized>(
     message: impl Into<String>,
     expr: &E,
     source: Option<Box<dyn Error + Send + Sync>>,

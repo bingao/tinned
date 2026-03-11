@@ -1,7 +1,7 @@
 use pyo3::prelude::*;
 use std::sync::Arc;
 
-use tinned::{DotProduct, Expr, TinnedError};
+use tinned::{DotProduct, Expr};
 
 use crate::core::{errors::to_pyerr, expr::PyExpr};
 
@@ -38,70 +38,40 @@ pub fn dot_product_new(
     Ok(PyExpr::new(out))
 }
 
-/// Return the bra of a DotProduct expression.
-#[pyfunction]
-pub fn dot_product_bra(expr: PyExpr) -> PyResult<PyExpr> {
-    let inner = expr.inner().clone();
+impl_expr_getter_interface!(
+    fn_name = dot_product_bra,
+    fn_doc = impl_expr_getter_doc!("bra", DotProduct),
+    expr_ty = DotProduct,
+    out_ty = PyExpr,
+    body = |op: &DotProduct| Ok(PyExpr::new(op.bra().clone()))
+);
 
-    let dp_ref = inner.as_any().downcast_ref::<DotProduct>().ok_or_else(|| {
-        to_pyerr(TinnedError::ExpressionError {
-            message: "dot_product_bra() expected a DotProduct expression",
-            expression: inner.to_string(),
-            source: None,
-        })
-    })?;
+impl_expr_getter_interface!(
+    fn_name = dot_product_ket,
+    fn_doc = impl_expr_getter_doc!("ket", DotProduct),
+    expr_ty = DotProduct,
+    out_ty = PyExpr,
+    body = |op: &DotProduct| Ok(PyExpr::new(op.ket().clone()))
+);
 
-    Ok(PyExpr::new(dp_ref.bra().clone()))
-}
+impl_expr_getter_interface!(
+    fn_name = dot_product_allow_braket_swap,
+    fn_doc = impl_expr_getter_doc!("whether bra-ket swapping is allowed", DotProduct),
+    expr_ty = DotProduct,
+    out_ty = bool,
+    body = |op: &DotProduct| Ok(op.allow_braket_swap())
+);
 
-/// Return the ket of a DotProduct expression.
-#[pyfunction]
-pub fn dot_product_ket(expr: PyExpr) -> PyResult<PyExpr> {
-    let inner = expr.inner().clone();
-
-    let dp_ref = inner.as_any().downcast_ref::<DotProduct>().ok_or_else(|| {
-        to_pyerr(TinnedError::ExpressionError {
-            message: "dot_product_ket() expected a DotProduct expression",
-            expression: inner.to_string(),
-            source: None,
-        })
-    })?;
-
-    Ok(PyExpr::new(dp_ref.ket().clone()))
-}
-
-/// Return whether bra-ket swapping is allowed for this DotProduct.
-#[pyfunction]
-pub fn dot_product_allow_braket_swap(expr: PyExpr) -> PyResult<bool> {
-    let inner = expr.inner().clone();
-
-    let dp_ref = inner.as_any().downcast_ref::<DotProduct>().ok_or_else(|| {
-        to_pyerr(TinnedError::ExpressionError {
-            message: "dot_product_allow_braket_swap() expected a DotProduct expression",
-            expression: inner.to_string(),
-            source: None,
-        })
-    })?;
-
-    Ok(dp_ref.allow_braket_swap())
-}
-
-/// Return the conjugate of a DotProduct expression.
-#[pyfunction]
-pub fn dot_product_conjugate(expr: PyExpr) -> PyResult<PyExpr> {
-    let inner = expr.inner().clone();
-
-    let dp_ref = inner.as_any().downcast_ref::<DotProduct>().ok_or_else(|| {
-        to_pyerr(TinnedError::ExpressionError {
-            message: "dot_product_conjugate() expected a DotProduct expression",
-            expression: inner.to_string(),
-            source: None,
-        })
-    })?;
-
-    let result = dp_ref.conjugate().map_err(to_pyerr)?;
-    Ok(PyExpr::new(result))
-}
+impl_expr_getter_interface!(
+    fn_name = dot_product_conjugate,
+    fn_doc = impl_expr_getter_doc!("conjugate", DotProduct),
+    expr_ty = DotProduct,
+    out_ty = PyExpr,
+    body = |op: &DotProduct| {
+        let result = op.conjugate().map_err(to_pyerr)?;
+        Ok(PyExpr::new(result))
+    }
+);
 
 pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(dot_product_new, m)?)?;

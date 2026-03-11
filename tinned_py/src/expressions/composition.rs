@@ -1,7 +1,7 @@
 use pyo3::prelude::*;
 use std::sync::Arc;
 
-use tinned::{Composition, Expr, TinnedError};
+use tinned::{Composition, Expr};
 
 use crate::core::{errors::to_pyerr, expr::PyExpr};
 
@@ -26,53 +26,29 @@ pub fn composition_new(name: String, order: u32, inner: PyExpr) -> PyResult<PyEx
     Ok(PyExpr::new(out))
 }
 
-/// Return the name of a Composition expression.
-#[pyfunction]
-pub fn composition_name(expr: PyExpr) -> PyResult<String> {
-    let inner = expr.inner().clone();
+impl_expr_getter_interface!(
+    fn_name = composition_name,
+    fn_doc = impl_expr_getter_doc!("name", Composition),
+    expr_ty = Composition,
+    out_ty = String,
+    body = |op: &Composition| Ok(op.name().to_string())
+);
 
-    let comp_ref = inner.as_any().downcast_ref::<Composition>().ok_or_else(|| {
-        to_pyerr(TinnedError::ExpressionError {
-            message: "composition_name() expected a Composition expression",
-            expression: inner.to_string(),
-            source: None,
-        })
-    })?;
+impl_expr_getter_interface!(
+    fn_name = composition_order,
+    fn_doc = impl_expr_getter_doc!("order", Composition),
+    expr_ty = Composition,
+    out_ty = u32,
+    body = |op: &Composition| Ok(op.order())
+);
 
-    Ok(comp_ref.name().to_string())
-}
-
-/// Return the order of a Composition expression.
-#[pyfunction]
-pub fn composition_order(expr: PyExpr) -> PyResult<u32> {
-    let inner = expr.inner().clone();
-
-    let comp_ref = inner.as_any().downcast_ref::<Composition>().ok_or_else(|| {
-        to_pyerr(TinnedError::ExpressionError {
-            message: "composition_order() expected a Composition expression",
-            expression: inner.to_string(),
-            source: None,
-        })
-    })?;
-
-    Ok(comp_ref.order())
-}
-
-/// Return the inner expression of a Composition expression.
-#[pyfunction]
-pub fn composition_inner(expr: PyExpr) -> PyResult<PyExpr> {
-    let inner = expr.inner().clone();
-
-    let comp_ref = inner.as_any().downcast_ref::<Composition>().ok_or_else(|| {
-        to_pyerr(TinnedError::ExpressionError {
-            message: "composition_inner() expected a Composition expression",
-            expression: inner.to_string(),
-            source: None,
-        })
-    })?;
-
-    Ok(PyExpr::new(comp_ref.inner().clone()))
-}
+impl_expr_getter_interface!(
+    fn_name = composition_inner,
+    fn_doc = impl_expr_getter_doc!("inner expression", Composition),
+    expr_ty = Composition,
+    out_ty = PyExpr,
+    body = |op: &Composition| Ok(PyExpr::new(op.inner().clone()))
+);
 
 pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(composition_new, m)?)?;

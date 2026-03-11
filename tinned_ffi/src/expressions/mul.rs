@@ -2,7 +2,7 @@ use safer_ffi::prelude::*;
 
 use tinned::expressions::Mul;
 
-use crate::c_support::{ffi_map_expr_as, ffi_map_expr_as_exprvec};
+use crate::c_support::ffi_map_expr_as_exprvec;
 use crate::core::{
     ExprBox, ExprHandle, ExprSlice, TinnedErrorBox, expr_vec_from_slice, tinned_error_new,
 };

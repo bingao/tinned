@@ -1,8 +1,9 @@
 use pyo3::prelude::*;
 
+use tinned::WfnParameter;
+
 impl_nullary_expr_interface!(
-    type_name = tinned::WfnParameter,
-    type_label = "WfnParameter",
+    expr_ty = WfnParameter,
     has_deps = false,
     new_fn = wfn_parameter_new,
     name_fn = wfn_parameter_name,

@@ -4,7 +4,6 @@ use std::sync::Arc;
 use tinned::expressions::Power;
 use tinned::public::generic_error;
 
-use crate::c_support::{ffi_map_expr_as, ffi_map_expr_as_copy};
 use crate::core::{ExprBox, ExprHandle, TinnedErrorBox, tinned_error_new};
 
 #[ffi_export]
