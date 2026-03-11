@@ -65,3 +65,9 @@ pub fn set_number_tolerance(new_tol: NumberTolerance) {
 
     *tol = new_tol;
 }
+
+impl std::fmt::Display for NumberTolerance {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "({}, {})", self.abs_error, self.rel_error)
+    }
+}

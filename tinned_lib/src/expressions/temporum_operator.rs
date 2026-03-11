@@ -1,7 +1,4 @@
-use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
-
-use typetag;
 
 use crate::core::expr_internal::sealed::ExprInternal;
 use crate::core::{Expr, TinnedError};
@@ -10,9 +7,8 @@ use crate::expressions::{
 };
 use crate::perturbations::{PertMultichain, Perturbation};
 use crate::public::{
-    NumberTolerance, downcast_from_arc, downcast_from_ref, expression_error,
-    generic_expression_error, is_expr_type, is_zero_expr, negate_expr, sum_pert_frequencies,
-    unreachable_error,
+    NumberTolerance, downcast_from_arc, expression_error, generic_expression_error, is_expr_type,
+    is_zero_expr, negate_expr, sum_pert_frequencies, unreachable_error,
 };
 
 /// A TemporumOperator represents i*d/dt (forward) or -i*d/dt (backward) acting

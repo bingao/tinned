@@ -1,7 +1,4 @@
-use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
-
-use typetag;
 
 use crate::core::expr_internal::sealed::ExprInternal;
 use crate::core::{Expr, TinnedError};
@@ -10,8 +7,7 @@ use crate::expressions::{
 };
 use crate::perturbations::{PertMultichain, Perturbation};
 use crate::public::{
-    differentiate_expr, downcast_from_arc, downcast_from_ref, expression_error,
-    generic_expression_error, is_expr_type, is_zero_expr, unreachable_error,
+    downcast_from_arc, expression_error, generic_expression_error, is_expr_type, is_zero_expr,
 };
 
 /// allow_density_swap means we allow inner_density and outer_density to be
@@ -383,9 +379,6 @@ impl std::fmt::Display for TwoElecEnergy {
 }
 
 #[cfg(test)]
-const DEFAULT_OPER_NAME: &str = "E(2el)";
-
-#[cfg(test)]
 pub mod test_utils {
     use super::*;
     use crate::expressions::symbol::test_utils::random_alphanumeric;
@@ -393,6 +386,8 @@ pub mod test_utils {
     use crate::perturbations::pert_multichain::test_utils::{
         make_pert_multichain, make_super_multichain,
     };
+
+    pub const TEST_OPER_NAME: &str = "E(2el)";
 
     #[inline]
     pub fn make_two_elec_energy(
@@ -406,7 +401,7 @@ pub mod test_utils {
         if name.is_empty() {
             let deriv = make_pert_multichain(2u32, 10u32, 1u32, 10u32);
             let deps = make_super_multichain(&deriv, 1u32);
-            TwoElecEnergy::builder(random_alphanumeric(DEFAULT_OPER_NAME.len() as u32 + 1), inner)
+            TwoElecEnergy::builder(random_alphanumeric(TEST_OPER_NAME.len() as u32 + 1), inner)
                 .outer_density(outer)
                 .dependencies(deps)
                 .derivative(deriv)
@@ -440,7 +435,7 @@ mod tests {
     test_struct_safety!(TwoElecEnergy);
 
     test_thread_interning!({
-        make_two_elec_energy(DEFAULT_OPER_NAME, Some(make_wfn_parameter("density")), None)
+        make_two_elec_energy(TEST_OPER_NAME, Some(make_wfn_parameter("density")), None)
     });
 
     #[test]
@@ -451,7 +446,7 @@ mod tests {
             std::mem::swap(&mut inner_density, &mut outer_density);
         }
         let deriv = make_pert_multichain(2u32, 8u32, 1u32, 10u32);
-        let op0 = TwoElecEnergy::builder(DEFAULT_OPER_NAME, inner_density.clone())
+        let op0 = TwoElecEnergy::builder(TEST_OPER_NAME, inner_density.clone())
             .derivative(deriv.clone())
             .build()
             .unwrap();
@@ -459,7 +454,7 @@ mod tests {
         assert!(is_zero_expr(&op0, None));
 
         let deps = make_super_multichain(&deriv, 1u32);
-        let op1 = TwoElecEnergy::builder(DEFAULT_OPER_NAME, inner_density.clone())
+        let op1 = TwoElecEnergy::builder(TEST_OPER_NAME, inner_density.clone())
             .outer_density(outer_density.clone())
             .allow_density_swap(true)
             .dependencies(deps.clone())
@@ -471,7 +466,7 @@ mod tests {
         assert_eq!(
             op,
             &TwoElecEnergy {
-                name: DEFAULT_OPER_NAME.into(),
+                name: TEST_OPER_NAME.into(),
                 inner_density: inner_density.clone(),
                 outer_density: outer_density.clone(),
                 allow_density_swap: true,
@@ -480,7 +475,7 @@ mod tests {
             }
         );
 
-        assert_eq!(op.name(), DEFAULT_OPER_NAME);
+        assert_eq!(op.name(), TEST_OPER_NAME);
         assert_eq!(op.inner_density(), &inner_density);
         assert_eq!(op.outer_density(), &outer_density);
         assert!(op.allow_density_swap());
@@ -503,7 +498,7 @@ mod tests {
             op1.hash_key(),
             format!(
                 "TwoElecEnergy({}; {}; {}; [{}]; [{}])",
-                DEFAULT_OPER_NAME,
+                TEST_OPER_NAME,
                 inner_density.hash_key(),
                 outer_density.hash_key(),
                 deps.hash_key(),
@@ -513,10 +508,10 @@ mod tests {
         assert!(op1.is_scalar());
         assert_eq!(
             format!("{}", op1),
-            format!("{}^{}[{}; {}]", DEFAULT_OPER_NAME, deriv, inner_density, outer_density)
+            format!("{}^{}[{}; {}]", TEST_OPER_NAME, deriv, inner_density, outer_density)
         );
 
-        let op3 = TwoElecEnergy::builder(DEFAULT_OPER_NAME, inner_density.clone())
+        let op3 = TwoElecEnergy::builder(TEST_OPER_NAME, inner_density.clone())
             .outer_density(outer_density.clone())
             .allow_density_swap(true)
             .dependencies(deps.clone())
@@ -524,7 +519,7 @@ mod tests {
             .build()
             .unwrap();
         let op4 = TwoElecEnergy::builder(
-            random_alphanumeric(DEFAULT_OPER_NAME.len() as u32 + 1),
+            random_alphanumeric(TEST_OPER_NAME.len() as u32 + 1),
             inner_density.clone(),
         )
         .outer_density(outer_density.clone())
@@ -533,20 +528,20 @@ mod tests {
         .derivative(deriv.clone())
         .build()
         .unwrap();
-        let op5 = TwoElecEnergy::builder(DEFAULT_OPER_NAME, inner_density.clone())
+        let op5 = TwoElecEnergy::builder(TEST_OPER_NAME, inner_density.clone())
             .outer_density(outer_density.clone())
             .allow_density_swap(true)
             .dependencies(deps.clone())
             .build()
             .unwrap();
-        let op6 = TwoElecEnergy::builder(DEFAULT_OPER_NAME, inner_density.clone())
+        let op6 = TwoElecEnergy::builder(TEST_OPER_NAME, inner_density.clone())
             .outer_density(outer_density.clone())
             .allow_density_swap(true)
             .dependencies(make_super_multichain(&deriv, 2u32))
             .derivative(deriv.clone())
             .build()
             .unwrap();
-        let op7 = TwoElecEnergy::builder(DEFAULT_OPER_NAME, make_wfn_parameter("density"))
+        let op7 = TwoElecEnergy::builder(TEST_OPER_NAME, make_wfn_parameter("density"))
             .allow_density_swap(true)
             .dependencies(deps.clone())
             .derivative(deriv.clone())
@@ -566,7 +561,7 @@ mod tests {
         let outer_density = make_wfn_parameter("");
         let len_pert_name: u32 = 2;
         let deps = make_pert_multichain(len_pert_name, 8u32, 1u32, 10u32);
-        let op = TwoElecEnergy::builder(DEFAULT_OPER_NAME, inner_density.clone())
+        let op = TwoElecEnergy::builder(TEST_OPER_NAME, inner_density.clone())
             .outer_density(outer_density.clone())
             .dependencies(deps.clone())
             .build()
@@ -580,18 +575,18 @@ mod tests {
         assert_eq!(
             &diff_op,
             &Add::new(vec![
-                TwoElecEnergy::builder(DEFAULT_OPER_NAME, inner_density.clone())
+                TwoElecEnergy::builder(TEST_OPER_NAME, inner_density.clone())
                     .outer_density(outer_density.clone())
                     .dependencies(deps.clone())
                     .derivative(deriv.clone())
                     .build()
                     .unwrap(),
-                TwoElecEnergy::builder(DEFAULT_OPER_NAME, inner_density.differentiate(&p).unwrap())
+                TwoElecEnergy::builder(TEST_OPER_NAME, inner_density.differentiate(&p).unwrap())
                     .outer_density(outer_density.clone())
                     .dependencies(deps.clone())
                     .build()
                     .unwrap(),
-                TwoElecEnergy::builder(DEFAULT_OPER_NAME, inner_density.clone())
+                TwoElecEnergy::builder(TEST_OPER_NAME, inner_density.clone())
                     .outer_density(outer_density.differentiate(&p).unwrap())
                     .dependencies(deps.clone())
                     .build()
@@ -606,12 +601,12 @@ mod tests {
         assert_eq!(
             &diff_op,
             &Add::new(vec![
-                TwoElecEnergy::builder(DEFAULT_OPER_NAME, inner_density.differentiate(&p).unwrap())
+                TwoElecEnergy::builder(TEST_OPER_NAME, inner_density.differentiate(&p).unwrap())
                     .outer_density(outer_density.clone())
                     .dependencies(deps.clone())
                     .build()
                     .unwrap(),
-                TwoElecEnergy::builder(DEFAULT_OPER_NAME, inner_density.clone())
+                TwoElecEnergy::builder(TEST_OPER_NAME, inner_density.clone())
                     .outer_density(outer_density.differentiate(&p).unwrap())
                     .dependencies(deps.clone())
                     .build()
@@ -638,7 +633,7 @@ mod tests {
             std::mem::swap(&mut inner_density, &mut outer_density);
         }
         let op1 = make_two_elec_energy(
-            DEFAULT_OPER_NAME,
+            TEST_OPER_NAME,
             Some(inner_density.clone()),
             Some(outer_density.clone()),
         );
@@ -648,19 +643,18 @@ mod tests {
         assert!(!is_one_expr(&op1, None));
 
         let op2 = make_two_elec_energy(
-            DEFAULT_OPER_NAME,
+            TEST_OPER_NAME,
             Some(inner_density.clone()),
             Some(outer_density.clone()),
         );
         let op3 = make_two_elec_energy(
-            DEFAULT_OPER_NAME,
+            TEST_OPER_NAME,
             Some(outer_density.clone()),
             Some(inner_density.clone()),
         );
         let op4 =
             make_two_elec_energy("", Some(inner_density.clone()), Some(outer_density.clone()));
-        let op5 =
-            make_two_elec_energy(DEFAULT_OPER_NAME, Some(make_wfn_parameter("density")), None);
+        let op5 = make_two_elec_energy(TEST_OPER_NAME, Some(make_wfn_parameter("density")), None);
 
         let op = downcast_from_arc::<TwoElecEnergy>(&op1).unwrap();
         let op6 = op

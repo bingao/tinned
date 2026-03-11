@@ -5,23 +5,23 @@ macro_rules! impl_exch_corr_type {
         $grid_expr_name:ident,  // xc_energy or xc_potential
         $build_grid_expr:ident  // build_xc_energy or build_xc_potential
     ) => {
-        #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+        #[derive(Clone, Debug, ::serde::Serialize, ::serde::Deserialize)]
         pub struct $type_name {
             name: String,
-            grid_weight: Arc<dyn Expr>,
-            density_matrix: Arc<dyn Expr>,
-            overlap_distribution: Arc<dyn Expr>,
-            $grid_expr_name: Arc<dyn Expr>,
-            derivative: PertMultichain,
+            grid_weight: expr_arc_ty!(),
+            density_matrix: expr_arc_ty!(),
+            overlap_distribution: expr_arc_ty!(),
+            $grid_expr_name: expr_arc_ty!(),
+            derivative: $crate::perturbations::PertMultichain,
         }
 
         impl $type_name {
             #[inline]
             pub fn builder(
                 name: impl Into<String>,
-                grid_weight: Arc<dyn Expr>,
-                density_matrix: Arc<dyn Expr>,
-                overlap_distribution: Arc<dyn Expr>,
+                grid_weight: expr_arc_ty!(),
+                density_matrix: expr_arc_ty!(),
+                overlap_distribution: expr_arc_ty!(),
             ) -> $builder_name {
                 $builder_name {
                     name: name.into(),
@@ -37,27 +37,27 @@ macro_rules! impl_exch_corr_type {
             }
 
             #[inline]
-            pub fn grid_weight(&self) -> &Arc<dyn Expr> {
+            pub fn grid_weight(&self) -> expr_arc_ref_ty!() {
                 &self.grid_weight
             }
 
             #[inline]
-            pub fn density_matrix(&self) -> &Arc<dyn Expr> {
+            pub fn density_matrix(&self) -> expr_arc_ref_ty!() {
                 &self.density_matrix
             }
 
             #[inline]
-            pub fn overlap_distribution(&self) -> &Arc<dyn Expr> {
+            pub fn overlap_distribution(&self) -> expr_arc_ref_ty!() {
                 &self.overlap_distribution
             }
 
             #[inline]
-            pub fn $grid_expr_name(&self) -> &Arc<dyn Expr> {
+            pub fn $grid_expr_name(&self) -> expr_arc_ref_ty!() {
                 &self.$grid_expr_name
             }
 
             #[inline]
-            pub fn derivative(&self) -> &PertMultichain {
+            pub fn derivative(&self) -> &$crate::perturbations::PertMultichain {
                 &self.derivative
             }
         }
@@ -65,14 +65,14 @@ macro_rules! impl_exch_corr_type {
         #[derive(Debug)]
         pub struct $builder_name {
             name: String,
-            grid_weight: Arc<dyn Expr>,
-            density_matrix: Arc<dyn Expr>,
-            overlap_distribution: Arc<dyn Expr>,
+            grid_weight: expr_arc_ty!(),
+            density_matrix: expr_arc_ty!(),
+            overlap_distribution: expr_arc_ty!(),
         }
 
         impl $builder_name {
-            pub fn build(self) -> Result<Arc<dyn Expr>, TinnedError> {
-                validate_xc_inputs(
+            pub fn build(self) -> expr_result_ty!() {
+                $crate::internal::validate_xc_inputs(
                     &self.density_matrix,
                     &self.grid_weight,
                     &self.overlap_distribution,
@@ -84,13 +84,13 @@ macro_rules! impl_exch_corr_type {
                     self.overlap_distribution.clone(),
                 )?;
 
-                Ok(intern_expr(Arc::new($type_name {
+                Ok($crate::internal::intern_expr(::std::sync::Arc::new($type_name {
                     name: self.name,
                     grid_weight: self.grid_weight,
                     density_matrix: self.density_matrix,
                     overlap_distribution: self.overlap_distribution,
                     $grid_expr_name,
-                    derivative: PertMultichain::new(),
+                    derivative: $crate::perturbations::PertMultichain::new(),
                 })))
             }
         }
@@ -99,12 +99,12 @@ macro_rules! impl_exch_corr_type {
 
 macro_rules! impl_exch_corr_traits {
     ($type_name:ident, $grid_expr_name:ident, $is_scalar:tt) => {
-        impl ExprInternal for  $type_name {
+        impl $crate::core::ExprInternal for $type_name {
             impl_expr_internal_methods!($type_name, true);
 
             #[inline]
             fn hash_key(&self) -> String {
-                format!(
+                ::std::format!(
                     "{}({}; {}; {}; {}; [{}]; {})",
                     stringify!($type_name),
                     self.name,
@@ -122,8 +122,8 @@ macro_rules! impl_exch_corr_traits {
             }
 
             #[inline]
-            fn deep_eq_superchains(&self, other: &Arc<dyn Expr>) -> bool {
-                if let Some(xc) = downcast_from_arc::<$type_name>(other) {
+            fn deep_eq_superchains(&self, other: expr_arc_ref_ty!()) -> bool {
+                if let Some(xc) = $crate::public::downcast_from_arc::<$type_name>(other) {
                     self.name == xc.name
                         && &self.grid_weight == &xc.grid_weight
                         && &self.density_matrix == &xc.density_matrix
@@ -135,21 +135,21 @@ macro_rules! impl_exch_corr_traits {
             }
 
             #[inline]
-            fn eq_by_superchains(&self, other: &Arc<dyn Expr>) -> bool {
+            fn eq_by_superchains(&self, other: expr_arc_ref_ty!()) -> bool {
                 self.deep_eq_superchains(other)
             }
 
             #[inline]
             fn replace_expr_fields(
                 &self,
-                map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
+                map: &expr_map_ty!(),
                 exact_equality: bool,
-            ) -> Result<Arc<dyn Expr>, TinnedError> {
+            ) -> expr_result_ty!() {
                 impl_exch_corr_traits!(
                     @grid_expr_operation
                     self,
                     $grid_expr_name,
-                    |grid_expr: &Arc<dyn Expr>| grid_expr.replace(map, exact_equality),
+                    |grid_expr: expr_arc_ref_ty!()| grid_expr.replace(map, exact_equality),
                     concat!(stringify!($type_name), "::replace_expr_fields() failed"),
                     $is_scalar,
                     true
@@ -159,14 +159,14 @@ macro_rules! impl_exch_corr_traits {
             #[inline]
             fn retain_expr_fields(
                 &self,
-                expr: &Arc<dyn Expr>,
+                expr: expr_arc_ref_ty!(),
                 exact_equality: bool,
-            ) -> Result<Arc<dyn Expr>, TinnedError> {
+            ) -> expr_result_ty!() {
                 impl_exch_corr_traits!(
                     @grid_expr_operation
                     self,
                     $grid_expr_name,
-                    |grid_expr: &Arc<dyn Expr>| grid_expr.retain_expr(expr, exact_equality),
+                    |grid_expr: expr_arc_ref_ty!()| grid_expr.retain_expr(expr, exact_equality),
                     concat!(stringify!($type_name), "::retain_expr_fields() failed"),
                     $is_scalar,
                     false
@@ -174,26 +174,29 @@ macro_rules! impl_exch_corr_traits {
             }
         }
 
-        #[typetag::serde]
-        impl Expr for $type_name {
+        #[::typetag::serde]
+        impl $crate::core::Expr for $type_name {
             impl_expr_common_methods!($is_scalar);
 
-            fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
+            fn differentiate(
+                &self,
+                s: &::std::sync::Arc<$crate::perturbations::Perturbation>,
+            ) -> expr_result_ty!() {
                 let diff_expr = self.$grid_expr_name.differentiate(s).map_err(|e| {
-                    generic_expression_error(
+                    $crate::public::generic_expression_error(
                         concat!(
                             stringify!($type_name),
                             "::differentiate() failed for ",
                             stringify!($grid_expr_name)
                         ),
                         self,
-                        Some(Box::new(e)),
+                        Some(::std::boxed::Box::new(e)),
                     )
                 })?;
 
                 let new_deriv = self.derivative.with_added_perturbation(s);
 
-                Ok(intern_expr(Arc::new(Self {
+                Ok($crate::internal::intern_expr(::std::sync::Arc::new(Self {
                     name: self.name.clone(),
                     grid_weight: self.grid_weight.clone(),
                     density_matrix: self.density_matrix.clone(),
@@ -205,15 +208,17 @@ macro_rules! impl_exch_corr_traits {
 
             fn eliminate(
                 &self,
-                parameter: &Arc<dyn Expr>,
-                perturbations: &[Arc<Perturbation>],
+                parameter: expr_arc_ref_ty!(),
+                perturbations: &[::std::sync::Arc<$crate::perturbations::Perturbation>],
                 min_order: u32,
-            ) -> Result<Arc<dyn Expr>, TinnedError> {
+            ) -> expr_result_ty!() {
                 impl_exch_corr_traits!(
                     @grid_expr_operation
                     self,
                     $grid_expr_name,
-                    |grid_expr: &Arc<dyn Expr>| grid_expr.eliminate(parameter, perturbations, min_order),
+                    |grid_expr: expr_arc_ref_ty!()| {
+                        grid_expr.eliminate(parameter, perturbations, min_order)
+                    },
                     concat!(stringify!($type_name), "::eliminate() failed"),
                     $is_scalar,
                     false
@@ -221,22 +226,25 @@ macro_rules! impl_exch_corr_traits {
             }
 
             #[inline]
-            fn exist_any(&self, set: &HashSet<Arc<dyn Expr>>) -> bool {
+            fn exist_any(&self, set: &expr_set_ty!()) -> bool {
                 set.iter().any(|expr| self.eq_expr(expr.as_ref()))
                     || self.$grid_expr_name.exist_any(set)
             }
 
             #[inline]
-            fn find_superchains(&self, s: &Arc<dyn Expr>) -> BTreeMap<u32, HashSet<Arc<dyn Expr>>> {
+            fn find_superchains(&self, s: expr_arc_ref_ty!()) -> expr_differentiation_map_ty!() {
                 if self.deep_eq_superchains(s) {
-                    BTreeMap::from([(self.total_order(), HashSet::from([self.clone_expr()]))])
+                    ::std::collections::BTreeMap::from([(
+                        self.total_order(),
+                        ::std::collections::HashSet::from([self.clone_expr()]),
+                    )])
                 } else {
                     self.$grid_expr_name.find_superchains(s)
                 }
             }
 
             #[inline]
-            fn remove(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
+            fn remove(&self, set: &expr_set_ty!()) -> expr_result_ty!() {
                 if set.iter().any(|expr| self.eq_expr(expr.as_ref())) {
                     return impl_zero_expr!($is_scalar);
                 }
@@ -245,7 +253,7 @@ macro_rules! impl_exch_corr_traits {
                     @grid_expr_operation
                     self,
                     $grid_expr_name,
-                    |grid_expr: &Arc<dyn Expr>| grid_expr.remove(set),
+                    |grid_expr: expr_arc_ref_ty!()| grid_expr.remove(set),
                     concat!(stringify!($type_name), "::remove() failed"),
                     $is_scalar,
                     false
@@ -253,7 +261,7 @@ macro_rules! impl_exch_corr_traits {
             }
         }
 
-        impl PartialEq for $type_name {
+        impl ::std::cmp::PartialEq for $type_name {
             fn eq(&self, other: &Self) -> bool {
                 if self.name != other.name
                     || &self.grid_weight != &other.grid_weight
@@ -268,11 +276,11 @@ macro_rules! impl_exch_corr_traits {
             }
         }
 
-        impl Eq for $type_name {}
+        impl ::std::cmp::Eq for $type_name {}
 
-        impl std::fmt::Display for $type_name {
-            fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-                write!(f, "{}[{}]", self.name, &self.$grid_expr_name)
+        impl ::std::fmt::Display for $type_name {
+            fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+                ::std::write!(f, "{}[{}]", self.name, &self.$grid_expr_name)
             }
         }
     };
@@ -287,41 +295,41 @@ macro_rules! impl_exch_corr_traits {
         true
     ) => {{
         let grid_weight = ($operation)(&$self.grid_weight).map_err(|e| {
-            generic_expression_error(
+            $crate::public::generic_expression_error(
                 concat!($message, " for grid weight"),
                 $self,
-                Some(Box::new(e))
+                Some(::std::boxed::Box::new(e)),
             )
         })?;
         let density_matrix = ($operation)(&$self.density_matrix).map_err(|e| {
-            generic_expression_error(
+            $crate::public::generic_expression_error(
                 concat!($message, " for density matrix"),
                 $self,
-                Some(Box::new(e))
+                Some(::std::boxed::Box::new(e)),
             )
         })?;
         let overlap_distribution = ($operation)(&$self.overlap_distribution).map_err(|e| {
-            generic_expression_error(
+            $crate::public::generic_expression_error(
                 concat!($message, " for overlap distribution"),
                 $self,
-                Some(Box::new(e))
+                Some(::std::boxed::Box::new(e)),
             )
         })?;
 
         let new_expr = ($operation)(&$self.$grid_expr_name).map_err(|e| {
-            generic_expression_error(
+            $crate::public::generic_expression_error(
                 concat!($message, " for ", stringify!($grid_expr_name)),
                 $self,
-                Some(Box::new(e)),
+                Some(::std::boxed::Box::new(e)),
             )
         })?;
 
-        if is_zero_expr(&new_expr, None) {
+        if $crate::public::is_zero_expr(&new_expr, None) {
             impl_zero_expr!($is_scalar)
         } else if &new_expr == &$self.$grid_expr_name {
             Ok($self.clone_expr())
         } else {
-            Ok(intern_expr(Arc::new(Self {
+            Ok($crate::internal::intern_expr(::std::sync::Arc::new(Self {
                 name: $self.name.clone(),
                 grid_weight,
                 density_matrix,
@@ -342,19 +350,19 @@ macro_rules! impl_exch_corr_traits {
         false
     ) => {{
         let new_expr = ($operation)(&$self.$grid_expr_name).map_err(|e| {
-            generic_expression_error(
+            $crate::public::generic_expression_error(
                 concat!($message, " for ", stringify!($grid_expr_name)),
                 $self,
-                Some(Box::new(e)),
+                Some(::std::boxed::Box::new(e)),
             )
         })?;
 
-        if is_zero_expr(&new_expr, None) {
+        if $crate::public::is_zero_expr(&new_expr, None) {
             impl_zero_expr!($is_scalar)
         } else if &new_expr == &$self.$grid_expr_name {
             Ok($self.clone_expr())
         } else {
-            Ok(intern_expr(Arc::new(Self {
+            Ok($crate::internal::intern_expr(::std::sync::Arc::new(Self {
                 name: $self.name.clone(),
                 grid_weight: $self.grid_weight.clone(),
                 density_matrix: $self.density_matrix.clone(),
@@ -376,17 +384,26 @@ macro_rules! impl_exch_corr_test_utils {
         #[inline]
         pub fn $make_expr(
             name: impl Into<String>,
-            grid_weight: Option<Arc<dyn Expr>>,
-            density_matrix: Option<Arc<dyn Expr>>,
-            overlap_distribution: Option<Arc<dyn Expr>>,
-        ) -> Arc<dyn Expr> {
+            grid_weight: ::std::option::Option<expr_arc_ty!()>,
+            density_matrix: ::std::option::Option<expr_arc_ty!()>,
+            overlap_distribution: ::std::option::Option<expr_arc_ty!()>,
+        ) -> expr_arc_ty!() {
             let name: String = name.into();
-            let weight = grid_weight.unwrap_or_else(|| make_non_elec_function(""));
-            let dens = density_matrix.unwrap_or_else(|| make_wfn_parameter(""));
-            let overlap = overlap_distribution.unwrap_or_else(|| make_one_elec_operator(""));
+            let weight = grid_weight.unwrap_or_else(|| {
+                $crate::expressions::non_elec_function::test_utils::make_non_elec_function("")
+            });
+            let dens = density_matrix.unwrap_or_else(|| {
+                $crate::expressions::wfn_parameter::test_utils::make_wfn_parameter("")
+            });
+            let overlap = overlap_distribution.unwrap_or_else(|| {
+                $crate::expressions::one_elec_operator::test_utils::make_one_elec_operator("")
+            });
+
             if name.is_empty() {
                 $type_name::builder(
-                    random_alphanumeric($oper_name.len() as u32 + 1),
+                    $crate::expressions::symbol::test_utils::random_alphanumeric(
+                        $oper_name.len() as u32 + 1,
+                    ),
                     weight,
                     dens,
                     overlap,

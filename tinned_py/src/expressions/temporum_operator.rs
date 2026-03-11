@@ -1,6 +1,6 @@
 use pyo3::prelude::*;
 
-use tinned::{TemporumOperator, TinnedError};
+use tinned::{TemporumOperator, TinnedError, generic_expression_error};
 
 use crate::core::{errors::to_pyerr, expr::PyExpr};
 use crate::perturbations::pert_multichain::PyPertMultichain;
@@ -34,12 +34,11 @@ pub fn temporum_operator_is_forward(expr: PyExpr) -> PyResult<bool> {
     let inner = expr.inner().clone();
 
     let top_ref = inner.as_any().downcast_ref::<TemporumOperator>().ok_or_else(|| {
-        to_pyerr(TinnedError::ExpressionError {
-            message: "temporum_operator_is_forward() expected a TemporumOperator expression",
-            expression: inner.to_string(),
-            source: None,
-        })
-    })?;
+to_pyerr(generic_expression_error(
+    "temporum_operator_is_forward() expected a TemporumOperator expression",
+    &inner,
+    None,
+))    })?;
 
     Ok(top_ref.is_forward())
 }

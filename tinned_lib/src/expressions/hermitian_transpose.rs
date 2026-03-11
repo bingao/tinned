@@ -1,17 +1,10 @@
-use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
-
-use typetag;
 
 use crate::core::expr_internal::sealed::ExprInternal;
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{Conjugate, MatrixMul, Transpose, ZeroOperator};
 use crate::internal::intern_expr;
-use crate::perturbations::Perturbation;
-use crate::public::{
-    NumberTolerance, downcast_from_arc, downcast_from_ref, expression_error,
-    generic_expression_error, is_expr_type, is_one_expr,
-};
+use crate::public::{downcast_from_arc, expression_error, is_expr_type, is_one_expr};
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct HermitianTranspose {
@@ -68,10 +61,6 @@ impl_unary_expr_traits!(HermitianTranspose, False, "{arg}^H");
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::expressions::symbol::test_utils::make_symbol;
-    use crate::expressions::two_elec_operator::test_utils::make_two_elec_operator;
-    use crate::expressions::wfn_parameter::test_utils::make_wfn_parameter;
-    use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
 
     test_transpose!(HermitianTranspose, Transpose, true, "{arg}^H");
 }

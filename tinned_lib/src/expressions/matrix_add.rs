@@ -1,18 +1,12 @@
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::HashMap;
 use std::sync::Arc;
-
-use typetag;
 
 use crate::core::expr_internal::sealed::ExprInternal;
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{Add, MatrixMul, Number, ZeroOperator};
-use crate::internal::{
-    intern_expr, multi_expression_format, multi_expression_hash, sort_expressions_grouped_by,
-};
-use crate::perturbations::Perturbation;
+use crate::internal::{intern_expr, sort_expressions_grouped_by};
 use crate::public::{
-    NumberTolerance, downcast_from_arc, downcast_from_ref, expression_error,
-    generic_expression_error, is_expr_type, is_one_expr, is_zero_expr, unreachable_error,
+    downcast_from_arc, expression_error, is_expr_type, is_one_expr, is_zero_expr, unreachable_error,
 };
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -134,6 +128,7 @@ mod tests {
     use crate::expressions::symbol::test_utils::make_symbol;
     use crate::expressions::two_elec_operator::test_utils::make_two_elec_operator;
     use crate::expressions::wfn_parameter::test_utils::make_wfn_parameter;
+    use crate::internal::join_mapped;
     use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
     use num_complex::Complex64;
 
@@ -196,13 +191,16 @@ mod tests {
             add1.hash_key(),
             format!(
                 "MatrixAdd({})",
-                multi_expression_hash(&expected_terms, DEFAULT_HASH_DELIMITER)
+                join_mapped(&expected_terms, DEFAULT_HASH_DELIMITER, |term| term.hash_key())
             )
         );
         assert!(!add1.is_scalar());
         assert_eq!(
             format!("{}", add1),
-            format!("({})", multi_expression_format(&expected_terms, DEFAULT_FMT_DELIMITER))
+            format!(
+                "({})",
+                join_mapped(&expected_terms, DEFAULT_FMT_DELIMITER, |term| term.to_string())
+            )
         );
 
         let add2 = MatrixAdd::new(vec![

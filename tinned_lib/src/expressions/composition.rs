@@ -1,15 +1,10 @@
-use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
-
-use typetag;
 
 use crate::core::expr_internal::sealed::ExprInternal;
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{Mul, Number};
 use crate::perturbations::Perturbation;
-use crate::public::{
-    downcast_from_arc, downcast_from_ref, expression_error, generic_expression_error, is_zero_expr,
-};
+use crate::public::{downcast_from_arc, expression_error, generic_expression_error, is_zero_expr};
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Composition {

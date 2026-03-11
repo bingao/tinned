@@ -4,7 +4,7 @@ use std::error::Error;
 pub enum TinnedError {
     #[error("Expression error: {message} in expression: {expression}")]
     ExpressionError {
-        message: &'static str,
+        message: String,
         expression: String,
 
         #[source]
@@ -13,7 +13,7 @@ pub enum TinnedError {
 
     #[error("Perturbation error: {message} in perturbation: {perturbation}")]
     PerturbationError {
-        message: &'static str,
+        message: String,
         perturbation: String,
 
         #[source]
@@ -22,7 +22,7 @@ pub enum TinnedError {
 
     #[error("Unreachable code: {message} in expression: {expression}")]
     Unreachable {
-        message: &'static str,
+        message: String,
         expression: String,
 
         #[source]

@@ -1,8 +1,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use typetag;
-
 use crate::core::expr_internal::sealed::ExprInternal;
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{
@@ -11,8 +9,8 @@ use crate::expressions::{
 use crate::internal::intern_expr;
 use crate::perturbations::{PertMultichain, Perturbation};
 use crate::public::{
-    NumberTolerance, differentiate_expr, downcast_from_arc, downcast_from_ref,
-    generic_expression_error, is_expr_type, is_zero_expr, unreachable_error,
+    NumberTolerance, downcast_from_arc, generic_expression_error, is_expr_type, is_zero_expr,
+    unreachable_error,
 };
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -384,7 +382,7 @@ mod tests {
             )
         );
         assert!(!op1.is_scalar());
-        assert_eq!(format!("{}", op1), format!("op(T)^{}", PertMultichain::new()));
+        assert_eq!(format!("{}", op1), "op(T)");
 
         let op2 = TemporumOverlap::builder(make_super_multichain(&deps, 1u32)).build().unwrap();
 

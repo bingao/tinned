@@ -1,13 +1,13 @@
 macro_rules! impl_unary_expr_traits {
     ($type_name:ident, $type_scalar:ident, $display_fmt:expr) => {
-        impl ExprInternal for $type_name {
+        impl $crate::core::ExprInternal for $type_name {
             impl_unary_expr_internal_methods!($type_name, argument, false, |_this, arg| Self::new(
                 arg
             ));
 
             #[inline]
-            fn hash_key(&self) -> String {
-                format!("{}({})", stringify!($type_name), self.argument.hash_key())
+            fn hash_key(&self) -> ::std::string::String {
+                ::std::format!("{}({})", stringify!($type_name), self.argument.hash_key())
             }
 
             #[inline]
@@ -16,8 +16,8 @@ macro_rules! impl_unary_expr_traits {
             }
 
             #[inline]
-            fn deep_eq_superchains(&self, other: &Arc<dyn Expr>) -> bool {
-                if let Some(expr) = downcast_from_arc::<$type_name>(other) {
+            fn deep_eq_superchains(&self, other: &expr_arc_ty!()) -> bool {
+                if let Some(expr) = $crate::public::downcast_from_arc::<$type_name>(other) {
                     self.argument.deep_eq_superchains(&expr.argument)
                 } else {
                     false
@@ -30,8 +30,8 @@ macro_rules! impl_unary_expr_traits {
             // `eq_by_superchains()` of the trait `ExprInternal`.
         }
 
-        #[typetag::serde]
-        impl Expr for $type_name {
+        #[::typetag::serde]
+        impl $crate::core::Expr for $type_name {
             impl_unary_expr_common_methods!($type_name, argument, $type_scalar, |_this, arg| {
                 Self::new(arg)
             });
@@ -39,24 +39,27 @@ macro_rules! impl_unary_expr_traits {
             #[inline]
             fn clean_temporum(
                 &self,
-                freq_tol: Option<NumberTolerance>,
-            ) -> Result<Arc<dyn Expr>, TinnedError> {
+                freq_tol: ::std::option::Option<$crate::public::NumberTolerance>,
+            ) -> expr_result_ty!() {
                 impl_unary_expr_arg_operation!(
                     self,
                     argument,
-                    |arg: &Arc<dyn Expr>| arg.clean_temporum(freq_tol),
+                    |arg: expr_arc_ref_ty!()| arg.clean_temporum(freq_tol),
                     concat!(stringify!($type_name), "::clean_temporum() failed"),
                     |_this, arg| Self::new(arg)
                 )
             }
 
             #[inline]
-            fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
+            fn differentiate(
+                &self,
+                s: &::std::sync::Arc<$crate::perturbations::Perturbation>,
+            ) -> expr_result_ty!() {
                 let diff_arg = self.argument.differentiate(s).map_err(|e| {
-                    generic_expression_error(
+                    $crate::public::generic_expression_error(
                         concat!(stringify!($type_name), "::differentiate() failed for argument"),
                         self,
-                        Some(Box::new(e)),
+                        Some(::std::boxed::Box::new(e)),
                     )
                 })?;
 
@@ -64,17 +67,17 @@ macro_rules! impl_unary_expr_traits {
             }
         }
 
-        impl PartialEq for $type_name {
+        impl ::std::cmp::PartialEq for $type_name {
             fn eq(&self, other: &Self) -> bool {
                 &self.argument == &other.argument
             }
         }
 
-        impl Eq for $type_name {}
+        impl ::std::cmp::Eq for $type_name {}
 
-        impl std::fmt::Display for $type_name {
-            fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-                write!(f, $display_fmt, arg = self.argument)
+        impl ::std::fmt::Display for $type_name {
+            fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+                ::std::write!(f, $display_fmt, arg = self.argument)
             }
         }
     };
@@ -87,13 +90,13 @@ macro_rules! impl_unary_expr_internal_methods {
         #[inline]
         fn replace_expr_fields(
             &self,
-            map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
+            map: &expr_map_ty!(),
             exact_equality: bool,
-        ) -> Result<Arc<dyn Expr>, TinnedError> {
+        ) -> expr_result_ty!() {
             impl_unary_expr_arg_operation!(
                 self,
                 $arg_field,
-                |arg: &Arc<dyn Expr>| arg.replace(map, exact_equality),
+                |arg: expr_arc_ref_ty!()| arg.replace(map, exact_equality),
                 concat!(stringify!($type_name), "::replace_expr_fields() failed"),
                 $build_expr
             )
@@ -102,13 +105,13 @@ macro_rules! impl_unary_expr_internal_methods {
         #[inline]
         fn retain_expr_fields(
             &self,
-            expr: &Arc<dyn Expr>,
+            expr: &expr_arc_ty!(),
             exact_equality: bool,
-        ) -> Result<Arc<dyn Expr>, TinnedError> {
+        ) -> expr_result_ty!() {
             impl_unary_expr_arg_operation!(
                 self,
                 $arg_field,
-                |arg: &Arc<dyn Expr>| arg.retain_expr(expr, exact_equality),
+                |arg: expr_arc_ref_ty!()| arg.retain_expr(expr, exact_equality),
                 concat!(stringify!($type_name), "::retain_expr_fields() failed"),
                 $build_expr
             )
@@ -119,49 +122,56 @@ macro_rules! impl_unary_expr_internal_methods {
 macro_rules! impl_unary_expr_common_methods {
     ($type_name:ident, $arg_field:ident, $type_scalar:ident, $build_expr:expr) => {
         #[inline]
-        fn as_any(&self) -> &dyn std::any::Any {
+        fn as_any(&self) -> &dyn ::std::any::Any {
             self
         }
 
         impl_unary_expr_common_methods!(@unary_is_scalar $arg_field, $type_scalar);
 
         #[inline]
-        fn clone_expr(&self) -> Arc<dyn Expr> {
-            Arc::new(self.clone())
+        fn clone_expr(&self) -> expr_arc_ty!() {
+            ::std::sync::Arc::new(self.clone())
         }
 
         #[inline]
         fn eliminate(
             &self,
-            parameter: &Arc<dyn Expr>,
-            perturbations: &[Arc<Perturbation>],
+            parameter: &expr_arc_ty!(),
+            perturbations: &[::std::sync::Arc<$crate::perturbations::Perturbation>],
             min_order: u32,
-        ) -> Result<Arc<dyn Expr>, TinnedError> {
+        ) -> expr_result_ty!() {
             impl_unary_expr_arg_operation!(
                 self,
                 $arg_field,
-                |arg: &Arc<dyn Expr>| arg.eliminate(parameter, perturbations, min_order),
+                |arg: expr_arc_ref_ty!()| arg.eliminate(parameter, perturbations, min_order),
                 concat!(stringify!($type_name), "::eliminate() failed"),
                 $build_expr
             )
         }
 
         #[inline]
-        fn exist_any(&self, set: &HashSet<Arc<dyn Expr>>) -> bool {
-            set.iter().any(|expr| self.eq_expr(expr.as_ref())) || self.$arg_field.exist_any(set)
+        fn exist_any(&self, set: &expr_set_ty!()) -> bool {
+            set.iter().any(|expr| self.eq_expr(expr.as_ref()))
+                || self.$arg_field.exist_any(set)
         }
 
         #[inline]
-        fn find_superchains(&self, s: &Arc<dyn Expr>) -> BTreeMap<u32, HashSet<Arc<dyn Expr>>> {
+        fn find_superchains(
+            &self,
+            s: &expr_arc_ty!(),
+        ) -> expr_differentiation_map_ty!() {
             if self.deep_eq_superchains(s) {
-                BTreeMap::from([(self.total_order(), HashSet::from([self.clone_expr()]))])
+                ::std::collections::BTreeMap::from([(
+                    self.total_order(),
+                    ::std::collections::HashSet::from([self.clone_expr()]),
+                )])
             } else {
                 self.$arg_field.find_superchains(s)
             }
         }
 
         #[inline]
-        fn remove(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
+        fn remove(&self, set: &expr_set_ty!()) -> expr_result_ty!() {
             if set.iter().any(|expr| self.eq_expr(expr.as_ref())) {
                 return impl_unary_expr_common_methods!(
                     @unary_build_zero_expr
@@ -173,7 +183,7 @@ macro_rules! impl_unary_expr_common_methods {
             impl_unary_expr_arg_operation!(
                 self,
                 $arg_field,
-                |arg: &Arc<dyn Expr>| arg.remove(set),
+                |arg: expr_arc_ref_ty!()| arg.remove(set),
                 concat!(stringify!($type_name), "::remove() failed"),
                 $build_expr
             )
@@ -201,9 +211,13 @@ macro_rules! impl_unary_expr_common_methods {
         }
     };
 
-    (@unary_build_zero_expr $_argument:expr, True) => { impl_zero_expr!(true) };
+    (@unary_build_zero_expr $_argument:expr, True) => {
+        impl_zero_expr!(true)
+    };
 
-    (@unary_build_zero_expr $_argument:expr, False) => { impl_zero_expr!(false) };
+    (@unary_build_zero_expr $_argument:expr, False) => {
+        impl_zero_expr!(false)
+    };
 
     (@unary_build_zero_expr $argument:expr, Argument) => {
         if $argument.is_scalar() {
@@ -223,10 +237,10 @@ macro_rules! impl_unary_expr_arg_operation {
         $build_expr:expr
     ) => {{
         let new_arg = ($arg_operation)(&$self.$arg_field).map_err(|e| {
-            generic_expression_error(
+            $crate::public::generic_expression_error(
                 concat!($message, " for ", stringify!($arg_field)),
                 $self,
-                Some(Box::new(e)),
+                Some(::std::boxed::Box::new(e)),
             )
         })?;
 

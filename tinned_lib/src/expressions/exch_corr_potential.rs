@@ -1,19 +1,10 @@
 /// Represents exchange-correlation potential in a grid-based formulation.
 /// xc_potential represents XC potential or its derivatives evaluated at grid points.
-use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
-
-use typetag;
 
 use crate::core::expr_internal::sealed::ExprInternal;
 use crate::core::{Expr, TinnedError};
-use crate::expressions::ZeroOperator;
-use crate::internal::{build_xc_density, intern_expr, validate_xc_inputs};
-use crate::perturbations::{PertMultichain, Perturbation};
-use crate::public::{
-    differentiate_expr, downcast_from_arc, downcast_from_ref, generic_expression_error,
-    is_zero_expr, unreachable_error,
-};
+use crate::internal::build_xc_density;
 
 fn build_xc_potential(
     grid_weight: Arc<dyn Expr>,
@@ -36,32 +27,23 @@ impl_exch_corr_type!(ExchCorrPotential, ExchCorrPotentialBuilder, xc_potential, 
 impl_exch_corr_traits!(ExchCorrPotential, xc_potential, false);
 
 #[cfg(test)]
-const DEFAULT_FUNC_NAME: &str = "Vxc[rho]";
-
-#[cfg(test)]
 pub mod test_utils {
     use super::*;
-    use crate::expressions::non_elec_function::test_utils::make_non_elec_function;
-    use crate::expressions::one_elec_operator::test_utils::make_one_elec_operator;
-    use crate::expressions::symbol::test_utils::random_alphanumeric;
-    use crate::expressions::wfn_parameter::test_utils::make_wfn_parameter;
 
-    impl_exch_corr_test_utils!(ExchCorrPotential, DEFAULT_FUNC_NAME, make_exch_corr_potential);
+    pub const TEST_FUNC_NAME: &str = "Vxc[rho]";
+
+    impl_exch_corr_test_utils!(ExchCorrPotential, TEST_FUNC_NAME, make_exch_corr_potential);
 }
 
 #[cfg(test)]
 mod tests {
     use super::test_utils::*;
     use super::*;
-    use crate::expressions::non_elec_function::test_utils::make_non_elec_function;
-    use crate::expressions::one_elec_operator::test_utils::make_one_elec_operator;
-    use crate::expressions::wfn_parameter::test_utils::make_wfn_parameter;
     use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
-    use crate::public::{is_expr_type, is_one_expr, is_zero_expr};
 
     test_exch_corr!(
         ExchCorrPotential,
-        DEFAULT_FUNC_NAME,
+        TEST_FUNC_NAME,
         make_exch_corr_potential,
         xc_potential,
         build_xc_potential,

@@ -1,7 +1,4 @@
-use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
-
-use typetag;
 
 use crate::core::expr_internal::sealed::ExprInternal;
 use crate::core::{Expr, TinnedError};
@@ -9,8 +6,7 @@ use crate::expressions::{Mul, Number};
 use crate::internal::intern_expr;
 use crate::perturbations::Perturbation;
 use crate::public::{
-    NumberTolerance, downcast_from_arc, downcast_from_ref, expression_error,
-    generic_expression_error,
+    NumberTolerance, downcast_from_arc, expression_error, generic_expression_error,
 };
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]

@@ -1,18 +1,14 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
 
-use typetag;
-
 use crate::core::expr_internal::sealed::ExprInternal;
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{MatrixAdd, ZeroOperator};
-use crate::internal::{
-    intern_expr, multi_expression_format, multi_expression_hash, sort_expressions_grouped_by,
-};
+use crate::internal::{intern_expr, join_mapped, sort_expressions_grouped_by};
 use crate::perturbations::Perturbation;
 use crate::public::{
-    NumberTolerance, downcast_from_arc, downcast_from_ref, expression_error,
-    generic_expression_error, is_expr_type, is_zero_expr,
+    NumberTolerance, downcast_from_arc, expression_error, generic_expression_error, is_expr_type,
+    is_zero_expr,
 };
 
 // Either adjoint map (or adjoint action, adjoint representation)
@@ -131,7 +127,7 @@ impl ExprInternal for AdjointMap {
     fn hash_key(&self) -> String {
         format!(
             "AdjointMap([{}]; {}; {})",
-            multi_expression_hash(&self.generators, ";"),
+            join_mapped(&self.generators, ";", |generator| generator.hash_key()),
             self.target.hash_key(),
             self.left_action,
         )
@@ -319,7 +315,7 @@ impl std::fmt::Display for AdjointMap {
             write!(
                 f,
                 "[{},{}{}",
-                multi_expression_format(&self.generators, ",["),
+                join_mapped(&self.generators, ",[", |generator| generator.to_string()),
                 self.target,
                 "]".repeat(self.generators.len())
             )
@@ -329,7 +325,7 @@ impl std::fmt::Display for AdjointMap {
                 "{}{},{}]",
                 "[".repeat(self.generators.len()),
                 self.target,
-                multi_expression_format(&self.generators, "],")
+                join_mapped(&self.generators, "],", |generator| generator.to_string())
             )
         }
     }

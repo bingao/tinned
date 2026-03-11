@@ -5,7 +5,7 @@ macro_rules! impl_mul_traits {
         $hash_delimiter:ident,
         $fmt_delimiter:ident
     ) => {
-        impl ExprInternal for $type_name {
+        impl $crate::core::ExprInternal for $type_name {
             impl_expr_internal_methods!($type_name, false);
 
             #[inline]
@@ -15,47 +15,47 @@ macro_rules! impl_mul_traits {
                     stringify!($type_name),
                     self.coefficient.hash_key(),
                     $hash_delimiter,
-                    multi_expression_hash(&self.factors, $hash_delimiter),
+                    $crate::internal::join_mapped(&self.factors, $hash_delimiter, |f| f.hash_key())
                 )
             }
 
-            // For unambiguous replacement, we requirement equality for the
+            // For unambiguous replacement, we require equality for the
             // whole `Mul` so that we do not override methods
             // `eq_by_superchains()` and `replace_expr_self()` of
             // `ExprInternal`.
 
             fn replace_expr_fields(
                 &self,
-                map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
+                map: &expr_map_ty!(),
                 exact_equality: bool,
-            ) -> Result<Arc<dyn Expr>, TinnedError> {
+            ) -> expr_result_ty!() {
                 impl_mul_traits!(
                     @mul_termwise_operation
                     self,
-                    |factor: &Arc<dyn Expr>| factor.replace(map, exact_equality),
+                    |factor: expr_arc_ref_ty!()| factor.replace(map, exact_equality),
                     concat!(stringify!($type_name), "::replace_expr_fields() failed"),
                     $is_scalar
                 )
             }
 
-            //FIXME: This method should be tested
+            // FIXME: This method should be tested
             fn retain_expr_fields(
                 &self,
-                expr: &Arc<dyn Expr>,
+                expr: &expr_arc_ty!(),
                 exact_equality: bool,
-            ) -> Result<Arc<dyn Expr>, TinnedError> {
+            ) -> expr_result_ty!() {
                 let mut num_changes = 0;
                 // `bool` indicates if the new factor is different from the
                 // original one or not
-                let mut new_factors: Vec<(Arc<dyn Expr>, bool)>
-                    = Vec::with_capacity(self.factors.len());
+                let mut new_factors: ::std::vec::Vec<(expr_arc_ty!(), bool)>
+                    = ::std::vec::Vec::with_capacity(self.factors.len());
 
                 for factor in &self.factors {
                     let new_factor = factor.retain_expr(expr, exact_equality).map_err(|e| {
-                        generic_expression_error(
+                        $crate::public::generic_expression_error(
                             concat!(stringify!($type_name), "::retain_expr_fields() failed"),
                             self,
-                            Some(Box::new(e)),
+                            Some(::std::boxed::Box::new(e)),
                         )
                     })?;
                     // `MatrixMul` or `Mul` will be retained as a whole if this
@@ -64,7 +64,7 @@ macro_rules! impl_mul_traits {
                         return Ok(self.clone_expr());
                     // This factor does not match any given ones. We save it in
                     // case that there is other factor(s) retained.
-                    } else if is_zero_expr(&new_factor, None) {
+                    } else if $crate::public::is_zero_expr(&new_factor, None) {
                         new_factors.push((factor.clone(), false));
                     } else {
                         // Suppose `MatrixMul` is A*B*C*... = (Ak+Ar)*B*C*...,
@@ -79,24 +79,24 @@ macro_rules! impl_mul_traits {
                 let (new_coef, new_mul) = impl_mul_traits!(
                     @mul_coef_operation
                     self.coefficient,
-                    |coef: &Arc<dyn Expr>| coef.retain_expr(expr, exact_equality),
+                    |coef: expr_arc_ref_ty!()| coef.retain_expr(expr, exact_equality),
                     concat!(stringify!($type_name), "::retain_expr_fields() failed"),
                     $is_scalar
                 );
-                // Returns `MatrixMul` or `Mul` as a whole is the coefficient
+                // Returns `MatrixMul` or `Mul` as a whole if the coefficient
                 // retains completely.
-                if new_mul == false {
+                if !new_mul {
                     return Ok(self.clone_expr());
                 }
 
                 // The coefficient does not match any expression
-                if is_zero_expr(&new_coef, None) {
+                if $crate::public::is_zero_expr(&new_coef, None) {
                     match num_changes {
                         0 => impl_zero_expr!($is_scalar),
                         1 => {
                             // Only one factor retains partially, we simply
                             // return coefficient*Ak*B*C*...
-                            let mut terms: Vec<Arc<dyn Expr>> = new_factors
+                            let mut terms: ::std::vec::Vec<expr_arc_ty!()> = new_factors
                                 .into_iter()
                                 .map(|(factor, _changed)| factor)
                                 .collect();
@@ -113,19 +113,19 @@ macro_rules! impl_mul_traits {
                         // retained, the result can be computed as
                         // A*B*C*...*R*S*T*... - Ar*Br*Cr*...*R*S*T*..., where
                         // Ar, Br, Cr, ... are parts that are removed, R, S, T,
-                        // ...  are those without retained parts.
+                        // ... are those without retained parts.
                         _ => {
-                            let mut terms: Vec<Arc<dyn Expr>> = new_factors
+                            let mut terms: ::std::vec::Vec<expr_arc_ty!()> = new_factors
                                 .into_iter()
                                 .zip(self.factors.iter())
                                 .map(|((factor, changed), original)| {
                                     if changed {
-                                        subtract_exprs(original.clone(), factor)
+                                        $crate::public::subtract_exprs(original.clone(), factor)
                                     } else {
                                         Ok(factor)
                                     }
                                 })
-                                .collect::<Result<Vec<_>, TinnedError>>()?;
+                                .collect::<::std::result::Result<::std::vec::Vec<_>, $crate::core::TinnedError>>()?;
                             terms.push(
                                 impl_mul_traits!(
                                     @mul_clone_coefficient
@@ -133,7 +133,7 @@ macro_rules! impl_mul_traits {
                                     $is_scalar
                                 )
                             );
-                            subtract_exprs(self.clone_expr(), Self::new(terms)?)
+                            $crate::public::subtract_exprs(self.clone_expr(), Self::new(terms)?)
                         },
                     }
                 // The coefficient retains partially
@@ -142,7 +142,7 @@ macro_rules! impl_mul_traits {
                         0 => {
                             // Only the coefficient retains partially, we
                             // return `new_coef`*A*B*C*...
-                            let mut terms: Vec<Arc<dyn Expr>> = new_factors
+                            let mut terms: ::std::vec::Vec<expr_arc_ty!()> = new_factors
                                 .into_iter()
                                 .map(|(factor, _changed)| factor)
                                 .collect();
@@ -150,19 +150,19 @@ macro_rules! impl_mul_traits {
                             Self::new(terms)
                         },
                         _ => {
-                            let mut terms: Vec<Arc<dyn Expr>> = new_factors
+                            let mut terms: ::std::vec::Vec<expr_arc_ty!()> = new_factors
                                 .into_iter()
                                 .zip(self.factors.iter())
                                 .map(|((factor, changed), original)| {
                                     if changed {
-                                        subtract_exprs(original.clone(), factor)
+                                        $crate::public::subtract_exprs(original.clone(), factor)
                                     } else {
                                         Ok(factor)
                                     }
                                 })
-                                .collect::<Result<Vec<_>, TinnedError>>()?;
+                                .collect::<::std::result::Result<::std::vec::Vec<_>, $crate::core::TinnedError>>()?;
                             terms.push(
-                                subtract_exprs(
+                                $crate::public::subtract_exprs(
                                     impl_mul_traits!(
                                         @mul_clone_coefficient
                                         self.coefficient,
@@ -171,25 +171,25 @@ macro_rules! impl_mul_traits {
                                     new_coef,
                                 )?
                             );
-                            subtract_exprs(self.clone_expr(), Self::new(terms)?)
+                            $crate::public::subtract_exprs(self.clone_expr(), Self::new(terms)?)
                         },
                     }
                 }
             }
         }
 
-        #[typetag::serde]
-        impl Expr for $type_name {
+        #[::typetag::serde]
+        impl $crate::core::Expr for $type_name {
             impl_expr_common_methods!($is_scalar);
 
             fn clean_temporum(
                 &self,
-                freq_tol: Option<NumberTolerance>,
-            ) -> Result<Arc<dyn Expr>, TinnedError> {
+                freq_tol: ::std::option::Option<$crate::public::NumberTolerance>,
+            ) -> expr_result_ty!() {
                 impl_mul_traits!(
                     @mul_termwise_operation
                     self,
-                    |factor: &Arc<dyn Expr>| factor.clean_temporum(freq_tol.clone()),
+                    |factor: expr_arc_ref_ty!()| factor.clean_temporum(freq_tol.clone()),
                     concat!(stringify!($type_name), "::clean_temporum() failed"),
                     $is_scalar
                 )
@@ -197,45 +197,51 @@ macro_rules! impl_mul_traits {
 
             fn differentiate(
                 &self,
-                s: &Arc<Perturbation>,
-            ) -> Result<Arc<dyn Expr>, TinnedError> {
+                s: &::std::sync::Arc<$crate::perturbations::Perturbation>,
+            ) -> expr_result_ty!() {
                 // Precompute the derivative of each factor and store it
-                let with_context = |f: &Arc<dyn Expr>| {
+                let with_context = |f: expr_arc_ref_ty!()| {
                     f.differentiate(s).map_err(|e| {
-                        generic_expression_error(
+                        $crate::public::generic_expression_error(
                             concat!(stringify!($type_name), "::differentiate() failed for factors"),
                             self,
-                            Some(Box::new(e)),
+                            Some(::std::boxed::Box::new(e)),
                         )
                     })
                 };
 
-                let diff_factors: Vec<Arc<dyn Expr>> =
-                    self.factors.iter().map(with_context).collect::<Result<_, _>>()?;
+                let diff_factors: ::std::vec::Vec<expr_arc_ty!()>
+                    = self.factors.iter().map(with_context).collect::<::std::result::Result<_, _>>()?;
 
-                let result
-                    = impl_mul_traits!(@mul_build_diff_expr self, diff_factors, s, $is_scalar);
-
-                result
+                impl_mul_traits!(
+                    @mul_build_diff_expr
+                    $type_name,
+                    self,
+                    diff_factors,
+                    s,
+                    $is_scalar
+                )
             }
 
             fn eliminate(
                 &self,
-                parameter: &Arc<dyn Expr>,
-                perturbations: &[Arc<Perturbation>],
+                parameter: &expr_arc_ty!(),
+                perturbations: &[::std::sync::Arc<$crate::perturbations::Perturbation>],
                 min_order: u32,
-            ) -> Result<Arc<dyn Expr>, TinnedError> {
+            ) -> expr_result_ty!() {
                 impl_mul_traits!(
                     @mul_termwise_operation
                     self,
-                    |factor: &Arc<dyn Expr>| factor.eliminate(parameter, perturbations, min_order),
+                    |factor: expr_arc_ref_ty!()| {
+                        factor.eliminate(parameter, perturbations, min_order)
+                    },
                     concat!(stringify!($type_name), "::eliminate() failed"),
                     $is_scalar
                 )
             }
 
             #[inline]
-            fn exist_any(&self, set: &HashSet<Arc<dyn Expr>>) -> bool {
+            fn exist_any(&self, set: &expr_set_ty!()) -> bool {
                 if self.factors.iter().any(|factor| factor.exist_any(set)) {
                     return true;
                 }
@@ -244,26 +250,32 @@ macro_rules! impl_mul_traits {
                     || self.coefficient.exist_any(set)
             }
 
-            fn find_superchains(&self, s: &Arc<dyn Expr>) -> BTreeMap<u32, HashSet<Arc<dyn Expr>>> {
+            fn find_superchains(
+                &self,
+                s: &expr_arc_ty!(),
+            ) -> expr_differentiation_map_ty!() {
                 if self.deep_eq_superchains(s) {
-                    return BTreeMap::from([(self.total_order(), HashSet::from([self.clone_expr()]))]);
+                    return ::std::collections::BTreeMap::from([(
+                        self.total_order(),
+                        ::std::collections::HashSet::from([self.clone_expr()]),
+                    )]);
                 }
 
-                let mut result: BTreeMap<u32, HashSet<Arc<dyn Expr>>> = BTreeMap::new();
+                let mut result: expr_differentiation_map_ty!() = ::std::collections::BTreeMap::new();
                 for factor in &self.factors {
                     for (order, subset) in factor.find_superchains(s) {
                         result.entry(order).or_default().extend(subset);
                     }
                 }
 
-               if result.is_empty() {
-                   return self.coefficient.find_superchains(s);
-               }
+                if result.is_empty() {
+                    return self.coefficient.find_superchains(s);
+                }
 
-               result
+                result
             }
 
-            fn remove(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
+            fn remove(&self, set: &expr_set_ty!()) -> expr_result_ty!() {
                 if set.iter().any(|expr| self.eq_expr(expr.as_ref())) {
                     return impl_zero_expr!($is_scalar);
                 }
@@ -271,7 +283,7 @@ macro_rules! impl_mul_traits {
                 impl_mul_traits!(
                     @mul_termwise_operation
                     self,
-                    |factor: &Arc<dyn Expr>| factor.remove(set),
+                    |factor: expr_arc_ref_ty!()| factor.remove(set),
                     concat!(stringify!($type_name), "::remove() failed"),
                     $is_scalar
                 )
@@ -286,9 +298,9 @@ macro_rules! impl_mul_traits {
 
         impl Eq for $type_name {}
 
-        impl std::fmt::Display for $type_name {
+        impl ::std::fmt::Display for $type_name {
             // Format: coefficient * factor1 * factor2 * ..., omit coefficient if one
-            fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+            fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
                 let wrote_coef
                     = impl_mul_traits!(@mul_wrote_coefficient self.coefficient, $is_scalar);
 
@@ -298,21 +310,25 @@ macro_rules! impl_mul_traits {
                         "{}{}{}",
                         self.coefficient,
                         $fmt_delimiter,
-                        multi_expression_format(&self.factors, $fmt_delimiter),
+                        $crate::internal::join_mapped(&self.factors, $fmt_delimiter, |f| f.to_string()),
                     )
                 } else {
-                    write!(f, "{}", multi_expression_format(&self.factors, $fmt_delimiter))
+                    write!(
+                        f,
+                        "{}",
+                        $crate::internal::join_mapped(&self.factors, $fmt_delimiter, |f| f.to_string()),
+                    )
                 }
             }
         }
     };
 
-    (@mul_build_diff_expr $self:ident, $diff_factors:ident, $s:ident, true) => {{
-        let mut results = Vec::with_capacity($diff_factors.len());
+    (@mul_build_diff_expr $type_name:ident, $self:ident, $diff_factors:ident, $s:ident, true) => {{
+        let mut results = ::std::vec::Vec::with_capacity($diff_factors.len());
 
         for (i, diff) in $diff_factors.iter().enumerate() {
             // Skip derivative = 0 to avoid 0 * others = 0
-            if is_zero_expr(diff, None) {
+            if $crate::public::is_zero_expr(diff, None) {
                 continue;
             }
 
@@ -325,15 +341,15 @@ macro_rules! impl_mul_traits {
             results.push(Self::new(new_terms)?);
         }
 
-        Add::new(results)
+        $crate::expressions::Add::new(results)
     }};
 
-    (@mul_build_diff_expr $self:ident, $diff_factors:ident, $s:ident, false) => {{
-        let mut results = Vec::with_capacity($diff_factors.len() + 1);
+    (@mul_build_diff_expr $type_name:ident, $self:ident, $diff_factors:ident, $s:ident, false) => {{
+        let mut results = ::std::vec::Vec::with_capacity($diff_factors.len() + 1);
 
         for (i, diff) in $diff_factors.iter().enumerate() {
             // Skip derivative = 0 to avoid 0 * others = 0
-            if is_zero_expr(diff, None) {
+            if $crate::public::is_zero_expr(diff, None) {
                 continue;
             }
 
@@ -350,20 +366,20 @@ macro_rules! impl_mul_traits {
             .coefficient
             .differentiate($s)
             .map_err(|e| {
-                generic_expression_error(
+                $crate::public::generic_expression_error(
                     concat!(stringify!($type_name), "::differentiate() failed for coefficient"),
                     $self,
-                    Some(Box::new(e)),
+                    Some(::std::boxed::Box::new(e)),
                 )
             })?;
         // If coefficient's derivative is non-zero, append it as one result
-        if !is_zero_expr(&diff_coef, None) {
+        if !$crate::public::is_zero_expr(&diff_coef, None) {
             let mut new_terms = $self.factors.clone();
             new_terms.push(diff_coef);
             results.push(Self::new(new_terms)?);
         }
 
-        MatrixAdd::new(results)
+        $crate::expressions::MatrixAdd::new(results)
     }};
 
     (@mul_termwise_operation $self:ident, $operation:expr, $message:expr, $is_scalar:tt) => {{
@@ -374,18 +390,22 @@ macro_rules! impl_mul_traits {
             $message,
             $is_scalar
         );
-        if is_zero_expr(&new_coef, None) {
+        if $crate::public::is_zero_expr(&new_coef, None) {
             return impl_zero_expr!($is_scalar);
         }
 
-        let mut new_factors = Vec::with_capacity($self.factors.len() + 1);
+        let mut new_factors = ::std::vec::Vec::with_capacity($self.factors.len() + 1);
         new_factors.push(new_coef);
 
         for factor in &$self.factors {
             let new_factor = ($operation)(factor).map_err(|e| {
-                generic_expression_error(concat!($message, " for factor"), $self, Some(Box::new(e)))
+                $crate::public::generic_expression_error(
+                    concat!($message, " for factor"),
+                    $self,
+                    Some(::std::boxed::Box::new(e)),
+                )
             })?;
-            if is_zero_expr(&new_factor, None) {
+            if $crate::public::is_zero_expr(&new_factor, None) {
                 return impl_zero_expr!($is_scalar);
             } else {
                 if !new_mul {
@@ -402,17 +422,21 @@ macro_rules! impl_mul_traits {
         }
     }};
 
-    (@mul_wrote_coefficient $coefficient:expr, true) => { !$coefficient.is_one(None) };
+    (@mul_wrote_coefficient $coefficient:expr, true) => {
+        !$coefficient.is_one(None)
+    };
 
-    (@mul_wrote_coefficient $coefficient:expr, false) => { !is_one_expr(&$coefficient, None) };
+    (@mul_wrote_coefficient $coefficient:expr, false) => {
+        !$crate::public::is_one_expr(&$coefficient, None)
+    };
 
     (@mul_coef_operation $coefficient:expr, $operation:expr, $message:expr, true) => {{
-        let coef = $coefficient.clone().into();
+        let coef: expr_arc_ty!() = $coefficient.clone().into();
         let new_coef = ($operation)(&coef).map_err(|e| {
-            generic_expression_error(
+            $crate::public::generic_expression_error(
                 concat!($message, " for coefficient"),
                 &$coefficient,
-                Some(Box::new(e)),
+                Some(::std::boxed::Box::new(e)),
             )
         })?;
 
@@ -421,10 +445,10 @@ macro_rules! impl_mul_traits {
 
     (@mul_coef_operation $coefficient:expr, $operation:expr, $message:expr, false) => {{
         let new_coef = ($operation)(&$coefficient).map_err(|e| {
-            expression_error(
+            $crate::public::expression_error(
                 concat!($message, " for coefficient"),
                 &$coefficient,
-                Some(Box::new(e)),
+                Some(::std::boxed::Box::new(e)),
             )
         })?;
 

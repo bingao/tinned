@@ -1,17 +1,8 @@
-use std::sync::Arc;
-
-use typetag;
-
+use crate::core::Expr;
 use crate::core::expr_internal::sealed::ExprInternal;
-use crate::core::{Expr, TinnedError};
-use crate::expressions::Number;
-use crate::public::{differentiate_expr, downcast_from_arc, downcast_from_ref, unreachable_error};
 
 impl_nullary_expr_type!(NonElecFunction, NonElecFunctionBuilder, true, true);
 impl_nullary_expr_traits!(NonElecFunction, true, true);
-
-#[cfg(test)]
-const DEFAULT_FUN_NAME: &str = "nel";
 
 #[cfg(test)]
 pub mod test_utils {
@@ -21,13 +12,15 @@ pub mod test_utils {
         make_pert_multichain, make_super_multichain,
     };
 
+    pub const TEST_FUN_NAME: &str = "nel";
+
     #[inline]
-    pub fn make_non_elec_function(name: impl Into<String>) -> Arc<dyn Expr> {
+    pub fn make_non_elec_function(name: impl Into<String>) -> std::sync::Arc<dyn Expr> {
         let name: String = name.into();
         if name.is_empty() {
             let deriv = make_pert_multichain(2u32, 10u32, 1u32, 10u32);
             let deps = make_super_multichain(&deriv, 1u32);
-            NonElecFunction::builder(random_alphanumeric(DEFAULT_FUN_NAME.len() as u32 + 1))
+            NonElecFunction::builder(random_alphanumeric(TEST_FUN_NAME.len() as u32 + 1))
                 .dependencies(deps)
                 .derivative(deriv)
                 .build()
@@ -44,12 +37,6 @@ pub mod test_utils {
 mod tests {
     use super::test_utils::*;
     use super::*;
-    use crate::expressions::symbol::test_utils::random_alphanumeric;
-    use crate::perturbations::pert_multichain::test_utils::{
-        make_pert_multichain, make_super_multichain,
-    };
-    use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
-    use crate::public::{downcast_from_arc, is_expr_type, is_one_expr, is_zero_expr};
 
-    test_nullary_expr!(NonElecFunction, DEFAULT_FUN_NAME, make_non_elec_function, true, true);
+    test_nullary_expr!(NonElecFunction, TEST_FUN_NAME, make_non_elec_function, true, true);
 }

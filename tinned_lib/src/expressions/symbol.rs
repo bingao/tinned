@@ -1,12 +1,9 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-use typetag;
-
 use crate::core::expr_internal::sealed::ExprInternal;
 use crate::core::{Expr, TinnedError};
 use crate::expressions::Number;
-use crate::public::downcast_from_ref;
 
 /// A scalar symbolic constant that becomes 0 after differentiation.
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]

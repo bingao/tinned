@@ -2,30 +2,23 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use crate::core::Expr;
-use crate::perturbations::Perturbation;
 
-pub(crate) fn multi_expression_format(exprs: &[Arc<dyn Expr>], delimiter: &str) -> String {
-    exprs
-        .iter()
-        .map(|e| format!("{}", e)) // calls Display for each expression
-        .collect::<Vec<_>>()
-        .join(delimiter)
-}
+// Join mapped strings
+pub(crate) fn join_mapped<I, T, F>(items: I, delimiter: &str, map_fn: F) -> String
+where
+    I: IntoIterator<Item = T>,
+    F: Fn(T) -> String,
+{
+    let mut out = String::new();
 
-pub(crate) fn multi_expression_hash(exprs: &[Arc<dyn Expr>], delimiter: &str) -> String {
-    exprs
-        .iter()
-        .map(|e| e.hash_key()) // calls the hash_key method for each expression
-        .collect::<Vec<_>>()
-        .join(delimiter)
-}
+    for (i, item) in items.into_iter().enumerate() {
+        if i > 0 {
+            out.push_str(delimiter);
+        }
+        out.push_str(&map_fn(item));
+    }
 
-pub(crate) fn multi_perturbation_format(perts: &[Arc<Perturbation>], delimiter: &str) -> String {
-    perts.iter().map(|p| format!("{}", p)).collect::<Vec<_>>().join(delimiter)
-}
-
-pub(crate) fn multi_perturbation_hash(perts: &[Arc<Perturbation>], delimiter: &str) -> String {
-    perts.iter().map(|p| p.hash_key()).collect::<Vec<_>>().join(delimiter)
+    out
 }
 
 /// Sorts a list of expressions by grouping them by `group_key` and sorting

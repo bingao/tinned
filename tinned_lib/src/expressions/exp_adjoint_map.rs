@@ -1,7 +1,4 @@
-use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
-
-use typetag;
 
 use crate::core::expr_internal::sealed::ExprInternal;
 use crate::core::{Expr, TinnedError};
@@ -9,8 +6,7 @@ use crate::expressions::{AdjointMap, MatrixAdd, TemporumOperator, ZeroOperator};
 use crate::internal::intern_expr;
 use crate::perturbations::{PertMultichain, Perturbation};
 use crate::public::{
-    NumberTolerance, differentiate_expr, downcast_from_arc, downcast_from_ref, expression_error,
-    generic_expression_error, is_expr_type, unreachable_error,
+    NumberTolerance, downcast_from_arc, expression_error, generic_expression_error, is_expr_type,
 };
 
 // Exponential adjoint map (or conjugation operation in Lie algebra):
@@ -229,8 +225,10 @@ impl ExpAdjointMapBuilder {
 }
 
 impl ExprInternal for ExpAdjointMap {
+    // It is more appropriate to set `is_zero_strength` as false after the
+    // functions `replace_expr_fields`, `retain_expr_fields` and `replace_expr_self`
     impl_unary_expr_internal_methods!(ExpAdjointMap, result, true, |this: &ExpAdjointMap, arg| {
-        this.with_result(arg, Some(this.is_zero_strength)).build()
+        this.with_result(arg, Some(false)).build()
     });
 
     #[inline]

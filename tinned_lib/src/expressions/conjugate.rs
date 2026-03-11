@@ -1,7 +1,4 @@
-use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
-
-use typetag;
 
 use crate::core::expr_internal::sealed::ExprInternal;
 use crate::core::{Expr, TinnedError};
@@ -9,11 +6,7 @@ use crate::expressions::{
     Add, DotProduct, HermitianTranspose, MatrixMul, Mul, Number, Power, Transpose, ZeroOperator,
 };
 use crate::internal::intern_expr;
-use crate::perturbations::Perturbation;
-use crate::public::{
-    NumberTolerance, downcast_from_arc, downcast_from_ref, generic_expression_error, is_expr_type,
-    is_one_expr,
-};
+use crate::public::{downcast_from_arc, is_expr_type, is_one_expr};
 
 /// Represents complex conjugation of an expression.
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]

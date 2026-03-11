@@ -1,17 +1,10 @@
-use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
-
-use typetag;
 
 use crate::core::expr_internal::sealed::ExprInternal;
 use crate::core::{Expr, TinnedError};
-use crate::expressions::{MatrixAdd, Mul, Number, ZeroOperator};
-use crate::internal::{intern_expr, multi_expression_format, multi_expression_hash};
-use crate::perturbations::Perturbation;
-use crate::public::{
-    NumberTolerance, downcast_from_arc, downcast_from_ref, expression_error,
-    generic_expression_error, is_expr_type, is_one_expr, is_zero_expr, subtract_exprs,
-};
+use crate::expressions::{Mul, Number, ZeroOperator};
+use crate::internal::intern_expr;
+use crate::public::{downcast_from_arc, is_expr_type, is_one_expr};
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct MatrixMul {
@@ -99,14 +92,16 @@ impl_mul_traits!(MatrixMul, false, DEFAULT_HASH_DELIMITER, DEFAULT_FMT_DELIMITER
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::expressions::Symbol;
     use crate::expressions::exch_corr_energy::test_utils::make_exch_corr_energy;
     use crate::expressions::number::test_utils::make_number_complex;
     use crate::expressions::one_elec_operator::test_utils::make_one_elec_operator;
     use crate::expressions::symbol::test_utils::make_symbol;
     use crate::expressions::two_elec_operator::test_utils::make_two_elec_operator;
     use crate::expressions::wfn_parameter::test_utils::make_wfn_parameter;
+    use crate::expressions::{MatrixAdd, Symbol};
+    use crate::internal::join_mapped;
     use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
+    use crate::public::is_zero_expr;
     use num_complex::Complex64;
 
     test_struct_safety!(MatrixMul);
@@ -172,7 +167,7 @@ mod tests {
                 "MatrixMul({}{}{})",
                 expected_coef.hash_key(),
                 DEFAULT_HASH_DELIMITER,
-                multi_expression_hash(&expected_factors, DEFAULT_HASH_DELIMITER),
+                join_mapped(&expected_factors, DEFAULT_HASH_DELIMITER, |factor| factor.hash_key())
             )
         );
         assert!(!mul1.is_scalar());
@@ -180,7 +175,11 @@ mod tests {
         if is_one_expr(&expected_coef, None) {
             assert_eq!(
                 format!("{}", mul1),
-                format!("{}", multi_expression_format(&expected_factors, DEFAULT_FMT_DELIMITER))
+                format!(
+                    "{}",
+                    join_mapped(&expected_factors, DEFAULT_FMT_DELIMITER, |factor| factor
+                        .to_string())
+                )
             );
         } else {
             assert_eq!(
@@ -189,7 +188,8 @@ mod tests {
                     "{}{}{}",
                     expected_coef,
                     DEFAULT_FMT_DELIMITER,
-                    multi_expression_format(&expected_factors, DEFAULT_FMT_DELIMITER),
+                    join_mapped(&expected_factors, DEFAULT_FMT_DELIMITER, |factor| factor
+                        .to_string())
                 )
             );
         }

@@ -2,38 +2,38 @@ use std::error::Error;
 use std::sync::Arc;
 
 use crate::core::{Expr, TinnedError};
-use crate::internal::{multi_expression_format, multi_perturbation_format};
+use crate::internal::join_mapped;
 use crate::perturbations::Perturbation;
 
 #[inline]
 pub fn multi_expression_error(
-    message: &'static str,
+    message: impl Into<String>,
     exprs: &[Arc<dyn Expr>],
     source: Option<Box<dyn Error + Send + Sync>>,
 ) -> TinnedError {
     TinnedError::ExpressionError {
-        message,
-        expression: multi_expression_format(exprs, ";"),
+        message: message.into(),
+        expression: join_mapped(exprs, ";", |expr| expr.to_string()),
         source,
     }
 }
 
 #[inline]
 pub fn multi_perturbation_error(
-    message: &'static str,
-    perts: &[Arc<Perturbation>],
+    message: impl Into<String>,
+    perturbations: &[Arc<Perturbation>],
     source: Option<Box<dyn Error + Send + Sync>>,
 ) -> TinnedError {
     TinnedError::PerturbationError {
-        message,
-        perturbation: multi_perturbation_format(perts, ";"),
+        message: message.into(),
+        perturbation: join_mapped(perturbations, ";", |p| p.to_string()),
         source,
     }
 }
 
 #[inline]
 pub fn expression_error(
-    message: &'static str,
+    message: impl Into<String>,
     expr: &Arc<dyn Expr>,
     source: Option<Box<dyn Error + Send + Sync>>,
 ) -> TinnedError {
@@ -42,12 +42,12 @@ pub fn expression_error(
 
 #[inline]
 pub fn generic_expression_error<E: Expr>(
-    message: &'static str,
+    message: impl Into<String>,
     expr: &E,
     source: Option<Box<dyn Error + Send + Sync>>,
 ) -> TinnedError {
     TinnedError::ExpressionError {
-        message,
+        message: message.into(),
         expression: format!("{:?}", expr),
         source,
     }
@@ -55,21 +55,21 @@ pub fn generic_expression_error<E: Expr>(
 
 #[inline]
 pub fn perturbation_error(
-    message: &'static str,
-    pert: &Arc<Perturbation>,
+    message: impl Into<String>,
+    perturbation: &Arc<Perturbation>,
     source: Option<Box<dyn Error + Send + Sync>>,
 ) -> TinnedError {
-    multi_perturbation_error(message, std::slice::from_ref(pert), source)
+    multi_perturbation_error(message, std::slice::from_ref(perturbation), source)
 }
 
 #[inline]
 pub fn unreachable_error(
-    message: &'static str,
+    message: impl Into<String>,
     expr: &Arc<dyn Expr>,
     source: Option<Box<dyn Error + Send + Sync>>,
 ) -> TinnedError {
     TinnedError::Unreachable {
-        message,
+        message: message.into(),
         expression: format!("{:?}", expr),
         source,
     }

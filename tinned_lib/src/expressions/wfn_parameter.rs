@@ -1,17 +1,8 @@
-use std::sync::Arc;
-
-use typetag;
-
+use crate::core::Expr;
 use crate::core::expr_internal::sealed::ExprInternal;
-use crate::core::{Expr, TinnedError};
-use crate::expressions::ZeroOperator;
-use crate::public::{differentiate_expr, downcast_from_arc, downcast_from_ref, unreachable_error};
 
 impl_nullary_expr_type!(WfnParameter, WfnParameterBuilder, false, false);
 impl_nullary_expr_traits!(WfnParameter, false, false);
-
-#[cfg(test)]
-const DEFAULT_OPER_NAME: &str = "psi";
 
 #[cfg(test)]
 pub mod test_utils {
@@ -19,12 +10,14 @@ pub mod test_utils {
     use crate::expressions::symbol::test_utils::random_alphanumeric;
     use crate::perturbations::pert_multichain::test_utils::make_pert_multichain;
 
+    pub const TEST_OPER_NAME: &str = "psi";
+
     #[inline]
-    pub fn make_wfn_parameter(name: impl Into<String>) -> Arc<dyn Expr> {
+    pub fn make_wfn_parameter(name: impl Into<String>) -> std::sync::Arc<dyn Expr> {
         let name: String = name.into();
         if name.is_empty() {
             let deriv = make_pert_multichain(2u32, 10u32, 1u32, 10u32);
-            WfnParameter::builder(random_alphanumeric(DEFAULT_OPER_NAME.len() as u32 + 1))
+            WfnParameter::builder(random_alphanumeric(TEST_OPER_NAME.len() as u32 + 1))
                 .derivative(deriv)
                 .build()
                 .unwrap()
@@ -39,10 +32,6 @@ pub mod test_utils {
 mod tests {
     use super::test_utils::*;
     use super::*;
-    use crate::expressions::symbol::test_utils::random_alphanumeric;
-    use crate::perturbations::pert_multichain::test_utils::make_pert_multichain;
-    use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
-    use crate::public::{downcast_from_arc, is_expr_type, is_one_expr, is_zero_expr};
 
-    test_nullary_expr!(WfnParameter, DEFAULT_OPER_NAME, make_wfn_parameter, false, false);
+    test_nullary_expr!(WfnParameter, TEST_OPER_NAME, make_wfn_parameter, false, false);
 }

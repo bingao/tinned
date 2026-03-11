@@ -1,19 +1,11 @@
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::HashMap;
 use std::sync::Arc;
-
-use typetag;
 
 use crate::core::expr_internal::sealed::ExprInternal;
 use crate::core::{Expr, TinnedError};
-use crate::expressions::{Add, Number, Power};
-use crate::internal::{
-    intern_expr, multi_expression_format, multi_expression_hash, sort_expressions_grouped_by,
-};
-use crate::perturbations::Perturbation;
-use crate::public::{
-    NumberTolerance, downcast_from_arc, downcast_from_ref, expression_error,
-    generic_expression_error, is_zero_expr, subtract_exprs,
-};
+use crate::expressions::{Number, Power};
+use crate::internal::{intern_expr, sort_expressions_grouped_by};
+use crate::public::{downcast_from_arc, expression_error};
 
 // Multiplication Expression
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -142,9 +134,10 @@ mod tests {
     use crate::expressions::one_elec_operator::test_utils::make_one_elec_operator;
     use crate::expressions::symbol::test_utils::make_symbol;
     use crate::expressions::two_elec_energy::test_utils::make_two_elec_energy;
-    use crate::expressions::{Symbol, Trace};
+    use crate::expressions::{Add, Symbol, Trace};
+    use crate::internal::join_mapped;
     use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
-    use crate::public::{is_expr_type, is_one_expr};
+    use crate::public::{is_expr_type, is_one_expr, is_zero_expr};
     use num_complex::Complex64;
     use num_rational::Rational64;
 
@@ -194,14 +187,18 @@ mod tests {
                 "Mul({}{}{})",
                 c1_cast.hash_key(),
                 DEFAULT_HASH_DELIMITER,
-                multi_expression_hash(&expected_factors, DEFAULT_HASH_DELIMITER),
+                join_mapped(&expected_factors, DEFAULT_HASH_DELIMITER, |factor| factor.hash_key())
             )
         );
         assert!(mul1.is_scalar());
         if c1_cast.is_one(None) {
             assert_eq!(
                 format!("{}", mul1),
-                format!("{}", multi_expression_format(&expected_factors, DEFAULT_FMT_DELIMITER))
+                format!(
+                    "{}",
+                    join_mapped(&expected_factors, DEFAULT_FMT_DELIMITER, |factor| factor
+                        .to_string())
+                )
             );
         } else {
             assert_eq!(
@@ -210,7 +207,8 @@ mod tests {
                     "{}{}{}",
                     c1_cast,
                     DEFAULT_FMT_DELIMITER,
-                    multi_expression_format(&expected_factors, DEFAULT_FMT_DELIMITER),
+                    join_mapped(&expected_factors, DEFAULT_FMT_DELIMITER, |factor| factor
+                        .to_string())
                 )
             );
         }

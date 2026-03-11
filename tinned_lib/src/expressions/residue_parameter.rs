@@ -1,16 +1,12 @@
-use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
-
-use typetag;
 
 use crate::core::expr_internal::sealed::ExprInternal;
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{LagMultiplier, WfnParameter, ZeroOperator};
-use crate::internal::{intern_expr, multi_perturbation_format, multi_perturbation_hash};
+use crate::internal::{intern_expr, join_mapped};
 use crate::perturbations::{PertMultichain, Perturbation};
 use crate::public::{
-    downcast_from_arc, downcast_from_ref, expression_error, generic_expression_error, is_expr_type,
-    unreachable_error,
+    downcast_from_arc, expression_error, generic_expression_error, is_expr_type, unreachable_error,
 };
 
 /// A ResidueParameter is a perturbed parameter with the sum of frequencies of
@@ -144,7 +140,7 @@ impl ExprInternal for ResidueParameter {
     fn hash_key(&self) -> String {
         format!(
             "ResidueParameter([{}]; {}; {}; {})",
-            multi_perturbation_hash(&self.perturbations, ";"),
+            join_mapped(&self.perturbations, ";", |p| p.hash_key()),
             self.positive_frequency,
             self.excited_state.hash_key(),
             self.parameter.hash_key(),
@@ -223,7 +219,7 @@ impl std::fmt::Display for ResidueParameter {
         write!(
             f,
             "lim([{}]; {}{})({})",
-            multi_perturbation_format(&self.perturbations, ";"),
+            join_mapped(&self.perturbations, ";", |p| p.to_string()),
             if self.positive_frequency {
                 "-"
             } else {
@@ -306,7 +302,7 @@ mod tests {
             op2.hash_key(),
             format!(
                 "ResidueParameter([{}]; {}; {}; {})",
-                multi_perturbation_hash(&perturbations, ";"),
+                join_mapped(&perturbations, ";", |p| p.hash_key()),
                 positive_frequency,
                 excited_state.hash_key(),
                 parameter.hash_key()
@@ -317,7 +313,7 @@ mod tests {
             format!("{}", op2),
             format!(
                 "lim([{}]; {}{})({})",
-                multi_perturbation_format(&perturbations, ";"),
+                join_mapped(&perturbations, ";", |p| p.to_string()),
                 if positive_frequency {
                     "-"
                 } else {

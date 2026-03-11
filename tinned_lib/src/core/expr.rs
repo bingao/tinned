@@ -5,8 +5,6 @@ use std::hash::{Hash, Hasher};
 //use log::warn;
 use std::sync::Arc;
 
-use typetag;
-
 use crate::core::TinnedError;
 use crate::core::expr_internal::sealed::ExprInternal;
 

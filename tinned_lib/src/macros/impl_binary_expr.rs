@@ -11,14 +11,14 @@ macro_rules! impl_binary_expr_internal_methods {
         #[inline]
         fn replace_expr_fields(
             &self,
-            map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
+            map: &expr_map_ty!(),
             exact_equality: bool,
-        ) -> Result<Arc<dyn Expr>, TinnedError> {
+        ) -> expr_result_ty!() {
             impl_binary_expr_arg_operation!(
                 self,
                 $first_argument,
                 $second_argument,
-                |arg: &Arc<dyn Expr>| arg.replace(map, exact_equality),
+                |arg: expr_arc_ref_ty!()| arg.replace(map, exact_equality),
                 concat!(stringify!($type_name), "::replace_expr_fields() failed"),
                 $build_expr
             )
@@ -27,14 +27,14 @@ macro_rules! impl_binary_expr_internal_methods {
         #[inline]
         fn retain_expr_fields(
             &self,
-            expr: &Arc<dyn Expr>,
+            expr: expr_arc_ref_ty!(),
             exact_equality: bool,
-        ) -> Result<Arc<dyn Expr>, TinnedError> {
+        ) -> expr_result_ty!() {
             impl_binary_expr_arg_operation!(
                 self,
                 $first_argument,
                 $second_argument,
-                |arg: &Arc<dyn Expr>| arg.retain_expr(expr, exact_equality),
+                |arg: expr_arc_ref_ty!()| arg.retain_expr(expr, exact_equality),
                 concat!(stringify!($type_name), "::retain_expr_fields() failed"),
                 $build_expr
             )
@@ -65,33 +65,37 @@ macro_rules! impl_binary_expr_common_methods {
         #[inline]
         fn eliminate(
             &self,
-            parameter: &Arc<dyn Expr>,
-            perturbations: &[Arc<Perturbation>],
+            parameter: expr_arc_ref_ty!(),
+            perturbations: &[::std::sync::Arc<$crate::perturbations::Perturbation>],
             min_order: u32,
-        ) -> Result<Arc<dyn Expr>, TinnedError> {
+        ) -> expr_result_ty!() {
             impl_binary_expr_arg_operation!(
                 self,
                 $first_argument,
                 $second_argument,
-                |arg: &Arc<dyn Expr>| arg.eliminate(parameter, perturbations, min_order),
+                |arg: expr_arc_ref_ty!()| arg.eliminate(parameter, perturbations, min_order),
                 concat!(stringify!($type_name), "::eliminate() failed"),
                 $build_expr
             )
         }
 
         #[inline]
-        fn exist_any(&self, set: &HashSet<Arc<dyn Expr>>) -> bool {
+        fn exist_any(&self, set: &expr_set_ty!()) -> bool {
             set.iter().any(|expr| self.eq_expr(expr.as_ref()))
                 || self.$first_argument.exist_any(set)
                 || self.$second_argument.exist_any(set)
         }
 
         #[inline]
-        fn find_superchains(&self, s: &Arc<dyn Expr>) -> BTreeMap<u32, HashSet<Arc<dyn Expr>>> {
+        fn find_superchains(&self, s: expr_arc_ref_ty!()) -> expr_differentiation_map_ty!() {
             if self.deep_eq_superchains(s) {
-                BTreeMap::from([(self.total_order(), HashSet::from([self.clone_expr()]))])
+                ::std::collections::BTreeMap::from([(
+                    self.total_order(),
+                    ::std::collections::HashSet::from([self.clone_expr()]),
+                )])
             } else {
                 let mut result = self.$first_argument.find_superchains(s);
+
                 for (order, subset) in self.$second_argument.find_superchains(s) {
                     result.entry(order).or_default().extend(subset);
                 }
@@ -101,7 +105,7 @@ macro_rules! impl_binary_expr_common_methods {
         }
 
         #[inline]
-        fn remove(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
+        fn remove(&self, set: &expr_set_ty!()) -> expr_result_ty!() {
             if set.iter().any(|expr| self.eq_expr(expr.as_ref())) {
                 impl_binary_expr_common_methods!(@binary_expr_return_zero self, $is_scalar);
             }
@@ -110,7 +114,7 @@ macro_rules! impl_binary_expr_common_methods {
                 self,
                 $first_argument,
                 $second_argument,
-                |arg: &Arc<dyn Expr>| arg.remove(set),
+                |arg: expr_arc_ref_ty!()| arg.remove(set),
                 concat!(stringify!($type_name), "::remove() failed"),
                 $build_expr
             )
@@ -127,13 +131,13 @@ macro_rules! impl_binary_expr_common_methods {
         #[inline]
         fn clean_temporum(
             &self,
-            freq_tol: Option<NumberTolerance>,
-        ) -> Result<Arc<dyn Expr>, TinnedError> {
+            freq_tol: ::std::option::Option<$crate::public::NumberTolerance>,
+        ) -> expr_result_ty!() {
             impl_binary_expr_arg_operation!(
                 self,
                 $first_argument,
                 $second_argument,
-                |arg: &Arc<dyn Expr>| arg.clean_temporum(freq_tol.clone()),
+                |arg: expr_arc_ref_ty!()| arg.clean_temporum(freq_tol.clone()),
                 concat!(stringify!($type_name), "::clean_temporum() failed"),
                 $build_expr
             )
@@ -146,7 +150,7 @@ macro_rules! impl_binary_expr_common_methods {
         $second_argument:ident,
         $build_expr:expr,
         false
-    ) => { };
+    ) => {};
 
     (@binary_expr_return_zero $self:ident, true) => {
         return impl_zero_expr!(true);
@@ -172,17 +176,18 @@ macro_rules! impl_binary_expr_arg_operation {
         $build_expr:expr
     ) => {{
         let new_first = ($arg_operation)(&$self.$first_argument).map_err(|e| {
-            generic_expression_error(
+            $crate::public::generic_expression_error(
                 concat!($message, " for ", stringify!($first_argument)),
                 $self,
-                Some(Box::new(e)),
+                Some(::std::boxed::Box::new(e)),
             )
         })?;
+
         let new_second = ($arg_operation)(&$self.$second_argument).map_err(|e| {
-            generic_expression_error(
+            $crate::public::generic_expression_error(
                 concat!($message, " for ", stringify!($second_argument)),
                 $self,
-                Some(Box::new(e)),
+                Some(::std::boxed::Box::new(e)),
             )
         })?;
 
