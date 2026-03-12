@@ -340,11 +340,15 @@ impl Eq for SubExpr {}
 impl std::fmt::Display for SubExpr {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         if self.elimination_rules.is_empty() {
-            write!(f, "{}({})^{}", self.name, self.is_zero_strength, self.derivative)
+            write!(
+                f,
+                "{}({}; {{{}}})^{}",
+                self.name, self.is_zero_strength, self.expression, self.derivative
+            )
         } else {
             write!(
                 f,
-                "{}([{}]; {})^{}",
+                "{}([{}]; {}; {{{}}})^{}",
                 self.name,
                 join_mapped(
                     self.elimination_rules.iter(),
@@ -359,6 +363,7 @@ impl std::fmt::Display for SubExpr {
                     }
                 ),
                 self.is_zero_strength,
+                self.expression,
                 self.derivative,
             )
         }
