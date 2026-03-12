@@ -1,3 +1,4 @@
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
 
@@ -15,6 +16,10 @@ pub struct SubExpr {
     name: String,
     expression: Arc<dyn Expr>,
     derivative: PertMultichain,
+    #[serde(
+        serialize_with = "serialize_elimination_rules",
+        deserialize_with = "deserialize_elimination_rules"
+    )]
     elimination_rules: HashMap<Arc<dyn Expr>, (u32, Vec<Arc<Perturbation>>)>,
     is_zero_strength: bool,
 }
@@ -368,4 +373,48 @@ impl std::fmt::Display for SubExpr {
             )
         }
     }
+}
+
+// Serialize elimination rules as a Vec of entries
+#[derive(Serialize, Deserialize)]
+struct EliminationRuleEntry {
+    parameter: Arc<dyn Expr>,
+    min_order: u32,
+    perturbations: Vec<Arc<Perturbation>>,
+}
+
+fn serialize_elimination_rules<S>(
+    rules: &HashMap<Arc<dyn Expr>, (u32, Vec<Arc<Perturbation>>)>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let entries: Vec<EliminationRuleEntry> = rules
+        .iter()
+        .map(|(parameter, (min_order, perturbations))| EliminationRuleEntry {
+            parameter: Arc::clone(parameter),
+            min_order: *min_order,
+            perturbations: perturbations.clone(),
+        })
+        .collect();
+
+    entries.serialize(serializer)
+}
+
+fn deserialize_elimination_rules<'de, D>(
+    deserializer: D,
+) -> Result<HashMap<Arc<dyn Expr>, (u32, Vec<Arc<Perturbation>>)>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let entries: Vec<EliminationRuleEntry> = Vec::deserialize(deserializer)?;
+
+    let mut rules = HashMap::with_capacity(entries.len());
+
+    for entry in entries {
+        rules.insert(entry.parameter, (entry.min_order, entry.perturbations));
+    }
+
+    Ok(rules)
 }
