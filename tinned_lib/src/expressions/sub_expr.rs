@@ -153,12 +153,11 @@ impl ExprInternal for SubExpr {
     #[inline]
     fn deep_eq_superchains(&self, other: &Arc<dyn Expr>) -> bool {
         if let Some(op) = downcast_from_arc::<SubExpr>(other) {
-            // We find sub expressions with
-            // `is_zero_strength` either `true` or `false`
-            self.name == op.name
-                && self.expression.deep_eq_superchains(&op.expression)
-                && self.derivative.is_subchain(&op.derivative)
-                && self.elimination_rules == op.elimination_rules
+            // We find sub expressions with `is_zero_strength` either `true` or
+            // `false`. We also require SubExpr with the same name should have
+            // the same original `expression`. Elimination rules can be
+            // different for this comparision.
+            self.name == op.name && self.derivative.is_subchain(&op.derivative)
         } else {
             false
         }
@@ -167,10 +166,10 @@ impl ExprInternal for SubExpr {
     #[inline]
     fn eq_by_superchains(&self, other: &Arc<dyn Expr>) -> bool {
         if let Some(op) = downcast_from_arc::<SubExpr>(other) {
+            // We require SubExpr with the same name should have the same
+            // original `expression`. Elimination rules can be different.
             self.name == op.name
-                && self.expression.deep_eq_superchains(&op.expression)
                 && self.derivative.is_subchain(&op.derivative)
-                && self.elimination_rules == op.elimination_rules
                 && self.is_zero_strength == op.is_zero_strength
         } else {
             false
