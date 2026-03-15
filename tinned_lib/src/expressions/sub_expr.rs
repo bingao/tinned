@@ -1,26 +1,92 @@
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, HashSet};
 use std::sync::Arc;
 
 use crate::core::expr_internal::sealed::ExprInternal;
 use crate::core::{Expr, TinnedError};
-use crate::internal::{intern_expr, join_mapped};
+use crate::internal::{any_interned_expr_matches, intern_expr, join_mapped};
 use crate::perturbations::{PertMultichain, Perturbation};
 use crate::public::{
-    NumberTolerance, downcast_from_arc, generic_expression_error, get_number_tolerance,
-    is_zero_expr,
+    NumberTolerance, downcast_from_arc, expression_error, generic_expression_error,
+    get_number_tolerance, is_zero_expr,
 };
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct EliminationRule {
+    parameter: Arc<dyn Expr>,
+    min_order: u32,
+    perturbations: Vec<Arc<Perturbation>>,
+}
+
+impl EliminationRule {
+    pub fn new(
+        parameter: Arc<dyn Expr>,
+        min_order: u32,
+        perturbations: &[Arc<Perturbation>],
+    ) -> Self {
+        let mut perturbations = perturbations.to_vec();
+        perturbations.sort();
+
+        Self {
+            parameter,
+            min_order,
+            perturbations,
+        }
+    }
+
+    #[inline]
+    pub fn parameter(&self) -> &Arc<dyn Expr> {
+        &self.parameter
+    }
+
+    #[inline]
+    pub fn min_order(&self) -> u32 {
+        self.min_order
+    }
+
+    #[inline]
+    pub fn perturbations(&self) -> &[Arc<Perturbation>] {
+        &self.perturbations
+    }
+
+    #[inline]
+    pub fn hash_key(&self) -> String {
+        format!(
+            "EliminationRule({}; {}; [{}])",
+            self.parameter.hash_key(),
+            self.min_order,
+            join_mapped(self.perturbations.iter(), ",", |p| p.hash_key()),
+        )
+    }
+}
+
+impl PartialEq for EliminationRule {
+    fn eq(&self, other: &Self) -> bool {
+        &self.parameter == &other.parameter
+            && self.min_order == other.min_order
+            && self.perturbations == other.perturbations
+    }
+}
+
+impl Eq for EliminationRule {}
+
+impl std::fmt::Display for EliminationRule {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "({}; {}; [{}])",
+            self.parameter,
+            self.min_order,
+            join_mapped(self.perturbations.iter(), ",", |p| p.to_string()),
+        )
+    }
+}
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct SubExpr {
     name: String,
     expression: Arc<dyn Expr>,
     derivative: PertMultichain,
-    #[serde(
-        serialize_with = "serialize_elimination_rules",
-        deserialize_with = "deserialize_elimination_rules"
-    )]
-    elimination_rules: HashMap<Arc<dyn Expr>, (u32, Vec<Arc<Perturbation>>)>,
+    elimination_rules: Vec<EliminationRule>,
     is_zero_strength: bool,
 }
 
@@ -52,7 +118,7 @@ impl SubExpr {
     }
 
     #[inline]
-    pub fn elimination_rules(&self) -> &HashMap<Arc<dyn Expr>, (u32, Vec<Arc<Perturbation>>)> {
+    pub fn elimination_rules(&self) -> &[EliminationRule] {
         &self.elimination_rules
     }
 
@@ -62,16 +128,33 @@ impl SubExpr {
     }
 }
 
+// Whether there exists an undifferentiated and uneliminated `SubExpr` with the
+// same name but different `expression`
+#[inline]
+fn subexpr_name_conflict(name: &str, expression: &Arc<dyn Expr>) -> bool {
+    any_interned_expr_matches(|expr| {
+        let Some(subexpr) = downcast_from_arc::<SubExpr>(expr) else {
+            return false;
+        };
+
+        subexpr.name == name
+            && subexpr.derivative.is_empty()
+            && subexpr.elimination_rules.is_empty()
+            && &subexpr.expression != expression
+    })
+}
+
 #[derive(Debug)]
 pub struct SubExprBuilder {
     name: String,
     expression: Arc<dyn Expr>,
     derivative: Option<PertMultichain>,
-    elimination_rules: Option<HashMap<Arc<dyn Expr>, (u32, Vec<Arc<Perturbation>>)>>,
+    elimination_rules: Option<Vec<EliminationRule>>,
     is_zero_strength: Option<bool>,
 }
 
 impl SubExprBuilder {
+    // The following methods are only used inside this file
     #[inline]
     fn derivative(mut self, derivative: PertMultichain) -> Self {
         self.derivative = Some(derivative);
@@ -79,10 +162,7 @@ impl SubExprBuilder {
     }
 
     #[inline]
-    fn elimination_rules(
-        mut self,
-        elimination_rules: HashMap<Arc<dyn Expr>, (u32, Vec<Arc<Perturbation>>)>,
-    ) -> Self {
+    fn elimination_rules(mut self, elimination_rules: Vec<EliminationRule>) -> Self {
         self.elimination_rules = Some(elimination_rules);
         self
     }
@@ -99,8 +179,24 @@ impl SubExprBuilder {
         }
 
         let derivative = self.derivative.unwrap_or(PertMultichain::new());
-        let elimination_rules = self.elimination_rules.unwrap_or(HashMap::new());
+
+        let mut elimination_rules = self.elimination_rules.unwrap_or_default();
+        elimination_rules.sort_by_key(|rule| rule.hash_key());
+
         let is_zero_strength = self.is_zero_strength.unwrap_or(false);
+
+        // For undifferentiated and uneliminated `SubExpr`, we check if there
+        // exists a `SubExpr` with the same name but different `expression`
+        if derivative.is_empty()
+            && elimination_rules.is_empty()
+            && subexpr_name_conflict(&self.name, &self.expression)
+        {
+            return Err(expression_error(
+                "A SubExpr exists with the same name but different expression",
+                &self.expression,
+                None,
+            ));
+        }
 
         Ok(intern_expr(Arc::new(SubExpr {
             name: self.name,
@@ -125,22 +221,11 @@ impl ExprInternal for SubExpr {
     #[inline]
     fn hash_key(&self) -> String {
         format!(
-            "SubExpr({}; {}; {}; [{}]; {})",
+            "SubExpr({}; {{{}}}; [{}]; [{}]; {})",
             self.name,
             self.expression.hash_key(),
             self.derivative.hash_key(),
-            join_mapped(
-                self.elimination_rules.iter(),
-                ",",
-                |(parameter, (min_order, perturbations))| {
-                    format!(
-                        "{}([{}]; {})",
-                        parameter.hash_key(),
-                        join_mapped(perturbations, ",", |p| p.hash_key()),
-                        min_order
-                    )
-                }
-            ),
+            join_mapped(self.elimination_rules.iter(), ";", |rule| rule.hash_key()),
             self.is_zero_strength,
         )
     }
@@ -154,9 +239,10 @@ impl ExprInternal for SubExpr {
     fn deep_eq_superchains(&self, other: &Arc<dyn Expr>) -> bool {
         if let Some(op) = downcast_from_arc::<SubExpr>(other) {
             // We find sub expressions with `is_zero_strength` either `true` or
-            // `false`. We also require SubExpr with the same name should have
-            // the same original `expression`. Elimination rules can be
-            // different for this comparision.
+            // `false`. We assume SubExpr with the same name MUST have the same
+            // original `expression` so that we do not need to call
+            // `deep_eq_superchains()` method on `expression`. Elimination
+            // rules can be different for this comparision.
             self.name == op.name && self.derivative.is_subchain(&op.derivative)
         } else {
             false
@@ -166,7 +252,7 @@ impl ExprInternal for SubExpr {
     #[inline]
     fn eq_by_superchains(&self, other: &Arc<dyn Expr>) -> bool {
         if let Some(op) = downcast_from_arc::<SubExpr>(other) {
-            // We require SubExpr with the same name should have the same
+            // We require SubExpr with the same name MUST have the same
             // original `expression`. Elimination rules can be different.
             self.name == op.name
                 && self.derivative.is_subchain(&op.derivative)
@@ -251,7 +337,7 @@ impl Expr for SubExpr {
         perturbations: &[Arc<Perturbation>],
         min_order: u32,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
-        if self.elimination_rules.contains_key(parameter) {
+        if self.elimination_rules.iter().any(|rule| rule.parameter() == parameter) {
             return Err(generic_expression_error(
                 format!(
                     "SubExpr::eliminate() got repeated elimination of a parameter {}",
@@ -277,7 +363,7 @@ impl Expr for SubExpr {
             })?;
 
         let mut elimination_rules = self.elimination_rules.clone();
-        elimination_rules.insert(parameter.clone(), (min_order, perturbations.to_vec()));
+        elimination_rules.push(EliminationRule::new(parameter.clone(), min_order, perturbations));
 
         SubExpr::builder(self.name.clone(), new_expr)
             .derivative(self.derivative.clone())
@@ -299,6 +385,7 @@ impl Expr for SubExpr {
             self.expression.find_superchains(s)
         }
     }
+
     #[inline]
     fn remove(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
         if set.iter().any(|expr| self.eq_expr(expr.as_ref())) {
@@ -330,7 +417,8 @@ impl Expr for SubExpr {
 
 impl PartialEq for SubExpr {
     fn eq(&self, other: &Self) -> bool {
-        // We also compare `expression`, which may change after `clean_temporum()`
+        // We also compare `expression`, which may change after some methods
+        // like `clean_temporum()`, `remove()`, `replace()` and `retain()`.
         self.name == other.name
             && &self.expression == &other.expression
             && self.derivative == other.derivative
@@ -354,66 +442,11 @@ impl std::fmt::Display for SubExpr {
                 f,
                 "{}([{}]; {}; {{{}}})^{}",
                 self.name,
-                join_mapped(
-                    self.elimination_rules.iter(),
-                    ",",
-                    |(parameter, (min_order, perturbations))| {
-                        format!(
-                            "{}([{}]; {})",
-                            parameter,
-                            join_mapped(perturbations, ",", |p| p.to_string()),
-                            min_order
-                        )
-                    }
-                ),
+                join_mapped(self.elimination_rules.iter(), ",", |rule| rule.to_string()),
                 self.is_zero_strength,
                 self.expression,
                 self.derivative,
             )
         }
     }
-}
-
-// Serialize elimination rules as a Vec of entries
-#[derive(Serialize, Deserialize)]
-struct EliminationRuleEntry {
-    parameter: Arc<dyn Expr>,
-    min_order: u32,
-    perturbations: Vec<Arc<Perturbation>>,
-}
-
-fn serialize_elimination_rules<S>(
-    rules: &HashMap<Arc<dyn Expr>, (u32, Vec<Arc<Perturbation>>)>,
-    serializer: S,
-) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    let entries: Vec<EliminationRuleEntry> = rules
-        .iter()
-        .map(|(parameter, (min_order, perturbations))| EliminationRuleEntry {
-            parameter: Arc::clone(parameter),
-            min_order: *min_order,
-            perturbations: perturbations.clone(),
-        })
-        .collect();
-
-    entries.serialize(serializer)
-}
-
-fn deserialize_elimination_rules<'de, D>(
-    deserializer: D,
-) -> Result<HashMap<Arc<dyn Expr>, (u32, Vec<Arc<Perturbation>>)>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let entries: Vec<EliminationRuleEntry> = Vec::deserialize(deserializer)?;
-
-    let mut rules = HashMap::with_capacity(entries.len());
-
-    for entry in entries {
-        rules.insert(entry.parameter, (entry.min_order, entry.perturbations));
-    }
-
-    Ok(rules)
 }

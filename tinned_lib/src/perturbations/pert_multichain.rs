@@ -190,12 +190,13 @@ impl PertMultichain {
     }
 
     /// Generates a compact string suitable for hashing a perturbation multichain.
+    /// Derived Ord for Perturbation makes sure the hash key of PertMultichain is stable.
     #[inline]
     pub fn hash_key(&self) -> String {
         let map = self.0.lock().unwrap();
         let mut parts = Vec::with_capacity(map.len());
         for (pert, order) in map.iter() {
-            parts.push(format!("{}^{}", pert.name(), order));
+            parts.push(format!("{}^{}", pert.hash_key(), order));
         }
         parts.join(",")
     }

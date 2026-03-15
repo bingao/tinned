@@ -60,6 +60,7 @@ impl ExpAdjointMap {
         }
     }
 
+    // This function and `with_result_and_derivative()` are only used inside this file
     #[inline]
     fn with_result(
         &self,

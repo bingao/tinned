@@ -45,7 +45,7 @@ pub use number::Number;
 pub use one_elec_operator::{OneElecOperator, OneElecOperatorBuilder};
 pub use power::Power;
 pub use residue_parameter::{ResidueParameter, ResidueParameterBuilder};
-pub use sub_expr::SubExpr;
+pub use sub_expr::{EliminationRule, SubExpr};
 pub use symbol::Symbol;
 pub use temporum_operator::{TemporumOperator, TemporumOperatorBuilder};
 pub use temporum_overlap::{TemporumOverlap, TemporumOverlapBuilder};
