@@ -86,6 +86,8 @@ pub struct SubExpr {
     name: String,
     expression: Arc<dyn Expr>,
     derivative: PertMultichain,
+    // The use of elimination rules is mostly to let users track which
+    // parameters have been eliminated. We do not use it for hash key and comparison.
     elimination_rules: Vec<EliminationRule>,
     is_zero_strength: bool,
 }
@@ -221,11 +223,12 @@ impl ExprInternal for SubExpr {
     #[inline]
     fn hash_key(&self) -> String {
         format!(
-            "SubExpr({}; {{{}}}; [{}]; [{}]; {})",
+            //"SubExpr({}; {{{}}}; [{}]; [{}]; {})",
+            "SubExpr({}; {{{}}}; [{}]; {})",
             self.name,
             self.expression.hash_key(),
             self.derivative.hash_key(),
-            join_mapped(self.elimination_rules.iter(), ";", |rule| rule.hash_key()),
+            //join_mapped(self.elimination_rules.iter(), ";", |rule| rule.hash_key()),
             self.is_zero_strength,
         )
     }
@@ -422,7 +425,7 @@ impl PartialEq for SubExpr {
         self.name == other.name
             && &self.expression == &other.expression
             && self.derivative == other.derivative
-            && self.elimination_rules == other.elimination_rules
+            //&& self.elimination_rules == other.elimination_rules
             && self.is_zero_strength == other.is_zero_strength
     }
 }
