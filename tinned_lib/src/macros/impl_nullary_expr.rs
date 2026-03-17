@@ -327,10 +327,10 @@ macro_rules! impl_nullary_expr_traits {
             &self,
             _freq_tol: ::std::option::Option<$crate::public::NumberTolerance>,
         ) -> expr_result_ty!() {
-            if self.has_zeroth_order {
-                Ok(self.clone_expr())
-            } else {
+            if !self.has_zeroth_order && self.derivative.is_empty() {
                 impl_zero_expr!($is_scalar)
+            } else {
+                Ok(self.clone_expr())
             }
         }
     };
