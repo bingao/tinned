@@ -77,7 +77,7 @@ macro_rules! impl_nullary_expr_type {
                 name: name.into(),
                 dependencies: $crate::perturbations::PertMultichain::new(),
                 derivative: $crate::perturbations::PertMultichain::new(),
-                is_perturbing: true,
+                is_perturbing: false,
             }
         }
 
