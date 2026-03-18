@@ -66,7 +66,7 @@ macro_rules! test_nullary_expr {
             .build()
             .unwrap();
 
-        let has_zeroth_order = true;
+        let is_perturbing = true;
 
         let op = $crate::public::downcast_from_arc::<$type_name>(&op1).unwrap();
         assert_eq!(
@@ -75,7 +75,7 @@ macro_rules! test_nullary_expr {
                 name: $oper_name.into(),
                 dependencies: deps.clone(),
                 derivative: $deriv.clone(),
-                has_zeroth_order,
+                is_perturbing,
             }
         );
 
@@ -95,13 +95,13 @@ macro_rules! test_nullary_expr {
                 $oper_name,
                 deps.hash_key(),
                 $deriv.hash_key(),
-                has_zeroth_order,
+                is_perturbing,
             )
         );
         assert_eq!(op1.is_scalar(), $is_scalar);
         assert_eq!(
             ::std::format!("{}", op1),
-            ::std::format!("{}({})^({})", $oper_name, has_zeroth_order, $deriv)
+            ::std::format!("{}({})^({})", $oper_name, is_perturbing, $deriv)
         );
 
         let op3 = $type_name::builder($oper_name)

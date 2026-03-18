@@ -38,7 +38,7 @@ macro_rules! impl_nullary_expr_type {
             name: ::std::string::String,
             dependencies: $crate::perturbations::PertMultichain,
             derivative: $crate::perturbations::PertMultichain,
-            has_zeroth_order: bool,
+            is_perturbing: bool,
         }
     };
 
@@ -56,7 +56,7 @@ macro_rules! impl_nullary_expr_type {
             name: ::std::string::String,
             dependencies: $crate::perturbations::PertMultichain,
             derivative: $crate::perturbations::PertMultichain,
-            has_zeroth_order: bool,
+            is_perturbing: bool,
         }
     };
 
@@ -77,7 +77,7 @@ macro_rules! impl_nullary_expr_type {
                 name: name.into(),
                 dependencies: $crate::perturbations::PertMultichain::new(),
                 derivative: $crate::perturbations::PertMultichain::new(),
-                has_zeroth_order: true,
+                is_perturbing: true,
             }
         }
 
@@ -90,7 +90,7 @@ macro_rules! impl_nullary_expr_type {
                 name: self.name.clone(),
                 dependencies: self.dependencies.clone(),
                 derivative,
-                has_zeroth_order: self.has_zeroth_order,
+                is_perturbing: self.is_perturbing,
             }
         }
 
@@ -100,8 +100,8 @@ macro_rules! impl_nullary_expr_type {
         }
 
         #[inline]
-        pub fn has_zeroth_order(&self) -> bool {
-            self.has_zeroth_order
+        pub fn is_perturbing(&self) -> bool {
+            self.is_perturbing
         }
     };
 
@@ -139,8 +139,8 @@ macro_rules! impl_nullary_expr_type {
         }
 
         #[inline]
-        pub fn has_zeroth_order(mut self, has_zeroth_order: bool) -> Self {
-            self.has_zeroth_order = has_zeroth_order;
+        pub fn is_perturbing(mut self, is_perturbing: bool) -> Self {
+            self.is_perturbing = is_perturbing;
             self
         }
 
@@ -151,7 +151,7 @@ macro_rules! impl_nullary_expr_type {
                     name: self.name,
                     dependencies: self.dependencies,
                     derivative: self.derivative,
-                    has_zeroth_order: self.has_zeroth_order,
+                    is_perturbing: self.is_perturbing,
                 })))
             } else {
                 Ok($crate::expressions::Number::zero())
@@ -170,8 +170,8 @@ macro_rules! impl_nullary_expr_type {
         }
 
         #[inline]
-        pub fn has_zeroth_order(mut self, has_zeroth_order: bool) -> Self {
-            self.has_zeroth_order = has_zeroth_order;
+        pub fn is_perturbing(mut self, is_perturbing: bool) -> Self {
+            self.is_perturbing = is_perturbing;
             self
         }
 
@@ -182,7 +182,7 @@ macro_rules! impl_nullary_expr_type {
                     name: self.name,
                     dependencies: self.dependencies,
                     derivative: self.derivative,
-                    has_zeroth_order: self.has_zeroth_order,
+                    is_perturbing: self.is_perturbing,
                 })))
             } else {
                 Ok($crate::expressions::ZeroOperator::new())
@@ -292,7 +292,7 @@ macro_rules! impl_nullary_expr_traits {
                 self.name,
                 self.dependencies.hash_key(),
                 self.derivative.hash_key(),
-                self.has_zeroth_order,
+                self.is_perturbing,
             )
         }
     };
@@ -313,7 +313,7 @@ macro_rules! impl_nullary_expr_traits {
         $self.name == $op.name
             && $self.dependencies == $op.dependencies
             && $self.derivative.is_subchain(&$op.derivative)
-            && $self.has_zeroth_order == $op.has_zeroth_order
+            && $self.is_perturbing == $op.is_perturbing
     };
 
     (@nullary_deep_eq_superchains $self:ident, $op:ident, false) => {
@@ -327,8 +327,15 @@ macro_rules! impl_nullary_expr_traits {
             &self,
             _freq_tol: ::std::option::Option<$crate::public::NumberTolerance>,
         ) -> expr_result_ty!() {
-            if !self.has_zeroth_order && self.derivative.is_empty() {
-                impl_zero_expr!($is_scalar)
+            if self.is_perturbing {
+                let dep_keys = self.dependencies.keys();
+                // For a perturbing operator, it is non-zero only when it is
+                // differentiated with each dependency at least once
+                if self.derivative.is_subchain_vec(&dep_keys) {
+                    Ok(self.clone_expr())
+                } else {
+                    impl_zero_expr!($is_scalar)
+                }
             } else {
                 Ok(self.clone_expr())
             }
@@ -377,13 +384,13 @@ macro_rules! impl_nullary_expr_traits {
                 f: &mut ::std::fmt::Formatter,
             ) -> ::std::fmt::Result {
                 if self.derivative.is_empty() {
-                    ::std::write!(f, "{}({})", self.name, self.has_zeroth_order)
+                    ::std::write!(f, "{}({})", self.name, self.is_perturbing)
                 } else {
                     ::std::write!(
                         f,
                         "{}({})^({})",
                         self.name,
-                        self.has_zeroth_order,
+                        self.is_perturbing,
                         self.derivative
                     )
                 }
