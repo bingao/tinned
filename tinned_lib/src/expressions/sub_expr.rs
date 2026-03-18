@@ -7,7 +7,7 @@ use crate::internal::{any_interned_expr_matches, intern_expr, join_mapped};
 use crate::perturbations::{PertMultichain, Perturbation};
 use crate::public::{
     NumberTolerance, downcast_from_arc, expression_error, generic_expression_error,
-    get_number_tolerance, is_zero_expr,
+    get_number_tolerance, is_zero_expr, unreachable_error,
 };
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -81,14 +81,17 @@ impl std::fmt::Display for EliminationRule {
     }
 }
 
+// A `SubExpr` is uniquely determined by its fields `name`, `expression` and `derivative`.
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct SubExpr {
     name: String,
     expression: Arc<dyn Expr>,
     derivative: PertMultichain,
     // The use of elimination rules is mostly to let users track which
-    // parameters have been eliminated. We do not use it for hash key and comparison.
+    // parameters have been eliminated. We do not use it for comparison.
     elimination_rules: Vec<EliminationRule>,
+    // `is_zero_strength` is mostly used by the function `clean_temporum()`. We
+    // do not use it for equality comparison, either.
     is_zero_strength: bool,
 }
 
@@ -101,6 +104,8 @@ impl SubExpr {
             derivative: None,
             elimination_rules: None,
             is_zero_strength: None,
+            // We will always check the name conflict when users try to build a `SubExpr`
+            check_name_conflict: true,
         }
     }
 
@@ -130,8 +135,8 @@ impl SubExpr {
     }
 }
 
-// Whether there exists an undifferentiated and uneliminated `SubExpr` with the
-// same name but different `expression`
+// This function is used for checking whether users try to build a new
+// undifferentiated `SubExpr` with the same name but different `expression`
 #[inline]
 fn subexpr_name_conflict(name: &str, expression: &Arc<dyn Expr>) -> bool {
     any_interned_expr_matches(|expr| {
@@ -153,10 +158,11 @@ pub struct SubExprBuilder {
     derivative: Option<PertMultichain>,
     elimination_rules: Option<Vec<EliminationRule>>,
     is_zero_strength: Option<bool>,
+    check_name_conflict: bool,
 }
 
 impl SubExprBuilder {
-    // The following methods are only used inside this file
+    // The following methods are ONLY used inside this file
     #[inline]
     fn derivative(mut self, derivative: PertMultichain) -> Self {
         self.derivative = Some(derivative);
@@ -175,29 +181,60 @@ impl SubExprBuilder {
         self
     }
 
+    // This function should MOSTLY be called by `SubExpr::builder()` function
+    #[inline]
+    fn check_name_conflict(mut self, check_name_conflict: bool) -> Self {
+        self.check_name_conflict = check_name_conflict;
+        self
+    }
+
     pub fn build(self) -> Result<Arc<dyn Expr>, TinnedError> {
         if is_zero_expr(&self.expression, None) {
             return impl_zero_expr!(self.expression.is_scalar());
         }
 
         let derivative = self.derivative.unwrap_or(PertMultichain::new());
-
-        let mut elimination_rules = self.elimination_rules.unwrap_or_default();
-        elimination_rules.sort_by_key(|rule| rule.hash_key());
-
-        let is_zero_strength = self.is_zero_strength.unwrap_or(false);
-
-        // For undifferentiated and uneliminated `SubExpr`, we check if there
-        // exists a `SubExpr` with the same name but different `expression`
-        if derivative.is_empty()
-            && elimination_rules.is_empty()
-            && subexpr_name_conflict(&self.name, &self.expression)
-        {
-            return Err(expression_error(
-                "A SubExpr exists with the same name but different expression",
+        if self.check_name_conflict && !derivative.is_empty() {
+            return Err(unreachable_error(
+                format!(
+                    "A new SubExpr {} cannot have derivative {}",
+                    self.name,
+                    derivative.to_string()
+                ),
                 &self.expression,
                 None,
             ));
+        }
+
+        let mut elimination_rules = self.elimination_rules.unwrap_or_default();
+        elimination_rules.sort_by_key(|rule| rule.hash_key());
+        if self.check_name_conflict && !elimination_rules.is_empty() {
+            return Err(unreachable_error(
+                format!(
+                    "A new SubExpr {} cannot have elimination rules {}",
+                    self.name,
+                    join_mapped(elimination_rules.iter(), ";", |rule| rule.to_string()),
+                ),
+                &self.expression,
+                None,
+            ));
+        }
+
+        let is_zero_strength = self.is_zero_strength.unwrap_or(false);
+
+        // Check whether users try to build a new undifferentiated `SubExpr`
+        // with the same name but different `expression`
+        if self.check_name_conflict {
+            if subexpr_name_conflict(&self.name, &self.expression) {
+                return Err(expression_error(
+                    format!(
+                        "A SubExpr exists with the same name {} but different expression",
+                        self.name
+                    ),
+                    &self.expression,
+                    None,
+                ));
+            }
         }
 
         Ok(intern_expr(Arc::new(SubExpr {
@@ -217,18 +254,18 @@ impl ExprInternal for SubExpr {
         SubExpr::builder(this.name.clone(), arg)
             .derivative(this.derivative.clone())
             .elimination_rules(this.elimination_rules.clone())
+            .check_name_conflict(false)
             .build()
     });
 
     #[inline]
     fn hash_key(&self) -> String {
         format!(
-            //"SubExpr({}; {{{}}}; [{}]; [{}]; {})",
-            "SubExpr({}; {{{}}}; [{}]; {})",
+            "SubExpr({}; {{{}}}; [{}]; [{}]; {})",
             self.name,
             self.expression.hash_key(),
             self.derivative.hash_key(),
-            //join_mapped(self.elimination_rules.iter(), ";", |rule| rule.hash_key()),
+            join_mapped(self.elimination_rules.iter(), ";", |rule| rule.hash_key()),
             self.is_zero_strength,
         )
     }
@@ -238,14 +275,13 @@ impl ExprInternal for SubExpr {
         self.derivative.total_order()
     }
 
+    // For functions `deep_eq_superchains()` and `eq_by_superchains()`, our
+    // policy is that we ignore the defail of `SubExpr`, i.e. we ignore the
+    // field `expression`, but treat `SubExpr` as a free symbol.
     #[inline]
     fn deep_eq_superchains(&self, other: &Arc<dyn Expr>) -> bool {
         if let Some(op) = downcast_from_arc::<SubExpr>(other) {
-            // We find sub expressions with `is_zero_strength` either `true` or
-            // `false`. We assume SubExpr with the same name MUST have the same
-            // original `expression` so that we do not need to call
-            // `deep_eq_superchains()` method on `expression`. Elimination
-            // rules can be different for this comparision.
+            // Since this function is used by `find_superchains()`, we check ONLY `name` and `derivative`.
             self.name == op.name && self.derivative.is_subchain(&op.derivative)
         } else {
             false
@@ -255,8 +291,9 @@ impl ExprInternal for SubExpr {
     #[inline]
     fn eq_by_superchains(&self, other: &Arc<dyn Expr>) -> bool {
         if let Some(op) = downcast_from_arc::<SubExpr>(other) {
-            // We require SubExpr with the same name MUST have the same
-            // original `expression`. Elimination rules can be different.
+            // This function is used by `replace()` and `retain_expr()`, except
+            // for `name` and `derivative`, we also require the same value of
+            // `is_zero_strength`.
             self.name == op.name
                 && self.derivative.is_subchain(&op.derivative)
                 && self.is_zero_strength == op.is_zero_strength
@@ -310,6 +347,7 @@ impl Expr for SubExpr {
                 .derivative(self.derivative.clone())
                 .elimination_rules(self.elimination_rules.clone())
                 .is_zero_strength(true)
+                .check_name_conflict(false)
                 .build()
         }
     }
@@ -330,6 +368,7 @@ impl Expr for SubExpr {
             .derivative(self.derivative.with_added_perturbation(s))
             .elimination_rules(self.elimination_rules.clone())
             .is_zero_strength(self.is_zero_strength)
+            .check_name_conflict(false)
             .build()
     }
 
@@ -372,6 +411,7 @@ impl Expr for SubExpr {
             .derivative(self.derivative.clone())
             .elimination_rules(elimination_rules)
             .is_zero_strength(self.is_zero_strength)
+            .check_name_conflict(false)
             .build()
     }
 
@@ -413,6 +453,7 @@ impl Expr for SubExpr {
                 .derivative(self.derivative.clone())
                 .elimination_rules(self.elimination_rules.clone())
                 .is_zero_strength(self.is_zero_strength)
+                .check_name_conflict(false)
                 .build()
         }
     }
@@ -425,8 +466,8 @@ impl PartialEq for SubExpr {
         self.name == other.name
             && &self.expression == &other.expression
             && self.derivative == other.derivative
-            //&& self.elimination_rules == other.elimination_rules
-            && self.is_zero_strength == other.is_zero_strength
+        //&& self.elimination_rules == other.elimination_rules
+        //&& self.is_zero_strength == other.is_zero_strength
     }
 }
 
