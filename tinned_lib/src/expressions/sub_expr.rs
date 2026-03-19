@@ -90,7 +90,7 @@ pub struct SubExpr {
     // The use of elimination rules is mostly to let users track which
     // parameters have been eliminated. We do not use it for comparison.
     elimination_rules: Vec<EliminationRule>,
-    // `is_zero_strength` is mostly used by the function `clean_temporum()`. We
+    // `is_zero_strength` is mostly used by the function `apply_zero_rules()`. We
     // do not use it for equality comparison, either.
     is_zero_strength: bool,
 }
@@ -321,7 +321,7 @@ impl Expr for SubExpr {
     }
 
     #[inline]
-    fn clean_temporum(
+    fn apply_zero_rules(
         &self,
         freq_tol: Option<NumberTolerance>,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
@@ -329,10 +329,10 @@ impl Expr for SubExpr {
             return Ok(self.clone_expr());
         }
 
-        let new_expr = self.expression.clean_temporum(freq_tol.clone()).map_err(|e| {
+        let new_expr = self.expression.apply_zero_rules(freq_tol.clone()).map_err(|e| {
             generic_expression_error(
                 format!(
-                    "SubExpr::clean_temporum() failed with tolerance {}",
+                    "SubExpr::apply_zero_rules() failed with tolerance {}",
                     freq_tol.clone().unwrap_or_else(get_number_tolerance)
                 ),
                 self,
@@ -462,7 +462,7 @@ impl Expr for SubExpr {
 impl PartialEq for SubExpr {
     fn eq(&self, other: &Self) -> bool {
         // We also compare `expression`, which may change after some methods
-        // like `clean_temporum()`, `remove()`, `replace()` and `retain()`.
+        // like `apply_zero_rules()`, `remove()`, `replace()` and `retain()`.
         self.name == other.name
             && &self.expression == &other.expression
             && self.derivative == other.derivative

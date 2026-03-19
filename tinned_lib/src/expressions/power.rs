@@ -98,15 +98,15 @@ impl Expr for Power {
     ));
 
     #[inline]
-    fn clean_temporum(
+    fn apply_zero_rules(
         &self,
         freq_tol: Option<NumberTolerance>,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
         impl_unary_expr_arg_operation!(
             self,
             base,
-            |arg: &Arc<dyn Expr>| arg.clean_temporum(freq_tol),
-            "Power::clean_temporum() failed",
+            |arg: &Arc<dyn Expr>| arg.apply_zero_rules(freq_tol),
+            "Power::apply_zero_rules() failed",
             |this: &Power, arg| Self::new(arg, this.exponent)
         )
     }

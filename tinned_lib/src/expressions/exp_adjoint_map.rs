@@ -290,7 +290,7 @@ impl Expr for ExpAdjointMap {
         .build());
 
     #[inline]
-    fn clean_temporum(
+    fn apply_zero_rules(
         &self,
         freq_tol: Option<NumberTolerance>,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
@@ -298,9 +298,9 @@ impl Expr for ExpAdjointMap {
             return Ok(self.clone_expr());
         }
 
-        let result = self.result.clean_temporum(freq_tol.clone()).map_err(|e| {
+        let result = self.result.apply_zero_rules(freq_tol.clone()).map_err(|e| {
             generic_expression_error(
-                "ExpAdjointMap::clean_temporum() failed for result",
+                "ExpAdjointMap::apply_zero_rules() failed for result",
                 self,
                 Some(Box::new(e)),
             )
@@ -407,7 +407,7 @@ impl Expr for ExpAdjointMap {
 
 impl PartialEq for ExpAdjointMap {
     fn eq(&self, other: &Self) -> bool {
-        // We also compare `result`, which may change after `clean_temporum()`
+        // We also compare `result`, which may change after `apply_zero_rules()`
         &self.generator == &other.generator
             && &self.target == &other.target
             && self.is_temporum == other.is_temporum

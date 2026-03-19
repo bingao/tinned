@@ -181,14 +181,14 @@ impl Expr for AdjointMap {
     impl_expr_common_methods!(false);
 
     #[inline]
-    fn clean_temporum(
+    fn apply_zero_rules(
         &self,
         freq_tol: Option<NumberTolerance>,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
         impl_adjoint_map_operation!(
             self,
-            |x: &Arc<dyn Expr>| x.clean_temporum(freq_tol.clone()),
-            "AdjointMap::clean_temporum() failed"
+            |x: &Arc<dyn Expr>| x.apply_zero_rules(freq_tol.clone()),
+            "AdjointMap::apply_zero_rules() failed"
         )
     }
 

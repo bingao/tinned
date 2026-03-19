@@ -157,7 +157,7 @@ impl Expr for TemporumOperator {
     );
 
     #[inline]
-    fn clean_temporum(
+    fn apply_zero_rules(
         &self,
         freq_tol: Option<NumberTolerance>,
     ) -> Result<Arc<dyn Expr>, TinnedError> {

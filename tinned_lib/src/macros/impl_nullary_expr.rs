@@ -266,7 +266,7 @@ macro_rules! impl_nullary_expr_traits {
         impl $crate::core::Expr for $type_name {
             impl_nullary_expr_common_methods!($type_name, $is_scalar);
 
-            impl_nullary_expr_traits!(@nullary_clean_temporum $type_name, $has_deps, $is_scalar);
+            impl_nullary_expr_traits!(@nullary_apply_zero_rules $type_name, $has_deps, $is_scalar);
 
             #[inline]
             fn differentiate(
@@ -321,30 +321,25 @@ macro_rules! impl_nullary_expr_traits {
             && $self.derivative.is_subchain(&$op.derivative)
     };
 
-    (@nullary_clean_temporum $type_name:ident, true, $is_scalar:tt) => {
+    (@nullary_apply_zero_rules $type_name:ident, true, $is_scalar:tt) => {
         #[inline]
-        fn clean_temporum(
+        fn apply_zero_rules(
             &self,
             _freq_tol: ::std::option::Option<$crate::public::NumberTolerance>,
         ) -> expr_result_ty!() {
-            if self.is_perturbing {
-                let dep_keys = self.dependencies.keys();
-                // For a perturbing operator, it is non-zero only when it is
-                // differentiated with each dependency at least once
-                if self.derivative.is_subchain_vec(&dep_keys) {
-                    Ok(self.clone_expr())
-                } else {
-                    impl_zero_expr!($is_scalar)
-                }
+            // For a perturbing operator, it is non-zero only when it is
+            // differentiated with at least one dependency
+            if self.is_perturbing && self.derivative.is_empty() {
+                impl_zero_expr!($is_scalar)
             } else {
                 Ok(self.clone_expr())
             }
         }
     };
 
-    (@nullary_clean_temporum $type_name:ident, false, true) => {};
+    (@nullary_apply_zero_rules $type_name:ident, false, true) => {};
 
-    (@nullary_clean_temporum $type_name:ident, false, false) => {};
+    (@nullary_apply_zero_rules $type_name:ident, false, false) => {};
 
     (@nullary_eliminate $type_name:ident, true) => {};
 

@@ -49,17 +49,17 @@ macro_rules! impl_binary_expr_common_methods {
         $second_argument:ident,
         $is_scalar:tt,
         $build_expr:expr,
-        $with_clean_temporum:tt
+        $with_apply_zero_rules:tt
     ) => {
         impl_expr_common_methods!($is_scalar);
 
         impl_binary_expr_common_methods!(
-            @binary_expr_clean_temporum
+            @binary_expr_apply_zero_rules
             $type_name,
             $first_argument,
             $second_argument,
             $build_expr,
-            $with_clean_temporum
+            $with_apply_zero_rules
         );
 
         #[inline]
@@ -121,7 +121,7 @@ macro_rules! impl_binary_expr_common_methods {
         }
     };
 
-    (@binary_expr_clean_temporum
+    (@binary_expr_apply_zero_rules
         $type_name:ident,
         $first_argument:ident,
         $second_argument:ident,
@@ -129,7 +129,7 @@ macro_rules! impl_binary_expr_common_methods {
         true
     ) => {
         #[inline]
-        fn clean_temporum(
+        fn apply_zero_rules(
             &self,
             freq_tol: ::std::option::Option<$crate::public::NumberTolerance>,
         ) -> expr_result_ty!() {
@@ -137,14 +137,14 @@ macro_rules! impl_binary_expr_common_methods {
                 self,
                 $first_argument,
                 $second_argument,
-                |arg: expr_arc_ref_ty!()| arg.clean_temporum(freq_tol.clone()),
-                concat!(stringify!($type_name), "::clean_temporum() failed"),
+                |arg: expr_arc_ref_ty!()| arg.apply_zero_rules(freq_tol.clone()),
+                concat!(stringify!($type_name), "::apply_zero_rules() failed"),
                 $build_expr
             )
         }
     };
 
-    (@binary_expr_clean_temporum
+    (@binary_expr_apply_zero_rules
         $type_name:ident,
         $first_argument:ident,
         $second_argument:ident,

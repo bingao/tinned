@@ -54,9 +54,9 @@ impl PyExpr {
     ///
     /// Returns:
     ///   A PyExpr wrapping the cleaned expression.
-    fn clean_temporum(&self, freq_tol: Option<PyNumberTolerance>) -> PyResult<PyExpr> {
+    fn apply_zero_rules(&self, freq_tol: Option<PyNumberTolerance>) -> PyResult<PyExpr> {
         let tol = freq_tol.map(|t| t.into_inner());
-        let out = self.inner.clean_temporum(tol).map_err(to_pyerr)?;
+        let out = self.inner.apply_zero_rules(tol).map_err(to_pyerr)?;
         Ok(PyExpr::new(out))
     }
 

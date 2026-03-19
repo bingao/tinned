@@ -37,15 +37,15 @@ macro_rules! impl_unary_expr_traits {
             });
 
             #[inline]
-            fn clean_temporum(
+            fn apply_zero_rules(
                 &self,
                 freq_tol: ::std::option::Option<$crate::public::NumberTolerance>,
             ) -> expr_result_ty!() {
                 impl_unary_expr_arg_operation!(
                     self,
                     argument,
-                    |arg: expr_arc_ref_ty!()| arg.clean_temporum(freq_tol),
-                    concat!(stringify!($type_name), "::clean_temporum() failed"),
+                    |arg: expr_arc_ref_ty!()| arg.apply_zero_rules(freq_tol),
+                    concat!(stringify!($type_name), "::apply_zero_rules() failed"),
                     |_this, arg| Self::new(arg)
                 )
             }

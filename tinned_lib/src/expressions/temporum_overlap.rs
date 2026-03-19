@@ -269,7 +269,7 @@ impl Expr for TemporumOverlap {
 
     // `TemporumOverlap` will disappear if it is unperturbed or all
     // perturbations have zero frequency
-    fn clean_temporum(
+    fn apply_zero_rules(
         &self,
         freq_tol: Option<NumberTolerance>,
     ) -> Result<Arc<dyn Expr>, TinnedError> {

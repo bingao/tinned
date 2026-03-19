@@ -158,14 +158,14 @@ pub fn tinned_expr_clone(
 
 // Cleans `TemporumOperator` and unperturbed `TemporumOverlap` objects.
 #[ffi_export]
-pub fn tinned_expr_clean_temporum(
+pub fn tinned_expr_apply_zero_rules(
     h: Option<&ExprHandle>,
     tol: Option<&NumberToleranceHandle>,
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> Option<ExprBox> {
     let tol_opt: Option<NumberTolerance> = tol.map(|t| t.as_ref().clone());
-    ffi_expr_return_exprbox(h, "tinned_expr_clean_temporum", out_err, move |expr| {
-        expr.clean_temporum(tol_opt)
+    ffi_expr_return_exprbox(h, "tinned_expr_apply_zero_rules", out_err, move |expr| {
+        expr.apply_zero_rules(tol_opt)
     })
 }
 

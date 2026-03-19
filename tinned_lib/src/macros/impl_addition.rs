@@ -53,15 +53,15 @@ macro_rules! impl_add_traits {
         impl $crate::core::Expr for $type_name {
             impl_expr_common_methods!($is_scalar);
 
-            fn clean_temporum(
+            fn apply_zero_rules(
                 &self,
                 freq_tol: ::std::option::Option<$crate::public::NumberTolerance>,
             ) -> expr_result_ty!() {
                 impl_add_traits!(
                     @add_termwise_operation
                     self,
-                    |term: expr_arc_ref_ty!()| term.clean_temporum(freq_tol.clone()),
-                    concat!(stringify!($type_name), "::clean_temporum() failed"),
+                    |term: expr_arc_ref_ty!()| term.apply_zero_rules(freq_tol.clone()),
+                    concat!(stringify!($type_name), "::apply_zero_rules() failed"),
                     $is_scalar
                 )
             }

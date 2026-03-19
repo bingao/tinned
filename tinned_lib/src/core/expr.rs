@@ -35,9 +35,11 @@ pub trait Expr: Debug + Send + Sync + ExprInternal {
     // Make a clone of an expression.
     fn clone_expr(&self) -> Arc<dyn Expr>;
 
-    // Cleans `TemporumOperator` and unperturbed `TemporumOverlap` objects.
+    // Performs a conditional canonicalization to zero, such as setting
+    // `TemporumOperator` and unperturbed `TemporumOverlap` to zero, and
+    // undifferentiated perturbing operators to zero.
     #[inline]
-    fn clean_temporum(
+    fn apply_zero_rules(
         &self,
         _freq_tol: Option<crate::public::NumberTolerance>,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
