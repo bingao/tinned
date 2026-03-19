@@ -47,13 +47,15 @@ impl PyExpr {
         self.inner.is_scalar()
     }
 
-    /// Cleans TemporumOperator and unperturbed TemporumOverlap objects.
+    /// Performs a conditional canonicalization to zero, such as setting
+    /// `TemporumOperator` and unperturbed `TemporumOverlap` to zero, and
+    /// undifferentiated perturbing operators to zero.
     ///
     /// Args:
     ///   freq_tol: Optional NumberTolerance.
     ///
     /// Returns:
-    ///   A PyExpr wrapping the cleaned expression.
+    ///   A PyExpr wrapping the canonicalized expression.
     fn apply_zero_rules(&self, freq_tol: Option<PyNumberTolerance>) -> PyResult<PyExpr> {
         let tol = freq_tol.map(|t| t.into_inner());
         let out = self.inner.apply_zero_rules(tol).map_err(to_pyerr)?;

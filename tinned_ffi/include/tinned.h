@@ -332,7 +332,7 @@ typedef struct NumberToleranceHandle NumberToleranceHandle_t;
 
 /** <No documentation available> */
 ExprHandle_t *
-tinned_expr_clean_temporum (
+tinned_expr_apply_zero_rules (
     ExprHandle_t const * h,
     NumberToleranceHandle_t const * tol,
     TinnedErrorHandle_t * * out_err);
@@ -1211,6 +1211,8 @@ enum ExprTag {
     EXPR_TAG_POWER,
     /** <No documentation available> */
     EXPR_TAG_RESIDUE_PARAMETER,
+    /** <No documentation available> */
+    EXPR_TAG_SUB_EXPR,
     /** <No documentation available> */
     EXPR_TAG_SYMBOL,
     /** <No documentation available> */
