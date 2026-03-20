@@ -15,7 +15,7 @@ use crate::public::{
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct TemporumOverlap {
-    is_zero_strength: bool,
+    zero_rules_applied: bool,
     braket: Arc<dyn Expr>,
     dependencies: PertMultichain,
     derivative: PertMultichain,
@@ -26,7 +26,7 @@ impl TemporumOverlap {
     #[inline]
     pub fn builder(dependencies: PertMultichain) -> TemporumOverlapBuilder {
         TemporumOverlapBuilder {
-            is_zero_strength: Some(false),
+            zero_rules_applied: Some(false),
             braket: None,
             dependencies,
             derivative: None,
@@ -37,10 +37,10 @@ impl TemporumOverlap {
     fn with_braket(
         &self,
         braket: Arc<dyn Expr>,
-        is_zero_strength: Option<bool>,
+        zero_rules_applied: Option<bool>,
     ) -> TemporumOverlapBuilder {
         TemporumOverlapBuilder {
-            is_zero_strength,
+            zero_rules_applied,
             braket: Some(braket),
             dependencies: self.dependencies.clone(),
             derivative: Some(self.derivative.clone()),
@@ -54,7 +54,7 @@ impl TemporumOverlap {
         braket: Arc<dyn Expr>,
     ) -> TemporumOverlapBuilder {
         TemporumOverlapBuilder {
-            is_zero_strength: Some(self.is_zero_strength),
+            zero_rules_applied: Some(self.zero_rules_applied),
             braket: Some(braket),
             dependencies: self.dependencies.clone(),
             derivative: Some(derivative),
@@ -62,8 +62,8 @@ impl TemporumOverlap {
     }
 
     #[inline]
-    pub fn is_zero_strength(&self) -> bool {
-        self.is_zero_strength
+    pub fn zero_rules_applied(&self) -> bool {
+        self.zero_rules_applied
     }
 
     #[inline]
@@ -109,7 +109,7 @@ impl TemporumOverlap {
                 ));
             }
 
-            if self.is_zero_strength {
+            if self.zero_rules_applied {
                 result.push((
                     mat_mul.coefficient().clone(),
                     factors[0].clone(),
@@ -164,7 +164,7 @@ fn build_braket(deps: &PertMultichain) -> Result<Arc<dyn Expr>, TinnedError> {
 
 #[derive(Debug)]
 pub struct TemporumOverlapBuilder {
-    is_zero_strength: Option<bool>,
+    zero_rules_applied: Option<bool>,
     braket: Option<Arc<dyn Expr>>,
     dependencies: PertMultichain,
     derivative: Option<PertMultichain>,
@@ -172,8 +172,8 @@ pub struct TemporumOverlapBuilder {
 
 impl TemporumOverlapBuilder {
     //#[inline]
-    //fn is_zero_strength(mut self, is_zero_strength: bool) -> Self {
-    //    self.is_zero_strength = Some(is_zero_strength);
+    //fn zero_rules_applied(mut self, zero_rules_applied: bool) -> Self {
+    //    self.zero_rules_applied = Some(zero_rules_applied);
     //    self
     //}
 
@@ -190,12 +190,12 @@ impl TemporumOverlapBuilder {
     //}
 
     pub fn build(self) -> Result<Arc<dyn Expr>, TinnedError> {
-        let is_zero_strength = self.is_zero_strength.unwrap_or(false);
+        let zero_rules_applied = self.zero_rules_applied.unwrap_or(false);
         let braket = self.braket.unwrap_or(build_braket(&self.dependencies)?);
         let derivative = self.derivative.unwrap_or(PertMultichain::new());
 
         Ok(intern_expr(Arc::new(TemporumOverlap {
-            is_zero_strength,
+            zero_rules_applied,
             braket,
             dependencies: self.dependencies,
             derivative,
@@ -210,7 +210,7 @@ impl ExprInternal for TemporumOverlap {
     fn hash_key(&self) -> String {
         format!(
             "TemporumOverlap({}; [{}]; {}; [{}])",
-            self.is_zero_strength,
+            self.zero_rules_applied,
             self.dependencies.hash_key(),
             self.braket.hash_key(),
             self.derivative.hash_key(),
@@ -226,7 +226,7 @@ impl ExprInternal for TemporumOverlap {
     fn deep_eq_superchains(&self, other: &Arc<dyn Expr>) -> bool {
         if let Some(op) = downcast_from_arc::<TemporumOverlap>(other) {
             // We care only `dependencies`, regardless whether at zero strength
-            // or not (specified by `is_zero_strength`, `braket` also changes)
+            // or not (specified by `zero_rules_applied`, `braket` also changes)
             self.dependencies == op.dependencies && self.derivative.is_subchain(&op.derivative)
         } else {
             false
@@ -236,7 +236,7 @@ impl ExprInternal for TemporumOverlap {
     #[inline]
     fn eq_by_superchains(&self, other: &Arc<dyn Expr>) -> bool {
         if let Some(op) = downcast_from_arc::<TemporumOverlap>(other) {
-            self.is_zero_strength == op.is_zero_strength
+            self.zero_rules_applied == op.zero_rules_applied
                 && self.dependencies == op.dependencies
                 && self.derivative.is_subchain(&op.derivative)
         } else {
@@ -273,7 +273,7 @@ impl Expr for TemporumOverlap {
         &self,
         freq_tol: Option<NumberTolerance>,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
-        if self.is_zero_strength {
+        if self.zero_rules_applied {
             return Ok(self.clone_expr());
         } else if self.derivative.is_empty() {
             return Ok(ZeroOperator::new());
@@ -318,7 +318,7 @@ impl Expr for TemporumOverlap {
 
 impl PartialEq for TemporumOverlap {
     fn eq(&self, other: &Self) -> bool {
-        self.is_zero_strength == other.is_zero_strength
+        self.zero_rules_applied == other.zero_rules_applied
             && &self.braket == &other.braket
             && self.dependencies == other.dependencies
             && self.derivative == other.derivative
@@ -362,7 +362,7 @@ mod tests {
         assert_eq!(
             op,
             &TemporumOverlap {
-                is_zero_strength: false,
+                zero_rules_applied: false,
                 braket: braket.clone(),
                 dependencies: deps.clone(),
                 derivative: PertMultichain::new(),

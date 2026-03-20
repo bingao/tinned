@@ -33,7 +33,7 @@ pub extern "C" fn tinned_temporum_overlap_new(
 
 impl_val_getters!(
     TemporumOverlap;
-    tinned_temporum_overlap_is_zero_strength: bool => |op| op.is_zero_strength(); default = false,
+    tinned_temporum_overlap_zero_rules_applied: bool => |op| op.zero_rules_applied(); default = false,
 );
 
 impl_expr_getters!(

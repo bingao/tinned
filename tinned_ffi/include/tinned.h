@@ -290,12 +290,6 @@ tinned_exp_adjoint_map_is_temporum (
 
 /** <No documentation available> */
 bool
-tinned_exp_adjoint_map_is_zero_strength (
-    ExprHandle_t const * h,
-    TinnedErrorHandle_t * * out_err);
-
-/** <No documentation available> */
-bool
 tinned_exp_adjoint_map_left_action (
     ExprHandle_t const * h,
     TinnedErrorHandle_t * * out_err);
@@ -324,6 +318,12 @@ tinned_exp_adjoint_map_result (
 /** <No documentation available> */
 ExprHandle_t *
 tinned_exp_adjoint_map_target (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+bool
+tinned_exp_adjoint_map_zero_rules_applied (
     ExprHandle_t const * h,
     TinnedErrorHandle_t * * out_err);
 
@@ -1054,15 +1054,15 @@ tinned_temporum_overlap_derivative (
     TinnedErrorHandle_t * * out_err);
 
 /** <No documentation available> */
-bool
-tinned_temporum_overlap_is_zero_strength (
-    ExprHandle_t const * h,
-    TinnedErrorHandle_t * * out_err);
-
-/** <No documentation available> */
 ExprHandle_t *
 tinned_temporum_overlap_new (
     PertMultichainHandle_t const * dependencies,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+bool
+tinned_temporum_overlap_zero_rules_applied (
+    ExprHandle_t const * h,
     TinnedErrorHandle_t * * out_err);
 
 /** <No documentation available> */

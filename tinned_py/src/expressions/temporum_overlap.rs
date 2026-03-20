@@ -22,11 +22,11 @@ pub fn temporum_overlap_new(dependencies: &Bound<'_, PyPertMultichain>) -> PyRes
 }
 
 impl_expr_getter_interface!(
-    fn_name = temporum_overlap_is_zero_strength,
+    fn_name = temporum_overlap_zero_rules_applied,
     fn_doc = impl_expr_getter_doc!("whether evaluated at zero-field strength", TemporumOverlap),
     expr_ty = TemporumOverlap,
     out_ty = bool,
-    body = |op: &TemporumOverlap| Ok(op.is_zero_strength())
+    body = |op: &TemporumOverlap| Ok(op.zero_rules_applied())
 );
 
 impl_expr_getter_interface!(
@@ -55,7 +55,7 @@ impl_expr_getter_interface!(
 
 pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(temporum_overlap_new, m)?)?;
-    m.add_function(wrap_pyfunction!(temporum_overlap_is_zero_strength, m)?)?;
+    m.add_function(wrap_pyfunction!(temporum_overlap_zero_rules_applied, m)?)?;
     m.add_function(wrap_pyfunction!(temporum_overlap_braket, m)?)?;
     m.add_function(wrap_pyfunction!(temporum_overlap_dependencies, m)?)?;
     m.add_function(wrap_pyfunction!(temporum_overlap_derivative, m)?)?;

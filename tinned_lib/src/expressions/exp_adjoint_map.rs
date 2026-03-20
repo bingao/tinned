@@ -19,7 +19,7 @@ pub struct ExpAdjointMap {
     is_temporum: bool,
     left_action: bool,
     max_fold: u32,
-    is_zero_strength: bool,
+    zero_rules_applied: bool,
     // `result` contains differentiated expression of exponential adjoint map
     result: Arc<dyn Expr>,
     derivative: PertMultichain,
@@ -34,7 +34,7 @@ impl ExpAdjointMap {
             is_temporum: false,
             left_action: None,
             max_fold: None,
-            is_zero_strength: Some(false),
+            zero_rules_applied: Some(false),
             result: None,
             derivative: None,
         }
@@ -54,7 +54,7 @@ impl ExpAdjointMap {
             is_temporum: true,
             left_action: None,
             max_fold: None,
-            is_zero_strength: Some(false),
+            zero_rules_applied: Some(false),
             result: None,
             derivative: None,
         }
@@ -65,7 +65,7 @@ impl ExpAdjointMap {
     fn with_result(
         &self,
         result: Arc<dyn Expr>,
-        is_zero_strength: Option<bool>,
+        zero_rules_applied: Option<bool>,
     ) -> ExpAdjointMapBuilder {
         ExpAdjointMapBuilder {
             generator: self.generator.clone(),
@@ -73,7 +73,7 @@ impl ExpAdjointMap {
             is_temporum: self.is_temporum,
             left_action: Some(self.left_action),
             max_fold: Some(self.max_fold),
-            is_zero_strength,
+            zero_rules_applied,
             result: Some(result),
             derivative: Some(self.derivative.clone()),
         }
@@ -91,7 +91,7 @@ impl ExpAdjointMap {
             is_temporum: self.is_temporum,
             left_action: Some(self.left_action),
             max_fold: Some(self.max_fold),
-            is_zero_strength: Some(self.is_zero_strength),
+            zero_rules_applied: Some(self.zero_rules_applied),
             result: Some(result),
             derivative: Some(derivative),
         }
@@ -123,8 +123,8 @@ impl ExpAdjointMap {
     }
 
     #[inline]
-    pub fn is_zero_strength(&self) -> bool {
-        self.is_zero_strength
+    pub fn zero_rules_applied(&self) -> bool {
+        self.zero_rules_applied
     }
 
     #[inline]
@@ -145,7 +145,7 @@ pub struct ExpAdjointMapBuilder {
     is_temporum: bool,
     left_action: Option<bool>,
     max_fold: Option<u32>,
-    is_zero_strength: Option<bool>,
+    zero_rules_applied: Option<bool>,
     result: Option<Arc<dyn Expr>>,
     derivative: Option<PertMultichain>,
 }
@@ -164,8 +164,8 @@ impl ExpAdjointMapBuilder {
     }
 
     //#[inline]
-    //fn is_zero_strength(mut self, is_zero_strength: bool) -> Self {
-    //    self.is_zero_strength = Some(is_zero_strength);
+    //fn zero_rules_applied(mut self, zero_rules_applied: bool) -> Self {
+    //    self.zero_rules_applied = Some(zero_rules_applied);
     //    self
     //}
 
@@ -206,7 +206,7 @@ impl ExpAdjointMapBuilder {
 
         let left_action = self.left_action.unwrap_or(true);
         let max_fold = self.max_fold.unwrap_or(u32::MAX);
-        let is_zero_strength = self.is_zero_strength.unwrap_or(false);
+        let zero_rules_applied = self.zero_rules_applied.unwrap_or(false);
 
         // Undifferentiated expression of exponential adjoint map is simply `target`
         let result = self.result.unwrap_or(self.target.clone());
@@ -218,7 +218,7 @@ impl ExpAdjointMapBuilder {
             is_temporum: self.is_temporum,
             left_action,
             max_fold,
-            is_zero_strength,
+            zero_rules_applied,
             result,
             derivative,
         })))
@@ -226,7 +226,7 @@ impl ExpAdjointMapBuilder {
 }
 
 impl ExprInternal for ExpAdjointMap {
-    // It is more appropriate to set `is_zero_strength` as false after the
+    // It is more appropriate to set `zero_rules_applied` as false after the
     // functions `replace_expr_fields`, `retain_expr_fields` and `replace_expr_self`
     impl_unary_expr_internal_methods!(ExpAdjointMap, result, true, |this: &ExpAdjointMap, arg| {
         this.with_result(arg, Some(false)).build()
@@ -238,7 +238,7 @@ impl ExprInternal for ExpAdjointMap {
             "ExpAdjointMap({}; {}; {}; {}; {}; {}; {}; [{}])",
             self.left_action,
             self.max_fold,
-            self.is_zero_strength,
+            self.zero_rules_applied,
             self.generator.hash_key(),
             self.target.hash_key(),
             self.is_temporum,
@@ -256,7 +256,7 @@ impl ExprInternal for ExpAdjointMap {
     fn deep_eq_superchains(&self, other: &Arc<dyn Expr>) -> bool {
         if let Some(op) = downcast_from_arc::<ExpAdjointMap>(other) {
             // We find exponential adjoint maps with `left_action` and
-            // `is_zero_strength` either `true` or `false`
+            // `zero_rules_applied` either `true` or `false`
             self.max_fold == op.max_fold
                 && self.generator.deep_eq_superchains(&op.generator)
                 && self.target.deep_eq_superchains(&op.target)
@@ -272,7 +272,7 @@ impl ExprInternal for ExpAdjointMap {
         if let Some(op) = downcast_from_arc::<ExpAdjointMap>(other) {
             self.left_action == op.left_action
                 && self.max_fold == op.max_fold
-                && self.is_zero_strength == op.is_zero_strength
+                && self.zero_rules_applied == op.zero_rules_applied
                 && &self.generator == &op.generator
                 && &self.target == &op.target
                 && self.is_temporum == op.is_temporum
@@ -286,7 +286,7 @@ impl ExprInternal for ExpAdjointMap {
 #[typetag::serde]
 impl Expr for ExpAdjointMap {
     impl_unary_expr_common_methods!(ExpAdjointMap, result, False, |this: &ExpAdjointMap, arg| this
-        .with_result(arg, Some(this.is_zero_strength))
+        .with_result(arg, Some(this.zero_rules_applied))
         .build());
 
     #[inline]
@@ -294,7 +294,7 @@ impl Expr for ExpAdjointMap {
         &self,
         freq_tol: Option<NumberTolerance>,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
-        if self.is_zero_strength {
+        if self.zero_rules_applied {
             return Ok(self.clone_expr());
         }
 
@@ -413,7 +413,7 @@ impl PartialEq for ExpAdjointMap {
             && self.is_temporum == other.is_temporum
             && self.left_action == other.left_action
             && self.max_fold == other.max_fold
-            && self.is_zero_strength == other.is_zero_strength
+            && self.zero_rules_applied == other.zero_rules_applied
             && self.derivative == other.derivative
             && &self.result == &other.result
     }
@@ -433,7 +433,7 @@ impl std::fmt::Display for ExpAdjointMap {
             write!(f, "; {}", self.max_fold)?;
         }
 
-        write!(f, "])({}; {})^{}", self.target, self.is_zero_strength, self.derivative)
+        write!(f, "])({}; {})^{}", self.target, self.zero_rules_applied, self.derivative)
     }
 }
 

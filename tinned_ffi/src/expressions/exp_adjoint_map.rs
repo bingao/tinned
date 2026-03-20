@@ -57,7 +57,7 @@ impl_val_getters!(
     tinned_exp_adjoint_map_is_temporum: bool => |ead| ead.is_temporum(); default = false,
     tinned_exp_adjoint_map_left_action: bool => |ead| ead.left_action(); default = false,
     tinned_exp_adjoint_map_max_fold: u32 => |ead| ead.max_fold(); default = 0,
-    tinned_exp_adjoint_map_is_zero_strength: bool => |ead| ead.is_zero_strength(); default = false,
+    tinned_exp_adjoint_map_zero_rules_applied: bool => |ead| ead.zero_rules_applied(); default = false,
 );
 
 // Get `derivative` (cloned).
