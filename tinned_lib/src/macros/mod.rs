@@ -1,5 +1,5 @@
 #[macro_use]
-pub mod expr_types;
+pub mod common_types;
 
 #[macro_use]
 pub mod impl_common_methods;

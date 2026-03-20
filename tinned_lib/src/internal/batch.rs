@@ -7,7 +7,7 @@ use crate::core::Expr;
 pub(crate) fn join_mapped<I, T, F>(items: I, delimiter: &str, map_fn: F) -> String
 where
     I: IntoIterator<Item = T>,
-    F: Fn(T) -> String,
+    F: Fn(&T) -> String,
 {
     let mut out = String::new();
 
@@ -15,7 +15,7 @@ where
         if i > 0 {
             out.push_str(delimiter);
         }
-        out.push_str(&map_fn(item));
+        out.push_str(&map_fn(&item));
     }
 
     out

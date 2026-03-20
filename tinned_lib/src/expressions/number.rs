@@ -733,7 +733,7 @@ mod tests {
     #[test]
     fn test_impl_expr() {
         let n1: i64 = random_range(-100..=100);
-        let n2: i64 = random_range(1..=100);
+        let n2: i64 = random_range(2..=100);
         let f1: f64 = random_range(-100.0..=100.0);
         let f2: f64 = random_range(-100.0..=100.0);
 

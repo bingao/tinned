@@ -66,7 +66,7 @@ macro_rules! impl_binary_expr_common_methods {
         fn eliminate(
             &self,
             parameter: expr_arc_ref_ty!(),
-            perturbations: &[::std::sync::Arc<$crate::perturbations::Perturbation>],
+            perturbations: &[pert_arc_ty!()],
             min_order: u32,
         ) -> expr_result_ty!() {
             impl_binary_expr_arg_operation!(

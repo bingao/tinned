@@ -486,11 +486,11 @@ mod tests {
 
         let key = chain.hash_key();
         assert!(
-            key.contains(&format!("{}^2", p1.name()))
-                && key.contains(&format!("{}^1", p2.name()))
-                && key.contains(&format!("{}^3", p3.name()))
-                && key.contains(&format!("{}^5", p4.name()))
-                && key.contains(&format!("{}^4", p5.name())),
+            key.contains(&format!("{}^2", p1.hash_key()))
+                && key.contains(&format!("{}^1", p2.hash_key()))
+                && key.contains(&format!("{}^3", p3.hash_key()))
+                && key.contains(&format!("{}^5", p4.hash_key()))
+                && key.contains(&format!("{}^4", p5.hash_key())),
             "hash_key() must contain perturbation orders"
         );
 

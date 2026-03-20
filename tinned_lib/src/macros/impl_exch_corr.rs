@@ -180,7 +180,7 @@ macro_rules! impl_exch_corr_traits {
 
             fn differentiate(
                 &self,
-                s: &::std::sync::Arc<$crate::perturbations::Perturbation>,
+                s: &pert_arc_ty!(),
             ) -> expr_result_ty!() {
                 let diff_expr = self.$grid_expr_name.differentiate(s).map_err(|e| {
                     $crate::public::generic_expression_error(
@@ -209,7 +209,7 @@ macro_rules! impl_exch_corr_traits {
             fn eliminate(
                 &self,
                 parameter: expr_arc_ref_ty!(),
-                perturbations: &[::std::sync::Arc<$crate::perturbations::Perturbation>],
+                perturbations: &[pert_arc_ty!()],
                 min_order: u32,
             ) -> expr_result_ty!() {
                 impl_exch_corr_traits!(

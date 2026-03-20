@@ -68,7 +68,7 @@ macro_rules! impl_add_traits {
 
             fn differentiate(
                 &self,
-                s: &::std::sync::Arc<$crate::perturbations::Perturbation>,
+                s: &pert_arc_ty!(),
             ) -> expr_result_ty!() {
                 let mut diff_terms = ::std::vec::Vec::with_capacity(self.terms.len());
 
@@ -91,7 +91,7 @@ macro_rules! impl_add_traits {
             fn eliminate(
                 &self,
                 parameter: expr_arc_ref_ty!(),
-                perturbations: &[::std::sync::Arc<$crate::perturbations::Perturbation>],
+                perturbations: &[pert_arc_ty!()],
                 min_order: u32,
             ) -> expr_result_ty!() {
                 impl_add_traits!(

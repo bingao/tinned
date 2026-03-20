@@ -51,10 +51,7 @@ macro_rules! impl_unary_expr_traits {
             }
 
             #[inline]
-            fn differentiate(
-                &self,
-                s: &::std::sync::Arc<$crate::perturbations::Perturbation>,
-            ) -> expr_result_ty!() {
+            fn differentiate(&self, s: &pert_arc_ty!()) -> expr_result_ty!() {
                 let diff_arg = self.argument.differentiate(s).map_err(|e| {
                     $crate::public::generic_expression_error(
                         concat!(stringify!($type_name), "::differentiate() failed for argument"),
@@ -137,7 +134,7 @@ macro_rules! impl_unary_expr_common_methods {
         fn eliminate(
             &self,
             parameter: &expr_arc_ty!(),
-            perturbations: &[::std::sync::Arc<$crate::perturbations::Perturbation>],
+            perturbations: &[pert_arc_ty!()],
             min_order: u32,
         ) -> expr_result_ty!() {
             impl_unary_expr_arg_operation!(

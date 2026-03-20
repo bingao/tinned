@@ -59,14 +59,18 @@ macro_rules! test_nullary_expr {
 
         assert!($crate::public::is_zero_expr(&op0, None));
 
+        //FIXME: test independent_perturbations
         let deps = $crate::perturbations::pert_multichain::test_utils::make_super_multichain(&$deriv, 1u32);
+        let independent_perturbations: pert_ordered_set_ty!() = ::std::collections::BTreeSet::new();
+        let is_perturbing = true;
+
         let op1 = $type_name::builder($oper_name)
             .dependencies(deps.clone())
+            .independent_perturbations(independent_perturbations.clone())
             .derivative($deriv.clone())
+            .is_perturbing(is_perturbing)
             .build()
             .unwrap();
-
-        let is_perturbing = true;
 
         let op = $crate::public::downcast_from_arc::<$type_name>(&op1).unwrap();
         assert_eq!(
@@ -74,6 +78,7 @@ macro_rules! test_nullary_expr {
             &$type_name {
                 name: $oper_name.into(),
                 dependencies: deps.clone(),
+                independent_perturbations: independent_perturbations.clone(),
                 derivative: $deriv.clone(),
                 is_perturbing,
             }
@@ -90,10 +95,15 @@ macro_rules! test_nullary_expr {
         assert_eq!(
             op1.hash_key(),
             ::std::format!(
-                "{}({}; [{}]; [{}]; {})",
+                "{}({}; [{}]; [{}]; [{}]; {})",
                 stringify!($type_name),
                 $oper_name,
                 deps.hash_key(),
+                $crate::internal::join_mapped(
+                    &independent_perturbations,
+                    ";",
+                    |pert| pert.hash_key(),
+                ),
                 $deriv.hash_key(),
                 is_perturbing,
             )
@@ -101,12 +111,25 @@ macro_rules! test_nullary_expr {
         assert_eq!(op1.is_scalar(), $is_scalar);
         assert_eq!(
             ::std::format!("{}", op1),
-            ::std::format!("{}({})^({})", $oper_name, is_perturbing, $deriv)
+            ::std::format!(
+                "{}({}; [{}]; [{}])^({})",
+                $oper_name,
+                is_perturbing,
+                deps,
+                $crate::internal::join_mapped(
+                    &independent_perturbations,
+                    ";",
+                    |pert| pert.to_string(),
+                ),
+                $deriv
+            )
         );
 
         let op3 = $type_name::builder($oper_name)
             .dependencies(deps.clone())
+            .independent_perturbations(independent_perturbations.clone())
             .derivative($deriv.clone())
+            .is_perturbing(is_perturbing)
             .build()
             .unwrap();
         let op4 = $type_name::builder(
@@ -115,7 +138,9 @@ macro_rules! test_nullary_expr {
                 )
             )
             .dependencies(deps.clone())
+            .independent_perturbations(independent_perturbations.clone())
             .derivative($deriv.clone())
+            .is_perturbing(is_perturbing)
             .build()
             .unwrap();
         let op5 = $type_name::builder($oper_name).dependencies(deps).build().unwrap();
@@ -201,7 +226,7 @@ macro_rules! test_nullary_expr {
                 .build()
                 .unwrap();
 
-            let p: ::std::sync::Arc<$crate::perturbations::Perturbation> =
+            let p: pert_arc_ty!() =
                 deps.keys().first().cloned().unwrap();
             let diff_op = op.differentiate(&p).unwrap();
             deriv.insert(&p);

@@ -96,7 +96,7 @@ macro_rules! impl_mul_traits {
                         1 => {
                             // Only one factor retains partially, we simply
                             // return coefficient*Ak*B*C*...
-                            let mut terms: ::std::vec::Vec<expr_arc_ty!()> = new_factors
+                            let mut terms: expr_vec_ty!() = new_factors
                                 .into_iter()
                                 .map(|(factor, _changed)| factor)
                                 .collect();
@@ -115,7 +115,7 @@ macro_rules! impl_mul_traits {
                         // Ar, Br, Cr, ... are parts that are removed, R, S, T,
                         // ... are those without retained parts.
                         _ => {
-                            let mut terms: ::std::vec::Vec<expr_arc_ty!()> = new_factors
+                            let mut terms: expr_vec_ty!() = new_factors
                                 .into_iter()
                                 .zip(self.factors.iter())
                                 .map(|((factor, changed), original)| {
@@ -142,7 +142,7 @@ macro_rules! impl_mul_traits {
                         0 => {
                             // Only the coefficient retains partially, we
                             // return `new_coef`*A*B*C*...
-                            let mut terms: ::std::vec::Vec<expr_arc_ty!()> = new_factors
+                            let mut terms: expr_vec_ty!() = new_factors
                                 .into_iter()
                                 .map(|(factor, _changed)| factor)
                                 .collect();
@@ -150,7 +150,7 @@ macro_rules! impl_mul_traits {
                             Self::new(terms)
                         },
                         _ => {
-                            let mut terms: ::std::vec::Vec<expr_arc_ty!()> = new_factors
+                            let mut terms: expr_vec_ty!() = new_factors
                                 .into_iter()
                                 .zip(self.factors.iter())
                                 .map(|((factor, changed), original)| {
@@ -197,7 +197,7 @@ macro_rules! impl_mul_traits {
 
             fn differentiate(
                 &self,
-                s: &::std::sync::Arc<$crate::perturbations::Perturbation>,
+                s: &pert_arc_ty!(),
             ) -> expr_result_ty!() {
                 // Precompute the derivative of each factor and store it
                 let with_context = |f: expr_arc_ref_ty!()| {
@@ -210,7 +210,7 @@ macro_rules! impl_mul_traits {
                     })
                 };
 
-                let diff_factors: ::std::vec::Vec<expr_arc_ty!()>
+                let diff_factors: expr_vec_ty!()
                     = self.factors.iter().map(with_context).collect::<::std::result::Result<_, _>>()?;
 
                 impl_mul_traits!(
@@ -226,7 +226,7 @@ macro_rules! impl_mul_traits {
             fn eliminate(
                 &self,
                 parameter: &expr_arc_ty!(),
-                perturbations: &[::std::sync::Arc<$crate::perturbations::Perturbation>],
+                perturbations: &[pert_arc_ty!()],
                 min_order: u32,
             ) -> expr_result_ty!() {
                 impl_mul_traits!(

@@ -16,6 +16,12 @@ macro_rules! expr_result_ty {
     };
 }
 
+macro_rules! expr_vec_ty {
+    () => {
+        ::std::vec::Vec<expr_arc_ty!()>
+    };
+}
+
 macro_rules! expr_map_ty {
     () => {
         ::std::collections::HashMap<expr_arc_ty!(), expr_arc_ty!()>
@@ -31,5 +37,17 @@ macro_rules! expr_set_ty {
 macro_rules! expr_differentiation_map_ty {
     () => {
         ::std::collections::BTreeMap<u32, expr_set_ty!()>
+    };
+}
+
+macro_rules! pert_arc_ty {
+    () => {
+        ::std::sync::Arc<$crate::perturbations::Perturbation>
+    };
+}
+
+macro_rules! pert_ordered_set_ty {
+    () => {
+        ::std::collections::BTreeSet<pert_arc_ty!()>
     };
 }

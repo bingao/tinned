@@ -33,10 +33,16 @@ macro_rules! impl_nullary_expr_type {
     };
 
     (@nullary_def_oper $type_name:ident, true) => {
+        // `dependencies`: perturbations and maximum orders that can be
+        // differentiated with respect to
+        //
+        // `independent_perturbations`: mixed derivatives are not allowed with
+        // respect to these perturbations, i.e. zero result will be returned
         #[derive(Clone, Debug, PartialEq, Eq, ::serde::Serialize, ::serde::Deserialize)]
         pub struct $type_name {
             name: ::std::string::String,
             dependencies: $crate::perturbations::PertMultichain,
+            independent_perturbations: pert_ordered_set_ty!(),
             derivative: $crate::perturbations::PertMultichain,
             is_perturbing: bool,
         }
@@ -55,6 +61,7 @@ macro_rules! impl_nullary_expr_type {
         pub struct $builder_name {
             name: ::std::string::String,
             dependencies: $crate::perturbations::PertMultichain,
+            independent_perturbations: pert_ordered_set_ty!(),
             derivative: $crate::perturbations::PertMultichain,
             is_perturbing: bool,
         }
@@ -76,6 +83,7 @@ macro_rules! impl_nullary_expr_type {
             $builder_name {
                 name: name.into(),
                 dependencies: $crate::perturbations::PertMultichain::new(),
+                independent_perturbations: ::std::collections::BTreeSet::new(),
                 derivative: $crate::perturbations::PertMultichain::new(),
                 is_perturbing: false,
             }
@@ -89,6 +97,7 @@ macro_rules! impl_nullary_expr_type {
             $builder_name {
                 name: self.name.clone(),
                 dependencies: self.dependencies.clone(),
+                independent_perturbations: self.independent_perturbations.clone(),
                 derivative,
                 is_perturbing: self.is_perturbing,
             }
@@ -97,6 +106,11 @@ macro_rules! impl_nullary_expr_type {
         #[inline]
         pub fn dependencies(&self) -> &$crate::perturbations::PertMultichain {
             &self.dependencies
+        }
+
+        #[inline]
+        pub fn independent_perturbations(&self) -> &pert_ordered_set_ty!() {
+            &self.independent_perturbations
         }
 
         #[inline]
@@ -139,17 +153,40 @@ macro_rules! impl_nullary_expr_type {
         }
 
         #[inline]
+        pub fn independent_perturbations(
+            mut self,
+            indep_perts: pert_ordered_set_ty!(),
+        ) -> Self {
+            self.independent_perturbations = indep_perts;
+            self
+        }
+
+        #[inline]
         pub fn is_perturbing(mut self, is_perturbing: bool) -> Self {
             self.is_perturbing = is_perturbing;
             self
         }
 
         #[inline]
+        fn at_most_one_independent(&self) -> bool {
+            let mut count = 0;
+
+            for key in self.derivative.keys() {
+                if self.independent_perturbations.contains(&key) && { count += 1; count > 1 } {
+                    return false;
+                }
+            }
+
+            true
+        }
+
+        #[inline]
         pub fn build(self) -> expr_result_ty!() {
-            if self.dependencies.is_subchain(&self.derivative) {
+            if self.dependencies.is_subchain(&self.derivative) && self.at_most_one_independent() {
                 Ok($crate::internal::intern_expr(::std::sync::Arc::new($type_name {
                     name: self.name,
                     dependencies: self.dependencies,
+                    independent_perturbations: self.independent_perturbations,
                     derivative: self.derivative,
                     is_perturbing: self.is_perturbing,
                 })))
@@ -170,17 +207,40 @@ macro_rules! impl_nullary_expr_type {
         }
 
         #[inline]
+        pub fn independent_perturbations(
+            mut self,
+            indep_perts: pert_ordered_set_ty!(),
+        ) -> Self {
+            self.independent_perturbations = indep_perts;
+            self
+        }
+
+        #[inline]
         pub fn is_perturbing(mut self, is_perturbing: bool) -> Self {
             self.is_perturbing = is_perturbing;
             self
         }
 
         #[inline]
+        fn at_most_one_independent(&self) -> bool {
+            let mut count = 0;
+
+            for key in self.derivative.keys() {
+                if self.independent_perturbations.contains(&key) && { count += 1; count > 1 } {
+                    return false;
+                }
+            }
+
+            true
+        }
+
+        #[inline]
         pub fn build(self) -> expr_result_ty!() {
-            if self.dependencies.is_subchain(&self.derivative) {
+            if self.dependencies.is_subchain(&self.derivative) && self.at_most_one_independent() {
                 Ok($crate::internal::intern_expr(::std::sync::Arc::new($type_name {
                     name: self.name,
                     dependencies: self.dependencies,
+                    independent_perturbations: self.independent_perturbations,
                     derivative: self.derivative,
                     is_perturbing: self.is_perturbing,
                 })))
@@ -271,7 +331,7 @@ macro_rules! impl_nullary_expr_traits {
             #[inline]
             fn differentiate(
                 &self,
-                s: &::std::sync::Arc<$crate::perturbations::Perturbation>,
+                s: &pert_arc_ty!(),
             ) -> expr_result_ty!() {
                 let new_deriv = self.derivative.with_added_perturbation(s);
                 self.with_derivative(new_deriv).build()
@@ -287,10 +347,15 @@ macro_rules! impl_nullary_expr_traits {
         #[inline]
         fn hash_key(&self) -> ::std::string::String {
             ::std::format!(
-                "{}({}; [{}]; [{}]; {})",
+                "{}({}; [{}]; [{}]; [{}]; {})",
                 stringify!($type_name),
                 self.name,
                 self.dependencies.hash_key(),
+                $crate::internal::join_mapped(
+                    &self.independent_perturbations,
+                    ";",
+                    |pert| pert.hash_key(),
+                ),
                 self.derivative.hash_key(),
                 self.is_perturbing,
             )
@@ -312,6 +377,7 @@ macro_rules! impl_nullary_expr_traits {
     (@nullary_deep_eq_superchains $self:ident, $op:ident, true) => {
         $self.name == $op.name
             && $self.dependencies == $op.dependencies
+            && $self.independent_perturbations == $op.independent_perturbations
             && $self.derivative.is_subchain(&$op.derivative)
             && $self.is_perturbing == $op.is_perturbing
     };
@@ -348,7 +414,7 @@ macro_rules! impl_nullary_expr_traits {
         fn eliminate(
             &self,
             parameter: &expr_arc_ty!(),
-            perturbations: &[::std::sync::Arc<$crate::perturbations::Perturbation>],
+            perturbations: &[pert_arc_ty!()],
             min_order: u32,
         ) -> expr_result_ty!() {
             if let Some(op) = $crate::public::downcast_from_arc::<$type_name>(parameter) {
@@ -379,13 +445,30 @@ macro_rules! impl_nullary_expr_traits {
                 f: &mut ::std::fmt::Formatter,
             ) -> ::std::fmt::Result {
                 if self.derivative.is_empty() {
-                    ::std::write!(f, "{}({})", self.name, self.is_perturbing)
+                    ::std::write!(
+                        f,
+                        "{}({}; [{}]; [{}])",
+                        self.name,
+                        self.is_perturbing,
+                        self.dependencies,
+                        $crate::internal::join_mapped(
+                            &self.independent_perturbations,
+                            ";",
+                            |pert| pert.to_string(),
+                        )
+                    )
                 } else {
                     ::std::write!(
                         f,
-                        "{}({})^({})",
+                        "{}({}; [{}]; [{}])^({})",
                         self.name,
                         self.is_perturbing,
+                        self.dependencies,
+                        $crate::internal::join_mapped(
+                            &self.independent_perturbations,
+                            ";",
+                            |pert| pert.to_string(),
+                        ),
                         self.derivative
                     )
                 }
