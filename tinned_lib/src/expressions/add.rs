@@ -130,12 +130,12 @@ impl_add_traits!(Add, DEFAULT_HASH_DELIMITER, DEFAULT_FMT_DELIMITER, true);
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::expressions::ao_two_elec_energy::test_utils::make_ao_two_elec_energy;
     use crate::expressions::exch_corr_energy::test_utils::make_exch_corr_energy;
     use crate::expressions::number::test_utils::{
         make_number_complex, make_number_f64, make_number_i64, make_number_rational,
     };
     use crate::expressions::symbol::test_utils::make_symbol;
-    use crate::expressions::two_elec_energy::test_utils::make_two_elec_energy;
     use crate::expressions::wfn_parameter::test_utils::make_wfn_parameter;
     use crate::expressions::{Power, Symbol, Trace};
     use crate::internal::join_mapped;
@@ -272,7 +272,7 @@ mod tests {
     #[test]
     fn test_differentiation() {
         let op_a = Trace::new(make_wfn_parameter("")).unwrap();
-        let op_b = make_two_elec_energy("", None, None);
+        let op_b = make_ao_two_elec_energy("", None, None);
         let op_c = make_exch_corr_energy("", None, None, None);
         let add = Add::new(vec![op_a.clone(), op_b.clone(), op_c.clone()]).unwrap();
 

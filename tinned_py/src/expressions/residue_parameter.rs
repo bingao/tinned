@@ -1,5 +1,4 @@
 use pyo3::prelude::*;
-use std::sync::Arc;
 use std::vec::Vec;
 
 use tinned::ResidueParameter;
@@ -20,19 +19,14 @@ use crate::perturbations::{pert_multichain::PyPertMultichain, perturbation::PyPe
 /// Returns:
 ///   A PyExpr wrapping the constructed expression (interned), or ZeroOperator under the builder rules.
 #[pyfunction]
+#[pyo3(signature = (perturbations, excited_state, parameter, positive_frequency=None))]
 pub fn residue_parameter_new(
-    perturbations: &Bound<'_, PyAny>,
+    perturbations: Vec<PyPerturbation>,
     excited_state: PyExpr,
     parameter: PyExpr,
     positive_frequency: Option<bool>,
 ) -> PyResult<PyExpr> {
-    let mut perts: Vec<Arc<tinned::Perturbation>> = Vec::new();
-
-    for item in perturbations.try_iter()? {
-        let item = item?;
-        let p: Bound<'_, PyPerturbation> = item.extract()?;
-        perts.push(p.borrow().inner().clone());
-    }
+    let perts = perturbations.into_iter().map(|p| p.inner().clone()).collect();
 
     let mut b =
         ResidueParameter::builder(perts, excited_state.inner().clone(), parameter.inner().clone());

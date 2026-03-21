@@ -127,13 +127,13 @@ impl_mul_traits!(Mul, true, DEFAULT_HASH_DELIMITER, DEFAULT_FMT_DELIMITER);
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::expressions::ao_two_elec_energy::test_utils::make_ao_two_elec_energy;
     use crate::expressions::exch_corr_energy::test_utils::make_exch_corr_energy;
     use crate::expressions::number::test_utils::{
         make_number_complex, make_number_f64, make_number_i64, make_number_rational,
     };
-    use crate::expressions::one_elec_operator::test_utils::make_one_elec_operator;
+    use crate::expressions::one_elec_matrix::test_utils::make_one_elec_matrix;
     use crate::expressions::symbol::test_utils::make_symbol;
-    use crate::expressions::two_elec_energy::test_utils::make_two_elec_energy;
     use crate::expressions::{Add, Symbol, Trace};
     use crate::internal::join_mapped;
     use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
@@ -300,8 +300,8 @@ mod tests {
     #[test]
     fn test_differentiation() {
         let coef = make_number_complex(64u32);
-        let op_a = Trace::new(make_one_elec_operator("")).unwrap();
-        let op_b = make_two_elec_energy("", None, None);
+        let op_a = Trace::new(make_one_elec_matrix("", false)).unwrap();
+        let op_b = make_ao_two_elec_energy("", None, None);
         let op_c = make_exch_corr_energy("", None, None, None);
         let mul = Mul::new(vec![coef.clone(), op_a.clone(), op_b.clone(), op_c.clone()]).unwrap();
 

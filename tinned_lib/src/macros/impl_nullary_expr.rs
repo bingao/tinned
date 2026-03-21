@@ -11,6 +11,11 @@ macro_rules! impl_nullary_expr_type {
             }
 
             #[inline]
+            pub fn is_perturbing(&self) -> bool {
+                self.is_perturbing
+            }
+
+            #[inline]
             pub fn derivative(&self) -> &$crate::perturbations::PertMultichain {
                 &self.derivative
             }
@@ -19,6 +24,12 @@ macro_rules! impl_nullary_expr_type {
         impl_nullary_expr_type!(@nullary_def_builder $builder_name, $has_deps);
 
         impl $builder_name {
+            #[inline]
+            pub fn is_perturbing(mut self, is_perturbing: bool) -> Self {
+                self.is_perturbing = is_perturbing;
+                self
+            }
+
             #[inline]
             pub fn derivative(
                 mut self,
@@ -41,10 +52,10 @@ macro_rules! impl_nullary_expr_type {
         #[derive(Clone, Debug, PartialEq, Eq, ::serde::Serialize, ::serde::Deserialize)]
         pub struct $type_name {
             name: ::std::string::String,
+            is_perturbing: bool,
             dependencies: $crate::perturbations::PertMultichain,
             independent_perturbations: pert_ordered_set_ty!(),
             derivative: $crate::perturbations::PertMultichain,
-            is_perturbing: bool,
         }
     };
 
@@ -52,6 +63,7 @@ macro_rules! impl_nullary_expr_type {
         #[derive(Clone, Debug, PartialEq, Eq, ::serde::Serialize, ::serde::Deserialize)]
         pub struct $type_name {
             name: ::std::string::String,
+            is_perturbing: bool,
             derivative: $crate::perturbations::PertMultichain,
         }
     };
@@ -60,10 +72,10 @@ macro_rules! impl_nullary_expr_type {
         #[derive(Debug)]
         pub struct $builder_name {
             name: ::std::string::String,
+            is_perturbing: bool,
             dependencies: $crate::perturbations::PertMultichain,
             independent_perturbations: pert_ordered_set_ty!(),
             derivative: $crate::perturbations::PertMultichain,
-            is_perturbing: bool,
         }
     };
 
@@ -71,6 +83,7 @@ macro_rules! impl_nullary_expr_type {
         #[derive(Debug)]
         pub struct $builder_name {
             name: ::std::string::String,
+            is_perturbing: bool,
             derivative: $crate::perturbations::PertMultichain,
         }
     };
@@ -82,10 +95,10 @@ macro_rules! impl_nullary_expr_type {
         ) -> $builder_name {
             $builder_name {
                 name: name.into(),
+                is_perturbing: false,
                 dependencies: $crate::perturbations::PertMultichain::new(),
                 independent_perturbations: ::std::collections::BTreeSet::new(),
                 derivative: $crate::perturbations::PertMultichain::new(),
-                is_perturbing: false,
             }
         }
 
@@ -96,10 +109,10 @@ macro_rules! impl_nullary_expr_type {
         ) -> $builder_name {
             $builder_name {
                 name: self.name.clone(),
+                is_perturbing: self.is_perturbing,
                 dependencies: self.dependencies.clone(),
                 independent_perturbations: self.independent_perturbations.clone(),
                 derivative,
-                is_perturbing: self.is_perturbing,
             }
         }
 
@@ -112,11 +125,6 @@ macro_rules! impl_nullary_expr_type {
         pub fn independent_perturbations(&self) -> &pert_ordered_set_ty!() {
             &self.independent_perturbations
         }
-
-        #[inline]
-        pub fn is_perturbing(&self) -> bool {
-            self.is_perturbing
-        }
     };
 
     (@nullary_oper_methods $builder_name:ident, false) => {
@@ -126,6 +134,7 @@ macro_rules! impl_nullary_expr_type {
         ) -> $builder_name {
             $builder_name {
                 name: name.into(),
+                is_perturbing: false,
                 derivative: $crate::perturbations::PertMultichain::new(),
             }
         }
@@ -137,58 +146,24 @@ macro_rules! impl_nullary_expr_type {
         ) -> $builder_name {
             $builder_name {
                 name: self.name.clone(),
+                is_perturbing: self.is_perturbing,
                 derivative,
             }
         }
     };
 
     (@nullary_builder_methods $type_name:ident, true, true) => {
-        #[inline]
-        pub fn dependencies(
-            mut self,
-            deps: $crate::perturbations::PertMultichain,
-        ) -> Self {
-            self.dependencies = deps;
-            self
-        }
-
-        #[inline]
-        pub fn independent_perturbations(
-            mut self,
-            indep_perts: pert_ordered_set_ty!(),
-        ) -> Self {
-            self.independent_perturbations = indep_perts;
-            self
-        }
-
-        #[inline]
-        pub fn is_perturbing(mut self, is_perturbing: bool) -> Self {
-            self.is_perturbing = is_perturbing;
-            self
-        }
-
-        #[inline]
-        fn at_most_one_independent(&self) -> bool {
-            let mut count = 0;
-
-            for key in self.derivative.keys() {
-                if self.independent_perturbations.contains(&key) && { count += 1; count > 1 } {
-                    return false;
-                }
-            }
-
-            true
-        }
+        impl_nullary_expr_type!(@nullary_builder_methods_with_deps);
 
         #[inline]
         pub fn build(self) -> expr_result_ty!() {
             if self.dependencies.is_subchain(&self.derivative) && self.at_most_one_independent() {
                 Ok($crate::internal::intern_expr(::std::sync::Arc::new($type_name {
                     name: self.name,
+                    is_perturbing: self.is_perturbing,
                     dependencies: self.dependencies,
                     independent_perturbations: self.independent_perturbations,
                     derivative: self.derivative,
-                    is_perturbing: self.is_perturbing,
                 })))
             } else {
                 Ok($crate::expressions::Number::zero())
@@ -197,52 +172,17 @@ macro_rules! impl_nullary_expr_type {
     };
 
     (@nullary_builder_methods $type_name:ident, true, false) => {
-        #[inline]
-        pub fn dependencies(
-            mut self,
-            deps: $crate::perturbations::PertMultichain,
-        ) -> Self {
-            self.dependencies = deps;
-            self
-        }
-
-        #[inline]
-        pub fn independent_perturbations(
-            mut self,
-            indep_perts: pert_ordered_set_ty!(),
-        ) -> Self {
-            self.independent_perturbations = indep_perts;
-            self
-        }
-
-        #[inline]
-        pub fn is_perturbing(mut self, is_perturbing: bool) -> Self {
-            self.is_perturbing = is_perturbing;
-            self
-        }
-
-        #[inline]
-        fn at_most_one_independent(&self) -> bool {
-            let mut count = 0;
-
-            for key in self.derivative.keys() {
-                if self.independent_perturbations.contains(&key) && { count += 1; count > 1 } {
-                    return false;
-                }
-            }
-
-            true
-        }
+        impl_nullary_expr_type!(@nullary_builder_methods_with_deps);
 
         #[inline]
         pub fn build(self) -> expr_result_ty!() {
             if self.dependencies.is_subchain(&self.derivative) && self.at_most_one_independent() {
                 Ok($crate::internal::intern_expr(::std::sync::Arc::new($type_name {
                     name: self.name,
+                    is_perturbing: self.is_perturbing,
                     dependencies: self.dependencies,
                     independent_perturbations: self.independent_perturbations,
                     derivative: self.derivative,
-                    is_perturbing: self.is_perturbing,
                 })))
             } else {
                 Ok($crate::expressions::ZeroOperator::new())
@@ -261,8 +201,42 @@ macro_rules! impl_nullary_expr_type {
         pub fn build(self) -> expr_result_ty!() {
             Ok($crate::internal::intern_expr(::std::sync::Arc::new($type_name {
                 name: self.name,
+                is_perturbing: self.is_perturbing,
                 derivative: self.derivative,
             })))
+        }
+    };
+
+    (@nullary_builder_methods_with_deps) => {
+        #[inline]
+        pub fn dependencies(
+            mut self,
+            deps: $crate::perturbations::PertMultichain,
+        ) -> Self {
+            self.dependencies = deps;
+            self
+        }
+
+        #[inline]
+        pub fn independent_perturbations(
+            mut self,
+            indep_perts: pert_ordered_set_ty!(),
+        ) -> Self {
+            self.independent_perturbations = indep_perts;
+            self
+        }
+
+        #[inline]
+        fn at_most_one_independent(&self) -> bool {
+            let mut count = 0;
+
+            for key in self.derivative.keys() {
+                if self.independent_perturbations.contains(&key) && { count += 1; count > 1 } {
+                    return false;
+                }
+            }
+
+            true
         }
     };
 }
@@ -326,7 +300,7 @@ macro_rules! impl_nullary_expr_traits {
         impl $crate::core::Expr for $type_name {
             impl_nullary_expr_common_methods!($type_name, $is_scalar);
 
-            impl_nullary_expr_traits!(@nullary_apply_zero_rules $type_name, $has_deps, $is_scalar);
+            impl_nullary_expr_traits!(@nullary_apply_zero_rules $type_name, $is_scalar);
 
             #[inline]
             fn differentiate(
@@ -347,9 +321,10 @@ macro_rules! impl_nullary_expr_traits {
         #[inline]
         fn hash_key(&self) -> ::std::string::String {
             ::std::format!(
-                "{}({}; [{}]; [{}]; [{}]; {})",
+                "{}({}; {}; [{}]; [{}]; [{}])",
                 stringify!($type_name),
                 self.name,
+                self.is_perturbing,
                 self.dependencies.hash_key(),
                 $crate::internal::join_mapped(
                     &self.independent_perturbations,
@@ -357,7 +332,6 @@ macro_rules! impl_nullary_expr_traits {
                     |pert| pert.hash_key(),
                 ),
                 self.derivative.hash_key(),
-                self.is_perturbing,
             )
         }
     };
@@ -366,9 +340,10 @@ macro_rules! impl_nullary_expr_traits {
         #[inline]
         fn hash_key(&self) -> ::std::string::String {
             ::std::format!(
-                "{}({}; [{}])",
+                "{}({}; {}; [{}])",
                 stringify!($type_name),
                 self.name,
+                self.is_perturbing,
                 self.derivative.hash_key(),
             )
         }
@@ -376,18 +351,19 @@ macro_rules! impl_nullary_expr_traits {
 
     (@nullary_deep_eq_superchains $self:ident, $op:ident, true) => {
         $self.name == $op.name
+            && $self.is_perturbing == $op.is_perturbing
             && $self.dependencies == $op.dependencies
             && $self.independent_perturbations == $op.independent_perturbations
             && $self.derivative.is_subchain(&$op.derivative)
-            && $self.is_perturbing == $op.is_perturbing
     };
 
     (@nullary_deep_eq_superchains $self:ident, $op:ident, false) => {
         $self.name == $op.name
+            && $self.is_perturbing == $op.is_perturbing
             && $self.derivative.is_subchain(&$op.derivative)
     };
 
-    (@nullary_apply_zero_rules $type_name:ident, true, $is_scalar:tt) => {
+    (@nullary_apply_zero_rules $type_name:ident, $is_scalar:tt) => {
         #[inline]
         fn apply_zero_rules(
             &self,
@@ -402,10 +378,6 @@ macro_rules! impl_nullary_expr_traits {
             }
         }
     };
-
-    (@nullary_apply_zero_rules $type_name:ident, false, true) => {};
-
-    (@nullary_apply_zero_rules $type_name:ident, false, false) => {};
 
     (@nullary_eliminate $type_name:ident, true) => {};
 
@@ -483,12 +455,13 @@ macro_rules! impl_nullary_expr_traits {
                 f: &mut ::std::fmt::Formatter,
             ) -> ::std::fmt::Result {
                 if self.derivative.is_empty() {
-                    ::std::write!(f, "{}", self.name)
+                    ::std::write!(f, "{}({})", self.name, self.is_perturbing)
                 } else {
                     ::std::write!(
                         f,
-                        "{}^({})",
+                        "{}({})^({})",
                         self.name,
+                        self.is_perturbing,
                         self.derivative
                     )
                 }

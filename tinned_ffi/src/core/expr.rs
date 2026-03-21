@@ -1,5 +1,5 @@
 use safer_ffi::prelude::*;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use tinned::core::{Expr, TinnedError};
@@ -67,12 +67,12 @@ pub fn expr_vec_from_slice(
     try_vec_from_slice(slice.ptr, slice.len, caller, "ExprHandle", |h: &ExprHandle| h.clone_arc())
 }
 
-// Build a HashSet<Arc<dyn Expr>> from an ExprSlice.
+// Build a HashSet<Arc<dyn Expr>> or BTreeSet<Arc<dyn Expr>> from an ExprSlice.
 #[inline]
-pub fn expr_set_from_slice(
-    slice: &ExprSlice,
-    caller: &'static str,
-) -> Result<HashSet<Arc<dyn Expr>>, TinnedError> {
+pub fn expr_set_from_slice<S>(slice: &ExprSlice, caller: &'static str) -> Result<S, TinnedError>
+where
+    S: Default + Extend<Arc<dyn Expr>>,
+{
     try_set_from_slice(slice.ptr, slice.len, caller, "ExprHandle", |h| h.clone_arc())
 }
 

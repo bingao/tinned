@@ -9,6 +9,7 @@ use crate::core::{ExprBox, ExprHandle, TinnedErrorBox, tinned_error_new};
 #[ffi_export]
 pub extern "C" fn tinned_wfn_parameter_new(
     name: Option<char_p::Ref<'_>>,
+    is_perturbing: bool,
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> Option<ExprBox> {
     let Some(name) = tinned_string_from_cstr(name) else {
@@ -19,7 +20,7 @@ pub extern "C" fn tinned_wfn_parameter_new(
         return None;
     };
 
-    match <WfnParameter>::builder(name).build() {
+    match <WfnParameter>::builder(name).is_perturbing(is_perturbing).build() {
         Ok(expr_arc) => Some(ExprBox::new(ExprHandle::new(expr_arc))),
         Err(e) => {
             tinned_error_new(out_err, e);
@@ -30,10 +31,15 @@ pub extern "C" fn tinned_wfn_parameter_new(
 
 // Get `name` (caller must free the returned C string).
 impl_cstr_getter!(
-    tinned_wfn_parameter_name : WfnParameter => |lag| lag.name().to_string()
+    tinned_wfn_parameter_name: WfnParameter => |obj| obj.name().to_string()
+);
+
+impl_val_getters!(
+    WfnParameter;
+    tinned_wfn_parameter_is_perturbing: bool => |obj| obj.is_perturbing(); default = false,
 );
 
 // Get `derivative` (cloned).
-impl_pert_multichain_getter!(
-    tinned_wfn_parameter_derivative : WfnParameter => |obj| obj.derivative().clone()
-);
+impl_pert_multichain_getter!(WfnParameter, tinned_wfn_parameter_derivative, |obj| obj
+    .derivative()
+    .clone());

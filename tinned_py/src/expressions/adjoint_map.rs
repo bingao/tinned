@@ -16,16 +16,17 @@ use crate::core::{errors::to_pyerr, expr::PyExpr};
 /// Returns:
 ///   A PyExpr wrapping the constructed AdjointMap (interned).
 #[pyfunction]
+#[pyo3(signature = (generators, target, left_action=true))]
 pub fn adjoint_map_new(
     generators: Vec<PyExpr>,
     target: PyExpr,
-    left_action: Option<bool>,
+    left_action: bool,
 ) -> PyResult<PyExpr> {
     let rust_generators: Vec<Arc<dyn Expr>> =
         generators.into_iter().map(|t| t.inner().clone()).collect();
     let rust_target: Arc<dyn Expr> = target.inner().clone();
 
-    let out = AdjointMap::new(rust_generators, rust_target, left_action).map_err(to_pyerr)?;
+    let out = AdjointMap::new(rust_generators, rust_target, Some(left_action)).map_err(to_pyerr)?;
     Ok(PyExpr::new(out))
 }
 

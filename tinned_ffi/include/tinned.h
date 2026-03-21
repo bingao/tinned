@@ -94,6 +94,91 @@ tinned_adjoint_map_target (
     TinnedErrorHandle_t * * out_err);
 
 /** <No documentation available> */
+bool
+tinned_ao_two_elec_energy_allow_density_swap (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** \brief
+ *  An *opaque* handle that C can only pass around
+ */
+typedef struct PertMultichainHandle PertMultichainHandle_t;
+
+/** <No documentation available> */
+PertMultichainHandle_t *
+tinned_ao_two_elec_energy_dependencies (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+PertMultichainHandle_t *
+tinned_ao_two_elec_energy_derivative (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_ao_two_elec_energy_inner_density (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+char *
+tinned_ao_two_elec_energy_name (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_ao_two_elec_energy_new (
+    char const * name,
+    ExprHandle_t const * inner_density,
+    ExprHandle_t const * outer_density,
+    bool allow_density_swap,
+    PertMultichainHandle_t const * dependencies,
+    PertMultichainHandle_t const * derivative,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_ao_two_elec_energy_outer_density (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_ao_two_elec_matrix_density (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+PertMultichainHandle_t *
+tinned_ao_two_elec_matrix_dependencies (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+PertMultichainHandle_t *
+tinned_ao_two_elec_matrix_derivative (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+char *
+tinned_ao_two_elec_matrix_name (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_ao_two_elec_matrix_new (
+    char const * name,
+    ExprHandle_t const * density,
+    PertMultichainHandle_t const * dependencies,
+    PertMultichainHandle_t const * derivative,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
 ExprHandle_t *
 tinned_composition_inner (
     ExprHandle_t const * h,
@@ -181,11 +266,6 @@ tinned_exch_corr_energy_density_matrix (
     ExprHandle_t const * h,
     TinnedErrorHandle_t * * out_err);
 
-/** \brief
- *  An *opaque* handle that C can only pass around
- */
-typedef struct PertMultichainHandle PertMultichainHandle_t;
-
 /** <No documentation available> */
 PertMultichainHandle_t *
 tinned_exch_corr_energy_derivative (
@@ -268,6 +348,22 @@ tinned_exch_corr_potential_overlap_distribution (
 ExprHandle_t *
 tinned_exch_corr_potential_xc_potential (
     ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+char *
+tinned_excitation_operator_name (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** \brief
+ *  Create a new `ExcitationOperator` expression.
+ *  - `name`: UTF-8 C string (nullable). On NULL/invalid, sets `out_err` and returns `None`.
+ *  - Returns an `ExprBox` on success.
+ */
+ExprHandle_t *
+tinned_excitation_operator_new (
+    char const * name,
     TinnedErrorHandle_t * * out_err);
 
 /** <No documentation available> */
@@ -528,6 +624,12 @@ tinned_lag_multiplier_derivative (
     TinnedErrorHandle_t * * out_err);
 
 /** <No documentation available> */
+bool
+tinned_lag_multiplier_is_perturbing (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
 char *
 tinned_lag_multiplier_name (
     ExprHandle_t const * h,
@@ -537,6 +639,7 @@ tinned_lag_multiplier_name (
 ExprHandle_t *
 tinned_lag_multiplier_new (
     char const * name,
+    bool is_perturbing,
     TinnedErrorHandle_t * * out_err);
 
 /** <No documentation available> */
@@ -599,6 +702,32 @@ tinned_non_elec_function_derivative (
     ExprHandle_t const * h,
     TinnedErrorHandle_t * * out_err);
 
+/** \brief
+ *  Same as [`Vec<T>`][`rust::Vec`], but with guaranteed `#[repr(C)]` layout
+ */
+typedef struct Vec_PerturbationHandle_ptr {
+    /** <No documentation available> */
+    PerturbationHandle_t * * ptr;
+
+    /** <No documentation available> */
+    size_t len;
+
+    /** <No documentation available> */
+    size_t cap;
+} Vec_PerturbationHandle_ptr_t;
+
+/** <No documentation available> */
+Vec_PerturbationHandle_ptr_t
+tinned_non_elec_function_independent_perturbations (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+bool
+tinned_non_elec_function_is_perturbing (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
 /** <No documentation available> */
 char *
 tinned_non_elec_function_name (
@@ -609,7 +738,9 @@ tinned_non_elec_function_name (
 ExprHandle_t *
 tinned_non_elec_function_new (
     char const * name,
+    bool is_perturbing,
     PertMultichainHandle_t const * dependencies,
+    PerturbationSlice_t const * independent_perturbations,
     TinnedErrorHandle_t * * out_err);
 
 /** <No documentation available> */
@@ -724,27 +855,41 @@ tinned_number_zero (void);
 
 /** <No documentation available> */
 PertMultichainHandle_t *
-tinned_one_elec_operator_dependencies (
+tinned_one_elec_matrix_dependencies (
     ExprHandle_t const * h,
     TinnedErrorHandle_t * * out_err);
 
 /** <No documentation available> */
 PertMultichainHandle_t *
-tinned_one_elec_operator_derivative (
+tinned_one_elec_matrix_derivative (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+Vec_PerturbationHandle_ptr_t
+tinned_one_elec_matrix_independent_perturbations (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+bool
+tinned_one_elec_matrix_is_perturbing (
     ExprHandle_t const * h,
     TinnedErrorHandle_t * * out_err);
 
 /** <No documentation available> */
 char *
-tinned_one_elec_operator_name (
+tinned_one_elec_matrix_name (
     ExprHandle_t const * h,
     TinnedErrorHandle_t * * out_err);
 
 /** <No documentation available> */
 ExprHandle_t *
-tinned_one_elec_operator_new (
+tinned_one_elec_matrix_new (
     char const * name,
+    bool is_perturbing,
     PertMultichainHandle_t const * dependencies,
+    PerturbationSlice_t const * independent_perturbations,
     TinnedErrorHandle_t * * out_err);
 
 /** <No documentation available> */
@@ -848,20 +993,6 @@ tinned_pert_multichain_is_superchain (
 PertMultichainHandle_t *
 tinned_pert_multichain_new (void);
 
-/** \brief
- *  Same as [`Vec<T>`][`rust::Vec`], but with guaranteed `#[repr(C)]` layout
- */
-typedef struct Vec_PerturbationHandle_ptr {
-    /** <No documentation available> */
-    PerturbationHandle_t * * ptr;
-
-    /** <No documentation available> */
-    size_t len;
-
-    /** <No documentation available> */
-    size_t cap;
-} Vec_PerturbationHandle_ptr_t;
-
 /** <No documentation available> */
 Vec_PerturbationHandle_ptr_t
 tinned_pert_multichain_to_vec (
@@ -919,8 +1050,10 @@ tinned_perturbation_new (
     TinnedErrorHandle_t * * out_err);
 
 /** \brief
- *  Free a vector of `repr_c::Vec<PerturbationBox>`.
- *  Dropping the Vec drops each PerturbationBox, which decrements Arc counts.
+ *  Frees a vector of perturbation boxes returned by Rust.
+ *
+ *  This also drops all contained `PerturbationBox` elements.
+ *  The caller must not free the elements separately afterward.
  */
 void
 tinned_perturbation_vec_free (
@@ -1090,83 +1223,42 @@ tinned_transpose_new (
     TinnedErrorHandle_t * * out_err);
 
 /** <No documentation available> */
+PertMultichainHandle_t *
+tinned_two_elec_matrix_dependencies (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+PertMultichainHandle_t *
+tinned_two_elec_matrix_derivative (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+Vec_PerturbationHandle_ptr_t
+tinned_two_elec_matrix_independent_perturbations (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
 bool
-tinned_two_elec_energy_allow_density_swap (
-    ExprHandle_t const * h,
-    TinnedErrorHandle_t * * out_err);
-
-/** <No documentation available> */
-PertMultichainHandle_t *
-tinned_two_elec_energy_dependencies (
-    ExprHandle_t const * h,
-    TinnedErrorHandle_t * * out_err);
-
-/** <No documentation available> */
-PertMultichainHandle_t *
-tinned_two_elec_energy_derivative (
-    ExprHandle_t const * h,
-    TinnedErrorHandle_t * * out_err);
-
-/** <No documentation available> */
-ExprHandle_t *
-tinned_two_elec_energy_inner_density (
+tinned_two_elec_matrix_is_perturbing (
     ExprHandle_t const * h,
     TinnedErrorHandle_t * * out_err);
 
 /** <No documentation available> */
 char *
-tinned_two_elec_energy_name (
+tinned_two_elec_matrix_name (
     ExprHandle_t const * h,
     TinnedErrorHandle_t * * out_err);
 
 /** <No documentation available> */
 ExprHandle_t *
-tinned_two_elec_energy_new (
+tinned_two_elec_matrix_new (
     char const * name,
-    ExprHandle_t const * inner_density,
-    ExprHandle_t const * outer_density,
-    bool allow_density_swap,
+    bool is_perturbing,
     PertMultichainHandle_t const * dependencies,
-    PertMultichainHandle_t const * derivative,
-    TinnedErrorHandle_t * * out_err);
-
-/** <No documentation available> */
-ExprHandle_t *
-tinned_two_elec_energy_outer_density (
-    ExprHandle_t const * h,
-    TinnedErrorHandle_t * * out_err);
-
-/** <No documentation available> */
-ExprHandle_t *
-tinned_two_elec_operator_density (
-    ExprHandle_t const * h,
-    TinnedErrorHandle_t * * out_err);
-
-/** <No documentation available> */
-PertMultichainHandle_t *
-tinned_two_elec_operator_dependencies (
-    ExprHandle_t const * h,
-    TinnedErrorHandle_t * * out_err);
-
-/** <No documentation available> */
-PertMultichainHandle_t *
-tinned_two_elec_operator_derivative (
-    ExprHandle_t const * h,
-    TinnedErrorHandle_t * * out_err);
-
-/** <No documentation available> */
-char *
-tinned_two_elec_operator_name (
-    ExprHandle_t const * h,
-    TinnedErrorHandle_t * * out_err);
-
-/** <No documentation available> */
-ExprHandle_t *
-tinned_two_elec_operator_new (
-    char const * name,
-    ExprHandle_t const * density,
-    PertMultichainHandle_t const * dependencies,
-    PertMultichainHandle_t const * derivative,
+    PerturbationSlice_t const * independent_perturbations,
     TinnedErrorHandle_t * * out_err);
 
 /** <No documentation available> */
@@ -1180,6 +1272,10 @@ enum ExprTag {
     /** <No documentation available> */
     EXPR_TAG_ADJOINT_MAP,
     /** <No documentation available> */
+    EXPR_TAG_AO_TWO_ELEC_ENERGY,
+    /** <No documentation available> */
+    EXPR_TAG_AO_TWO_ELEC_MATRIX,
+    /** <No documentation available> */
     EXPR_TAG_COMPOSITION,
     /** <No documentation available> */
     EXPR_TAG_CONJUGATE,
@@ -1189,6 +1285,8 @@ enum ExprTag {
     EXPR_TAG_EXCH_CORR_ENERGY,
     /** <No documentation available> */
     EXPR_TAG_EXCH_CORR_POTENTIAL,
+    /** <No documentation available> */
+    EXPR_TAG_EXCITATION_OPERATOR,
     /** <No documentation available> */
     EXPR_TAG_EXP_ADJOINT_MAP,
     /** <No documentation available> */
@@ -1206,7 +1304,7 @@ enum ExprTag {
     /** <No documentation available> */
     EXPR_TAG_NUMBER,
     /** <No documentation available> */
-    EXPR_TAG_ONE_ELEC_OPERATOR,
+    EXPR_TAG_ONE_ELEC_MATRIX,
     /** <No documentation available> */
     EXPR_TAG_POWER,
     /** <No documentation available> */
@@ -1224,9 +1322,7 @@ enum ExprTag {
     /** <No documentation available> */
     EXPR_TAG_TRANSPOSE,
     /** <No documentation available> */
-    EXPR_TAG_TWO_ELEC_ENERGY,
-    /** <No documentation available> */
-    EXPR_TAG_TWO_ELEC_OPERATOR,
+    EXPR_TAG_TWO_ELEC_MATRIX,
     /** <No documentation available> */
     EXPR_TAG_WFN_PARAMETER,
     /** <No documentation available> */
@@ -1266,6 +1362,12 @@ tinned_wfn_parameter_derivative (
     TinnedErrorHandle_t * * out_err);
 
 /** <No documentation available> */
+bool
+tinned_wfn_parameter_is_perturbing (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
 char *
 tinned_wfn_parameter_name (
     ExprHandle_t const * h,
@@ -1275,6 +1377,7 @@ tinned_wfn_parameter_name (
 ExprHandle_t *
 tinned_wfn_parameter_new (
     char const * name,
+    bool is_perturbing,
     TinnedErrorHandle_t * * out_err);
 
 /** \brief

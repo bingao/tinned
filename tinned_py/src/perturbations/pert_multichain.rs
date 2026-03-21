@@ -1,13 +1,12 @@
 use pyo3::exceptions::{PyTypeError, PyValueError};
 use pyo3::prelude::*;
-use pyo3::types::PyAny;
 use std::hash::{Hash, Hasher};
 
 use tinned::PertMultichain;
 
 use crate::perturbations::perturbation::PyPerturbation;
 
-#[pyclass(module = "tinned", name = "PertMultichain", skip_from_py_object)]
+#[pyclass(module = "tinned", name = "PertMultichain", from_py_object)]
 #[derive(Clone)]
 pub struct PyPertMultichain {
     inner: PertMultichain,
@@ -37,30 +36,24 @@ impl PyPertMultichain {
 
     // Python: PertMultichain.from_iter([p1, p2, p1])
     #[staticmethod]
-    fn from_iter(iterable: &Bound<'_, PyAny>) -> PyResult<Self> {
-        let mut perts = Vec::new();
-
-        for item in iterable.try_iter()? {
-            let item = item?;
-            let p: Bound<'_, PyPerturbation> = item.extract()?;
-            perts.push(p.borrow().inner().clone());
-        }
+    fn from_iter(iterable: Vec<PyPerturbation>) -> PyResult<Self> {
+        let perts = iterable.into_iter().map(|p| p.inner().clone()).collect::<Vec<_>>();
 
         Ok(Self {
             inner: PertMultichain::from_slice(&perts),
         })
     }
 
-    fn insert(&mut self, p: &Bound<'_, PyPerturbation>) {
-        self.inner.insert(p.borrow().inner());
+    fn insert(&mut self, p: &PyPerturbation) {
+        self.inner.insert(p.inner());
     }
 
     fn is_empty(&self) -> bool {
         self.inner.is_empty()
     }
 
-    fn get_order(&self, p: &Bound<'_, PyPerturbation>) -> u32 {
-        self.inner.get_order(p.borrow().inner())
+    fn get_order(&self, p: &PyPerturbation) -> u32 {
+        self.inner.get_order(p.inner())
     }
 
     fn total_order(&self) -> u32 {

@@ -123,10 +123,10 @@ impl_add_traits!(MatrixAdd, DEFAULT_HASH_DELIMITER, DEFAULT_FMT_DELIMITER, false
 mod tests {
     use super::*;
     use crate::expressions::Symbol;
+    use crate::expressions::ao_two_elec_matrix::test_utils::make_ao_two_elec_matrix;
     use crate::expressions::number::test_utils::make_number_complex;
-    use crate::expressions::one_elec_operator::test_utils::make_one_elec_operator;
+    use crate::expressions::one_elec_matrix::test_utils::make_one_elec_matrix;
     use crate::expressions::symbol::test_utils::make_symbol;
-    use crate::expressions::two_elec_operator::test_utils::make_two_elec_operator;
     use crate::expressions::wfn_parameter::test_utils::make_wfn_parameter;
     use crate::internal::join_mapped;
     use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
@@ -144,7 +144,7 @@ mod tests {
             make_wfn_parameter("phi"),
             MatrixMul::new(vec![
                 Symbol::new("w"),
-                make_two_elec_operator("op(2el)", Some(make_wfn_parameter("psi"))),
+                make_ao_two_elec_matrix("op(2el)", Some(make_wfn_parameter("psi"))),
             ])
             .unwrap(),
         ])
@@ -156,8 +156,8 @@ mod tests {
         let c1 = make_number_complex(64u32);
         let c2 = make_symbol(4u32);
         let op_a = make_wfn_parameter("");
-        let op_b = make_one_elec_operator("");
-        let op_c = make_two_elec_operator("", None);
+        let op_b = make_one_elec_matrix("", false);
+        let op_c = make_ao_two_elec_matrix("", None);
 
         let add1 = MatrixAdd::new(vec![
             MatrixMul::new(vec![c1.clone(), op_a.clone()]).unwrap(),
@@ -297,8 +297,9 @@ mod tests {
     fn test_differentiation() {
         let op_a =
             MatrixMul::new(vec![make_number_complex(64u32), make_wfn_parameter("")]).unwrap();
-        let op_b = MatrixMul::new(vec![make_symbol(4u32), make_one_elec_operator("")]).unwrap();
-        let op_c = make_two_elec_operator("", None);
+        let op_b =
+            MatrixMul::new(vec![make_symbol(4u32), make_one_elec_matrix("", false)]).unwrap();
+        let op_c = make_ao_two_elec_matrix("", None);
         let add = MatrixAdd::new(vec![op_a.clone(), op_b.clone(), op_c.clone()]).unwrap();
 
         let p = make_perturbation_symbol(4u32, 4u32);
@@ -319,7 +320,7 @@ mod tests {
         let op = MatrixAdd::new(vec![
             MatrixMul::new(vec![make_number_complex(64u32), make_wfn_parameter("")]).unwrap(),
             make_wfn_parameter(""),
-            MatrixMul::new(vec![make_symbol(4u32), make_two_elec_operator("", None)]).unwrap(),
+            MatrixMul::new(vec![make_symbol(4u32), make_ao_two_elec_matrix("", None)]).unwrap(),
         ])
         .unwrap();
         let json = serde_json::to_string(&op).unwrap();
@@ -332,8 +333,8 @@ mod tests {
         let c1 = make_number_complex(64u32);
         let c2 = make_symbol(4u32);
         let op_a = make_wfn_parameter("");
-        let op_b = make_one_elec_operator("");
-        let op_c = make_two_elec_operator("", None);
+        let op_b = make_one_elec_matrix("", false);
+        let op_c = make_ao_two_elec_matrix("", None);
 
         let add = MatrixAdd::new(vec![
             MatrixMul::new(vec![c1.clone(), op_a.clone()]).unwrap(),

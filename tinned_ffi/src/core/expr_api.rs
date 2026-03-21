@@ -233,12 +233,14 @@ pub fn tinned_expr_exist_any(
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> bool {
     let expr_set = match set {
-        Some(slice) => match expr_set_from_slice(slice, "tinned_expr_exist_any") {
-            Ok(s) => s,
-            Err(e) => {
-                tinned_error_new(out_err, e);
-                return false;
-            },
+        Some(slice) => {
+            match expr_set_from_slice::<HashSet<Arc<dyn Expr>>>(slice, "tinned_expr_exist_any") {
+                Ok(s) => s,
+                Err(e) => {
+                    tinned_error_new(out_err, e);
+                    return false;
+                },
+            }
         },
         None => HashSet::new(),
     };
@@ -294,12 +296,14 @@ pub fn tinned_expr_remove(
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> Option<ExprBox> {
     let expr_set = match set {
-        Some(slice) => match expr_set_from_slice(slice, "tinned_expr_remove") {
-            Ok(s) => s,
-            Err(e) => {
-                tinned_error_new(out_err, e);
-                return None;
-            },
+        Some(slice) => {
+            match expr_set_from_slice::<HashSet<Arc<dyn Expr>>>(slice, "tinned_expr_remove") {
+                Ok(s) => s,
+                Err(e) => {
+                    tinned_error_new(out_err, e);
+                    return None;
+                },
+            }
         },
         None => Default::default(),
     };
@@ -343,12 +347,14 @@ pub fn tinned_expr_retain(
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> Option<ExprBox> {
     let expr_set = match set {
-        Some(slice) => match expr_set_from_slice(slice, "tinned_expr_retain") {
-            Ok(s) => s,
-            Err(e) => {
-                tinned_error_new(out_err, e);
-                return None;
-            },
+        Some(slice) => {
+            match expr_set_from_slice::<HashSet<Arc<dyn Expr>>>(slice, "tinned_expr_retain") {
+                Ok(s) => s,
+                Err(e) => {
+                    tinned_error_new(out_err, e);
+                    return None;
+                },
+            }
         },
         None => HashSet::new(),
     };

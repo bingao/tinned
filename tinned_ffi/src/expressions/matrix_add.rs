@@ -30,10 +30,10 @@ pub extern "C" fn tinned_matrix_add_new(
 }
 
 // Returns a cloned vector of terms
-#[ffi_export]
-pub extern "C" fn tinned_matrix_add_terms(
-    h: Option<&ExprHandle>,
-    out_err: Option<Out<'_, TinnedErrorBox>>,
-) -> repr_c::Vec<ExprBox> {
-    ffi_map_expr_as_exprvec::<MatrixAdd>(h, out_err, "tinned_matrix_add_terms", |add| add.terms())
-}
+impl_vec_getter!(
+    MatrixAdd,
+    tinned_matrix_add_terms,
+    repr_c::Vec<ExprBox>,
+    ffi_map_expr_as_exprvec,
+    |add| add.terms()
+);

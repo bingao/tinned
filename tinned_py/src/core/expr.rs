@@ -7,9 +7,9 @@ use pyo3::Py;
 use pyo3::basic::CompareOp;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
-use pyo3::types::{PyAny, PyDict};
+use pyo3::types::PyDict;
 
-use tinned::{Expr, expr_from_json, expr_to_json};
+use tinned::{Expr, Perturbation, expr_from_json, expr_to_json};
 
 use crate::core::errors::to_pyerr;
 use crate::perturbations::perturbation::PyPerturbation;
@@ -56,6 +56,7 @@ impl PyExpr {
     ///
     /// Returns:
     ///   A PyExpr wrapping the canonicalized expression.
+    #[pyo3(signature = (freq_tol=None))]
     fn apply_zero_rules(&self, freq_tol: Option<PyNumberTolerance>) -> PyResult<PyExpr> {
         let tol = freq_tol.map(|t| t.into_inner());
         let out = self.inner.apply_zero_rules(tol).map_err(to_pyerr)?;
@@ -69,8 +70,8 @@ impl PyExpr {
     ///
     /// Returns:
     ///   A PyExpr wrapping the differentiated expression.
-    fn differentiate(&self, s: &Bound<'_, PyPerturbation>) -> PyResult<PyExpr> {
-        let out = self.inner.differentiate(s.borrow().inner()).map_err(to_pyerr)?;
+    fn differentiate(&self, s: &PyPerturbation) -> PyResult<PyExpr> {
+        let out = self.inner.differentiate(s.inner()).map_err(to_pyerr)?;
         Ok(PyExpr::new(out))
     }
 
@@ -86,18 +87,14 @@ impl PyExpr {
     fn eliminate(
         &self,
         parameter: PyExpr,
-        perturbations: &Bound<'_, PyAny>,
+        perturbations: Vec<PyPerturbation>,
         min_order: u32,
     ) -> PyResult<PyExpr> {
-        let mut perts: Vec<Arc<tinned::perturbations::Perturbation>> = Vec::new();
-
-        for item in perturbations.try_iter()? {
-            let item = item?;
-            let p: Bound<'_, PyPerturbation> = item.extract()?;
-            perts.push(p.borrow().inner().clone());
-        }
+        let perts: Vec<Arc<Perturbation>> =
+            perturbations.into_iter().map(|p| p.inner().clone()).collect();
 
         let out = self.inner.eliminate(parameter.inner(), &perts, min_order).map_err(to_pyerr)?;
+
         Ok(PyExpr::new(out))
     }
 

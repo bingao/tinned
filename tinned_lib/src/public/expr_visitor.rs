@@ -2,10 +2,11 @@ use std::sync::Arc;
 
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{
-    Add, AdjointMap, Composition, Conjugate, DotProduct, ExchCorrEnergy, ExchCorrPotential,
-    ExpAdjointMap, HermitianTranspose, LagMultiplier, MatrixAdd, MatrixMul, Mul, NonElecFunction,
-    Number, OneElecOperator, Power, ResidueParameter, SubExpr, Symbol, TemporumOperator,
-    TemporumOverlap, Trace, Transpose, TwoElecEnergy, TwoElecOperator, WfnParameter, ZeroOperator,
+    Add, AdjointMap, AoTwoElecEnergy, AoTwoElecMatrix, Composition, Conjugate, DotProduct,
+    ExchCorrEnergy, ExchCorrPotential, ExcitationOperator, ExpAdjointMap, HermitianTranspose,
+    LagMultiplier, MatrixAdd, MatrixMul, Mul, NonElecFunction, Number, OneElecMatrix, Power,
+    ResidueParameter, SubExpr, Symbol, TemporumOperator, TemporumOverlap, Trace, Transpose,
+    TwoElecMatrix, WfnParameter, ZeroOperator,
 };
 use crate::public::downcast_from_arc;
 
@@ -15,11 +16,14 @@ use crate::public::downcast_from_arc;
 pub enum ExprTag {
     Add,
     AdjointMap,
+    AoTwoElecEnergy,
+    AoTwoElecMatrix,
     Composition,
     Conjugate,
     DotProduct,
     ExchCorrEnergy,
     ExchCorrPotential,
+    ExcitationOperator,
     ExpAdjointMap,
     HermitianTranspose,
     LagMultiplier,
@@ -28,7 +32,7 @@ pub enum ExprTag {
     Mul,
     NonElecFunction,
     Number,
-    OneElecOperator,
+    OneElecMatrix,
     Power,
     ResidueParameter,
     SubExpr,
@@ -37,8 +41,7 @@ pub enum ExprTag {
     TemporumOverlap,
     Trace,
     Transpose,
-    TwoElecEnergy,
-    TwoElecOperator,
+    TwoElecMatrix,
     WfnParameter,
     ZeroOperator,
 }
@@ -65,6 +68,12 @@ pub fn walk_expr_postorder<V: ExprVisitor>(
         if downcast_from_arc::<AdjointMap>(expr).is_some() {
             return visitor.leaf(ExprTag::AdjointMap, expr);
         }
+        if downcast_from_arc::<AoTwoElecEnergy>(expr).is_some() {
+            return visitor.leaf(ExprTag::AoTwoElecEnergy, expr);
+        }
+        if downcast_from_arc::<AoTwoElecMatrix>(expr).is_some() {
+            return visitor.leaf(ExprTag::AoTwoElecMatrix, expr);
+        }
         if downcast_from_arc::<Composition>(expr).is_some() {
             return visitor.leaf(ExprTag::Composition, expr);
         }
@@ -79,6 +88,9 @@ pub fn walk_expr_postorder<V: ExprVisitor>(
         }
         if downcast_from_arc::<ExchCorrPotential>(expr).is_some() {
             return visitor.leaf(ExprTag::ExchCorrPotential, expr);
+        }
+        if downcast_from_arc::<ExcitationOperator>(expr).is_some() {
+            return visitor.leaf(ExprTag::ExcitationOperator, expr);
         }
         if downcast_from_arc::<ExpAdjointMap>(expr).is_some() {
             return visitor.leaf(ExprTag::ExpAdjointMap, expr);
@@ -95,8 +107,8 @@ pub fn walk_expr_postorder<V: ExprVisitor>(
         if downcast_from_arc::<Number>(expr).is_some() {
             return visitor.leaf(ExprTag::Number, expr);
         }
-        if downcast_from_arc::<OneElecOperator>(expr).is_some() {
-            return visitor.leaf(ExprTag::OneElecOperator, expr);
+        if downcast_from_arc::<OneElecMatrix>(expr).is_some() {
+            return visitor.leaf(ExprTag::OneElecMatrix, expr);
         }
         if downcast_from_arc::<Power>(expr).is_some() {
             return visitor.leaf(ExprTag::Power, expr);
@@ -119,11 +131,8 @@ pub fn walk_expr_postorder<V: ExprVisitor>(
         if downcast_from_arc::<Transpose>(expr).is_some() {
             return visitor.leaf(ExprTag::Transpose, expr);
         }
-        if downcast_from_arc::<TwoElecEnergy>(expr).is_some() {
-            return visitor.leaf(ExprTag::TwoElecEnergy, expr);
-        }
-        if downcast_from_arc::<TwoElecOperator>(expr).is_some() {
-            return visitor.leaf(ExprTag::TwoElecOperator, expr);
+        if downcast_from_arc::<TwoElecMatrix>(expr).is_some() {
+            return visitor.leaf(ExprTag::TwoElecMatrix, expr);
         }
         if downcast_from_arc::<WfnParameter>(expr).is_some() {
             return visitor.leaf(ExprTag::WfnParameter, expr);

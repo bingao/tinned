@@ -1,7 +1,7 @@
 use safer_ffi::prelude::*;
 use std::sync::Arc;
 
-use tinned::expressions::TwoElecOperator;
+use tinned::expressions::AoTwoElecMatrix;
 use tinned::perturbations::PertMultichain;
 use tinned::public::generic_error;
 
@@ -10,7 +10,7 @@ use crate::core::{ExprBox, ExprHandle, TinnedErrorBox, tinned_error_new};
 use crate::perturbations::PertMultichainHandle;
 
 #[ffi_export]
-pub extern "C" fn tinned_two_elec_operator_new(
+pub extern "C" fn tinned_ao_two_elec_matrix_new(
     name: Option<char_p::Ref<'_>>,
     density: Option<&ExprHandle>,
     dependencies: Option<&PertMultichainHandle>,
@@ -20,7 +20,7 @@ pub extern "C" fn tinned_two_elec_operator_new(
     let Some(name) = tinned_string_from_cstr(name) else {
         tinned_error_new(
             out_err,
-            generic_error("Null or invalid name passed to tinned_two_elec_operator_new", None),
+            generic_error("Null or invalid name passed to tinned_ao_two_elec_matrix_new", None),
         );
         return None;
     };
@@ -28,13 +28,13 @@ pub extern "C" fn tinned_two_elec_operator_new(
     let Some(density) = density else {
         tinned_error_new(
             out_err,
-            generic_error("Null density passed to tinned_two_elec_operator_new", None),
+            generic_error("Null density passed to tinned_ao_two_elec_matrix_new", None),
         );
         return None;
     };
     let density_arc = density.clone_arc();
 
-    let mut builder = TwoElecOperator::builder(name, density_arc);
+    let mut builder = AoTwoElecMatrix::builder(name, density_arc);
     if let Some(dependencies) = dependencies {
         let deps: PertMultichain = dependencies.as_ref().clone();
         builder = builder.dependencies(deps);
@@ -55,20 +55,20 @@ pub extern "C" fn tinned_two_elec_operator_new(
 
 // Get `name` (caller must free the returned C string).
 impl_cstr_getter!(
-    tinned_two_elec_operator_name : TwoElecOperator => |op| op.name().to_string()
+    tinned_ao_two_elec_matrix_name: AoTwoElecMatrix => |op| op.name().to_string()
 );
 
 impl_expr_getters!(
-    TwoElecOperator;
-    tinned_two_elec_operator_density => |op| Ok(Arc::clone(op.density())),
+    AoTwoElecMatrix;
+    tinned_ao_two_elec_matrix_density => |op| Ok(Arc::clone(op.density())),
 );
 
 // Get `derivative` (cloned).
-impl_pert_multichain_getter!(
-    tinned_two_elec_operator_derivative : TwoElecOperator => |op| op.derivative().clone()
-);
+impl_pert_multichain_getter!(AoTwoElecMatrix, tinned_ao_two_elec_matrix_derivative, |op| op
+    .derivative()
+    .clone());
 
 // Get `dependencies` (cloned).
-impl_pert_multichain_getter!(
-    tinned_two_elec_operator_dependencies : TwoElecOperator => |op| op.dependencies().clone()
-);
+impl_pert_multichain_getter!(AoTwoElecMatrix, tinned_ao_two_elec_matrix_dependencies, |op| op
+    .dependencies()
+    .clone());

@@ -18,6 +18,7 @@ use crate::perturbations::pert_multichain::PyPertMultichain;
 /// Returns:
 ///   A PyExpr wrapping the constructed expression (interned).
 #[pyfunction]
+#[pyo3(signature = (generator, target, left_action=None, max_fold=None))]
 pub fn exp_adjoint_map_new(
     generator: PyExpr,
     target: PyExpr,
@@ -48,6 +49,7 @@ pub fn exp_adjoint_map_new(
 /// Returns:
 ///   A PyExpr wrapping the constructed expression (interned).
 #[pyfunction]
+#[pyo3(signature = (generator, is_forward, left_action=None, max_fold=None))]
 pub fn exp_adjoint_map_temporum_new(
     generator: PyExpr,
     is_forward: bool,

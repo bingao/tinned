@@ -13,8 +13,8 @@ use crate::perturbations::pert_multichain::PyPertMultichain;
 /// Returns:
 ///   A PyExpr wrapping the constructed expression (interned).
 #[pyfunction]
-pub fn temporum_overlap_new(dependencies: &Bound<'_, PyPertMultichain>) -> PyResult<PyExpr> {
-    let deps = dependencies.borrow().inner().clone();
+pub fn temporum_overlap_new(dependencies: &PyPertMultichain) -> PyResult<PyExpr> {
+    let deps = dependencies.inner().clone();
 
     let b = TemporumOverlap::builder(deps);
     let out = b.build().map_err(to_pyerr)?;

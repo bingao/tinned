@@ -4,7 +4,7 @@ use std::sync::Arc;
 use crate::core::expr_internal::sealed::ExprInternal;
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{
-    Add, MatrixAdd, MatrixMul, Mul, Number, OneElecOperator, TemporumOperator, ZeroOperator,
+    Add, MatrixAdd, MatrixMul, Mul, Number, OneElecMatrix, TemporumOperator, ZeroOperator,
 };
 use crate::internal::intern_expr;
 use crate::perturbations::{PertMultichain, Perturbation};
@@ -153,10 +153,10 @@ impl TemporumOverlap {
 // Helper function to build `braket` with given dependencies, by following
 // Equation (62), J. Comput. Chem. 2024; 45: 2136-2152.
 fn build_braket(deps: &PertMultichain) -> Result<Arc<dyn Expr>, TinnedError> {
-    let bra = OneElecOperator::builder("Sb").dependencies(deps.clone()).build()?;
+    let bra = OneElecMatrix::builder("Sb").dependencies(deps.clone()).build()?;
     let dt_bra = TemporumOperator::builder(bra).is_forward(true).build()?;
 
-    let ket = OneElecOperator::builder("Sk").dependencies(deps.clone()).build()?;
+    let ket = OneElecMatrix::builder("Sk").dependencies(deps.clone()).build()?;
     let dt_ket = TemporumOperator::builder(ket).is_forward(false).build()?;
 
     MatrixMul::new(vec![dt_bra, dt_ket])

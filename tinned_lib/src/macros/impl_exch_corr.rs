@@ -396,7 +396,7 @@ macro_rules! impl_exch_corr_test_utils {
                 $crate::expressions::wfn_parameter::test_utils::make_wfn_parameter("")
             });
             let overlap = overlap_distribution.unwrap_or_else(|| {
-                $crate::expressions::one_elec_operator::test_utils::make_one_elec_operator("")
+                $crate::expressions::one_elec_matrix::test_utils::make_one_elec_matrix("", false)
             });
 
             if name.is_empty() {

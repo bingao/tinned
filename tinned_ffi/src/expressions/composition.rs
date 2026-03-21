@@ -42,7 +42,7 @@ pub extern "C" fn tinned_composition_new(
 
 // Get `name` (caller must free the returned C string).
 impl_cstr_getter!(
-    tinned_composition_name : Composition => |c| c.name().to_string()
+    tinned_composition_name: Composition => |c| c.name().to_string()
 );
 
 // Get `order`.

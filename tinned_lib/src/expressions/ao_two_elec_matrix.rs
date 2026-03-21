@@ -6,18 +6,21 @@ use crate::expressions::{MatrixAdd, ResidueParameter, WfnParameter, ZeroOperator
 use crate::perturbations::{PertMultichain, Perturbation};
 use crate::public::{downcast_from_arc, expression_error, generic_expression_error, is_expr_type};
 
+// In the atomic orbital (AO) representation, we have two-electron matrix
+// G^{AO}(D^{AO}), see for example equation (64), J. Chem. Phys. 129, 214108
+// (2008). Here D^{AO} is the AO denisty matrix.
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
-pub struct TwoElecOperator {
+pub struct AoTwoElecMatrix {
     name: String,
     density: Arc<dyn Expr>,
     dependencies: PertMultichain,
     derivative: PertMultichain,
 }
 
-impl TwoElecOperator {
+impl AoTwoElecMatrix {
     #[inline]
-    pub fn builder(name: impl Into<String>, density: Arc<dyn Expr>) -> TwoElecOperatorBuilder {
-        TwoElecOperatorBuilder {
+    pub fn builder(name: impl Into<String>, density: Arc<dyn Expr>) -> AoTwoElecMatrixBuilder {
+        AoTwoElecMatrixBuilder {
             name: name.into(),
             density,
             dependencies: PertMultichain::new(),
@@ -26,8 +29,8 @@ impl TwoElecOperator {
     }
 
     #[inline]
-    pub fn with_density(&self, density: Arc<dyn Expr>) -> TwoElecOperatorBuilder {
-        TwoElecOperatorBuilder {
+    pub fn with_density(&self, density: Arc<dyn Expr>) -> AoTwoElecMatrixBuilder {
+        AoTwoElecMatrixBuilder {
             name: self.name.clone(),
             density,
             dependencies: self.dependencies.clone(),
@@ -36,8 +39,8 @@ impl TwoElecOperator {
     }
 
     #[inline]
-    pub fn with_derivative(&self, derivative: PertMultichain) -> TwoElecOperatorBuilder {
-        TwoElecOperatorBuilder {
+    pub fn with_derivative(&self, derivative: PertMultichain) -> AoTwoElecMatrixBuilder {
+        AoTwoElecMatrixBuilder {
             name: self.name.clone(),
             density: self.density.clone(),
             dependencies: self.dependencies.clone(),
@@ -67,14 +70,14 @@ impl TwoElecOperator {
 }
 
 #[derive(Debug)]
-pub struct TwoElecOperatorBuilder {
+pub struct AoTwoElecMatrixBuilder {
     name: String,
     density: Arc<dyn Expr>,
     dependencies: PertMultichain,
     derivative: PertMultichain,
 }
 
-impl TwoElecOperatorBuilder {
+impl AoTwoElecMatrixBuilder {
     #[inline]
     pub fn dependencies(mut self, deps: PertMultichain) -> Self {
         self.dependencies = deps;
@@ -96,7 +99,7 @@ impl TwoElecOperatorBuilder {
             || is_expr_type::<ResidueParameter>(&self.density)
         {
             if self.dependencies.is_subchain(&self.derivative) {
-                Ok(crate::internal::intern_expr(Arc::new(TwoElecOperator {
+                Ok(crate::internal::intern_expr(Arc::new(AoTwoElecMatrix {
                     name: self.name,
                     density: self.density,
                     dependencies: self.dependencies,
@@ -107,7 +110,7 @@ impl TwoElecOperatorBuilder {
             }
         } else {
             Err(expression_error(
-                "TwoElecOperatorBuilder::build() - density must be WfnParameter or ResidueParameter",
+                "AoTwoElecMatrixBuilder::build() - density must be WfnParameter or ResidueParameter",
                 &self.density,
                 None,
             ))
@@ -115,18 +118,18 @@ impl TwoElecOperatorBuilder {
     }
 }
 
-impl ExprInternal for TwoElecOperator {
+impl ExprInternal for AoTwoElecMatrix {
     impl_unary_expr_internal_methods!(
-        TwoElecOperator,
+        AoTwoElecMatrix,
         density,
         true,
-        |this: &TwoElecOperator, arg| this.with_density(arg).build()
+        |this: &AoTwoElecMatrix, arg| this.with_density(arg).build()
     );
 
     #[inline]
     fn hash_key(&self) -> String {
         format!(
-            "TwoElecOperator({}; {}; [{}]; [{}])",
+            "AoTwoElecMatrix({}; {}; [{}]; [{}])",
             self.name,
             self.density.hash_key(),
             self.dependencies.hash_key(),
@@ -141,7 +144,7 @@ impl ExprInternal for TwoElecOperator {
 
     #[inline]
     fn deep_eq_superchains(&self, other: &Arc<dyn Expr>) -> bool {
-        if let Some(op) = downcast_from_arc::<TwoElecOperator>(other) {
+        if let Some(op) = downcast_from_arc::<AoTwoElecMatrix>(other) {
             self.name == op.name
                 && self.dependencies == op.dependencies
                 && self.density.deep_eq_superchains(&op.density)
@@ -156,7 +159,7 @@ impl ExprInternal for TwoElecOperator {
         // For unambiguous replacement, we require equality of density
         // matrices, and make replacement by considering only derivative of
         // electron repulsion integrals (ERIs).
-        if let Some(op) = downcast_from_arc::<TwoElecOperator>(other) {
+        if let Some(op) = downcast_from_arc::<AoTwoElecMatrix>(other) {
             self.name == op.name
                 && &self.density == &op.density
                 && self.dependencies == op.dependencies
@@ -168,18 +171,18 @@ impl ExprInternal for TwoElecOperator {
 }
 
 #[typetag::serde]
-impl Expr for TwoElecOperator {
+impl Expr for AoTwoElecMatrix {
     impl_unary_expr_common_methods!(
-        TwoElecOperator,
+        AoTwoElecMatrix,
         density,
         False,
-        |this: &TwoElecOperator, arg| this.with_density(arg).build()
+        |this: &AoTwoElecMatrix, arg| this.with_density(arg).build()
     );
 
     fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
         let diff_density = self.density.differentiate(s).map_err(|e| {
             generic_expression_error(
-                "TwoElecOperator::differentiate() failed for density",
+                "AoTwoElecMatrix::differentiate() failed for density",
                 self,
                 Some(Box::new(e)),
             )
@@ -197,7 +200,7 @@ impl Expr for TwoElecOperator {
     }
 }
 
-impl PartialEq for TwoElecOperator {
+impl PartialEq for AoTwoElecMatrix {
     fn eq(&self, other: &Self) -> bool {
         self.name == other.name
             && &self.density == &other.density
@@ -206,9 +209,9 @@ impl PartialEq for TwoElecOperator {
     }
 }
 
-impl Eq for TwoElecOperator {}
+impl Eq for AoTwoElecMatrix {}
 
-impl std::fmt::Display for TwoElecOperator {
+impl std::fmt::Display for AoTwoElecMatrix {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}^{}[{}]", self.name, self.derivative, self.density)
     }
@@ -223,10 +226,10 @@ pub mod test_utils {
         make_pert_multichain, make_super_multichain,
     };
 
-    pub const TEST_OPER_NAME: &str = "op(2el)";
+    pub const TEST_OPER_NAME: &str = "G^{AO}";
 
     #[inline]
-    pub fn make_two_elec_operator(
+    pub fn make_ao_two_elec_matrix(
         name: impl Into<String>,
         density: Option<Arc<dyn Expr>>,
     ) -> Arc<dyn Expr> {
@@ -235,7 +238,7 @@ pub mod test_utils {
         if name.is_empty() {
             let deriv = make_pert_multichain(2u32, 10u32, 1u32, 10u32);
             let deps = make_super_multichain(&deriv, 1u32);
-            TwoElecOperator::builder(random_alphanumeric(TEST_OPER_NAME.len() as u32 + 1), dens)
+            AoTwoElecMatrix::builder(random_alphanumeric(TEST_OPER_NAME.len() as u32 + 1), dens)
                 .dependencies(deps)
                 .derivative(deriv)
                 .build()
@@ -243,7 +246,7 @@ pub mod test_utils {
         } else {
             let deriv = make_pert_multichain(0u32, 0u32, 1u32, 0u32);
             let deps = make_super_multichain(&deriv, 1u32);
-            TwoElecOperator::builder(name, dens)
+            AoTwoElecMatrix::builder(name, dens)
                 .dependencies(deps)
                 .derivative(deriv)
                 .build()
@@ -264,17 +267,17 @@ mod tests {
     use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
     use crate::public::{is_one_expr, is_zero_expr};
 
-    test_struct_safety!(TwoElecOperator);
+    test_struct_safety!(AoTwoElecMatrix);
 
     test_thread_interning!({
-        make_two_elec_operator(TEST_OPER_NAME, Some(make_wfn_parameter("density")))
+        make_ao_two_elec_matrix(TEST_OPER_NAME, Some(make_wfn_parameter("density")))
     });
 
     #[test]
     fn test_impl_expr() {
         let density = make_wfn_parameter("");
         let deriv = make_pert_multichain(2u32, 8u32, 1u32, 10u32);
-        let op0 = TwoElecOperator::builder(TEST_OPER_NAME, density.clone())
+        let op0 = AoTwoElecMatrix::builder(TEST_OPER_NAME, density.clone())
             .derivative(deriv.clone())
             .build()
             .unwrap();
@@ -282,16 +285,16 @@ mod tests {
         assert!(is_zero_expr(&op0, None));
 
         let deps = make_super_multichain(&deriv, 1u32);
-        let op1 = TwoElecOperator::builder(TEST_OPER_NAME, density.clone())
+        let op1 = AoTwoElecMatrix::builder(TEST_OPER_NAME, density.clone())
             .dependencies(deps.clone())
             .derivative(deriv.clone())
             .build()
             .unwrap();
 
-        let op = downcast_from_arc::<TwoElecOperator>(&op1).unwrap();
+        let op = downcast_from_arc::<AoTwoElecMatrix>(&op1).unwrap();
         assert_eq!(
             op,
-            &TwoElecOperator {
+            &AoTwoElecMatrix {
                 name: TEST_OPER_NAME.into(),
                 density: density.clone(),
                 dependencies: deps.clone(),
@@ -315,7 +318,7 @@ mod tests {
         assert_eq!(
             op1.hash_key(),
             format!(
-                "TwoElecOperator({}; {}; [{}]; [{}])",
+                "AoTwoElecMatrix({}; {}; [{}]; [{}])",
                 TEST_OPER_NAME,
                 density.hash_key(),
                 deps.hash_key(),
@@ -325,12 +328,12 @@ mod tests {
         assert!(!op1.is_scalar());
         assert_eq!(format!("{}", op1), format!("{}^{}[{}]", TEST_OPER_NAME, deriv, density));
 
-        let op3 = TwoElecOperator::builder(TEST_OPER_NAME, density.clone())
+        let op3 = AoTwoElecMatrix::builder(TEST_OPER_NAME, density.clone())
             .dependencies(deps.clone())
             .derivative(deriv.clone())
             .build()
             .unwrap();
-        let op4 = TwoElecOperator::builder(
+        let op4 = AoTwoElecMatrix::builder(
             random_alphanumeric(TEST_OPER_NAME.len() as u32 + 1),
             density.clone(),
         )
@@ -338,16 +341,16 @@ mod tests {
         .derivative(deriv.clone())
         .build()
         .unwrap();
-        let op5 = TwoElecOperator::builder(TEST_OPER_NAME, density.clone())
+        let op5 = AoTwoElecMatrix::builder(TEST_OPER_NAME, density.clone())
             .dependencies(deps.clone())
             .build()
             .unwrap();
-        let op6 = TwoElecOperator::builder(TEST_OPER_NAME, density.clone())
+        let op6 = AoTwoElecMatrix::builder(TEST_OPER_NAME, density.clone())
             .dependencies(make_super_multichain(&deriv, 2u32))
             .derivative(deriv.clone())
             .build()
             .unwrap();
-        let op7 = TwoElecOperator::builder(TEST_OPER_NAME, make_wfn_parameter("density"))
+        let op7 = AoTwoElecMatrix::builder(TEST_OPER_NAME, make_wfn_parameter("density"))
             .dependencies(deps.clone())
             .derivative(deriv.clone())
             .build()
@@ -365,7 +368,7 @@ mod tests {
         let density = make_wfn_parameter("");
         let len_pert_name: u32 = 2;
         let deps = make_pert_multichain(len_pert_name, 8u32, 1u32, 10u32);
-        let op = TwoElecOperator::builder(TEST_OPER_NAME, density.clone())
+        let op = AoTwoElecMatrix::builder(TEST_OPER_NAME, density.clone())
             .dependencies(deps.clone())
             .build()
             .unwrap();
@@ -378,12 +381,12 @@ mod tests {
         assert_eq!(
             &diff_op,
             &MatrixAdd::new(vec![
-                TwoElecOperator::builder(TEST_OPER_NAME, density.clone())
+                AoTwoElecMatrix::builder(TEST_OPER_NAME, density.clone())
                     .dependencies(deps.clone())
                     .derivative(deriv.clone())
                     .build()
                     .unwrap(),
-                TwoElecOperator::builder(TEST_OPER_NAME, density.differentiate(&p).unwrap())
+                AoTwoElecMatrix::builder(TEST_OPER_NAME, density.differentiate(&p).unwrap())
                     .dependencies(deps.clone())
                     .build()
                     .unwrap(),
@@ -396,7 +399,7 @@ mod tests {
 
         assert_eq!(
             &diff_op,
-            &TwoElecOperator::builder(TEST_OPER_NAME, density.differentiate(&p).unwrap())
+            &AoTwoElecMatrix::builder(TEST_OPER_NAME, density.differentiate(&p).unwrap())
                 .dependencies(deps.clone())
                 .build()
                 .unwrap()
@@ -405,7 +408,7 @@ mod tests {
 
     #[test]
     fn test_serialization() {
-        let op = make_two_elec_operator("", None);
+        let op = make_ao_two_elec_matrix("", None);
         let json = serde_json::to_string(&op).unwrap();
         let deserialized: Arc<dyn Expr> = serde_json::from_str(&json).unwrap();
         assert_eq!(&op, &deserialized);
@@ -414,15 +417,15 @@ mod tests {
     #[test]
     fn test_utils() {
         let density = make_wfn_parameter("");
-        let op1 = make_two_elec_operator(TEST_OPER_NAME, Some(density.clone()));
+        let op1 = make_ao_two_elec_matrix(TEST_OPER_NAME, Some(density.clone()));
 
-        assert!(is_expr_type::<TwoElecOperator>(&op1));
+        assert!(is_expr_type::<AoTwoElecMatrix>(&op1));
         assert!(!is_zero_expr(&op1, None));
         assert!(!is_one_expr(&op1, None));
 
-        let op2 = make_two_elec_operator(TEST_OPER_NAME, Some(density));
-        let op3 = make_two_elec_operator("", Some(make_wfn_parameter("density")));
-        let op4 = make_two_elec_operator(TEST_OPER_NAME, Some(make_wfn_parameter("density")));
+        let op2 = make_ao_two_elec_matrix(TEST_OPER_NAME, Some(density));
+        let op3 = make_ao_two_elec_matrix("", Some(make_wfn_parameter("density")));
+        let op4 = make_ao_two_elec_matrix(TEST_OPER_NAME, Some(make_wfn_parameter("density")));
 
         assert!(Arc::ptr_eq(&op1, &op2));
         assert!(!Arc::ptr_eq(&op1, &op3));

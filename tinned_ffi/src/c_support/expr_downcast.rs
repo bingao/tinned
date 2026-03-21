@@ -1,12 +1,15 @@
 use safer_ffi::prelude::*;
+use std::collections::BTreeSet;
 use std::sync::Arc;
 
 use tinned::core::{Expr, TinnedError};
 use tinned::inspect::downcast_from_ref;
+use tinned::perturbations::Perturbation;
 use tinned::public::expression_error;
 
 use crate::c_support::try_with_handle;
 use crate::core::{ExprBox, ExprHandle, TinnedErrorBox, tinned_error_new};
+use crate::perturbations::{PerturbationBox, PerturbationHandle};
 
 #[inline]
 fn invalid_expr_type(caller: &'static str, expr: &Arc<dyn Expr>) -> TinnedError {
@@ -59,7 +62,7 @@ pub(crate) fn ffi_map_expr_as_copy<Target: 'static, R: Copy>(
     ffi_map_expr_as::<Target, R>(h, out_err, caller, |t| Ok(f(t)))
 }
 
-// Expr downcast helper for for &[Arc<dyn Expr>]returns.
+// Expr downcast helper for for &[Arc<dyn Expr>] returns.
 #[inline]
 pub(crate) fn ffi_map_expr_as_exprvec<Target: 'static>(
     h: Option<&ExprHandle>,
@@ -81,5 +84,28 @@ pub(crate) fn ffi_map_expr_as_exprvec<Target: 'static>(
     }) {
         Some(v) => v,
         None => Vec::<ExprBox>::new().into(),
+    }
+}
+
+// Expr downcast helper for for &BTreeSet<Arc<Perturbation>> returns.
+#[inline]
+pub(crate) fn ffi_map_expr_as_pertvec<Target: 'static>(
+    h: Option<&ExprHandle>,
+    out_err: Option<Out<'_, TinnedErrorBox>>,
+    caller: &'static str,
+    to_set: impl FnOnce(&Target) -> &BTreeSet<Arc<Perturbation>>,
+) -> repr_c::Vec<PerturbationBox> {
+    match ffi_map_expr_as::<Target, _>(h, out_err, caller, |t| {
+        let set = to_set(t);
+
+        let mut v: Vec<PerturbationBox> = Vec::with_capacity(set.len());
+        for pert_arc in set {
+            v.push(PerturbationBox::new(PerturbationHandle::new(Arc::clone(pert_arc))));
+        }
+
+        Ok(v.into())
+    }) {
+        Some(v) => v,
+        None => Vec::<PerturbationBox>::new().into(),
     }
 }

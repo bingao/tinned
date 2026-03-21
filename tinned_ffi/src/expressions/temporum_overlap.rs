@@ -42,11 +42,11 @@ impl_expr_getters!(
 );
 
 // Get `derivative` (cloned).
-impl_pert_multichain_getter!(
-    tinned_temporum_overlap_derivative : TemporumOverlap => |op| op.derivative().clone()
-);
+impl_pert_multichain_getter!(TemporumOverlap, tinned_temporum_overlap_derivative, |op| op
+    .derivative()
+    .clone());
 
 // Get `dependencies` (cloned).
-impl_pert_multichain_getter!(
-    tinned_temporum_overlap_dependencies : TemporumOverlap => |op| op.dependencies().clone()
-);
+impl_pert_multichain_getter!(TemporumOverlap, tinned_temporum_overlap_dependencies, |op| op
+    .dependencies()
+    .clone());

@@ -8,7 +8,7 @@ use tinned::Perturbation;
 
 use crate::core::expr::PyExpr;
 
-#[pyclass(module = "tinned", name = "Perturbation", frozen, skip_from_py_object)]
+#[pyclass(module = "tinned", name = "Perturbation", from_py_object)]
 #[derive(Clone)]
 pub struct PyPerturbation {
     inner: Arc<Perturbation>,

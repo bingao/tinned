@@ -92,11 +92,11 @@ impl_mul_traits!(MatrixMul, false, DEFAULT_HASH_DELIMITER, DEFAULT_FMT_DELIMITER
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::expressions::ao_two_elec_matrix::test_utils::make_ao_two_elec_matrix;
     use crate::expressions::exch_corr_energy::test_utils::make_exch_corr_energy;
     use crate::expressions::number::test_utils::make_number_complex;
-    use crate::expressions::one_elec_operator::test_utils::make_one_elec_operator;
+    use crate::expressions::one_elec_matrix::test_utils::make_one_elec_matrix;
     use crate::expressions::symbol::test_utils::make_symbol;
-    use crate::expressions::two_elec_operator::test_utils::make_two_elec_operator;
     use crate::expressions::wfn_parameter::test_utils::make_wfn_parameter;
     use crate::expressions::{MatrixAdd, Symbol};
     use crate::internal::join_mapped;
@@ -111,10 +111,10 @@ mod tests {
             Symbol::new("w"),
             Number::from_complex(Complex64::new(0.0, -1.0)),
             make_wfn_parameter("psi"),
-            make_two_elec_operator("op(2el)", Some(make_wfn_parameter("phi"))),
+            make_ao_two_elec_matrix("op(2el)", Some(make_wfn_parameter("phi"))),
             MatrixAdd::new(vec![
                 make_wfn_parameter("phi"),
-                make_two_elec_operator("op(2el)", Some(make_wfn_parameter("psi"))),
+                make_ao_two_elec_matrix("op(2el)", Some(make_wfn_parameter("psi"))),
             ])
             .unwrap(),
         ])
@@ -126,8 +126,8 @@ mod tests {
         let c1 = make_number_complex(64u32);
         let c2 = make_symbol(4u32);
         let op_a = make_wfn_parameter("");
-        let op_b = make_one_elec_operator("");
-        let op_c = make_two_elec_operator("", None);
+        let op_b = make_one_elec_matrix("", false);
+        let op_c = make_ao_two_elec_matrix("", None);
 
         let mul1 = MatrixMul::new(vec![
             c1.clone(),
@@ -300,8 +300,8 @@ mod tests {
     fn test_differentiation() {
         let coef = make_exch_corr_energy("", None, None, None);
         let op_a = make_wfn_parameter("");
-        let op_b = make_one_elec_operator("");
-        let op_c = make_two_elec_operator("", None);
+        let op_b = make_one_elec_matrix("", false);
+        let op_c = make_ao_two_elec_matrix("", None);
         let mul =
             MatrixMul::new(vec![coef.clone(), op_a.clone(), op_b.clone(), op_c.clone()]).unwrap();
 
@@ -334,8 +334,9 @@ mod tests {
             make_symbol(4u32),
             make_number_complex(64u32),
             make_wfn_parameter(""),
-            make_one_elec_operator(""),
-            MatrixAdd::new(vec![make_wfn_parameter(""), make_two_elec_operator("", None)]).unwrap(),
+            make_one_elec_matrix("", false),
+            MatrixAdd::new(vec![make_wfn_parameter(""), make_ao_two_elec_matrix("", None)])
+                .unwrap(),
         ])
         .unwrap();
         let json = serde_json::to_string(&op).unwrap();
@@ -348,8 +349,8 @@ mod tests {
         let c1 = make_number_complex(64u32);
         let c2 = make_symbol(4u32);
         let op_a = make_wfn_parameter("");
-        let op_b = make_one_elec_operator("");
-        let op_c = make_two_elec_operator("", None);
+        let op_b = make_one_elec_matrix("", false);
+        let op_c = make_ao_two_elec_matrix("", None);
 
         let mul = MatrixMul::new(vec![
             c1.clone(),

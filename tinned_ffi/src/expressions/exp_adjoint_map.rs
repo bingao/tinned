@@ -61,6 +61,6 @@ impl_val_getters!(
 );
 
 // Get `derivative` (cloned).
-impl_pert_multichain_getter!(
-    tinned_exp_adjoint_map_derivative : ExpAdjointMap => |ead| ead.derivative().clone()
-);
+impl_pert_multichain_getter!(ExpAdjointMap, tinned_exp_adjoint_map_derivative, |ead| ead
+    .derivative()
+    .clone());

@@ -18,8 +18,8 @@ macro_rules! test_exch_corr {
                     "weight",
                 )),
                 Some($crate::expressions::wfn_parameter::test_utils::make_wfn_parameter("density")),
-                Some($crate::expressions::one_elec_operator::test_utils::make_one_elec_operator(
-                    "Omega",
+                Some($crate::expressions::one_elec_matrix::test_utils::make_one_elec_matrix(
+                    "Omega", false,
                 )),
             )
         });
@@ -30,7 +30,7 @@ macro_rules! test_exch_corr {
                 $crate::expressions::non_elec_function::test_utils::make_non_elec_function("");
             let density = $crate::expressions::wfn_parameter::test_utils::make_wfn_parameter("");
             let overlap =
-                $crate::expressions::one_elec_operator::test_utils::make_one_elec_operator("");
+                $crate::expressions::one_elec_matrix::test_utils::make_one_elec_matrix("", false);
             let op1 = $make_expr(
                 $oper_name,
                 Some(weight.clone()),
@@ -106,7 +106,7 @@ macro_rules! test_exch_corr {
                 $crate::expressions::non_elec_function::test_utils::make_non_elec_function("");
             let density = $crate::expressions::wfn_parameter::test_utils::make_wfn_parameter("");
             let overlap =
-                $crate::expressions::one_elec_operator::test_utils::make_one_elec_operator("");
+                $crate::expressions::one_elec_matrix::test_utils::make_one_elec_matrix("", false);
             let op = $make_expr(
                 $oper_name,
                 Some(weight.clone()),
@@ -158,7 +158,7 @@ macro_rules! test_exch_corr {
                 $crate::expressions::non_elec_function::test_utils::make_non_elec_function("");
             let density = $crate::expressions::wfn_parameter::test_utils::make_wfn_parameter("");
             let overlap =
-                $crate::expressions::one_elec_operator::test_utils::make_one_elec_operator("");
+                $crate::expressions::one_elec_matrix::test_utils::make_one_elec_matrix("", false);
             let op1 = $make_expr(
                 $oper_name,
                 Some(weight.clone()),

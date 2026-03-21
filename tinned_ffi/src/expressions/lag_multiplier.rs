@@ -9,6 +9,7 @@ use crate::core::{ExprBox, ExprHandle, TinnedErrorBox, tinned_error_new};
 #[ffi_export]
 pub extern "C" fn tinned_lag_multiplier_new(
     name: Option<char_p::Ref<'_>>,
+    is_perturbing: bool,
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> Option<ExprBox> {
     let Some(name) = tinned_string_from_cstr(name) else {
@@ -19,7 +20,7 @@ pub extern "C" fn tinned_lag_multiplier_new(
         return None;
     };
 
-    match <LagMultiplier>::builder(name).build() {
+    match <LagMultiplier>::builder(name).is_perturbing(is_perturbing).build() {
         Ok(expr_arc) => Some(ExprBox::new(ExprHandle::new(expr_arc))),
         Err(e) => {
             tinned_error_new(out_err, e);
@@ -30,10 +31,15 @@ pub extern "C" fn tinned_lag_multiplier_new(
 
 // Get `name` (caller must free the returned C string).
 impl_cstr_getter!(
-    tinned_lag_multiplier_name : LagMultiplier => |lag| lag.name().to_string()
+    tinned_lag_multiplier_name: LagMultiplier => |obj| obj.name().to_string()
+);
+
+impl_val_getters!(
+    LagMultiplier;
+    tinned_lag_multiplier_is_perturbing: bool => |obj| obj.is_perturbing(); default = false,
 );
 
 // Get `derivative` (cloned).
-impl_pert_multichain_getter!(
-    tinned_lag_multiplier_derivative : LagMultiplier => |obj| obj.derivative().clone()
-);
+impl_pert_multichain_getter!(LagMultiplier, tinned_lag_multiplier_derivative, |obj| obj
+    .derivative()
+    .clone());

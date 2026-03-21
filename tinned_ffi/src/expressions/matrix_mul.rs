@@ -36,12 +36,10 @@ impl_expr_getters!(
 );
 
 // Returns a cloned vector of factors
-#[ffi_export]
-pub extern "C" fn tinned_matrix_mul_factors(
-    h: Option<&ExprHandle>,
-    out_err: Option<Out<'_, TinnedErrorBox>>,
-) -> repr_c::Vec<ExprBox> {
-    ffi_map_expr_as_exprvec::<MatrixMul>(h, out_err, "tinned_matrix_mul_factors", |mul| {
-        mul.factors()
-    })
-}
+impl_vec_getter!(
+    MatrixMul,
+    tinned_matrix_mul_factors,
+    repr_c::Vec<ExprBox>,
+    ffi_map_expr_as_exprvec,
+    |mul| mul.factors()
+);

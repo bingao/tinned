@@ -1,7 +1,7 @@
-// Test LagMultiplier, NonElecFunction, OneElecOperator and WfnParameter
+// Test LagMultiplier, NonElecFunction, OneElecMatrix, TwoElecMatrix and WfnParameter
 #[allow(unused_macros)]
 macro_rules! test_nullary_expr {
-    ($type_name:ident, $oper_name:ident, $make_expr:ident, $has_deps:tt, $is_scalar:tt) => {
+    ($type_name:ident, $oper_name:ident, $make_expr:expr, $has_deps:tt, $is_scalar:tt) => {
         test_struct_safety!($type_name);
 
         test_thread_interning!($make_expr($oper_name));
@@ -77,10 +77,10 @@ macro_rules! test_nullary_expr {
             op,
             &$type_name {
                 name: $oper_name.into(),
+                is_perturbing,
                 dependencies: deps.clone(),
                 independent_perturbations: independent_perturbations.clone(),
                 derivative: $deriv.clone(),
-                is_perturbing,
             }
         );
 
@@ -95,9 +95,10 @@ macro_rules! test_nullary_expr {
         assert_eq!(
             op1.hash_key(),
             ::std::format!(
-                "{}({}; [{}]; [{}]; [{}]; {})",
+                "{}({}; {}; [{}]; [{}]; [{}])",
                 stringify!($type_name),
                 $oper_name,
+                is_perturbing,
                 deps.hash_key(),
                 $crate::internal::join_mapped(
                     &independent_perturbations,
@@ -105,7 +106,6 @@ macro_rules! test_nullary_expr {
                     |pert| pert.hash_key(),
                 ),
                 $deriv.hash_key(),
-                is_perturbing,
             )
         );
         assert_eq!(op1.is_scalar(), $is_scalar);
@@ -159,7 +159,10 @@ macro_rules! test_nullary_expr {
         false,
         $is_scalar:tt,
     ) => {
+        let is_perturbing = true;
+
         let op1 = $type_name::builder($oper_name)
+            .is_perturbing(is_perturbing)
             .derivative($deriv.clone())
             .build()
             .unwrap();
@@ -169,6 +172,7 @@ macro_rules! test_nullary_expr {
             op,
             &$type_name {
                 name: $oper_name.into(),
+                is_perturbing,
                 derivative: $deriv.clone()
             }
         );
@@ -183,19 +187,21 @@ macro_rules! test_nullary_expr {
         assert_eq!(
             op1.hash_key(),
             ::std::format!(
-                "{}({}; [{}])",
+                "{}({}; {}; [{}])",
                 stringify!($type_name),
                 $oper_name,
+                is_perturbing,
                 $deriv.hash_key()
             )
         );
         assert_eq!(op1.is_scalar(), $is_scalar);
         assert_eq!(
             ::std::format!("{}", op1),
-            ::std::format!("{}^({})", $oper_name, $deriv)
+            ::std::format!("{}({})^({})", $oper_name, is_perturbing, $deriv)
         );
 
         let op3 = $type_name::builder($oper_name)
+            .is_perturbing(is_perturbing)
             .derivative($deriv.clone())
             .build()
             .unwrap();

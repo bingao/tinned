@@ -15,6 +15,7 @@ use crate::perturbations::pert_multichain::PyPertMultichain;
 /// Returns:
 ///   A PyExpr wrapping the constructed expression (interned).
 #[pyfunction]
+#[pyo3(signature = (argument, is_forward=None))]
 pub fn temporum_operator_new(argument: PyExpr, is_forward: Option<bool>) -> PyResult<PyExpr> {
     let mut b = TemporumOperator::builder(argument.inner().clone());
 

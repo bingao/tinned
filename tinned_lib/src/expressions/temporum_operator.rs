@@ -2,9 +2,7 @@ use std::sync::Arc;
 
 use crate::core::expr_internal::sealed::ExprInternal;
 use crate::core::{Expr, TinnedError};
-use crate::expressions::{
-    MatrixMul, OneElecOperator, ResidueParameter, WfnParameter, ZeroOperator,
-};
+use crate::expressions::{MatrixMul, OneElecMatrix, ResidueParameter, WfnParameter, ZeroOperator};
 use crate::perturbations::{PertMultichain, Perturbation};
 use crate::public::{
     NumberTolerance, downcast_from_arc, expression_error, generic_expression_error, is_expr_type,
@@ -48,7 +46,7 @@ impl TemporumOperator {
 
     #[inline]
     pub fn derivative(&self) -> Result<&PertMultichain, TinnedError> {
-        if let Some(op) = downcast_from_arc::<OneElecOperator>(&self.argument) {
+        if let Some(op) = downcast_from_arc::<OneElecMatrix>(&self.argument) {
             Ok(op.derivative())
         } else if let Some(wfn) = downcast_from_arc::<WfnParameter>(&self.argument) {
             Ok(wfn.derivative())
@@ -56,7 +54,7 @@ impl TemporumOperator {
             residue.derivative()
         } else {
             Err(unreachable_error(
-                "TemporumOperator::derivative() gets an argument neither OneElecOperator nor WfnParameter",
+                "TemporumOperator::derivative() gets an argument neither OneElecMatrix nor WfnParameter",
                 &self.argument,
                 None,
             ))
@@ -101,7 +99,7 @@ impl TemporumOperatorBuilder {
             return Ok(self.argument);
         }
 
-        if is_expr_type::<OneElecOperator>(&self.argument)
+        if is_expr_type::<OneElecMatrix>(&self.argument)
             || is_expr_type::<WfnParameter>(&self.argument)
             || is_expr_type::<ResidueParameter>(&self.argument)
         {
@@ -210,7 +208,7 @@ impl std::fmt::Display for TemporumOperator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::expressions::one_elec_operator::test_utils::make_one_elec_operator;
+    use crate::expressions::one_elec_matrix::test_utils::make_one_elec_matrix;
     use crate::expressions::wfn_parameter::test_utils::make_wfn_parameter;
     use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
     use crate::public::is_one_expr;
@@ -218,13 +216,13 @@ mod tests {
     test_struct_safety!(TemporumOperator);
 
     test_thread_interning!(
-        TemporumOperator::builder(make_one_elec_operator("1el")).build().unwrap()
+        TemporumOperator::builder(make_one_elec_matrix("1el", false)).build().unwrap()
     );
 
     #[test]
     fn test_impl_expr() {
         let is_forward = true;
-        let argument = make_one_elec_operator("");
+        let argument = make_one_elec_matrix("", false);
         let op1 =
             TemporumOperator::builder(argument.clone()).is_forward(is_forward).build().unwrap();
 
@@ -273,7 +271,7 @@ mod tests {
     #[test]
     fn test_differentiation() {
         let is_forward = true;
-        let mut argument = make_one_elec_operator("");
+        let mut argument = make_one_elec_matrix("", false);
         let op1 =
             TemporumOperator::builder(argument.clone()).is_forward(is_forward).build().unwrap();
 
@@ -299,7 +297,7 @@ mod tests {
 
     #[test]
     fn test_serialization() {
-        let mut op = TemporumOperator::builder(make_one_elec_operator("")).build().unwrap();
+        let mut op = TemporumOperator::builder(make_one_elec_matrix("", false)).build().unwrap();
         let mut json = serde_json::to_string(&op).unwrap();
         let mut deserialized: Arc<dyn Expr> = serde_json::from_str(&json).unwrap();
         assert_eq!(&op, &deserialized);
@@ -312,14 +310,14 @@ mod tests {
 
     #[test]
     fn test_utils() {
-        let op1 = TemporumOperator::builder(make_one_elec_operator("1el")).build().unwrap();
+        let op1 = TemporumOperator::builder(make_one_elec_matrix("1el", false)).build().unwrap();
 
         assert!(is_expr_type::<TemporumOperator>(&op1));
         assert!(!is_zero_expr(&op1, None));
         assert!(!is_one_expr(&op1, None));
 
-        let op2 = TemporumOperator::builder(make_one_elec_operator("1el")).build().unwrap();
-        let op3 = TemporumOperator::builder(make_one_elec_operator("")).build().unwrap();
+        let op2 = TemporumOperator::builder(make_one_elec_matrix("1el", false)).build().unwrap();
+        let op3 = TemporumOperator::builder(make_one_elec_matrix("", false)).build().unwrap();
 
         assert!(Arc::ptr_eq(&op1, &op2));
         assert!(!Arc::ptr_eq(&op1, &op3));

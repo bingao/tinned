@@ -102,7 +102,7 @@ macro_rules! impl_exch_corr_ffi {
             );
 
             impl_pert_multichain_getter!(
-                [<tinned_ $stem _derivative>] : $type_name => |xc| xc.derivative().clone()
+                $type_name, [<tinned_ $stem _derivative>], |xc| xc.derivative().clone()
             );
         }
     };

@@ -7,6 +7,7 @@ impl_nullary_expr_interface!(
     has_deps = false,
     new_fn = wfn_parameter_new,
     name_fn = wfn_parameter_name,
+    is_perturbing_fn = wfn_parameter_is_perturbing,
     derivative_fn = wfn_parameter_derivative,
     register_fn = register
 );

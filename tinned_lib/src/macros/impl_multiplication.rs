@@ -332,6 +332,7 @@ macro_rules! impl_mul_traits {
                 continue;
             }
 
+            //FIXME: collect common factors
             let mut new_terms = $self.factors.clone();
             // For each factor i, replace it with its derivative while keeping
             // others intact

@@ -58,8 +58,28 @@ macro_rules! impl_val_getters {
     };
 }
 
+macro_rules! impl_vec_getter {
+    (
+        $type_name:path,
+        $fn_name:ident,
+        $ret_ty:ty,
+        $helper:ident,
+        |$obj:ident| $body:expr
+    ) => {
+        #[::safer_ffi::ffi_export]
+        pub extern "C" fn $fn_name(
+            h: ::std::option::Option<&$crate::core::ExprHandle>,
+            out_err: ::std::option::Option<
+                ::safer_ffi::prelude::Out<'_, $crate::core::TinnedErrorBox>,
+            >,
+        ) -> $ret_ty {
+            $helper::<$type_name>(h, out_err, stringify!($fn_name), |$obj| $body)
+        }
+    };
+}
+
 macro_rules! impl_pert_multichain_getter {
-    ($fn_name:ident : $type_name:path => |$obj:ident| $body:expr) => {
+    ($type_name:path, $fn_name:ident, |$obj:ident| $body:expr) => {
         #[::safer_ffi::ffi_export]
         pub extern "C" fn $fn_name(
             h: ::std::option::Option<&$crate::core::ExprHandle>,

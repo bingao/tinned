@@ -22,18 +22,26 @@ use crate::core::{errors::to_pyerr, expr::PyExpr};
 ///   - bra and ket must be non-scalar.
 ///   - If either side is ZeroOperator, the result is zero.
 #[pyfunction]
+#[pyo3(signature = (
+    bra,
+    use_hermitian,
+    ket,
+    allow_braket_swap,
+    is_scalar=true
+))]
 pub fn dot_product_new(
     bra: PyExpr,
     use_hermitian: bool,
     ket: PyExpr,
     allow_braket_swap: bool,
-    is_scalar: Option<bool>,
+    is_scalar: bool,
 ) -> PyResult<PyExpr> {
     let rust_bra: Arc<dyn Expr> = bra.inner().clone();
     let rust_ket: Arc<dyn Expr> = ket.inner().clone();
 
-    let out = DotProduct::new(rust_bra, use_hermitian, rust_ket, allow_braket_swap, is_scalar)
-        .map_err(to_pyerr)?;
+    let out =
+        DotProduct::new(rust_bra, use_hermitian, rust_ket, allow_braket_swap, Some(is_scalar))
+            .map_err(to_pyerr)?;
 
     Ok(PyExpr::new(out))
 }

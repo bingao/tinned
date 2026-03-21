@@ -459,6 +459,7 @@ impl Expr for SubExpr {
     }
 }
 
+//FIXME: should we allow the comparison between SubExpr and other Expr in the function `eq_expr()`?
 impl PartialEq for SubExpr {
     fn eq(&self, other: &Self) -> bool {
         // We also compare `expression`, which may change after some methods

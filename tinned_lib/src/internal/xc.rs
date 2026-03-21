@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{
-    Composition, MatrixMul, NonElecFunction, OneElecOperator, ResidueParameter, Trace, WfnParameter,
+    Composition, MatrixMul, NonElecFunction, OneElecMatrix, ResidueParameter, Trace, WfnParameter,
 };
 use crate::public::{expression_error, is_expr_type};
 
@@ -32,9 +32,9 @@ pub(crate) fn validate_xc_inputs(
         ));
     }
 
-    if !is_expr_type::<OneElecOperator>(overlap_distribution) {
+    if !is_expr_type::<OneElecMatrix>(overlap_distribution) {
         return Err(expression_error(
-            "validate_xc_inputs() - overlap distribution must be OneElecOperator",
+            "validate_xc_inputs() - overlap distribution must be OneElecMatrix",
             overlap_distribution,
             None,
         ));

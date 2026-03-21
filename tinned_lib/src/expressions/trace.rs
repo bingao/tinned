@@ -84,8 +84,8 @@ impl_unary_expr_traits!(Trace, True, "tr({arg})");
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::expressions::ao_two_elec_matrix::test_utils::make_ao_two_elec_matrix;
     use crate::expressions::number::test_utils::make_number_complex;
-    use crate::expressions::two_elec_operator::test_utils::make_two_elec_operator;
     use crate::expressions::wfn_parameter::test_utils::make_wfn_parameter;
 
     test_unary_oper_properties!(Trace);
@@ -95,7 +95,7 @@ mod tests {
         let op0 = Trace::new(ZeroOperator::new()).unwrap();
         assert!(crate::public::is_zero_expr(&op0, None));
 
-        let arg_2el = make_two_elec_operator("", None);
+        let arg_2el = make_ao_two_elec_matrix("", None);
         let op1 = Trace::new(arg_2el.clone()).unwrap();
 
         let op = downcast_from_arc::<Trace>(&op1).unwrap();

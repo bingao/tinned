@@ -6,8 +6,8 @@ use tinned::perturbations::Perturbation;
 use tinned::public::generic_error;
 
 use crate::c_support::{
-    tinned_string_from_cstr, tinned_string_to_cstr, try_from_handle, try_vec_from_slice,
-    try_with_handle,
+    tinned_string_from_cstr, tinned_string_to_cstr, try_from_handle, try_set_from_slice,
+    try_vec_from_slice, try_with_handle,
 };
 use crate::core::{ExprBox, ExprHandle, TinnedErrorBox, tinned_error_new};
 
@@ -46,8 +46,10 @@ pub fn tinned_perturbation_free(pert: Option<PerturbationBox>) {
     drop(pert);
 }
 
-/// Free a vector of `repr_c::Vec<PerturbationBox>`.
-/// Dropping the Vec drops each PerturbationBox, which decrements Arc counts.
+/// Frees a vector of perturbation boxes returned by Rust.
+///
+/// This also drops all contained `PerturbationBox` elements.
+/// The caller must not free the elements separately afterward.
 #[ffi_export]
 pub fn tinned_perturbation_vec_free(_v: repr_c::Vec<PerturbationBox>) {
     // Intentionally empty. Taking by value and returning lets _v drop here.
@@ -215,6 +217,24 @@ pub fn perturbation_vec_from_slice(
     caller: &'static str,
 ) -> Result<Vec<Arc<Perturbation>>, TinnedError> {
     try_vec_from_slice(
+        slice.ptr,
+        slice.len,
+        caller,
+        "PerturbationHandle",
+        |h: &PerturbationHandle| h.clone_arc(),
+    )
+}
+
+// Build a `HashSet<Arc<Perturbation>>` or `BTreeSet<Arc<Perturbation>>` from a `PerturbationSlice`.
+#[inline]
+pub fn perturbation_set_from_slice<S>(
+    slice: &PerturbationSlice,
+    caller: &'static str,
+) -> Result<S, TinnedError>
+where
+    S: Default + Extend<Arc<Perturbation>>,
+{
+    try_set_from_slice(
         slice.ptr,
         slice.len,
         caller,

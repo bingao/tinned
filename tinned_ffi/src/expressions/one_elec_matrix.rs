@@ -2,7 +2,7 @@ use safer_ffi::prelude::*;
 use std::collections::BTreeSet;
 use std::sync::Arc;
 
-use tinned::expressions::NonElecFunction;
+use tinned::expressions::OneElecMatrix;
 use tinned::perturbations::Perturbation;
 use tinned::public::generic_error;
 
@@ -13,7 +13,7 @@ use crate::perturbations::{
 };
 
 #[ffi_export]
-pub extern "C" fn tinned_non_elec_function_new(
+pub extern "C" fn tinned_one_elec_matrix_new(
     name: Option<char_p::Ref<'_>>,
     is_perturbing: bool,
     dependencies: Option<&PertMultichainHandle>,
@@ -23,12 +23,12 @@ pub extern "C" fn tinned_non_elec_function_new(
     let Some(name) = tinned_string_from_cstr(name) else {
         tinned_error_new(
             out_err,
-            generic_error("Null or invalid name passed to tinned_non_elec_function_new", None),
+            generic_error("Null or invalid name passed to tinned_one_elec_matrix_new", None),
         );
         return None;
     };
 
-    let mut builder = NonElecFunction::builder(name).is_perturbing(is_perturbing);
+    let mut builder = OneElecMatrix::builder(name).is_perturbing(is_perturbing);
 
     if let Some(dependencies) = dependencies {
         let deps = dependencies.as_ref().clone();
@@ -38,7 +38,7 @@ pub extern "C" fn tinned_non_elec_function_new(
     if let Some(slice) = independent_perturbations {
         let indep_perts = match perturbation_set_from_slice::<BTreeSet<Arc<Perturbation>>>(
             slice,
-            "tinned_non_elec_function_new",
+            "tinned_one_elec_matrix_new",
         ) {
             Ok(set) => set,
             Err(err) => {
@@ -61,30 +61,30 @@ pub extern "C" fn tinned_non_elec_function_new(
 
 // Get `name` (caller must free the returned C string).
 impl_cstr_getter!(
-    tinned_non_elec_function_name: NonElecFunction => |op| op.name().to_string()
+    tinned_one_elec_matrix_name: OneElecMatrix => |op| op.name().to_string()
 );
 
 impl_val_getters!(
-    NonElecFunction;
-    tinned_non_elec_function_is_perturbing: bool => |op| op.is_perturbing(); default = false,
+    OneElecMatrix;
+    tinned_one_elec_matrix_is_perturbing: bool => |op| op.is_perturbing(); default = false,
 );
 
 // Get `dependencies` (cloned).
-impl_pert_multichain_getter!(NonElecFunction, tinned_non_elec_function_dependencies, |op| op
+impl_pert_multichain_getter!(OneElecMatrix, tinned_one_elec_matrix_dependencies, |op| op
     .dependencies()
     .clone());
 
 // Get independent perturbations as `repr_c::Vec<PerturbationBox>`, must be
 // freed by calling `tinned_perturbation_vec_free()`
 impl_vec_getter!(
-    NonElecFunction,
-    tinned_non_elec_function_independent_perturbations,
+    OneElecMatrix,
+    tinned_one_elec_matrix_independent_perturbations,
     repr_c::Vec<PerturbationBox>,
     ffi_map_expr_as_pertvec,
     |op| op.independent_perturbations()
 );
 
 // Get `derivative` (cloned).
-impl_pert_multichain_getter!(NonElecFunction, tinned_non_elec_function_derivative, |op| op
+impl_pert_multichain_getter!(OneElecMatrix, tinned_one_elec_matrix_derivative, |op| op
     .derivative()
     .clone());

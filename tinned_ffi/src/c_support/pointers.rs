@@ -1,5 +1,5 @@
 use safer_ffi::prelude::*;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::hash::Hash;
 use std::slice;
 use std::sync::Arc;
@@ -69,18 +69,22 @@ pub fn try_vec_from_slice<H, T: ?Sized>(
     Ok(out)
 }
 
-// Converts an array of `H` (pointer + length) to `HashSet<Arc<T>>`.
+// Converts an array of `H` (pointer + length) to `HashSet<Arc<T>>` or `BTreeSet<Arc<T>>`.
 #[inline]
-pub fn try_set_from_slice<H, T: ?Sized + Eq + Hash>(
+pub fn try_set_from_slice<H, T, S>(
     ptr: *const *const H,
     len: usize,
     caller: &'static str,
     label: &'static str,
     mut to_arc: impl FnMut(&H) -> Arc<T>,
-) -> Result<HashSet<Arc<T>>, TinnedError> {
+) -> Result<S, TinnedError>
+where
+    T: ?Sized,
+    S: Default + Extend<Arc<T>>,
+{
     // Empty slice is fine.
     if len == 0 {
-        return Ok(HashSet::new());
+        return Ok(S::default());
     }
 
     // ptr must be non-null if len > 0.
@@ -91,16 +95,14 @@ pub fn try_set_from_slice<H, T: ?Sized + Eq + Hash>(
     // Interpret ptr/len as a Rust slice of `*const H`.
     let raw: &[*const H] = unsafe { slice::from_raw_parts(ptr, len) };
 
-    let mut out: HashSet<Arc<T>> = HashSet::with_capacity(raw.len());
-    for (i, &hptr) in raw.iter().enumerate() {
+    raw.iter().enumerate().try_fold(S::default(), |mut set, (i, &hptr)| {
         if hptr.is_null() {
             return Err(generic_error(format!("Null {label} at index {i} in {caller}"), None));
         }
-        let h: &H = unsafe { &*hptr };
-        out.insert(to_arc(h));
-    }
-
-    Ok(out)
+        let h = unsafe { &*hptr };
+        set.extend(std::iter::once(to_arc(h)));
+        Ok(set)
+    })
 }
 
 // Converts two parallel arrays (pointer + length) into `HashMap<Arc<K>, Arc<V>>`.

@@ -7,8 +7,8 @@ macro_rules! test_unary_oper_properties {
 
         test_thread_interning!(
             $type_name::new(
-                $crate::expressions::two_elec_operator::test_utils::make_two_elec_operator(
-                    "op(2el)",
+                $crate::expressions::ao_two_elec_matrix::test_utils::make_ao_two_elec_matrix(
+                    "G^{AO}",
                     Some($crate::expressions::wfn_parameter::test_utils::make_wfn_parameter("wfn"))
                 )
             )
@@ -18,7 +18,7 @@ macro_rules! test_unary_oper_properties {
         #[test]
         fn test_differentiation() {
             let argument =
-                $crate::expressions::two_elec_operator::test_utils::make_two_elec_operator(
+                $crate::expressions::ao_two_elec_matrix::test_utils::make_ao_two_elec_matrix(
                     "", None,
                 );
             let op = $type_name::new(argument.clone()).unwrap();
@@ -34,7 +34,7 @@ macro_rules! test_unary_oper_properties {
         #[test]
         fn test_serialization() {
             let op = $type_name::new(
-                $crate::expressions::two_elec_operator::test_utils::make_two_elec_operator(
+                $crate::expressions::ao_two_elec_matrix::test_utils::make_ao_two_elec_matrix(
                     "", None,
                 ),
             )
@@ -48,8 +48,8 @@ macro_rules! test_unary_oper_properties {
         fn test_utils() {
             let density = $crate::expressions::wfn_parameter::test_utils::make_wfn_parameter("");
             let arg_2el =
-                $crate::expressions::two_elec_operator::test_utils::make_two_elec_operator(
-                    "op(2el)",
+                $crate::expressions::ao_two_elec_matrix::test_utils::make_ao_two_elec_matrix(
+                    "G^{AO}",
                     Some(density.clone()),
                 );
             let op1 = $type_name::new(arg_2el.clone()).unwrap();
@@ -60,15 +60,15 @@ macro_rules! test_unary_oper_properties {
 
             let op2 = $type_name::new(arg_2el).unwrap();
             let op3 = $type_name::new(
-                $crate::expressions::two_elec_operator::test_utils::make_two_elec_operator(
+                $crate::expressions::ao_two_elec_matrix::test_utils::make_ao_two_elec_matrix(
                     "",
                     Some(density),
                 ),
             )
             .unwrap();
             let op4 = $type_name::new(
-                $crate::expressions::two_elec_operator::test_utils::make_two_elec_operator(
-                    "op(2el)", None,
+                $crate::expressions::ao_two_elec_matrix::test_utils::make_ao_two_elec_matrix(
+                    "G^{AO}", None,
                 ),
             )
             .unwrap();
@@ -91,7 +91,7 @@ macro_rules! test_transpose {
             let op0 = $type_name::new($crate::expressions::ZeroOperator::new()).unwrap();
             assert!($crate::public::is_zero_expr(&op0, None));
 
-            let arg_2el = $crate::expressions::two_elec_operator::test_utils::make_two_elec_operator("", None);
+            let arg_2el = $crate::expressions::ao_two_elec_matrix::test_utils::make_ao_two_elec_matrix("", None);
             let op1 = $type_name::new(arg_2el.clone()).unwrap();
 
             let op = $crate::public::downcast_from_arc::<$type_name>(&op1).unwrap();
