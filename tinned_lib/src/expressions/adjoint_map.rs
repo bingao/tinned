@@ -11,20 +11,40 @@ use crate::public::{
     is_zero_expr,
 };
 
+// Mode of an adjoint map or its generators
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum AdjointMode {
+    Commutative, // generators and their derivatives commute -> canonical order
+    Symmetric,   // symmetrized nested commutator
+    Ordered,     // noncommutative generators, order preserved
+}
+
+impl std::fmt::Display for AdjointMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let s = match self {
+            AdjointMode::Commutative => "commutative",
+            AdjointMode::Symmetric => "symmetric",
+            AdjointMode::Ordered => "ordered",
+        };
+        write!(f, "{s}")
+    }
+}
+
 // Either adjoint map (or adjoint action, adjoint representation)
 // [xn, [..., [x1, [x0, y]]...]], or its "right" acting version
 // [[...[[y, x0], x1], ...], xn]. Users decide which version they are using.
 // The default is acting from the left side.
 //
 // `generators` holds x0, x1, ..., xn, and y is stored in `target`.
-// All generators are commutative, i.e. [xi, xj] = 0 for all 0 <= i, j <= n.
-// So, we can sort `generators` in some way without changing the result of
-// adjoint map.
+//
+// For `AdjointMode` as `Commutative` and `Symmetric`, we sort `generators` in
+// a deterministic way without changing the result of adjoint map.
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct AdjointMap {
     generators: Vec<Arc<dyn Expr>>,
     target: Arc<dyn Expr>,
     left_action: bool,
+    adjoint_mode: AdjointMode,
 }
 
 impl AdjointMap {
@@ -32,6 +52,7 @@ impl AdjointMap {
         generators: Vec<Arc<dyn Expr>>,
         target: Arc<dyn Expr>,
         left_action: Option<bool>,
+        adjoint_mode: Option<AdjointMode>,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
         if target.is_scalar() {
             return Err(expression_error("AdjointMap::new() gets a scalar target", &target, None));
@@ -53,24 +74,41 @@ impl AdjointMap {
             }
         }
 
-        // Sort generators according to `total_order()`
-        let sorted = sort_expressions_grouped_by(&generators, |e| e.total_order());
-
         let left_action = left_action.unwrap_or(true);
+        let adjoint_mode = adjoint_mode.unwrap_or(AdjointMode::Commutative);
+
+        let generators = Self::canonicalize_generators(generators, adjoint_mode);
 
         Ok(intern_expr(Arc::new(Self {
-            generators: sorted,
+            generators,
             target,
             left_action,
+            adjoint_mode,
         })))
+    }
+
+    #[inline]
+    fn canonicalize_generators(
+        generators: Vec<Arc<dyn Expr>>,
+        adjoint_mode: AdjointMode,
+    ) -> Vec<Arc<dyn Expr>> {
+        // Sort generators according to `total_order()`
+        if matches!(adjoint_mode, AdjointMode::Ordered) {
+            generators
+        } else {
+            sort_expressions_grouped_by(&generators, |e| e.total_order())
+        }
     }
 
     #[inline]
     fn with_new_generators(
         &self,
         generators: Vec<Arc<dyn Expr>>,
+        adjoint_mode: Option<AdjointMode>,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
-        Self::new(generators, self.target.clone(), Some(self.left_action))
+        let adjoint_mode = adjoint_mode.unwrap_or(self.adjoint_mode);
+
+        Self::new(generators, self.target.clone(), Some(self.left_action), Some(adjoint_mode))
     }
 
     #[inline]
@@ -90,6 +128,7 @@ impl AdjointMap {
             generators: self.generators.clone(),
             target,
             left_action: self.left_action,
+            adjoint_mode: self.adjoint_mode,
         })))
     }
 
@@ -97,11 +136,14 @@ impl AdjointMap {
     pub(crate) fn with_added_generator(
         &self,
         generator: Arc<dyn Expr>,
+        adjoint_mode: Option<AdjointMode>,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
         let mut generators = self.generators.clone();
         generators.push(generator);
 
-        Self::new(generators, self.target.clone(), Some(self.left_action))
+        let adjoint_mode = adjoint_mode.unwrap_or(self.adjoint_mode);
+
+        Self::new(generators, self.target.clone(), Some(self.left_action), Some(adjoint_mode))
     }
 
     #[inline]
@@ -118,6 +160,45 @@ impl AdjointMap {
     pub fn left_action(&self) -> bool {
         self.left_action
     }
+
+    #[inline]
+    pub fn adjoint_mode(&self) -> AdjointMode {
+        self.adjoint_mode
+    }
+
+    // Checks modes of two adjoint maps, and returns comparable generators if
+    // modes are compatible
+    #[inline]
+    fn comparable_generators_if_compatible(
+        &self,
+        other: &Self,
+    ) -> Option<(Vec<Arc<dyn Expr>>, Vec<Arc<dyn Expr>>)> {
+        let same_mode = self.adjoint_mode == other.adjoint_mode;
+        let either_symmetric = matches!(self.adjoint_mode, AdjointMode::Symmetric)
+            || matches!(other.adjoint_mode, AdjointMode::Symmetric);
+
+        // An adjoint map with `Symmetric` mode can only be compared to the
+        // other with the same mode
+        if either_symmetric && !same_mode {
+            return None;
+        }
+
+        // If one adjoint map has mode `Commutative`, it may be equal to the
+        // other even with `Ordered` mode
+        let self_generators = if matches!(self.adjoint_mode, AdjointMode::Ordered) && !same_mode {
+            Self::canonicalize_generators(self.generators.clone(), AdjointMode::Commutative)
+        } else {
+            self.generators.clone()
+        };
+
+        let other_generators = if matches!(other.adjoint_mode, AdjointMode::Ordered) && !same_mode {
+            Self::canonicalize_generators(other.generators.clone(), AdjointMode::Commutative)
+        } else {
+            other.generators.clone()
+        };
+
+        Some((self_generators, other_generators))
+    }
 }
 
 impl ExprInternal for AdjointMap {
@@ -126,52 +207,46 @@ impl ExprInternal for AdjointMap {
     #[inline]
     fn hash_key(&self) -> String {
         format!(
-            "AdjointMap([{}]; {}; {})",
+            "AdjointMap([{}]; {}; {}; {})",
             join_mapped(&self.generators, ";", |generator| generator.hash_key()),
             self.target.hash_key(),
             self.left_action,
+            self.adjoint_mode,
         )
     }
 
     #[inline]
     fn deep_eq_superchains(&self, other: &Arc<dyn Expr>) -> bool {
-        if let Some(op) = downcast_from_arc::<AdjointMap>(other) {
-            let len = self.generators.len();
+        let Some(op) = downcast_from_arc::<AdjointMap>(other) else {
+            return false;
+        };
 
-            // We find adjoint maps with `left_action` either `true` or `false`
-            if !self.target.deep_eq_superchains(&op.target) || len != op.generators.len() {
-                return false;
-            }
-
-            self.generators.iter().zip(&op.generators).all(|(a, b)| a.deep_eq_superchains(b))
-        } else {
-            false
+        // We treat adjoint maps with different `left_action`'s equally
+        if !self.target.deep_eq_superchains(&op.target)
+            || self.generators.len() != op.generators.len()
+        {
+            return false;
         }
+
+        let Some((self_generators, other_generators)) =
+            self.comparable_generators_if_compatible(&op)
+        else {
+            return false;
+        };
+
+        self_generators.iter().zip(&other_generators).all(|(a, b)| a.deep_eq_superchains(b))
     }
 
     #[inline]
-    fn replace_expr_fields(
+    fn replace_expr_children(
         &self,
         map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
-        exact_equality: bool,
+        include_derivatives: bool,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
         impl_adjoint_map_operation!(
             self,
-            |x: &Arc<dyn Expr>| x.replace(map, exact_equality),
-            "AdjointMap::replace_expr_fields() failed"
-        )
-    }
-
-    #[inline]
-    fn retain_expr_fields(
-        &self,
-        expr: &Arc<dyn Expr>,
-        exact_equality: bool,
-    ) -> Result<Arc<dyn Expr>, TinnedError> {
-        impl_adjoint_map_operation!(
-            self,
-            |x: &Arc<dyn Expr>| x.retain_expr(expr, exact_equality),
-            "AdjointMap::retain_expr_fields() failed"
+            |x: &Arc<dyn Expr>| x.replace(map, include_derivatives),
+            "AdjointMap::replace_expr_children() failed"
         )
     }
 }
@@ -220,7 +295,7 @@ impl Expr for AdjointMap {
             // intact
             new_generators[i] = diff.clone();
 
-            results.push(self.with_new_generators(new_generators)?);
+            results.push(self.with_new_generators(new_generators, Some(self.adjoint_mode))?);
         }
 
         let diff_target = self.target.differentiate(s).map_err(|e| {
@@ -253,12 +328,10 @@ impl Expr for AdjointMap {
     }
 
     #[inline]
-    fn exist_any(&self, set: &HashSet<Arc<dyn Expr>>) -> bool {
-        if self.generators.iter().any(|x| x.exist_any(set)) {
-            return true;
-        }
-
-        set.iter().any(|expr| self.eq_expr(expr.as_ref())) || self.target.exist_any(set)
+    fn exist_any(&self, set: &HashSet<Arc<dyn Expr>>, include_derivatives: bool) -> bool {
+        self.match_self_any(set, include_derivatives)
+            || self.target.exist_any(set, include_derivatives)
+            || self.generators.iter().any(|x| x.exist_any(set, include_derivatives))
     }
 
     #[inline]
@@ -280,7 +353,7 @@ impl Expr for AdjointMap {
 
     #[inline]
     fn remove(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
-        if set.iter().any(|expr| self.eq_expr(expr.as_ref())) {
+        if self.match_self_any(set, false) {
             return Ok(ZeroOperator::new());
         }
 
@@ -288,6 +361,23 @@ impl Expr for AdjointMap {
             self,
             |x: &Arc<dyn Expr>| x.remove(set),
             "AdjointMap::remove() failed"
+        )
+    }
+
+    #[inline]
+    fn retain(
+        &self,
+        set: &HashSet<Arc<dyn Expr>>,
+        include_derivatives: bool,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        if self.match_self_any(set, include_derivatives) {
+            return Ok(self.clone_expr());
+        }
+
+        impl_adjoint_map_operation!(
+            self,
+            |x: &Arc<dyn Expr>| x.retain(set, include_derivatives),
+            "AdjointMap::retain() failed"
         )
     }
 }
@@ -303,7 +393,13 @@ impl PartialEq for AdjointMap {
             return false;
         }
 
-        self.generators == other.generators
+        let Some((self_generators, other_generators)) =
+            self.comparable_generators_if_compatible(other)
+        else {
+            return false;
+        };
+
+        self_generators == other_generators
     }
 }
 
@@ -314,18 +410,20 @@ impl std::fmt::Display for AdjointMap {
         if self.left_action {
             write!(
                 f,
-                "[{},{}{}",
+                "[{},{}{}_{{{}}}",
                 join_mapped(&self.generators, ",[", |generator| generator.to_string()),
                 self.target,
-                "]".repeat(self.generators.len())
+                "]".repeat(self.generators.len()),
+                self.adjoint_mode
             )
         } else {
             write!(
                 f,
-                "{}{},{}]",
+                "{}{},{}]_{{{}}}",
                 "[".repeat(self.generators.len()),
                 self.target,
-                join_mapped(&self.generators, "],", |generator| generator.to_string())
+                join_mapped(&self.generators, "],", |generator| generator.to_string()),
+                self.adjoint_mode
             )
         }
     }

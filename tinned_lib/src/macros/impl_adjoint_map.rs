@@ -34,7 +34,7 @@ macro_rules! impl_adjoint_map_operation {
         }
 
         if new_ad_map {
-            Self::new(new_generators, new_target, Some($self.left_action))
+            Self::new(new_generators, new_target, Some($self.left_action), Some($self.adjoint_mode))
         } else {
             Ok($self.clone_expr())
         }

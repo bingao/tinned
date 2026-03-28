@@ -278,21 +278,12 @@ macro_rules! impl_nullary_expr_traits {
             }
 
             #[inline]
-            fn replace_expr_fields(
+            fn replace_expr_children(
                 &self,
                 _map: &expr_map_ty!(),
-                _exact_equality: bool,
+                _include_derivatives: bool,
             ) -> expr_result_ty!() {
                 Ok(self.clone_expr())
-            }
-
-            #[inline]
-            fn retain_expr_fields(
-                &self,
-                _expr: &expr_arc_ty!(),
-                _exact_equality: bool,
-            ) -> expr_result_ty!() {
-                impl_zero_expr!($is_scalar)
             }
         }
 
@@ -476,10 +467,19 @@ macro_rules! impl_nullary_expr_common_methods {
 
         #[inline]
         fn remove(&self, set: &expr_set_ty!()) -> expr_result_ty!() {
-            if set.iter().any(|expr| self.eq_expr(expr.as_ref())) {
+            if self.match_self_any(set, false) {
                 impl_zero_expr!($is_scalar)
             } else {
                 Ok(self.clone_expr())
+            }
+        }
+
+        #[inline]
+        fn retain(&self, set: &expr_set_ty!(), include_derivatives: bool) -> expr_result_ty!() {
+            if self.match_self_any(set, include_derivatives) {
+                Ok(self.clone_expr())
+            } else {
+                impl_zero_expr!($is_scalar)
             }
         }
     };

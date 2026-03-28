@@ -230,6 +230,7 @@ pub fn tinned_expr_eliminate(
 pub fn tinned_expr_exist_any(
     h: Option<&ExprHandle>,
     set: Option<&ExprSlice>,
+    include_derivatives: bool,
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> bool {
     let expr_set = match set {
@@ -244,7 +245,7 @@ pub fn tinned_expr_exist_any(
         },
         None => HashSet::new(),
     };
-    ffi_expr_return_val(h, "tinned_expr_exist_any", out_err, |e| Ok(e.exist_any(&expr_set)))
+    ffi_expr_return_val(h, "tinned_expr_exist_any", out_err, |e| Ok(e.exist_any(&expr_set, include_derivatives)))
 }
 
 // Finds a given expression `s` and all its higher-order "differentiated" ones in the current expression.
@@ -315,7 +316,7 @@ pub fn tinned_expr_replace(
     h: Option<&ExprHandle>,
     keys: Option<&ExprSlice>,
     values: Option<&ExprSlice>,
-    exact_equality: bool,
+    include_derivatives: bool,
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> Option<ExprBox> {
     let expr_map = match (keys, values) {
@@ -335,7 +336,7 @@ pub fn tinned_expr_replace(
         },
     };
     ffi_expr_return_exprbox(h, "tinned_expr_replace", out_err, move |expr| {
-        expr.replace(&expr_map, exact_equality)
+        expr.replace(&expr_map, include_derivatives)
     })
 }
 
@@ -343,7 +344,7 @@ pub fn tinned_expr_replace(
 pub fn tinned_expr_retain(
     h: Option<&ExprHandle>,
     set: Option<&ExprSlice>,
-    exact_equality: bool,
+    include_derivatives: bool,
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> Option<ExprBox> {
     let expr_set = match set {
@@ -359,7 +360,7 @@ pub fn tinned_expr_retain(
         None => HashSet::new(),
     };
     ffi_expr_return_exprbox(h, "tinned_expr_retain", out_err, move |expr| {
-        expr.retain(&expr_set, exact_equality)
+        expr.retain(&expr_set, include_derivatives)
     })
 }
 

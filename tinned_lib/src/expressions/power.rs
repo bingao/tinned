@@ -6,7 +6,7 @@ use crate::expressions::{Mul, Number};
 use crate::internal::intern_expr;
 use crate::perturbations::Perturbation;
 use crate::public::{
-    NumberTolerance, downcast_from_arc, expression_error, generic_expression_error,
+    NumberTolerance, downcast_from_arc, expression_error, generic_expression_error, is_zero_expr,
 };
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -22,7 +22,16 @@ impl Power {
         }
 
         match exponent {
-            0 => Ok(Number::one()),
+            0 => {
+                if is_zero_expr(&base, None) {
+                    return Err(expression_error(
+                        "Power::new() - base must not be zero with a zero exponent",
+                        &base,
+                        None,
+                    ));
+                }
+                Ok(Number::one())
+            },
             1 => Ok(base),
             _ => {
                 if let Some(num) = downcast_from_arc::<Number>(&base) {
@@ -70,7 +79,7 @@ impl Power {
 }
 
 impl ExprInternal for Power {
-    impl_unary_expr_internal_methods!(Power, base, false, |this: &Power, arg| Self::new(
+    impl_unary_expr_internal_methods!(Power, True, base, false, |this: &Power, arg| Self::new(
         arg,
         this.exponent
     ));
@@ -92,7 +101,7 @@ impl ExprInternal for Power {
 
 #[typetag::serde]
 impl Expr for Power {
-    impl_unary_expr_common_methods!(Power, base, True, |this: &Power, arg| Self::new(
+    impl_unary_expr_common_methods!(Power, True, base, |this: &Power, arg| Self::new(
         arg,
         this.exponent
     ));
@@ -104,6 +113,7 @@ impl Expr for Power {
     ) -> Result<Arc<dyn Expr>, TinnedError> {
         impl_unary_expr_arg_operation!(
             self,
+            True,
             base,
             |arg: &Arc<dyn Expr>| arg.apply_zero_rules(freq_tol),
             "Power::apply_zero_rules() failed",

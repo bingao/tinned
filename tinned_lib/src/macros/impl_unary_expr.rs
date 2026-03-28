@@ -1,9 +1,13 @@
 macro_rules! impl_unary_expr_traits {
     ($type_name:ident, $type_scalar:ident, $display_fmt:expr) => {
         impl $crate::core::ExprInternal for $type_name {
-            impl_unary_expr_internal_methods!($type_name, argument, false, |_this, arg| Self::new(
-                arg
-            ));
+            impl_unary_expr_internal_methods!(
+                $type_name,
+                $type_scalar,
+                argument,
+                false,
+                |_this, arg| Self::new(arg)
+            );
 
             #[inline]
             fn hash_key(&self) -> ::std::string::String {
@@ -24,7 +28,7 @@ macro_rules! impl_unary_expr_traits {
                 }
             }
 
-            // Except for `TwoElecOperator`, all other implemented unary `Expr`
+            // Except for `AoTwoElecMatrix`, all other implemented unary `Expr`
             // types do not hold derivative. So we use equality comparison on
             // the whole expression, i.e. we do not override the method
             // `eq_by_superchains()` of the trait `ExprInternal`.
@@ -32,7 +36,7 @@ macro_rules! impl_unary_expr_traits {
 
         #[::typetag::serde]
         impl $crate::core::Expr for $type_name {
-            impl_unary_expr_common_methods!($type_name, argument, $type_scalar, |_this, arg| {
+            impl_unary_expr_common_methods!($type_name, $type_scalar, argument, |_this, arg| {
                 Self::new(arg)
             });
 
@@ -43,6 +47,7 @@ macro_rules! impl_unary_expr_traits {
             ) -> expr_result_ty!() {
                 impl_unary_expr_arg_operation!(
                     self,
+                    $type_scalar,
                     argument,
                     |arg: expr_arc_ref_ty!()| arg.apply_zero_rules(freq_tol),
                     concat!(stringify!($type_name), "::apply_zero_rules() failed"),
@@ -81,35 +86,21 @@ macro_rules! impl_unary_expr_traits {
 }
 
 macro_rules! impl_unary_expr_internal_methods {
-    ($type_name:ident, $arg_field:ident, $has_derivative:tt, $build_expr:expr) => {
+    ($type_name:ident, $type_scalar:ident, $arg_field:ident, $has_derivative:tt, $build_expr:expr) => {
         impl_expr_internal_methods!($type_name, $has_derivative);
 
         #[inline]
-        fn replace_expr_fields(
+        fn replace_expr_children(
             &self,
             map: &expr_map_ty!(),
-            exact_equality: bool,
+            include_derivatives: bool,
         ) -> expr_result_ty!() {
             impl_unary_expr_arg_operation!(
                 self,
+                $type_scalar,
                 $arg_field,
-                |arg: expr_arc_ref_ty!()| arg.replace(map, exact_equality),
-                concat!(stringify!($type_name), "::replace_expr_fields() failed"),
-                $build_expr
-            )
-        }
-
-        #[inline]
-        fn retain_expr_fields(
-            &self,
-            expr: &expr_arc_ty!(),
-            exact_equality: bool,
-        ) -> expr_result_ty!() {
-            impl_unary_expr_arg_operation!(
-                self,
-                $arg_field,
-                |arg: expr_arc_ref_ty!()| arg.retain_expr(expr, exact_equality),
-                concat!(stringify!($type_name), "::retain_expr_fields() failed"),
+                |arg: expr_arc_ref_ty!()| arg.replace(map, include_derivatives),
+                concat!(stringify!($type_name), "::replace_expr_children() failed"),
                 $build_expr
             )
         }
@@ -117,7 +108,7 @@ macro_rules! impl_unary_expr_internal_methods {
 }
 
 macro_rules! impl_unary_expr_common_methods {
-    ($type_name:ident, $arg_field:ident, $type_scalar:ident, $build_expr:expr) => {
+    ($type_name:ident, $type_scalar:ident, $arg_field:ident, $build_expr:expr) => {
         #[inline]
         fn as_any(&self) -> &dyn ::std::any::Any {
             self
@@ -139,6 +130,7 @@ macro_rules! impl_unary_expr_common_methods {
         ) -> expr_result_ty!() {
             impl_unary_expr_arg_operation!(
                 self,
+                $type_scalar,
                 $arg_field,
                 |arg: expr_arc_ref_ty!()| arg.eliminate(parameter, perturbations, min_order),
                 concat!(stringify!($type_name), "::eliminate() failed"),
@@ -147,9 +139,9 @@ macro_rules! impl_unary_expr_common_methods {
         }
 
         #[inline]
-        fn exist_any(&self, set: &expr_set_ty!()) -> bool {
-            set.iter().any(|expr| self.eq_expr(expr.as_ref()))
-                || self.$arg_field.exist_any(set)
+        fn exist_any(&self, set: &expr_set_ty!(), include_derivatives: bool) -> bool {
+            self.match_self_any(set, include_derivatives)
+                || self.$arg_field.exist_any(set, include_derivatives)
         }
 
         #[inline]
@@ -169,19 +161,36 @@ macro_rules! impl_unary_expr_common_methods {
 
         #[inline]
         fn remove(&self, set: &expr_set_ty!()) -> expr_result_ty!() {
-            if set.iter().any(|expr| self.eq_expr(expr.as_ref())) {
-                return impl_unary_expr_common_methods!(
-                    @unary_build_zero_expr
-                    self.$arg_field,
-                    $type_scalar
-                );
+            if self.match_self_any(set, false) {
+                return impl_unary_zero_expr!(self.$arg_field, $type_scalar);
             }
 
             impl_unary_expr_arg_operation!(
                 self,
+                $type_scalar,
                 $arg_field,
                 |arg: expr_arc_ref_ty!()| arg.remove(set),
                 concat!(stringify!($type_name), "::remove() failed"),
+                $build_expr
+            )
+        }
+
+        #[inline]
+        fn retain(
+            &self,
+            set: &expr_set_ty!(),
+            include_derivatives: bool,
+        ) -> expr_result_ty!() {
+            if self.match_self_any(set, include_derivatives) {
+                return Ok(self.clone_expr());
+            }
+
+            impl_unary_expr_arg_operation!(
+                self,
+                $type_scalar,
+                $arg_field,
+                |arg: expr_arc_ref_ty!()| arg.retain(set, include_derivatives),
+                concat!(stringify!($type_name), "::retain() failed"),
                 $build_expr
             )
         }
@@ -207,27 +216,26 @@ macro_rules! impl_unary_expr_common_methods {
             self.$arg_field.is_scalar()
         }
     };
+}
 
-    (@unary_build_zero_expr $_argument:expr, True) => {
+macro_rules! impl_unary_zero_expr {
+    ($_argument:expr, True) => {
         impl_zero_expr!(true)
     };
 
-    (@unary_build_zero_expr $_argument:expr, False) => {
+    ($_argument:expr, False) => {
         impl_zero_expr!(false)
     };
 
-    (@unary_build_zero_expr $argument:expr, Argument) => {
-        if $argument.is_scalar() {
-            impl_zero_expr!(true)
-        } else {
-            impl_zero_expr!(false)
-        }
+    ($argument:expr, Argument) => {
+        impl_zero_expr!($argument.is_scalar())
     };
 }
 
 macro_rules! impl_unary_expr_arg_operation {
     (
         $self:ident,
+        $type_scalar:ident,
         $arg_field:ident,
         $arg_operation:expr,
         $message:expr,
@@ -241,7 +249,9 @@ macro_rules! impl_unary_expr_arg_operation {
             )
         })?;
 
-        if &new_arg == &$self.$arg_field {
+        if $crate::public::is_zero_expr(&new_arg, None) {
+            impl_unary_zero_expr!($self.$arg_field, $type_scalar)
+        } else if &new_arg == &$self.$arg_field {
             Ok($self.clone_expr())
         } else {
             ($build_expr)($self, new_arg)

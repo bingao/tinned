@@ -245,21 +245,12 @@ impl ExprInternal for TemporumOverlap {
     }
 
     #[inline]
-    fn replace_expr_fields(
+    fn replace_expr_children(
         &self,
         _map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
-        _exact_equality: bool,
+        _include_derivatives: bool,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
         Ok(self.clone_expr())
-    }
-
-    #[inline]
-    fn retain_expr_fields(
-        &self,
-        _expr: &Arc<dyn Expr>,
-        _exact_equality: bool,
-    ) -> Result<Arc<dyn Expr>, TinnedError> {
-        Ok(ZeroOperator::new())
     }
 }
 
@@ -312,8 +303,8 @@ impl Expr for TemporumOverlap {
     }
 
     // `TemporumOverlap` is an undivided whole for methods `exist_any()`,
-    // `find_superchains()`. So, we use the corresponding methods of the pub
-    // trait `Expr`.
+    // `find_superchains()`, `retain()`. So, we use the corresponding methods
+    // of the pub trait `Expr`.
 }
 
 impl PartialEq for TemporumOverlap {

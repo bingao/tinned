@@ -73,10 +73,13 @@ pub trait Expr: Debug + Send + Sync + ExprInternal {
         Ok(self.clone_expr())
     }
 
-    // Checks if any expression in `set` exists in the current expression.
+    // Checks if any expression in `set` exists in the current expression
+    // `self` and its children.  If the parameter `include_derivatives` is
+    // `true`, we also consider derivatives (including order 0) of expressions
+    // in `set` when checking existence.
     #[inline]
-    fn exist_any(&self, set: &HashSet<Arc<dyn Expr>>) -> bool {
-        set.iter().any(|expr| self.eq_expr(expr.as_ref()))
+    fn exist_any(&self, set: &HashSet<Arc<dyn Expr>>, include_derivatives: bool) -> bool {
+        self.match_self_any(set, include_derivatives)
     }
 
     // Finds a given expression `s` and all its higher-order "differentiated"
@@ -90,11 +93,11 @@ pub trait Expr: Debug + Send + Sync + ExprInternal {
     //
     // (2) The quoted term "differentiated" means derivatives may not be the
     //     mathematical derivative of `s`. For example, for `s` being the type
-    //     of `TwoElecOperator`, its derivative is an `MatrixAdd` of
-    //     `TwoElecOperator` objects with fields of (un)differentiated electron
+    //     of `AoTwoElecMatrix`, its derivative is an `MatrixAdd` of
+    //     `AoTwoElecMatrix` objects with fields of (un)differentiated electron
     //     repulsion integrals (ERI) and one-electron spin-orbital density
     //     matrix, which is difficult to find. Instead, we return all
-    //     `TwoElecOperator` objects, with (un)differentiated ERI and density
+    //     `AoTwoElecMatrix` objects, with (un)differentiated ERI and density
     //     matrix fields.
     //
     // To summarize, this method returns objects that match `s` according to
@@ -111,11 +114,11 @@ pub trait Expr: Debug + Send + Sync + ExprInternal {
     // Removes all expressions in `set` from the current expression.
     fn remove(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError>;
 
-    // If the parameter `exact_equality` is `true`, the method replaces
+    // If the parameter `include_derivatives` is `false`, the method replaces
     // expressions (keys of `map`) with corresponding values of `map` in the
     // current expression.
     //
-    // If the parameter `exact_equality` is `false`, the method replaces
+    // If the parameter `include_derivatives` is `true`, the method replaces
     // expressions (keys of `map`) and their higher-order "derivatives" with
     // corresponding values of `map` and their derivatives in the concrete
     // expression. Here, "higher-order" is the same as that of method
@@ -129,76 +132,38 @@ pub trait Expr: Debug + Send + Sync + ExprInternal {
     fn replace(
         &self,
         map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
-        exact_equality: bool,
+        include_derivatives: bool,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
-        let found = if exact_equality {
-            map.iter()
-                .find(|(key, _)| self.eq_expr(key.as_ref()))
-                .map(|(_, value)| Ok(value.clone()))
-        } else {
+        let found = if include_derivatives {
             map.iter()
                 .find(|(key, _)| self.eq_by_superchains(key))
                 .map(|(expr, value)| self.replace_expr_self(expr, value.clone()))
+        } else {
+            map.iter()
+                .find(|(key, _)| self.eq_expr(key.as_ref()))
+                .map(|(_, value)| Ok(value.clone()))
         };
 
         match found {
             Some(result) => result,
-            None => self.replace_expr_fields(map, exact_equality),
+            None => self.replace_expr_children(map, include_derivatives),
         }
     }
 
-    // Performs `retain_expr()` method on all expressions in `set` one by one.
-    #[inline]
+    // We first check the existence of expressions in `set` for the current
+    // expression `self`. The check is performed by calling
+    // `self.match_self_any(set, include_derivatives)`.  The current
+    // expression `self` will return if `self.match_self_any()` is `true`.
+    // Otherwise, we either return zero when `self` has no child, or invoke the
+    // function `retain()` for all its children. Zero, the current expression
+    // `self`, or a new expression will return after invoking the function
+    // `retain()` for the children, which is implemented by different concrete
+    // expression types.
     fn retain(
         &self,
         set: &HashSet<Arc<dyn Expr>>,
-        exact_equality: bool,
-    ) -> Result<Arc<dyn Expr>, TinnedError> {
-        let mut iter = set.iter();
-
-        let first = match iter.next() {
-            Some(x) => x,
-            None => return Ok(self.clone_expr()),
-        };
-
-        let mut result = self.retain_expr(first, exact_equality)?;
-
-        for expr in iter {
-            if result.is_exact_zero() {
-                break;
-            }
-            result = result.retain_expr(expr, exact_equality)?;
-        }
-
-        Ok(result)
-    }
-
-    // If the parameter `exact_equality` is `true`, the method keeps
-    // sub-expressions in the current expression that contain the given `expr`,
-    // while other sub-expressions are removed from the current expression.
-    //
-    // If the parameter `exact_equality` is `false`, sub-expressions kept
-    // should contain either `expr` or its higher-order derivatives. Other
-    // sub-expressions are removed even if they contain lower-order or
-    // unrelated derivatives of `expr`.
-    #[inline]
-    fn retain_expr(
-        &self,
-        expr: &Arc<dyn Expr>,
-        exact_equality: bool,
-    ) -> Result<Arc<dyn Expr>, TinnedError> {
-        let found = if exact_equality {
-            self.eq_expr(expr.as_ref())
-        } else {
-            self.eq_by_superchains(expr)
-        };
-
-        if found {
-            return Ok(self.clone_expr());
-        }
-
-        self.retain_expr_fields(expr, exact_equality)
-    }
+        include_derivatives: bool,
+    ) -> Result<Arc<dyn Expr>, TinnedError>;
 }
 
 impl Hash for dyn Expr {

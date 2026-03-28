@@ -218,6 +218,7 @@ impl AoTwoElecEnergyBuilder {
 impl ExprInternal for AoTwoElecEnergy {
     impl_binary_expr_internal_methods!(
         AoTwoElecEnergy,
+        true,
         inner_density,
         outer_density,
         true,
@@ -305,9 +306,9 @@ impl ExprInternal for AoTwoElecEnergy {
 impl Expr for AoTwoElecEnergy {
     impl_binary_expr_common_methods!(
         AoTwoElecEnergy,
+        true,
         inner_density,
         outer_density,
-        true,
         |this: &AoTwoElecEnergy, inner_density, outer_density| this
             .with_inner_density(inner_density)
             .outer_density(outer_density)

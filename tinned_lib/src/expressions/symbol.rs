@@ -34,27 +34,12 @@ impl ExprInternal for Symbol {
     }
 
     #[inline]
-    fn replace_expr_fields(
+    fn replace_expr_children(
         &self,
         _map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
-        _exact_equality: bool,
+        _include_derivatives: bool,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
         Ok(self.clone_expr())
-    }
-
-    // `retain_expr_fields` may be called by MatrixMul and Mul
-    #[inline]
-    fn retain_expr_fields(
-        &self,
-        _expr: &Arc<dyn Expr>,
-        _exact_equality: bool,
-    ) -> Result<Arc<dyn Expr>, TinnedError> {
-        //Err(unreachable_error(
-        //    "Symbol::retain_expr_fields() is not expected to be called",
-        //    &self.clone_expr(),
-        //    None,
-        //))
-        Ok(Number::zero())
     }
 }
 
@@ -72,7 +57,7 @@ impl Expr for Symbol {
 
     #[inline]
     fn remove(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
-        if set.iter().any(|expr| self.eq_expr(expr.as_ref())) {
+        if self.match_self_any(set, false) {
             Ok(Number::zero())
         } else {
             Ok(self.clone_expr())
@@ -83,9 +68,9 @@ impl Expr for Symbol {
     fn retain(
         &self,
         set: &HashSet<Arc<dyn Expr>>,
-        _exact_equality: bool,
+        include_derivatives: bool,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
-        if set.iter().all(|expr| self.eq_expr(expr.as_ref())) {
+        if self.match_self_any(set, include_derivatives) {
             Ok(self.clone_expr())
         } else {
             Ok(Number::zero())

@@ -125,6 +125,7 @@ impl ResidueParameterBuilder {
 impl ExprInternal for ResidueParameter {
     impl_unary_expr_internal_methods!(
         ResidueParameter,
+        False,
         parameter,
         false,
         |this: &ResidueParameter, arg| Self::builder(
@@ -177,8 +178,8 @@ impl Expr for ResidueParameter {
     // eliminate() method for `ResidueParameter`.
     impl_unary_expr_common_methods!(
         ResidueParameter,
-        parameter,
         False,
+        parameter,
         |this: &ResidueParameter, arg| Self::builder(
             this.perturbations.clone(),
             this.excited_state.clone(),

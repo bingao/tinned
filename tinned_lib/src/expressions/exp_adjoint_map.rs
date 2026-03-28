@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::core::expr_internal::sealed::ExprInternal;
 use crate::core::{Expr, TinnedError};
-use crate::expressions::{AdjointMap, MatrixAdd, TemporumOperator, ZeroOperator};
+use crate::expressions::{AdjointMap, AdjointMode, MatrixAdd, TemporumOperator, ZeroOperator};
 use crate::internal::intern_expr;
 use crate::perturbations::{PertMultichain, Perturbation};
 use crate::public::{
@@ -15,6 +15,8 @@ use crate::public::{
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct ExpAdjointMap {
     generator: Arc<dyn Expr>,
+    // Whether generator and its derivatives commute
+    generator_derivative_commute: bool,
     target: Arc<dyn Expr>,
     is_temporum: bool,
     left_action: bool,
@@ -27,9 +29,14 @@ pub struct ExpAdjointMap {
 
 impl ExpAdjointMap {
     #[inline]
-    pub fn builder(generator: Arc<dyn Expr>, target: Arc<dyn Expr>) -> ExpAdjointMapBuilder {
+    pub fn builder(
+        generator: Arc<dyn Expr>,
+        target: Arc<dyn Expr>,
+        generator_derivative_commute: Option<bool>,
+    ) -> ExpAdjointMapBuilder {
         ExpAdjointMapBuilder {
             generator,
+            generator_derivative_commute,
             target,
             is_temporum: false,
             left_action: None,
@@ -41,7 +48,11 @@ impl ExpAdjointMap {
     }
 
     #[inline]
-    pub fn builder_temporum(generator: Arc<dyn Expr>, is_forward: bool) -> ExpAdjointMapBuilder {
+    pub fn builder_temporum(
+        generator: Arc<dyn Expr>,
+        is_forward: bool,
+        generator_derivative_commute: Option<bool>,
+    ) -> ExpAdjointMapBuilder {
         let target =
             match TemporumOperator::builder(generator.clone()).is_forward(is_forward).build() {
                 Ok(e) => e,
@@ -50,6 +61,7 @@ impl ExpAdjointMap {
 
         ExpAdjointMapBuilder {
             generator,
+            generator_derivative_commute,
             target,
             is_temporum: true,
             left_action: None,
@@ -69,6 +81,7 @@ impl ExpAdjointMap {
     ) -> ExpAdjointMapBuilder {
         ExpAdjointMapBuilder {
             generator: self.generator.clone(),
+            generator_derivative_commute: Some(self.generator_derivative_commute),
             target: self.target.clone(),
             is_temporum: self.is_temporum,
             left_action: Some(self.left_action),
@@ -87,6 +100,7 @@ impl ExpAdjointMap {
     ) -> ExpAdjointMapBuilder {
         ExpAdjointMapBuilder {
             generator: self.generator.clone(),
+            generator_derivative_commute: Some(self.generator_derivative_commute),
             target: self.target.clone(),
             is_temporum: self.is_temporum,
             left_action: Some(self.left_action),
@@ -100,6 +114,11 @@ impl ExpAdjointMap {
     #[inline]
     pub fn generator(&self) -> &Arc<dyn Expr> {
         &self.generator
+    }
+
+    #[inline]
+    pub fn generator_derivative_commute(&self) -> bool {
+        self.generator_derivative_commute
     }
 
     #[inline]
@@ -141,6 +160,7 @@ impl ExpAdjointMap {
 #[derive(Debug)]
 pub struct ExpAdjointMapBuilder {
     generator: Arc<dyn Expr>,
+    generator_derivative_commute: Option<bool>,
     target: Arc<dyn Expr>,
     is_temporum: bool,
     left_action: Option<bool>,
@@ -151,6 +171,12 @@ pub struct ExpAdjointMapBuilder {
 }
 
 impl ExpAdjointMapBuilder {
+    #[inline]
+    pub fn generator_derivative_commute(mut self, generator_derivative_commute: bool) -> Self {
+        self.generator_derivative_commute = Some(generator_derivative_commute);
+        self
+    }
+
     #[inline]
     pub fn left_action(mut self, left_action: bool) -> Self {
         self.left_action = Some(left_action);
@@ -204,6 +230,7 @@ impl ExpAdjointMapBuilder {
             return Ok(self.target);
         }
 
+        let generator_derivative_commute = self.generator_derivative_commute.unwrap_or(true);
         let left_action = self.left_action.unwrap_or(true);
         let max_fold = self.max_fold.unwrap_or(u32::MAX);
         let zero_rules_applied = self.zero_rules_applied.unwrap_or(false);
@@ -214,6 +241,7 @@ impl ExpAdjointMapBuilder {
 
         Ok(intern_expr(Arc::new(ExpAdjointMap {
             generator: self.generator,
+            generator_derivative_commute,
             target: self.target,
             is_temporum: self.is_temporum,
             left_action,
@@ -227,19 +255,24 @@ impl ExpAdjointMapBuilder {
 
 impl ExprInternal for ExpAdjointMap {
     // It is more appropriate to set `zero_rules_applied` as false after the
-    // functions `replace_expr_fields`, `retain_expr_fields` and `replace_expr_self`
-    impl_unary_expr_internal_methods!(ExpAdjointMap, result, true, |this: &ExpAdjointMap, arg| {
-        this.with_result(arg, Some(false)).build()
-    });
+    // functions `replace_expr_children`, `retain_expr_fields` and `replace_expr_self`
+    impl_unary_expr_internal_methods!(
+        ExpAdjointMap,
+        False,
+        result,
+        true,
+        |this: &ExpAdjointMap, arg| { this.with_result(arg, Some(false)).build() }
+    );
 
     #[inline]
     fn hash_key(&self) -> String {
         format!(
-            "ExpAdjointMap({}; {}; {}; {}; {}; {}; {}; [{}])",
+            "ExpAdjointMap({}; {}; {}; {}; {}; {}; {}; {}; [{}])",
             self.left_action,
             self.max_fold,
             self.zero_rules_applied,
             self.generator.hash_key(),
+            self.generator_derivative_commute,
             self.target.hash_key(),
             self.is_temporum,
             self.result.hash_key(),
@@ -255,10 +288,11 @@ impl ExprInternal for ExpAdjointMap {
     #[inline]
     fn deep_eq_superchains(&self, other: &Arc<dyn Expr>) -> bool {
         if let Some(op) = downcast_from_arc::<ExpAdjointMap>(other) {
-            // We find exponential adjoint maps with `left_action` and
-            // `zero_rules_applied` either `true` or `false`
+            // We treat exponential adjoint maps with different `left_action`
+            // and `zero_rules_applied` equally
             self.max_fold == op.max_fold
                 && self.generator.deep_eq_superchains(&op.generator)
+                && self.generator_derivative_commute == op.generator_derivative_commute
                 && self.target.deep_eq_superchains(&op.target)
                 && self.is_temporum == op.is_temporum
                 && self.derivative.is_subchain(&op.derivative)
@@ -274,6 +308,7 @@ impl ExprInternal for ExpAdjointMap {
                 && self.max_fold == op.max_fold
                 && self.zero_rules_applied == op.zero_rules_applied
                 && &self.generator == &op.generator
+                && self.generator_derivative_commute == op.generator_derivative_commute
                 && &self.target == &op.target
                 && self.is_temporum == op.is_temporum
                 && self.derivative.is_subchain(&op.derivative)
@@ -285,7 +320,7 @@ impl ExprInternal for ExpAdjointMap {
 
 #[typetag::serde]
 impl Expr for ExpAdjointMap {
-    impl_unary_expr_common_methods!(ExpAdjointMap, result, False, |this: &ExpAdjointMap, arg| this
+    impl_unary_expr_common_methods!(ExpAdjointMap, False, result, |this: &ExpAdjointMap, arg| this
         .with_result(arg, Some(this.zero_rules_applied))
         .build());
 
@@ -366,12 +401,18 @@ impl Expr for ExpAdjointMap {
         // exponential adjoint map due to maximum folds of commutators
         let mut ad_maps = Vec::new();
 
+        let adjoint_mode = if self.generator_derivative_commute {
+            Some(AdjointMode::Commutative)
+        } else {
+            Some(AdjointMode::Symmetric)
+        };
+
         if let Some(mat_add) = downcast_from_arc::<MatrixAdd>(&self.result) {
             for term in mat_add.terms() {
                 if let Some(ad_map) = downcast_from_arc::<AdjointMap>(term) {
                     // Check folds of commutators
                     if ad_map.generators().len() as u32 + 1 < self.max_fold {
-                        terms.push(ad_map.with_added_generator(diff_generator.clone())?);
+                        terms.push(ad_map.with_added_generator(diff_generator.clone(), adjoint_mode)?);
                     } else {
                         ad_maps.push(term.clone());
                     }
@@ -381,6 +422,7 @@ impl Expr for ExpAdjointMap {
                         vec![diff_generator.clone()],
                         term.clone(),
                         Some(self.left_action),
+                        adjoint_mode,
                     )?);
                 }
             }
@@ -390,6 +432,7 @@ impl Expr for ExpAdjointMap {
                 vec![diff_generator],
                 self.result.clone(),
                 Some(self.left_action),
+                adjoint_mode,
             )?);
         }
 
@@ -409,6 +452,7 @@ impl PartialEq for ExpAdjointMap {
     fn eq(&self, other: &Self) -> bool {
         // We also compare `result`, which may change after `apply_zero_rules()`
         &self.generator == &other.generator
+            && self.generator_derivative_commute == other.generator_derivative_commute
             && &self.target == &other.target
             && self.is_temporum == other.is_temporum
             && self.left_action == other.left_action
@@ -424,9 +468,9 @@ impl Eq for ExpAdjointMap {}
 impl std::fmt::Display for ExpAdjointMap {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         if self.left_action {
-            write!(f, "exp(ad[{}", self.generator)?;
+            write!(f, "exp(ad[{}; {}", self.generator, self.generator_derivative_commute)?;
         } else {
-            write!(f, "exp(ad[-({})", self.generator)?;
+            write!(f, "exp(ad[-({}); {}", self.generator, self.generator_derivative_commute)?;
         }
 
         if self.max_fold < u32::MAX {

@@ -121,6 +121,7 @@ impl AoTwoElecMatrixBuilder {
 impl ExprInternal for AoTwoElecMatrix {
     impl_unary_expr_internal_methods!(
         AoTwoElecMatrix,
+        False,
         density,
         true,
         |this: &AoTwoElecMatrix, arg| this.with_density(arg).build()
@@ -174,8 +175,8 @@ impl ExprInternal for AoTwoElecMatrix {
 impl Expr for AoTwoElecMatrix {
     impl_unary_expr_common_methods!(
         AoTwoElecMatrix,
-        density,
         False,
+        density,
         |this: &AoTwoElecMatrix, arg| this.with_density(arg).build()
     );
 

@@ -123,6 +123,7 @@ impl DotProduct {
     pub fn conjugate(&self) -> Result<Arc<dyn Expr>, TinnedError> {
         impl_binary_expr_arg_operation!(
             self,
+            is_scalar,
             bra,
             ket,
             |arg: &Arc<dyn Expr>| Conjugate::new(arg.clone()),
@@ -140,6 +141,7 @@ impl DotProduct {
 impl ExprInternal for DotProduct {
     impl_binary_expr_internal_methods!(
         DotProduct,
+        is_scalar,
         bra,
         ket,
         false,
@@ -201,9 +203,9 @@ impl ExprInternal for DotProduct {
 impl Expr for DotProduct {
     impl_binary_expr_common_methods!(
         DotProduct,
+        is_scalar,
         bra,
         ket,
-        is_scalar,
         |this: &DotProduct, bra, ket| Self::make_dot_product(
             bra,
             ket,

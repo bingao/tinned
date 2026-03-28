@@ -140,36 +140,19 @@ macro_rules! impl_exch_corr_traits {
             }
 
             #[inline]
-            fn replace_expr_fields(
+            fn replace_expr_children(
                 &self,
                 map: &expr_map_ty!(),
-                exact_equality: bool,
+                include_derivatives: bool,
             ) -> expr_result_ty!() {
                 impl_exch_corr_traits!(
                     @grid_expr_operation
                     self,
                     $grid_expr_name,
-                    |grid_expr: expr_arc_ref_ty!()| grid_expr.replace(map, exact_equality),
-                    concat!(stringify!($type_name), "::replace_expr_fields() failed"),
+                    |grid_expr: expr_arc_ref_ty!()| grid_expr.replace(map, include_derivatives),
+                    concat!(stringify!($type_name), "::replace_expr_children() failed"),
                     $is_scalar,
                     true
-                )
-            }
-
-            #[inline]
-            fn retain_expr_fields(
-                &self,
-                expr: expr_arc_ref_ty!(),
-                exact_equality: bool,
-            ) -> expr_result_ty!() {
-                impl_exch_corr_traits!(
-                    @grid_expr_operation
-                    self,
-                    $grid_expr_name,
-                    |grid_expr: expr_arc_ref_ty!()| grid_expr.retain_expr(expr, exact_equality),
-                    concat!(stringify!($type_name), "::retain_expr_fields() failed"),
-                    $is_scalar,
-                    false
                 )
             }
         }
@@ -226,9 +209,9 @@ macro_rules! impl_exch_corr_traits {
             }
 
             #[inline]
-            fn exist_any(&self, set: &expr_set_ty!()) -> bool {
-                set.iter().any(|expr| self.eq_expr(expr.as_ref()))
-                    || self.$grid_expr_name.exist_any(set)
+            fn exist_any(&self, set: &expr_set_ty!(), include_derivatives: bool) -> bool {
+                self.match_self_any(set, include_derivatives)
+                    || self.$grid_expr_name.exist_any(set, include_derivatives)
             }
 
             #[inline]
@@ -245,7 +228,7 @@ macro_rules! impl_exch_corr_traits {
 
             #[inline]
             fn remove(&self, set: &expr_set_ty!()) -> expr_result_ty!() {
-                if set.iter().any(|expr| self.eq_expr(expr.as_ref())) {
+                if self.match_self_any(set, false) {
                     return impl_zero_expr!($is_scalar);
                 }
 
@@ -255,6 +238,27 @@ macro_rules! impl_exch_corr_traits {
                     $grid_expr_name,
                     |grid_expr: expr_arc_ref_ty!()| grid_expr.remove(set),
                     concat!(stringify!($type_name), "::remove() failed"),
+                    $is_scalar,
+                    false
+                )
+            }
+
+            #[inline]
+            fn retain(
+                &self,
+                set: &expr_set_ty!(),
+                include_derivatives: bool,
+            ) -> expr_result_ty!() {
+                if self.match_self_any(set, include_derivatives) {
+                    return Ok(self.clone_expr());
+                }
+
+                impl_exch_corr_traits!(
+                    @grid_expr_operation
+                    self,
+                    $grid_expr_name,
+                    |grid_expr: expr_arc_ref_ty!()| grid_expr.retain(set, include_derivatives),
+                    concat!(stringify!($type_name), "::retain() failed"),
                     $is_scalar,
                     false
                 )

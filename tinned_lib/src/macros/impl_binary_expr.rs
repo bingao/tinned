@@ -1,6 +1,7 @@
 macro_rules! impl_binary_expr_internal_methods {
     (
         $type_name:ident,
+        $is_scalar:tt,
         $first_argument:ident,
         $second_argument:ident,
         $has_derivative:tt,
@@ -9,33 +10,18 @@ macro_rules! impl_binary_expr_internal_methods {
         impl_expr_internal_methods!($type_name, $has_derivative);
 
         #[inline]
-        fn replace_expr_fields(
+        fn replace_expr_children(
             &self,
             map: &expr_map_ty!(),
-            exact_equality: bool,
+            include_derivatives: bool,
         ) -> expr_result_ty!() {
             impl_binary_expr_arg_operation!(
                 self,
+                $is_scalar,
                 $first_argument,
                 $second_argument,
-                |arg: expr_arc_ref_ty!()| arg.replace(map, exact_equality),
-                concat!(stringify!($type_name), "::replace_expr_fields() failed"),
-                $build_expr
-            )
-        }
-
-        #[inline]
-        fn retain_expr_fields(
-            &self,
-            expr: expr_arc_ref_ty!(),
-            exact_equality: bool,
-        ) -> expr_result_ty!() {
-            impl_binary_expr_arg_operation!(
-                self,
-                $first_argument,
-                $second_argument,
-                |arg: expr_arc_ref_ty!()| arg.retain_expr(expr, exact_equality),
-                concat!(stringify!($type_name), "::retain_expr_fields() failed"),
+                |arg: expr_arc_ref_ty!()| arg.replace(map, include_derivatives),
+                concat!(stringify!($type_name), "::replace_expr_children() failed"),
                 $build_expr
             )
         }
@@ -45,9 +31,9 @@ macro_rules! impl_binary_expr_internal_methods {
 macro_rules! impl_binary_expr_common_methods {
     (
         $type_name:ident,
+        $is_scalar:tt,
         $first_argument:ident,
         $second_argument:ident,
-        $is_scalar:tt,
         $build_expr:expr,
         $with_apply_zero_rules:tt
     ) => {
@@ -56,6 +42,7 @@ macro_rules! impl_binary_expr_common_methods {
         impl_binary_expr_common_methods!(
             @binary_expr_apply_zero_rules
             $type_name,
+            $is_scalar,
             $first_argument,
             $second_argument,
             $build_expr,
@@ -71,6 +58,7 @@ macro_rules! impl_binary_expr_common_methods {
         ) -> expr_result_ty!() {
             impl_binary_expr_arg_operation!(
                 self,
+                $is_scalar,
                 $first_argument,
                 $second_argument,
                 |arg: expr_arc_ref_ty!()| arg.eliminate(parameter, perturbations, min_order),
@@ -80,10 +68,10 @@ macro_rules! impl_binary_expr_common_methods {
         }
 
         #[inline]
-        fn exist_any(&self, set: &expr_set_ty!()) -> bool {
-            set.iter().any(|expr| self.eq_expr(expr.as_ref()))
-                || self.$first_argument.exist_any(set)
-                || self.$second_argument.exist_any(set)
+        fn exist_any(&self, set: &expr_set_ty!(), include_derivatives: bool) -> bool {
+            self.match_self_any(set, include_derivatives)
+                || self.$first_argument.exist_any(set, include_derivatives)
+                || self.$second_argument.exist_any(set, include_derivatives)
         }
 
         #[inline]
@@ -106,12 +94,13 @@ macro_rules! impl_binary_expr_common_methods {
 
         #[inline]
         fn remove(&self, set: &expr_set_ty!()) -> expr_result_ty!() {
-            if set.iter().any(|expr| self.eq_expr(expr.as_ref())) {
-                impl_binary_expr_common_methods!(@binary_expr_return_zero self, $is_scalar);
+            if self.match_self_any(set, false) {
+                return impl_binary_zero_expr!(self, $is_scalar);
             }
 
             impl_binary_expr_arg_operation!(
                 self,
+                $is_scalar,
                 $first_argument,
                 $second_argument,
                 |arg: expr_arc_ref_ty!()| arg.remove(set),
@@ -119,10 +108,32 @@ macro_rules! impl_binary_expr_common_methods {
                 $build_expr
             )
         }
+
+        #[inline]
+        fn retain(
+            &self,
+            set: &expr_set_ty!(),
+            include_derivatives: bool,
+        ) -> expr_result_ty!() {
+            if self.match_self_any(set, include_derivatives) {
+                return Ok(self.clone_expr());
+            }
+
+            impl_binary_expr_arg_operation!(
+                self,
+                $is_scalar,
+                $first_argument,
+                $second_argument,
+                |arg: expr_arc_ref_ty!()| arg.retain(set, include_derivatives),
+                concat!(stringify!($type_name), "::retain() failed"),
+                $build_expr
+            )
+        }
     };
 
     (@binary_expr_apply_zero_rules
         $type_name:ident,
+        $is_scalar:tt,
         $first_argument:ident,
         $second_argument:ident,
         $build_expr:expr,
@@ -135,6 +146,7 @@ macro_rules! impl_binary_expr_common_methods {
         ) -> expr_result_ty!() {
             impl_binary_expr_arg_operation!(
                 self,
+                $is_scalar,
                 $first_argument,
                 $second_argument,
                 |arg: expr_arc_ref_ty!()| arg.apply_zero_rules(freq_tol.clone()),
@@ -146,29 +158,33 @@ macro_rules! impl_binary_expr_common_methods {
 
     (@binary_expr_apply_zero_rules
         $type_name:ident,
+        $is_scalar:tt,
         $first_argument:ident,
         $second_argument:ident,
         $build_expr:expr,
         false
     ) => {};
+}
 
-    (@binary_expr_return_zero $self:ident, true) => {
-        return impl_zero_expr!(true);
+macro_rules! impl_binary_zero_expr {
+    ($self:ident, true) => {
+        impl_zero_expr!(true)
     };
 
-    (@binary_expr_return_zero $self:ident, false) => {
-        return impl_zero_expr!(false);
+    ($self:ident, false) => {
+        impl_zero_expr!(false)
     };
 
     // field case: called like `..., is_scalar, ...`
-    (@binary_expr_return_zero $self:ident, $field:ident) => {
-        return impl_zero_expr!($self.$field);
+    ($self:ident, $field:ident) => {
+        impl_zero_expr!($self.$field)
     };
 }
 
 macro_rules! impl_binary_expr_arg_operation {
     (
         $self:ident,
+        $is_scalar:tt,
         $first_argument:ident,
         $second_argument:ident,
         $arg_operation:expr,
@@ -183,6 +199,10 @@ macro_rules! impl_binary_expr_arg_operation {
             )
         })?;
 
+        if $crate::public::is_zero_expr(&new_first, None) {
+            return impl_binary_zero_expr!($self, $is_scalar);
+        }
+
         let new_second = ($arg_operation)(&$self.$second_argument).map_err(|e| {
             $crate::public::generic_expression_error(
                 concat!($message, " for ", stringify!($second_argument)),
@@ -190,6 +210,10 @@ macro_rules! impl_binary_expr_arg_operation {
                 Some(::std::boxed::Box::new(e)),
             )
         })?;
+
+        if $crate::public::is_zero_expr(&new_second, None) {
+            return impl_binary_zero_expr!($self, $is_scalar);
+        }
 
         if &new_first == &$self.$first_argument && &new_second == &$self.$second_argument {
             Ok($self.clone_expr())

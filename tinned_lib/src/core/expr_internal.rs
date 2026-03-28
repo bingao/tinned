@@ -1,5 +1,5 @@
 pub(crate) mod sealed {
-    use std::collections::HashMap;
+    use std::collections::{HashMap, HashSet};
     use std::fmt;
     use std::sync::Arc;
 
@@ -19,7 +19,7 @@ pub(crate) mod sealed {
         // used as the key for the function `find_superchains()` and for
         // sorting a list of expressions. Note that "differentiation" is not
         // mathematically strict. For example, it is the differenitation only
-        // on electron repulsion integrals (ERI) for `TwoElecOperator`. See
+        // on electron repulsion integrals (ERI) for `AoTwoElecMatrix`. See
         // implementation of concrete expression types.
         #[inline]
         fn total_order(&self) -> u32 {
@@ -45,6 +45,26 @@ pub(crate) mod sealed {
             self.eq_expr(other.as_ref())
         }
 
+        // Checks if any expression in `set` exists in the current expression
+        // `self`. If the parameter `include_derivatives` is `true`, we also
+        // consider derivatives (including order 0) of expressions in `set`
+        // when checking existence. Different from `exist_any()`, this function
+        // will not check existence for the children of `self`.
+        //
+        // This function will be used by `retain()` as well.
+        #[inline]
+        fn match_self_any(
+            &self,
+            set: &HashSet<Arc<dyn crate::core::expr::Expr>>,
+            include_derivatives: bool,
+        ) -> bool {
+            if include_derivatives {
+                set.iter().any(|expr| self.eq_by_superchains(expr))
+            } else {
+                set.iter().any(|expr| self.eq_expr(expr.as_ref()))
+            }
+        }
+
         // Replaces the expression with `replacement`, or derivative of
         // `replacement`. `expr` is "equal to" `self` according to the method
         // `eq_by_superchains()`. So, the derivative on `replacement` can be
@@ -58,20 +78,13 @@ pub(crate) mod sealed {
             Ok(replacement)
         }
 
-        // Performs `replace()` method on the expression's field(s) if it has
-        // any. By default, there is no fields in the expression and we simply
-        // return its clone.
-        fn replace_expr_fields(
+        // Performs `replace()` method on child subexpression(s) if there
+        // exists By default, there is no child subexpression and we simply
+        // return the clone of the expression.
+        fn replace_expr_children(
             &self,
             _map: &HashMap<Arc<dyn crate::core::expr::Expr>, Arc<dyn crate::core::expr::Expr>>,
-            _exact_equality: bool,
-        ) -> Result<Arc<dyn crate::core::expr::Expr>, TinnedError>;
-
-        // Performs `retain_expr()` method on the expression's field(s) if it has any.
-        fn retain_expr_fields(
-            &self,
-            expr: &Arc<dyn crate::core::expr::Expr>,
-            exact_equality: bool,
+            _include_derivatives: bool,
         ) -> Result<Arc<dyn crate::core::expr::Expr>, TinnedError>;
 
         // Returns if the expression is exactly zero

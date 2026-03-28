@@ -32,25 +32,12 @@ impl ExprInternal for ZeroOperator {
     }
 
     #[inline]
-    fn replace_expr_fields(
+    fn replace_expr_children(
         &self,
         _map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
-        _exact_equality: bool,
+        _include_derivatives: bool,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
         Ok(self.clone_expr())
-    }
-
-    #[inline]
-    fn retain_expr_fields(
-        &self,
-        _expr: &Arc<dyn Expr>,
-        _exact_equality: bool,
-    ) -> Result<Arc<dyn Expr>, TinnedError> {
-        Err(crate::public::unreachable_error(
-            "ZeroOperator::retain_expr_fields() is not expected to be called",
-            &self.clone_expr(),
-            None,
-        ))
     }
 
     #[inline]
@@ -81,7 +68,7 @@ impl Expr for ZeroOperator {
     fn retain(
         &self,
         _set: &HashSet<Arc<dyn Expr>>,
-        _exact_equality: bool,
+        _include_derivatives: bool,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
         Ok(self.clone_expr())
     }

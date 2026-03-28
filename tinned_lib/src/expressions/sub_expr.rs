@@ -249,14 +249,20 @@ impl SubExprBuilder {
 
 impl ExprInternal for SubExpr {
     // It is more appropriate to set `zero_rules_applied` as false after the
-    // functions `replace_expr_fields`, `retain_expr_fields` and `replace_expr_self`
-    impl_unary_expr_internal_methods!(SubExpr, expression, true, |this: &SubExpr, arg| {
-        SubExpr::builder(this.name.clone(), arg)
-            .derivative(this.derivative.clone())
-            .elimination_rules(this.elimination_rules.clone())
-            .check_name_conflict(false)
-            .build()
-    });
+    // functions `replace_expr_children`, `retain_expr_fields` and `replace_expr_self`
+    impl_unary_expr_internal_methods!(
+        SubExpr,
+        Argument,
+        expression,
+        true,
+        |this: &SubExpr, arg| {
+            SubExpr::builder(this.name.clone(), arg)
+                .derivative(this.derivative.clone())
+                .elimination_rules(this.elimination_rules.clone())
+                .check_name_conflict(false)
+                .build()
+        }
+    );
 
     #[inline]
     fn hash_key(&self) -> String {
@@ -416,8 +422,9 @@ impl Expr for SubExpr {
     }
 
     #[inline]
-    fn exist_any(&self, set: &HashSet<Arc<dyn Expr>>) -> bool {
-        set.iter().any(|expr| self.eq_expr(expr.as_ref())) || self.expression.exist_any(set)
+    fn exist_any(&self, set: &HashSet<Arc<dyn Expr>>, include_derivatives: bool) -> bool {
+        self.match_self_any(set, include_derivatives)
+            || self.expression.exist_any(set, include_derivatives)
     }
 
     #[inline]
@@ -431,7 +438,7 @@ impl Expr for SubExpr {
 
     #[inline]
     fn remove(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
-        if set.iter().any(|expr| self.eq_expr(expr.as_ref())) {
+        if self.match_self_any(set, false) {
             return impl_zero_expr!(self.expression.is_scalar());
         }
 
@@ -439,6 +446,39 @@ impl Expr for SubExpr {
             generic_expression_error(
                 format!(
                     "SubExpr::remove() failed for removing {{{}}}",
+                    join_mapped(set.iter(), ",", |s| s.to_string()),
+                ),
+                self,
+                Some(Box::new(e)),
+            )
+        })?;
+
+        if &new_expr == &self.expression {
+            Ok(self.clone_expr())
+        } else {
+            SubExpr::builder(self.name.clone(), new_expr)
+                .derivative(self.derivative.clone())
+                .elimination_rules(self.elimination_rules.clone())
+                .zero_rules_applied(self.zero_rules_applied)
+                .check_name_conflict(false)
+                .build()
+        }
+    }
+
+    #[inline]
+    fn retain(
+        &self,
+        set: &HashSet<Arc<dyn Expr>>,
+        include_derivatives: bool,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        if self.match_self_any(set, include_derivatives) {
+            return Ok(self.clone_expr());
+        }
+
+        let new_expr = self.expression.retain(set, include_derivatives).map_err(|e| {
+            generic_expression_error(
+                format!(
+                    "SubExpr::retain() failed for set {{{}}}",
                     join_mapped(set.iter(), ",", |s| s.to_string()),
                 ),
                 self,

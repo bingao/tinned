@@ -30,7 +30,7 @@ pub mod wfn_parameter;
 pub mod zero_operator;
 
 pub use add::Add;
-pub use adjoint_map::AdjointMap;
+pub use adjoint_map::{AdjointMap, AdjointMode};
 pub use ao_two_elec_energy::{AoTwoElecEnergy, AoTwoElecEnergyBuilder};
 pub use ao_two_elec_matrix::{AoTwoElecMatrix, AoTwoElecMatrixBuilder};
 pub use composition::Composition;

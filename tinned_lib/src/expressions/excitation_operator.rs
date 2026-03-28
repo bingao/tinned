@@ -35,22 +35,12 @@ impl ExprInternal for ExcitationOperator {
     }
 
     #[inline]
-    fn replace_expr_fields(
+    fn replace_expr_children(
         &self,
         _map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
-        _exact_equality: bool,
+        _include_derivatives: bool,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
         Ok(self.clone_expr())
-    }
-
-    // `retain_expr_fields` may be called by `MatrixMul`
-    #[inline]
-    fn retain_expr_fields(
-        &self,
-        _expr: &Arc<dyn Expr>,
-        _exact_equality: bool,
-    ) -> Result<Arc<dyn Expr>, TinnedError> {
-        Ok(ZeroOperator::new())
     }
 }
 
@@ -68,7 +58,7 @@ impl Expr for ExcitationOperator {
 
     #[inline]
     fn remove(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
-        if set.iter().any(|expr| self.eq_expr(expr.as_ref())) {
+        if self.match_self_any(set, false) {
             Ok(ZeroOperator::new())
         } else {
             Ok(self.clone_expr())
@@ -79,9 +69,9 @@ impl Expr for ExcitationOperator {
     fn retain(
         &self,
         set: &HashSet<Arc<dyn Expr>>,
-        _exact_equality: bool,
+        include_derivatives: bool,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
-        if set.iter().all(|expr| self.eq_expr(expr.as_ref())) {
+        if self.match_self_any(set, include_derivatives) {
             Ok(self.clone_expr())
         } else {
             Ok(ZeroOperator::new())

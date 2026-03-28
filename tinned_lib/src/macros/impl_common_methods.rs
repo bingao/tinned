@@ -68,12 +68,14 @@ macro_rules! impl_is_scalar {
             true
         }
     };
+
     (false) => {
         #[inline]
         fn is_scalar(&self) -> bool {
             false
         }
     };
+
     ($is_scalar:tt) => {
         #[inline]
         fn is_scalar(&self) -> bool {
@@ -86,9 +88,11 @@ macro_rules! impl_zero_expr {
     (true) => {
         Ok($crate::expressions::Number::zero())
     };
+
     (false) => {
         Ok($crate::expressions::ZeroOperator::new())
     };
+
     ($is_scalar:expr) => {
         if $is_scalar {
             Ok($crate::expressions::Number::zero())

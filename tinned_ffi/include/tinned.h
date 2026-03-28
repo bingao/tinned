@@ -495,6 +495,7 @@ bool
 tinned_expr_exist_any (
     ExprHandle_t const * h,
     ExprSlice_t const * set,
+    bool include_derivatives,
     TinnedErrorHandle_t * * out_err);
 
 /** <No documentation available> */
@@ -537,7 +538,7 @@ tinned_expr_replace (
     ExprHandle_t const * h,
     ExprSlice_t const * keys,
     ExprSlice_t const * values,
-    bool exact_equality,
+    bool include_derivatives,
     TinnedErrorHandle_t * * out_err);
 
 /** <No documentation available> */
@@ -545,7 +546,7 @@ ExprHandle_t *
 tinned_expr_retain (
     ExprHandle_t const * h,
     ExprSlice_t const * set,
-    bool exact_equality,
+    bool include_derivatives,
     TinnedErrorHandle_t * * out_err);
 
 /** <No documentation available> */

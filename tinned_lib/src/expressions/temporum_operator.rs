@@ -120,6 +120,7 @@ impl TemporumOperatorBuilder {
 impl ExprInternal for TemporumOperator {
     impl_unary_expr_internal_methods!(
         TemporumOperator,
+        False,
         argument,
         false,
         |this: &TemporumOperator, arg| this.with_argument(arg).build()
@@ -149,8 +150,8 @@ impl ExprInternal for TemporumOperator {
 impl Expr for TemporumOperator {
     impl_unary_expr_common_methods!(
         TemporumOperator,
-        argument,
         False,
+        argument,
         |this: &TemporumOperator, arg| this.with_argument(arg).build()
     );
 

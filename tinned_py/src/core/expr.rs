@@ -102,12 +102,14 @@ impl PyExpr {
     ///
     /// Args:
     ///   set: Iterable of Expr.
+    ///   include_derivatives: Whether considering derivatives (including order
+    ///                        0) of expressions in set when checking existence.
     ///
     /// Returns:
     ///   True if any exists, otherwise False.
-    fn exist_any(&self, set: Vec<PyExpr>) -> PyResult<bool> {
+    fn exist_any(&self, set: Vec<PyExpr>, include_derivatives: bool) -> PyResult<bool> {
         let rust_set: HashSet<Arc<dyn Expr>> = set.into_iter().map(|e| e.inner().clone()).collect();
-        Ok(self.inner.exist_any(&rust_set))
+        Ok(self.inner.exist_any(&rust_set, include_derivatives))
     }
 
     /// Find the given expression and all its higher-order superchain matches.
@@ -146,11 +148,12 @@ impl PyExpr {
     ///
     /// Args:
     ///   map: dict[Expr, Expr]
-    ///   exact_equality: If True, use exact equality; if False, use superchain matching.
+    ///   include_derivatives: Whether considering derivatives (including order
+    ///                        0) of expressions in set when checking existence.
     ///
     /// Returns:
     ///   A PyExpr wrapping the replaced expression.
-    fn replace(&self, map: &Bound<'_, PyDict>, exact_equality: bool) -> PyResult<PyExpr> {
+    fn replace(&self, map: &Bound<'_, PyDict>, include_derivatives: bool) -> PyResult<PyExpr> {
         let mut rust_map: HashMap<Arc<dyn Expr>, Arc<dyn Expr>> = HashMap::new();
 
         for (k, v) in map.iter() {
@@ -159,34 +162,22 @@ impl PyExpr {
             rust_map.insert(key.inner().clone(), val.inner().clone());
         }
 
-        let out = self.inner.replace(&rust_map, exact_equality).map_err(to_pyerr)?;
+        let out = self.inner.replace(&rust_map, include_derivatives).map_err(to_pyerr)?;
         Ok(PyExpr::new(out))
     }
 
-    /// Retain expressions by applying retain_expr for each element in set.
+    /// Retain expressions in set while remove others from the current expression.
     ///
     /// Args:
     ///   set: Iterable of Expr.
-    ///   exact_equality: If True, retain by exact equality; otherwise retain by superchains.
+    ///   include_derivatives: Whether considering derivatives (including order
+    ///                        0) of expressions in set when checking existence.
     ///
     /// Returns:
     ///   A PyExpr wrapping the retained expression.
-    fn retain(&self, set: Vec<PyExpr>, exact_equality: bool) -> PyResult<PyExpr> {
+    fn retain(&self, set: Vec<PyExpr>, include_derivatives: bool) -> PyResult<PyExpr> {
         let rust_set: HashSet<Arc<dyn Expr>> = set.into_iter().map(|e| e.inner().clone()).collect();
-        let out = self.inner.retain(&rust_set, exact_equality).map_err(to_pyerr)?;
-        Ok(PyExpr::new(out))
-    }
-
-    /// Retain only sub-expressions containing expr (or its superchains).
-    ///
-    /// Args:
-    ///   expr: Expr to retain by.
-    ///   exact_equality: If True, match exactly; otherwise match by superchains.
-    ///
-    /// Returns:
-    ///   A PyExpr wrapping the retained expression.
-    fn retain_expr(&self, expr: PyExpr, exact_equality: bool) -> PyResult<PyExpr> {
-        let out = self.inner.retain_expr(expr.inner(), exact_equality).map_err(to_pyerr)?;
+        let out = self.inner.retain(&rust_set, include_derivatives).map_err(to_pyerr)?;
         Ok(PyExpr::new(out))
     }
 
