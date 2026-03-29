@@ -12,6 +12,8 @@ use crate::public::{
 };
 
 // Mode of an adjoint map or its generators
+#[cfg_attr(feature = "ffi", safer_ffi::derive_ReprC)]
+#[repr(u32)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum AdjointMode {
     Commutative, // generators and their derivatives commute -> canonical order

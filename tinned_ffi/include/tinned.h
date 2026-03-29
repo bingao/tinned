@@ -65,6 +65,30 @@ tinned_add_terms (
     TinnedErrorHandle_t * * out_err);
 
 /** <No documentation available> */
+/** \remark Has the same ABI as `uint32_t` **/
+#ifdef DOXYGEN
+typedef
+#endif
+enum AdjointMode {
+    /** <No documentation available> */
+    ADJOINT_MODE_COMMUTATIVE,
+    /** <No documentation available> */
+    ADJOINT_MODE_SYMMETRIC,
+    /** <No documentation available> */
+    ADJOINT_MODE_ORDERED,
+}
+#ifndef DOXYGEN
+; typedef uint32_t
+#endif
+AdjointMode_t;
+
+/** <No documentation available> */
+AdjointMode_t
+tinned_adjoint_map_adjoint_mode (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
 Vec_ExprHandle_ptr_t
 tinned_adjoint_map_generators (
     ExprHandle_t const * h,
@@ -85,6 +109,7 @@ tinned_adjoint_map_new (
     ExprSlice_t const * generators,
     ExprHandle_t const * target,
     bool left_action,
+    AdjointMode_t adjoint_mode,
     TinnedErrorHandle_t * * out_err);
 
 /** <No documentation available> */
@@ -380,6 +405,12 @@ tinned_exp_adjoint_map_generator (
 
 /** <No documentation available> */
 bool
+tinned_exp_adjoint_map_generator_derivative_commute (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+bool
 tinned_exp_adjoint_map_is_temporum (
     ExprHandle_t const * h,
     TinnedErrorHandle_t * * out_err);
@@ -400,6 +431,7 @@ tinned_exp_adjoint_map_max_fold (
 ExprHandle_t *
 tinned_exp_adjoint_map_new (
     ExprHandle_t const * generator,
+    bool generator_derivative_commute,
     ExprHandle_t const * target,
     bool left_action,
     uint32_t max_fold,

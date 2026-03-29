@@ -9,6 +9,7 @@ use crate::core::{ExprBox, ExprHandle, TinnedErrorBox, tinned_error_new};
 #[ffi_export]
 pub extern "C" fn tinned_exp_adjoint_map_new(
     generator: Option<&ExprHandle>,
+    generator_derivative_commute: bool,
     target: Option<&ExprHandle>,
     left_action: bool,
     max_fold: u32,
@@ -32,7 +33,7 @@ pub extern "C" fn tinned_exp_adjoint_map_new(
     };
     let target_arc = target.clone_arc();
 
-    match ExpAdjointMap::builder(generator_arc, target_arc)
+    match ExpAdjointMap::builder(generator_arc, target_arc, Some(generator_derivative_commute))
         .left_action(left_action)
         .max_fold(max_fold)
         .build()
@@ -54,6 +55,7 @@ impl_expr_getters!(
 
 impl_val_getters!(
     ExpAdjointMap;
+    tinned_exp_adjoint_map_generator_derivative_commute: bool => |ead| ead.generator_derivative_commute(); default = true,
     tinned_exp_adjoint_map_is_temporum: bool => |ead| ead.is_temporum(); default = false,
     tinned_exp_adjoint_map_left_action: bool => |ead| ead.left_action(); default = false,
     tinned_exp_adjoint_map_max_fold: u32 => |ead| ead.max_fold(); default = 0,

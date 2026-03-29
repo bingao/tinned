@@ -245,7 +245,9 @@ pub fn tinned_expr_exist_any(
         },
         None => HashSet::new(),
     };
-    ffi_expr_return_val(h, "tinned_expr_exist_any", out_err, |e| Ok(e.exist_any(&expr_set, include_derivatives)))
+    ffi_expr_return_val(h, "tinned_expr_exist_any", out_err, |e| {
+        Ok(e.exist_any(&expr_set, include_derivatives))
+    })
 }
 
 // Finds a given expression `s` and all its higher-order "differentiated" ones in the current expression.

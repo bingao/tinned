@@ -10,6 +10,8 @@ use crate::perturbations::pert_multichain::PyPertMultichain;
 /// Args:
 ///   generator: Generator expression.
 ///   target: Target expression.
+///   generator_derivative_commute: Optional bool indicating whether the
+///                                 generator and its derivatives commute.
 ///   left_action: Optional bool.
 ///                If True: exp(X)*Y*exp(-X).
 ///                If False: exp(-X)*Y*exp(X).
@@ -18,14 +20,19 @@ use crate::perturbations::pert_multichain::PyPertMultichain;
 /// Returns:
 ///   A PyExpr wrapping the constructed expression (interned).
 #[pyfunction]
-#[pyo3(signature = (generator, target, left_action=None, max_fold=None))]
+#[pyo3(signature = (generator, target, generator_derivative_commute=None, left_action=None, max_fold=None))]
 pub fn exp_adjoint_map_new(
     generator: PyExpr,
     target: PyExpr,
+    generator_derivative_commute: Option<bool>,
     left_action: Option<bool>,
     max_fold: Option<u32>,
 ) -> PyResult<PyExpr> {
-    let mut b = ExpAdjointMap::builder(generator.inner().clone(), target.inner().clone());
+    let mut b = ExpAdjointMap::builder(
+        generator.inner().clone(),
+        target.inner().clone(),
+        generator_derivative_commute,
+    );
 
     if let Some(v) = left_action {
         b = b.left_action(v);
@@ -43,20 +50,27 @@ pub fn exp_adjoint_map_new(
 /// Args:
 ///   generator: Generator expression.
 ///   is_forward: If True uses i*d/dt, otherwise -i*d/dt.
+///   generator_derivative_commute: Optional bool indicating whether the
+///                                 generator and its derivatives commute.
 ///   left_action: Optional bool. If True: exp(X)*Y*exp(-X), otherwise exp(-X)*Y*exp(X).
 ///   max_fold: Optional u32 truncation.
 ///
 /// Returns:
 ///   A PyExpr wrapping the constructed expression (interned).
 #[pyfunction]
-#[pyo3(signature = (generator, is_forward, left_action=None, max_fold=None))]
+#[pyo3(signature = (generator, is_forward, generator_derivative_commute=None, left_action=None, max_fold=None))]
 pub fn exp_adjoint_map_temporum_new(
     generator: PyExpr,
     is_forward: bool,
+    generator_derivative_commute: Option<bool>,
     left_action: Option<bool>,
     max_fold: Option<u32>,
 ) -> PyResult<PyExpr> {
-    let mut b = ExpAdjointMap::builder_temporum(generator.inner().clone(), is_forward);
+    let mut b = ExpAdjointMap::builder_temporum(
+        generator.inner().clone(),
+        is_forward,
+        generator_derivative_commute,
+    );
 
     if let Some(v) = left_action {
         b = b.left_action(v);

@@ -412,7 +412,9 @@ impl Expr for ExpAdjointMap {
                 if let Some(ad_map) = downcast_from_arc::<AdjointMap>(term) {
                     // Check folds of commutators
                     if ad_map.generators().len() as u32 + 1 < self.max_fold {
-                        terms.push(ad_map.with_added_generator(diff_generator.clone(), adjoint_mode)?);
+                        terms.push(
+                            ad_map.with_added_generator(diff_generator.clone(), adjoint_mode)?,
+                        );
                     } else {
                         ad_maps.push(term.clone());
                     }
