@@ -119,15 +119,60 @@ macro_rules! impl_binary_expr_common_methods {
                 return Ok(self.clone_expr());
             }
 
-            impl_binary_expr_arg_operation!(
-                self,
-                $is_scalar,
-                $first_argument,
-                $second_argument,
-                |arg: expr_arc_ref_ty!()| arg.retain(set, include_derivatives),
-                concat!(stringify!($type_name), "::retain() failed"),
-                $build_expr
-            )
+            let retained_first = self.$first_argument.retain(set, include_derivatives).map_err(|e| {
+                $crate::public::generic_expression_error(
+                    concat!(
+                        stringify!($type_name),
+                        "::retain() failed for ",
+                        stringify!($first_argument)
+                    ),
+                    self,
+                    Some(::std::boxed::Box::new(e)),
+                )
+            })?;
+
+            let retained_second = self.$second_argument.retain(set, include_derivatives).map_err(|e| {
+                $crate::public::generic_expression_error(
+                    concat!(
+                        stringify!($type_name),
+                        "::retain() failed for ",
+                        stringify!($second_argument)
+                    ),
+                    self,
+                    Some(::std::boxed::Box::new(e)),
+                )
+            })?;
+
+            let first_is_zero = $crate::public::is_zero_expr(&retained_first, None);
+            let second_is_zero = $crate::public::is_zero_expr(&retained_second, None);
+
+            if first_is_zero && second_is_zero {
+                return impl_binary_zero_expr!(self, $is_scalar);
+            }
+
+            let new_first = if first_is_zero {
+                self.$first_argument.clone()
+            } else {
+                retained_first
+            };
+
+            let new_second = if second_is_zero {
+                self.$second_argument.clone()
+            } else {
+                retained_second
+            };
+
+            let first_changed = !::std::sync::Arc::ptr_eq(&new_first, &self.$first_argument)
+                && &new_first != &self.$first_argument;
+
+            let second_changed = !::std::sync::Arc::ptr_eq(&new_second, &self.$second_argument)
+                && &new_second != &self.$second_argument;
+
+            if !first_changed && !second_changed {
+                Ok(self.clone_expr())
+            } else {
+                ($build_expr)(self, new_first, new_second)
+            }
         }
     };
 

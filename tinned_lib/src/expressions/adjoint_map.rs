@@ -376,11 +376,54 @@ impl Expr for AdjointMap {
             return Ok(self.clone_expr());
         }
 
-        impl_adjoint_map_operation!(
-            self,
-            |x: &Arc<dyn Expr>| x.retain(set, include_derivatives),
-            "AdjointMap::retain() failed"
-        )
+        let retained_target = self.target.retain(set, include_derivatives).map_err(|e| {
+            generic_expression_error("AdjointMap::retain() failed", self, Some(Box::new(e)))
+        })?;
+
+        let target_is_zero = is_zero_expr(&retained_target, None);
+        let new_target = if target_is_zero {
+            self.target.clone()
+        } else {
+            retained_target
+        };
+
+        let mut changed = !Arc::ptr_eq(&new_target, &self.target) && &new_target != &self.target;
+        let mut all_zero = target_is_zero;
+
+        let mut new_generators = Vec::with_capacity(self.generators.len());
+
+        for generator in &self.generators {
+            let retained_generator = generator.retain(set, include_derivatives).map_err(|e| {
+                generic_expression_error(
+                    format!("AdjointMap::retain() for generator {}", generator),
+                    self,
+                    Some(Box::new(e)),
+                )
+            })?;
+
+            if is_zero_expr(&retained_generator, None) {
+                new_generators.push(generator.clone());
+            } else {
+                all_zero = false;
+
+                if !changed
+                    && !Arc::ptr_eq(&retained_generator, generator)
+                    && &retained_generator != generator
+                {
+                    changed = true;
+                }
+
+                new_generators.push(retained_generator);
+            }
+        }
+
+        if all_zero {
+            Ok(ZeroOperator::new())
+        } else if changed {
+            Self::new(new_generators, new_target, Some(self.left_action), Some(self.adjoint_mode))
+        } else {
+            Ok(self.clone_expr())
+        }
     }
 }
 
