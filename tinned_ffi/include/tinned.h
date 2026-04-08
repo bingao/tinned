@@ -204,6 +204,36 @@ tinned_ao_two_elec_matrix_new (
     TinnedErrorHandle_t * * out_err);
 
 /** <No documentation available> */
+bool
+tinned_basis_time_evolution_at_zero_perturbations (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_basis_time_evolution_braket (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+PertMultichainHandle_t *
+tinned_basis_time_evolution_dependencies (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+PertMultichainHandle_t *
+tinned_basis_time_evolution_derivative (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_basis_time_evolution_new (
+    PertMultichainHandle_t const * dependencies,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
 ExprHandle_t *
 tinned_composition_inner (
     ExprHandle_t const * h,
@@ -392,6 +422,12 @@ tinned_excitation_operator_new (
     TinnedErrorHandle_t * * out_err);
 
 /** <No documentation available> */
+bool
+tinned_exp_adjoint_map_at_zero_perturbations (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
 PertMultichainHandle_t *
 tinned_exp_adjoint_map_derivative (
     ExprHandle_t const * h,
@@ -411,7 +447,7 @@ tinned_exp_adjoint_map_generator_derivative_commute (
 
 /** <No documentation available> */
 bool
-tinned_exp_adjoint_map_is_temporum (
+tinned_exp_adjoint_map_is_time_evolution (
     ExprHandle_t const * h,
     TinnedErrorHandle_t * * out_err);
 
@@ -450,19 +486,13 @@ tinned_exp_adjoint_map_target (
     TinnedErrorHandle_t * * out_err);
 
 /** <No documentation available> */
-bool
-tinned_exp_adjoint_map_zero_rules_applied (
-    ExprHandle_t const * h,
-    TinnedErrorHandle_t * * out_err);
-
-/** <No documentation available> */
-typedef struct NumberToleranceHandle NumberToleranceHandle_t;
-
-/** <No documentation available> */
 ExprHandle_t *
-tinned_expr_apply_zero_rules (
-    ExprHandle_t const * h,
-    NumberToleranceHandle_t const * tol,
+tinned_exp_adjoint_map_time_evolution_new (
+    ExprHandle_t const * generator,
+    bool is_forward,
+    bool generator_derivative_commute,
+    bool left_action,
+    uint32_t max_fold,
     TinnedErrorHandle_t * * out_err);
 
 /** <No documentation available> */
@@ -546,6 +576,12 @@ tinned_expr_free (
     ExprHandle_t * expr);
 
 /** <No documentation available> */
+bool
+tinned_expr_has_unperturbed_term (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
 char *
 tinned_expr_hash_key (
     ExprHandle_t const * h,
@@ -585,6 +621,16 @@ tinned_expr_retain (
 char *
 tinned_expr_serialize_json (
     ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+typedef struct NumberToleranceHandle NumberToleranceHandle_t;
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_expr_substitute_zero_perturbations (
+    ExprHandle_t const * h,
+    NumberToleranceHandle_t const * tol,
     TinnedErrorHandle_t * * out_err);
 
 /** \brief
@@ -1172,63 +1218,33 @@ tinned_symbol_new (
 
 /** <No documentation available> */
 ExprHandle_t *
-tinned_temporum_operator_argument (
+tinned_time_evolution_argument (
     ExprHandle_t const * h,
     TinnedErrorHandle_t * * out_err);
 
 /** <No documentation available> */
 PertMultichainHandle_t *
-tinned_temporum_operator_derivative (
+tinned_time_evolution_derivative (
     ExprHandle_t const * h,
     TinnedErrorHandle_t * * out_err);
 
 /** <No documentation available> */
 ExprHandle_t *
-tinned_temporum_operator_frequency (
+tinned_time_evolution_frequency (
     ExprHandle_t const * h,
     TinnedErrorHandle_t * * out_err);
 
 /** <No documentation available> */
 bool
-tinned_temporum_operator_is_forward (
+tinned_time_evolution_is_forward (
     ExprHandle_t const * h,
     TinnedErrorHandle_t * * out_err);
 
 /** <No documentation available> */
 ExprHandle_t *
-tinned_temporum_operator_new (
+tinned_time_evolution_new (
     ExprHandle_t const * argument,
     bool is_forward,
-    TinnedErrorHandle_t * * out_err);
-
-/** <No documentation available> */
-ExprHandle_t *
-tinned_temporum_overlap_braket (
-    ExprHandle_t const * h,
-    TinnedErrorHandle_t * * out_err);
-
-/** <No documentation available> */
-PertMultichainHandle_t *
-tinned_temporum_overlap_dependencies (
-    ExprHandle_t const * h,
-    TinnedErrorHandle_t * * out_err);
-
-/** <No documentation available> */
-PertMultichainHandle_t *
-tinned_temporum_overlap_derivative (
-    ExprHandle_t const * h,
-    TinnedErrorHandle_t * * out_err);
-
-/** <No documentation available> */
-ExprHandle_t *
-tinned_temporum_overlap_new (
-    PertMultichainHandle_t const * dependencies,
-    TinnedErrorHandle_t * * out_err);
-
-/** <No documentation available> */
-bool
-tinned_temporum_overlap_zero_rules_applied (
-    ExprHandle_t const * h,
     TinnedErrorHandle_t * * out_err);
 
 /** <No documentation available> */
@@ -1309,6 +1325,8 @@ enum ExprTag {
     /** <No documentation available> */
     EXPR_TAG_AO_TWO_ELEC_MATRIX,
     /** <No documentation available> */
+    EXPR_TAG_BASIS_TIME_EVOLUTION,
+    /** <No documentation available> */
     EXPR_TAG_COMPOSITION,
     /** <No documentation available> */
     EXPR_TAG_CONJUGATE,
@@ -1347,9 +1365,7 @@ enum ExprTag {
     /** <No documentation available> */
     EXPR_TAG_SYMBOL,
     /** <No documentation available> */
-    EXPR_TAG_TEMPORUM_OPERATOR,
-    /** <No documentation available> */
-    EXPR_TAG_TEMPORUM_OVERLAP,
+    EXPR_TAG_TIME_EVOLUTION,
     /** <No documentation available> */
     EXPR_TAG_TRACE,
     /** <No documentation available> */
