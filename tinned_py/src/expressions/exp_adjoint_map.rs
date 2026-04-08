@@ -45,7 +45,7 @@ pub fn exp_adjoint_map_new(
     Ok(PyExpr::new(out))
 }
 
-/// Create an ExpAdjointMap expression in temporum mode.
+/// Create an ExpAdjointMap expression with target as the time evolution of generator.
 ///
 /// Args:
 ///   generator: Generator expression.
@@ -59,14 +59,14 @@ pub fn exp_adjoint_map_new(
 ///   A PyExpr wrapping the constructed expression (interned).
 #[pyfunction]
 #[pyo3(signature = (generator, is_forward, generator_derivative_commute=None, left_action=None, max_fold=None))]
-pub fn exp_adjoint_map_temporum_new(
+pub fn exp_adjoint_map_time_evolution_new(
     generator: PyExpr,
     is_forward: bool,
     generator_derivative_commute: Option<bool>,
     left_action: Option<bool>,
     max_fold: Option<u32>,
 ) -> PyResult<PyExpr> {
-    let mut b = ExpAdjointMap::builder_temporum(
+    let mut b = ExpAdjointMap::builder_time_evolution(
         generator.inner().clone(),
         is_forward,
         generator_derivative_commute,
@@ -100,12 +100,12 @@ impl_expr_getter_interface!(
 );
 
 impl_expr_getter_interface!(
-    fn_name = exp_adjoint_map_is_temporum,
+    fn_name = exp_adjoint_map_is_time_evolution,
     fn_doc =
         impl_expr_getter_doc!("whether target is the time-differentiated generator", ExpAdjointMap),
     expr_ty = ExpAdjointMap,
     out_ty = bool,
-    body = |op: &ExpAdjointMap| Ok(op.is_temporum())
+    body = |op: &ExpAdjointMap| Ok(op.is_time_evolution())
 );
 
 impl_expr_getter_interface!(
@@ -125,11 +125,11 @@ impl_expr_getter_interface!(
 );
 
 impl_expr_getter_interface!(
-    fn_name = exp_adjoint_map_zero_rules_applied,
+    fn_name = exp_adjoint_map_at_zero_perturbations,
     fn_doc = impl_expr_getter_doc!("whether evaluated at zero-field strength", ExpAdjointMap),
     expr_ty = ExpAdjointMap,
     out_ty = bool,
-    body = |op: &ExpAdjointMap| Ok(op.zero_rules_applied())
+    body = |op: &ExpAdjointMap| Ok(op.at_zero_perturbations())
 );
 
 impl_expr_getter_interface!(
@@ -150,13 +150,13 @@ impl_expr_getter_interface!(
 
 pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(exp_adjoint_map_new, m)?)?;
-    m.add_function(wrap_pyfunction!(exp_adjoint_map_temporum_new, m)?)?;
+    m.add_function(wrap_pyfunction!(exp_adjoint_map_time_evolution_new, m)?)?;
     m.add_function(wrap_pyfunction!(exp_adjoint_map_generator, m)?)?;
     m.add_function(wrap_pyfunction!(exp_adjoint_map_target, m)?)?;
-    m.add_function(wrap_pyfunction!(exp_adjoint_map_is_temporum, m)?)?;
+    m.add_function(wrap_pyfunction!(exp_adjoint_map_is_time_evolution, m)?)?;
     m.add_function(wrap_pyfunction!(exp_adjoint_map_left_action, m)?)?;
     m.add_function(wrap_pyfunction!(exp_adjoint_map_max_fold, m)?)?;
-    m.add_function(wrap_pyfunction!(exp_adjoint_map_zero_rules_applied, m)?)?;
+    m.add_function(wrap_pyfunction!(exp_adjoint_map_at_zero_perturbations, m)?)?;
     m.add_function(wrap_pyfunction!(exp_adjoint_map_result, m)?)?;
     m.add_function(wrap_pyfunction!(exp_adjoint_map_derivative, m)?)?;
 

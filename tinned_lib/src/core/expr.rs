@@ -29,17 +29,26 @@ pub trait Expr: Debug + Send + Sync + ExprInternal {
         hasher.finish()
     }
 
+    // Makes a clone of an expression.
+    fn clone_expr(&self) -> Arc<dyn Expr>;
+
     // Returns if an expression is scalar.
     fn is_scalar(&self) -> bool;
 
-    // Make a clone of an expression.
-    fn clone_expr(&self) -> Arc<dyn Expr>;
-
-    // Performs a conditional canonicalization to zero, such as setting
-    // `TemporumOperator` and unperturbed `TemporumOverlap` to zero, and
-    // undifferentiated perturbing operators to zero.
+    // Returns if an expression has unperturbed term, or zeroth-order term.
     #[inline]
-    fn apply_zero_rules(
+    fn has_unperturbed_term(&self) -> bool {
+        true
+    }
+
+    // Sets all perturbations to zero, which includes, such as setting
+    // `TimeEvolution` and unperturbed `BasisTimeEvolution` to zero, and
+    // undifferentiated perturbing operators to zero.
+    //
+    // The frequency tolerance `freq_tol` is used to determine whether a
+    // numerical frequency can be treated zero or not.
+    #[inline]
+    fn substitute_zero_perturbations(
         &self,
         _freq_tol: Option<crate::public::NumberTolerance>,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
@@ -150,20 +159,40 @@ pub trait Expr: Debug + Send + Sync + ExprInternal {
         }
     }
 
-    // We first check the existence of expressions in `set` for the current
-    // expression `self`. The check is performed by calling
-    // `self.match_self_any(set, include_derivatives)`.  The current
-    // expression `self` will return if `self.match_self_any()` is `true`.
-    // Otherwise, we either return zero when `self` has no child, or invoke the
-    // function `retain()` for all its children. Zero, the current expression
-    // `self`, or a new expression will return after invoking the function
-    // `retain()` for the children, which is implemented by different concrete
-    // expression types.
+    /// Applies successive retention operations with respect to each expression
+    /// in `set`.
+    ///
+    /// Starting from the current expression, this function repeatedly applies
+    /// [`retain_single`] for each expression in `set`, updating the expression
+    /// at each step.  Conceptually, this corresponds to extracting the
+    /// component of the expression that is consistent with all retention
+    /// conditions induced by elements of `set`.
+    ///
+    /// When `include_derivatives` is `true`, higher-order derivatives are also
+    /// considered in each retention step.
+    ///
+    /// If at any stage the expression becomes exactly zero, the procedure
+    /// terminates early and zero is returned.
+    ///
+    /// This function is primarily intended for (higher-order) residue
+    /// computations.
     fn retain(
         &self,
         set: &HashSet<Arc<dyn Expr>>,
         include_derivatives: bool,
-    ) -> Result<Arc<dyn Expr>, TinnedError>;
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        let mut result = self.clone_expr();
+
+        for s in set {
+            result = result.retain_single(s, include_derivatives)?;
+
+            if result.is_exact_zero() {
+                return Ok(result);
+            }
+        }
+
+        Ok(result)
+    }
 }
 
 impl Hash for dyn Expr {

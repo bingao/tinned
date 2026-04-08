@@ -37,123 +37,14 @@ macro_rules! impl_mul_traits {
                     $is_scalar
                 )
             }
-        }
-
-        #[::typetag::serde]
-        impl $crate::core::Expr for $type_name {
-            impl_expr_common_methods!($is_scalar);
-
-            fn apply_zero_rules(
-                &self,
-                freq_tol: ::std::option::Option<$crate::public::NumberTolerance>,
-            ) -> expr_result_ty!() {
-                impl_mul_traits!(
-                    @mul_termwise_operation
-                    self,
-                    |factor: expr_arc_ref_ty!()| factor.apply_zero_rules(freq_tol.clone()),
-                    concat!(stringify!($type_name), "::apply_zero_rules() failed"),
-                    $is_scalar
-                )
-            }
-
-            fn differentiate(
-                &self,
-                s: &pert_arc_ty!(),
-            ) -> expr_result_ty!() {
-                // Precompute the derivative of each factor and store it
-                let with_context = |f: expr_arc_ref_ty!()| {
-                    f.differentiate(s).map_err(|e| {
-                        $crate::public::generic_expression_error(
-                            concat!(stringify!($type_name), "::differentiate() failed for factors"),
-                            self,
-                            Some(::std::boxed::Box::new(e)),
-                        )
-                    })
-                };
-
-                let diff_factors: expr_vec_ty!()
-                    = self.factors.iter().map(with_context).collect::<::std::result::Result<_, _>>()?;
-
-                impl_mul_traits!(
-                    @mul_build_diff_expr
-                    $type_name,
-                    self,
-                    diff_factors,
-                    s,
-                    $is_scalar
-                )
-            }
-
-            fn eliminate(
-                &self,
-                parameter: &expr_arc_ty!(),
-                perturbations: &[pert_arc_ty!()],
-                min_order: u32,
-            ) -> expr_result_ty!() {
-                impl_mul_traits!(
-                    @mul_termwise_operation
-                    self,
-                    |factor: expr_arc_ref_ty!()| {
-                        factor.eliminate(parameter, perturbations, min_order)
-                    },
-                    concat!(stringify!($type_name), "::eliminate() failed"),
-                    $is_scalar
-                )
-            }
-
-            #[inline]
-            fn exist_any(&self, set: &expr_set_ty!(), include_derivatives: bool) -> bool {
-                self.match_self_any(set, include_derivatives)
-                    || self.coefficient.exist_any(set, include_derivatives)
-                    || self.factors.iter().any(|factor| factor.exist_any(set, include_derivatives))
-            }
-
-            fn find_superchains(
-                &self,
-                s: &expr_arc_ty!(),
-            ) -> expr_differentiation_map_ty!() {
-                if self.deep_eq_superchains(s) {
-                    return ::std::collections::BTreeMap::from([(
-                        self.total_order(),
-                        ::std::collections::HashSet::from([self.clone_expr()]),
-                    )]);
-                }
-
-                let mut result: expr_differentiation_map_ty!() = ::std::collections::BTreeMap::new();
-                for factor in &self.factors {
-                    for (order, subset) in factor.find_superchains(s) {
-                        result.entry(order).or_default().extend(subset);
-                    }
-                }
-
-                if result.is_empty() {
-                    return self.coefficient.find_superchains(s);
-                }
-
-                result
-            }
-
-            fn remove(&self, set: &expr_set_ty!()) -> expr_result_ty!() {
-                if self.match_self_any(set, false) {
-                    return impl_zero_expr!($is_scalar);
-                }
-
-                impl_mul_traits!(
-                    @mul_termwise_operation
-                    self,
-                    |factor: expr_arc_ref_ty!()| factor.remove(set),
-                    concat!(stringify!($type_name), "::remove() failed"),
-                    $is_scalar
-                )
-            }
 
             // FIXME: This method should be tested
-            fn retain(
+            fn retain_single(
                 &self,
-                set: &expr_set_ty!(),
+                s: expr_arc_ref_ty!(),
                 include_derivatives: bool,
             ) -> expr_result_ty!() {
-                if self.match_self_any(set, include_derivatives) {
+                if self.match_self_single(s, include_derivatives) {
                     return Ok(self.clone_expr());
                 }
 
@@ -164,9 +55,9 @@ macro_rules! impl_mul_traits {
                     = ::std::vec::Vec::with_capacity(self.factors.len());
 
                 for factor in &self.factors {
-                    let new_factor = factor.retain(set, include_derivatives).map_err(|e| {
+                    let new_factor = factor.retain_single(s, include_derivatives).map_err(|e| {
                         $crate::public::generic_expression_error(
-                            concat!(stringify!($type_name), "::retain() failed"),
+                            concat!(stringify!($type_name), "::retain_single() failed"),
                             self,
                             Some(::std::boxed::Box::new(e)),
                         )
@@ -192,8 +83,8 @@ macro_rules! impl_mul_traits {
                 let (new_coef, new_mul) = impl_mul_traits!(
                     @mul_coef_operation
                     self.coefficient,
-                    |coef: expr_arc_ref_ty!()| coef.retain(set, include_derivatives),
-                    concat!(stringify!($type_name), "::retain() failed"),
+                    |coef: expr_arc_ref_ty!()| coef.retain_single(s, include_derivatives),
+                    concat!(stringify!($type_name), "::retain_single() failed"),
                     $is_scalar
                 );
                 // Returns `MatrixMul` or `Mul` as a whole if the coefficient
@@ -288,6 +179,121 @@ macro_rules! impl_mul_traits {
                         },
                     }
                 }
+            }
+        }
+
+        #[::typetag::serde]
+        impl $crate::core::Expr for $type_name {
+            impl_expr_common_methods!($is_scalar);
+
+            #[inline]
+            fn has_unperturbed_term(&self) -> bool {
+                self.coefficient.has_unperturbed_term()
+                    && self.factors.iter().all(|factor| factor.has_unperturbed_term())
+            }
+
+            fn substitute_zero_perturbations(
+                &self,
+                freq_tol: ::std::option::Option<$crate::public::NumberTolerance>,
+            ) -> expr_result_ty!() {
+                impl_mul_traits!(
+                    @mul_termwise_operation
+                    self,
+                    |factor: expr_arc_ref_ty!()| factor.substitute_zero_perturbations(freq_tol.clone()),
+                    concat!(stringify!($type_name), "::substitute_zero_perturbations() failed"),
+                    $is_scalar
+                )
+            }
+
+            fn differentiate(
+                &self,
+                s: &pert_arc_ty!(),
+            ) -> expr_result_ty!() {
+                // Precompute the derivative of each factor and store it
+                let with_context = |f: expr_arc_ref_ty!()| {
+                    f.differentiate(s).map_err(|e| {
+                        $crate::public::generic_expression_error(
+                            concat!(stringify!($type_name), "::differentiate() failed for factors"),
+                            self,
+                            Some(::std::boxed::Box::new(e)),
+                        )
+                    })
+                };
+
+                let diff_factors: expr_vec_ty!()
+                    = self.factors.iter().map(with_context).collect::<::std::result::Result<_, _>>()?;
+
+                impl_mul_traits!(
+                    @mul_build_diff_expr
+                    $type_name,
+                    self,
+                    diff_factors,
+                    s,
+                    $is_scalar
+                )
+            }
+
+            fn eliminate(
+                &self,
+                parameter: &expr_arc_ty!(),
+                perturbations: &[pert_arc_ty!()],
+                min_order: u32,
+            ) -> expr_result_ty!() {
+                impl_mul_traits!(
+                    @mul_termwise_operation
+                    self,
+                    |factor: expr_arc_ref_ty!()| {
+                        factor.eliminate(parameter, perturbations, min_order)
+                    },
+                    concat!(stringify!($type_name), "::eliminate() failed"),
+                    $is_scalar
+                )
+            }
+
+            #[inline]
+            fn exist_any(&self, set: &expr_set_ty!(), include_derivatives: bool) -> bool {
+                self.match_self_any(set, include_derivatives)
+                    || self.coefficient.exist_any(set, include_derivatives)
+                    || self.factors.iter().any(|factor| factor.exist_any(set, include_derivatives))
+            }
+
+            fn find_superchains(
+                &self,
+                s: &expr_arc_ty!(),
+            ) -> expr_differentiation_map_ty!() {
+                if self.deep_eq_superchains(s) {
+                    return ::std::collections::BTreeMap::from([(
+                        self.total_order(),
+                        ::std::collections::HashSet::from([self.clone_expr()]),
+                    )]);
+                }
+
+                let mut result: expr_differentiation_map_ty!() = ::std::collections::BTreeMap::new();
+                for factor in &self.factors {
+                    for (order, subset) in factor.find_superchains(s) {
+                        result.entry(order).or_default().extend(subset);
+                    }
+                }
+
+                if result.is_empty() {
+                    return self.coefficient.find_superchains(s);
+                }
+
+                result
+            }
+
+            fn remove(&self, set: &expr_set_ty!()) -> expr_result_ty!() {
+                if self.match_self_any(set, false) {
+                    return impl_zero_expr!($is_scalar);
+                }
+
+                impl_mul_traits!(
+                    @mul_termwise_operation
+                    self,
+                    |factor: expr_arc_ref_ty!()| factor.remove(set),
+                    concat!(stringify!($type_name), "::remove() failed"),
+                    $is_scalar
+                )
             }
         }
 

@@ -155,11 +155,58 @@ macro_rules! impl_exch_corr_traits {
                     true
                 )
             }
+
+            #[inline]
+            fn retain_single(
+                &self,
+                s: expr_arc_ref_ty!(),
+                include_derivatives: bool,
+            ) -> expr_result_ty!() {
+                if self.match_self_single(s, include_derivatives) {
+                    return Ok(self.clone_expr());
+                }
+
+                impl_exch_corr_traits!(
+                    @grid_expr_operation
+                    self,
+                    $grid_expr_name,
+                    |grid_expr: expr_arc_ref_ty!()| grid_expr.retain_single(s, include_derivatives),
+                    concat!(stringify!($type_name), "::retain_single() failed"),
+                    $is_scalar,
+                    false
+                )
+            }
         }
 
         #[::typetag::serde]
         impl $crate::core::Expr for $type_name {
             impl_expr_common_methods!($is_scalar);
+
+            #[inline]
+            fn has_unperturbed_term(&self) -> bool {
+                self.grid_weight.has_unperturbed_term()
+                    && self.density_matrix.has_unperturbed_term()
+                    && self.overlap_distribution.has_unperturbed_term()
+
+            }
+
+            #[inline]
+            fn substitute_zero_perturbations(
+                &self,
+                freq_tol: Option<$crate::public::NumberTolerance>,
+            ) -> Result<Arc<dyn Expr>, TinnedError> {
+                impl_exch_corr_traits!(
+                    @grid_expr_operation
+                    self,
+                    $grid_expr_name,
+                    |grid_expr: expr_arc_ref_ty!()| {
+                        grid_expr.substitute_zero_perturbations(freq_tol)
+                    },
+                    concat!(stringify!($type_name), "::substitute_zero_perturbations() failed"),
+                    $is_scalar,
+                    false
+                )
+            }
 
             fn differentiate(
                 &self,
@@ -238,27 +285,6 @@ macro_rules! impl_exch_corr_traits {
                     $grid_expr_name,
                     |grid_expr: expr_arc_ref_ty!()| grid_expr.remove(set),
                     concat!(stringify!($type_name), "::remove() failed"),
-                    $is_scalar,
-                    false
-                )
-            }
-
-            #[inline]
-            fn retain(
-                &self,
-                set: &expr_set_ty!(),
-                include_derivatives: bool,
-            ) -> expr_result_ty!() {
-                if self.match_self_any(set, include_derivatives) {
-                    return Ok(self.clone_expr());
-                }
-
-                impl_exch_corr_traits!(
-                    @grid_expr_operation
-                    self,
-                    $grid_expr_name,
-                    |grid_expr: expr_arc_ref_ty!()| grid_expr.retain(set, include_derivatives),
-                    concat!(stringify!($type_name), "::retain() failed"),
                     $is_scalar,
                     false
                 )

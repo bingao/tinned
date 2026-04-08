@@ -52,12 +52,12 @@ macro_rules! impl_expr_common_methods {
             self
         }
 
-        impl_is_scalar!($is_scalar);
-
         #[inline]
         fn clone_expr(&self) -> expr_arc_ty!() {
             ::std::sync::Arc::new(self.clone())
         }
+
+        impl_is_scalar!($is_scalar);
     };
 }
 

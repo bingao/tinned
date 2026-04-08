@@ -41,7 +41,12 @@ macro_rules! impl_unary_expr_traits {
             });
 
             #[inline]
-            fn apply_zero_rules(
+            fn has_unperturbed_term(&self) -> bool {
+                self.argument.has_unperturbed_term()
+            }
+
+            #[inline]
+            fn substitute_zero_perturbations(
                 &self,
                 freq_tol: ::std::option::Option<$crate::public::NumberTolerance>,
             ) -> expr_result_ty!() {
@@ -49,8 +54,8 @@ macro_rules! impl_unary_expr_traits {
                     self,
                     $type_scalar,
                     argument,
-                    |arg: expr_arc_ref_ty!()| arg.apply_zero_rules(freq_tol),
-                    concat!(stringify!($type_name), "::apply_zero_rules() failed"),
+                    |arg: expr_arc_ref_ty!()| arg.substitute_zero_perturbations(freq_tol),
+                    concat!(stringify!($type_name), "::substitute_zero_perturbations() failed"),
                     |_this, arg| Self::new(arg)
                 )
             }
@@ -104,6 +109,26 @@ macro_rules! impl_unary_expr_internal_methods {
                 $build_expr
             )
         }
+
+        #[inline]
+        fn retain_single(
+            &self,
+            s: expr_arc_ref_ty!(),
+            include_derivatives: bool,
+        ) -> expr_result_ty!() {
+            if self.match_self_single(s, include_derivatives) {
+                return Ok(self.clone_expr());
+            }
+
+            impl_unary_expr_arg_operation!(
+                self,
+                $type_scalar,
+                $arg_field,
+                |arg: expr_arc_ref_ty!()| arg.retain_single(s, include_derivatives),
+                concat!(stringify!($type_name), "::retain_single() failed"),
+                $build_expr
+            )
+        }
     };
 }
 
@@ -114,12 +139,12 @@ macro_rules! impl_unary_expr_common_methods {
             self
         }
 
-        impl_unary_expr_common_methods!(@unary_is_scalar $arg_field, $type_scalar);
-
         #[inline]
         fn clone_expr(&self) -> expr_arc_ty!() {
             ::std::sync::Arc::new(self.clone())
         }
+
+        impl_unary_expr_common_methods!(@unary_is_scalar $arg_field, $type_scalar);
 
         #[inline]
         fn eliminate(
@@ -171,26 +196,6 @@ macro_rules! impl_unary_expr_common_methods {
                 $arg_field,
                 |arg: expr_arc_ref_ty!()| arg.remove(set),
                 concat!(stringify!($type_name), "::remove() failed"),
-                $build_expr
-            )
-        }
-
-        #[inline]
-        fn retain(
-            &self,
-            set: &expr_set_ty!(),
-            include_derivatives: bool,
-        ) -> expr_result_ty!() {
-            if self.match_self_any(set, include_derivatives) {
-                return Ok(self.clone_expr());
-            }
-
-            impl_unary_expr_arg_operation!(
-                self,
-                $type_scalar,
-                $arg_field,
-                |arg: expr_arc_ref_ty!()| arg.retain(set, include_derivatives),
-                concat!(stringify!($type_name), "::retain() failed"),
                 $build_expr
             )
         }

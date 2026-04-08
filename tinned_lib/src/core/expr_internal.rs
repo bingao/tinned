@@ -45,6 +45,20 @@ pub(crate) mod sealed {
             self.eq_expr(other.as_ref())
         }
 
+        //
+        #[inline]
+        fn match_self_single(
+            &self,
+            s: &Arc<dyn crate::core::expr::Expr>,
+            include_derivatives: bool,
+        ) -> bool {
+            if include_derivatives {
+                self.eq_by_superchains(s)
+            } else {
+                self.eq_expr(s.as_ref())
+            }
+        }
+
         // Checks if any expression in `set` exists in the current expression
         // `self`. If the parameter `include_derivatives` is `true`, we also
         // consider derivatives (including order 0) of expressions in `set`
@@ -85,6 +99,27 @@ pub(crate) mod sealed {
             &self,
             _map: &HashMap<Arc<dyn crate::core::expr::Expr>, Arc<dyn crate::core::expr::Expr>>,
             _include_derivatives: bool,
+        ) -> Result<Arc<dyn crate::core::expr::Expr>, TinnedError>;
+
+        /// Retains parts of the expression that match the given expression `s`.
+        ///
+        /// If the current expression matches `s`, or (when
+        /// `include_derivatives` is `true`) / corresponds to a higher-order
+        /// derivative of `s`, it is kept unchanged.
+        ///
+        /// Otherwise, if the current expression has no child expressions, zero
+        /// is returned. If it has child expressions, the same procedure is
+        /// applied recursively to each child. Based on the results, the
+        /// function may return zero, the original expression, or a modified
+        /// expression, depending on how the concrete expression type combines
+        /// its children.
+        ///
+        /// This function is composable and may be applied repeatedly, for
+        /// example in higher-order residue computations.
+        fn retain_single(
+            &self,
+            s: &Arc<dyn crate::core::expr::Expr>,
+            include_derivatives: bool,
         ) -> Result<Arc<dyn crate::core::expr::Expr>, TinnedError>;
 
         // Returns if the expression is exactly zero

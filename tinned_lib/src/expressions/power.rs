@@ -107,7 +107,12 @@ impl Expr for Power {
     ));
 
     #[inline]
-    fn apply_zero_rules(
+    fn has_unperturbed_term(&self) -> bool {
+        self.base.has_unperturbed_term()
+    }
+
+    #[inline]
+    fn substitute_zero_perturbations(
         &self,
         freq_tol: Option<NumberTolerance>,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
@@ -115,8 +120,8 @@ impl Expr for Power {
             self,
             True,
             base,
-            |arg: &Arc<dyn Expr>| arg.apply_zero_rules(freq_tol),
-            "Power::apply_zero_rules() failed",
+            |arg: &Arc<dyn Expr>| arg.substitute_zero_perturbations(freq_tol),
+            "Power::substitute_zero_perturbations() failed",
             |this: &Power, arg| Self::new(arg, this.exponent)
         )
     }

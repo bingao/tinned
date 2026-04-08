@@ -130,15 +130,6 @@ pub fn tinned_expr_serialize_json(
     })
 }
 
-// Whether the expression is scalar. Returns false on error. NULL input.
-#[ffi_export]
-pub fn tinned_expr_is_scalar(
-    h: Option<&ExprHandle>,
-    out_err: Option<Out<'_, TinnedErrorBox>>,
-) -> bool {
-    ffi_expr_return_val(h, "tinned_expr_is_scalar", out_err, |e| Ok(e.is_scalar()))
-}
-
 // Clone an expression (like Arc clone). Returns NULL on error / NULL input.
 #[ffi_export]
 pub fn tinned_expr_clone(
@@ -156,16 +147,34 @@ pub fn tinned_expr_clone(
     }
 }
 
-// Cleans `TemporumOperator` and unperturbed `TemporumOverlap` objects.
+// Whether the expression is scalar. Returns false on error. NULL input.
 #[ffi_export]
-pub fn tinned_expr_apply_zero_rules(
+pub fn tinned_expr_is_scalar(
+    h: Option<&ExprHandle>,
+    out_err: Option<Out<'_, TinnedErrorBox>>,
+) -> bool {
+    ffi_expr_return_val(h, "tinned_expr_is_scalar", out_err, |e| Ok(e.is_scalar()))
+}
+
+// Whether the expression has unperturbed term. Returns false on error. NULL input.
+#[ffi_export]
+pub fn tinned_expr_has_unperturbed_term(
+    h: Option<&ExprHandle>,
+    out_err: Option<Out<'_, TinnedErrorBox>>,
+) -> bool {
+    ffi_expr_return_val(h, "tinned_expr_has_unperturbed_term", out_err, |e| Ok(e.has_unperturbed_term()))
+}
+
+// Cleans `TimeEvolution` and unperturbed `BasisTimeEvolution` objects.
+#[ffi_export]
+pub fn tinned_expr_substitute_zero_perturbations(
     h: Option<&ExprHandle>,
     tol: Option<&NumberToleranceHandle>,
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> Option<ExprBox> {
     let tol_opt: Option<NumberTolerance> = tol.map(|t| t.as_ref().clone());
-    ffi_expr_return_exprbox(h, "tinned_expr_apply_zero_rules", out_err, move |expr| {
-        expr.apply_zero_rules(tol_opt)
+    ffi_expr_return_exprbox(h, "tinned_expr_substitute_zero_perturbations", out_err, move |expr| {
+        expr.substitute_zero_perturbations(tol_opt)
     })
 }
 

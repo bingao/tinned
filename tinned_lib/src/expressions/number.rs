@@ -328,6 +328,19 @@ impl ExprInternal for Number {
     }
 
     #[inline]
+    fn retain_single(
+        &self,
+        s: &Arc<dyn Expr>,
+        include_derivatives: bool,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        if self.match_self_single(s, include_derivatives) {
+            Ok(self.clone_expr())
+        } else {
+            Ok(Number::zero())
+        }
+    }
+
+    #[inline]
     fn is_exact_zero(&self) -> bool {
         self.approx_eq_number(&Number::Integer(0), Some(NumberTolerance::new(0.0, 0.0)))
     }
@@ -336,6 +349,11 @@ impl ExprInternal for Number {
 #[typetag::serde]
 impl Expr for Number {
     impl_expr_common_methods!(true);
+
+    #[inline]
+    fn has_unperturbed_term(&self) -> bool {
+        !self.is_exact_zero()
+    }
 
     #[allow(unused_variables)]
     #[inline]
@@ -352,19 +370,6 @@ impl Expr for Number {
             Ok(Number::zero())
         } else {
             Ok(self.clone_expr())
-        }
-    }
-
-    #[inline]
-    fn retain(
-        &self,
-        set: &HashSet<Arc<dyn Expr>>,
-        include_derivatives: bool,
-    ) -> Result<Arc<dyn Expr>, TinnedError> {
-        if self.match_self_any(set, include_derivatives) {
-            Ok(self.clone_expr())
-        } else {
-            Ok(Number::zero())
         }
     }
 }

@@ -47,8 +47,12 @@ impl PyExpr {
         self.inner.is_scalar()
     }
 
+    fn has_unperturbed_term(&self) -> bool {
+        self.inner.has_unperturbed_term()
+    }
+
     /// Performs a conditional canonicalization to zero, such as setting
-    /// `TemporumOperator` and unperturbed `TemporumOverlap` to zero, and
+    /// `TimeEvolution` and unperturbed `BasisTimeEvolution` to zero, and
     /// undifferentiated perturbing operators to zero.
     ///
     /// Args:
@@ -57,9 +61,9 @@ impl PyExpr {
     /// Returns:
     ///   A PyExpr wrapping the canonicalized expression.
     #[pyo3(signature = (freq_tol=None))]
-    fn apply_zero_rules(&self, freq_tol: Option<PyNumberTolerance>) -> PyResult<PyExpr> {
+    fn substitute_zero_perturbations(&self, freq_tol: Option<PyNumberTolerance>) -> PyResult<PyExpr> {
         let tol = freq_tol.map(|t| t.into_inner());
-        let out = self.inner.apply_zero_rules(tol).map_err(to_pyerr)?;
+        let out = self.inner.substitute_zero_perturbations(tol).map_err(to_pyerr)?;
         Ok(PyExpr::new(out))
     }
 

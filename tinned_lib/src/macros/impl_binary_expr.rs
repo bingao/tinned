@@ -25,6 +25,74 @@ macro_rules! impl_binary_expr_internal_methods {
                 $build_expr
             )
         }
+
+        #[inline]
+        fn retain_single(
+            &self,
+            s: expr_arc_ref_ty!(),
+            include_derivatives: bool,
+        ) -> expr_result_ty!() {
+            if self.match_self_single(s, include_derivatives) {
+                return Ok(self.clone_expr());
+            }
+
+            let retained_first =
+                self.$first_argument.retain_single(s, include_derivatives).map_err(|e| {
+                    $crate::public::generic_expression_error(
+                        concat!(
+                            stringify!($type_name),
+                            "::retain_single() failed for ",
+                            stringify!($first_argument)
+                        ),
+                        self,
+                        Some(::std::boxed::Box::new(e)),
+                    )
+                })?;
+
+            let retained_second =
+                self.$second_argument.retain_single(s, include_derivatives).map_err(|e| {
+                    $crate::public::generic_expression_error(
+                        concat!(
+                            stringify!($type_name),
+                            "::retain_single() failed for ",
+                            stringify!($second_argument)
+                        ),
+                        self,
+                        Some(::std::boxed::Box::new(e)),
+                    )
+                })?;
+
+            let first_is_zero = $crate::public::is_zero_expr(&retained_first, None);
+            let second_is_zero = $crate::public::is_zero_expr(&retained_second, None);
+
+            if first_is_zero && second_is_zero {
+                return impl_binary_zero_expr!(self, $is_scalar);
+            }
+
+            let new_first = if first_is_zero {
+                self.$first_argument.clone()
+            } else {
+                retained_first
+            };
+
+            let new_second = if second_is_zero {
+                self.$second_argument.clone()
+            } else {
+                retained_second
+            };
+
+            let first_changed = !::std::sync::Arc::ptr_eq(&new_first, &self.$first_argument)
+                && &new_first != &self.$first_argument;
+
+            let second_changed = !::std::sync::Arc::ptr_eq(&new_second, &self.$second_argument)
+                && &new_second != &self.$second_argument;
+
+            if !first_changed && !second_changed {
+                Ok(self.clone_expr())
+            } else {
+                ($build_expr)(self, new_first, new_second)
+            }
+        }
     };
 }
 
@@ -35,18 +103,24 @@ macro_rules! impl_binary_expr_common_methods {
         $first_argument:ident,
         $second_argument:ident,
         $build_expr:expr,
-        $with_apply_zero_rules:tt
+        $with_substitute_zero_perturbations:tt
     ) => {
         impl_expr_common_methods!($is_scalar);
 
+        #[inline]
+        fn has_unperturbed_term(&self) -> bool {
+            self.$first_argument.has_unperturbed_term()
+                && self.$second_argument.has_unperturbed_term()
+        }
+
         impl_binary_expr_common_methods!(
-            @binary_expr_apply_zero_rules
+            @binary_expr_substitute_zero_perturbations
             $type_name,
             $is_scalar,
             $first_argument,
             $second_argument,
             $build_expr,
-            $with_apply_zero_rules
+            $with_substitute_zero_perturbations
         );
 
         #[inline]
@@ -108,75 +182,9 @@ macro_rules! impl_binary_expr_common_methods {
                 $build_expr
             )
         }
-
-        #[inline]
-        fn retain(
-            &self,
-            set: &expr_set_ty!(),
-            include_derivatives: bool,
-        ) -> expr_result_ty!() {
-            if self.match_self_any(set, include_derivatives) {
-                return Ok(self.clone_expr());
-            }
-
-            let retained_first = self.$first_argument.retain(set, include_derivatives).map_err(|e| {
-                $crate::public::generic_expression_error(
-                    concat!(
-                        stringify!($type_name),
-                        "::retain() failed for ",
-                        stringify!($first_argument)
-                    ),
-                    self,
-                    Some(::std::boxed::Box::new(e)),
-                )
-            })?;
-
-            let retained_second = self.$second_argument.retain(set, include_derivatives).map_err(|e| {
-                $crate::public::generic_expression_error(
-                    concat!(
-                        stringify!($type_name),
-                        "::retain() failed for ",
-                        stringify!($second_argument)
-                    ),
-                    self,
-                    Some(::std::boxed::Box::new(e)),
-                )
-            })?;
-
-            let first_is_zero = $crate::public::is_zero_expr(&retained_first, None);
-            let second_is_zero = $crate::public::is_zero_expr(&retained_second, None);
-
-            if first_is_zero && second_is_zero {
-                return impl_binary_zero_expr!(self, $is_scalar);
-            }
-
-            let new_first = if first_is_zero {
-                self.$first_argument.clone()
-            } else {
-                retained_first
-            };
-
-            let new_second = if second_is_zero {
-                self.$second_argument.clone()
-            } else {
-                retained_second
-            };
-
-            let first_changed = !::std::sync::Arc::ptr_eq(&new_first, &self.$first_argument)
-                && &new_first != &self.$first_argument;
-
-            let second_changed = !::std::sync::Arc::ptr_eq(&new_second, &self.$second_argument)
-                && &new_second != &self.$second_argument;
-
-            if !first_changed && !second_changed {
-                Ok(self.clone_expr())
-            } else {
-                ($build_expr)(self, new_first, new_second)
-            }
-        }
     };
 
-    (@binary_expr_apply_zero_rules
+    (@binary_expr_substitute_zero_perturbations
         $type_name:ident,
         $is_scalar:tt,
         $first_argument:ident,
@@ -185,7 +193,7 @@ macro_rules! impl_binary_expr_common_methods {
         true
     ) => {
         #[inline]
-        fn apply_zero_rules(
+        fn substitute_zero_perturbations(
             &self,
             freq_tol: ::std::option::Option<$crate::public::NumberTolerance>,
         ) -> expr_result_ty!() {
@@ -194,14 +202,14 @@ macro_rules! impl_binary_expr_common_methods {
                 $is_scalar,
                 $first_argument,
                 $second_argument,
-                |arg: expr_arc_ref_ty!()| arg.apply_zero_rules(freq_tol.clone()),
-                concat!(stringify!($type_name), "::apply_zero_rules() failed"),
+                |arg: expr_arc_ref_ty!()| arg.substitute_zero_perturbations(freq_tol.clone()),
+                concat!(stringify!($type_name), "::substitute_zero_perturbations() failed"),
                 $build_expr
             )
         }
     };
 
-    (@binary_expr_apply_zero_rules
+    (@binary_expr_substitute_zero_perturbations
         $type_name:ident,
         $is_scalar:tt,
         $first_argument:ident,

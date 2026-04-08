@@ -6,7 +6,8 @@ use crate::expressions::{LagMultiplier, WfnParameter, ZeroOperator};
 use crate::internal::{intern_expr, join_mapped};
 use crate::perturbations::{PertMultichain, Perturbation};
 use crate::public::{
-    downcast_from_arc, expression_error, generic_expression_error, is_expr_type, unreachable_error,
+    NumberTolerance, downcast_from_arc, expression_error, generic_expression_error, is_expr_type,
+    unreachable_error,
 };
 
 /// A ResidueParameter is a perturbed parameter with the sum of frequencies of
@@ -165,7 +166,7 @@ impl ExprInternal for ResidueParameter {
 
 #[typetag::serde]
 impl Expr for ResidueParameter {
-    // We treat `ResidueParameter` is the same type as its `parameter` so that
+    // We treat `ResidueParameter` the same type as its `parameter` so that
     // `exist_any()` will return true and `find_superchains()` will return
     // `ResidueParameter` itself if its `parameter` is the input parameter of
     // these two methods.
@@ -188,6 +189,32 @@ impl Expr for ResidueParameter {
         .positive_frequency(this.positive_frequency)
         .build()
     );
+
+    #[inline]
+    fn has_unperturbed_term(&self) -> bool {
+        self.parameter.has_unperturbed_term()
+    }
+
+    #[inline]
+    fn substitute_zero_perturbations(
+        &self,
+        freq_tol: Option<NumberTolerance>,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        impl_unary_expr_arg_operation!(
+            self,
+            False,
+            parameter,
+            |arg: &Arc<dyn Expr>| arg.substitute_zero_perturbations(freq_tol),
+            "ResidueParameter::substitute_zero_perturbations() failed",
+            |this: &ResidueParameter, arg| Self::builder(
+                this.perturbations.clone(),
+                this.excited_state.clone(),
+                arg
+            )
+            .positive_frequency(this.positive_frequency)
+            .build()
+        )
+    }
 
     fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
         let diff_param = self.parameter.differentiate(s).map_err(|e| {

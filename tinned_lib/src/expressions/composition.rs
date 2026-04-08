@@ -4,7 +4,9 @@ use crate::core::expr_internal::sealed::ExprInternal;
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{Mul, Number};
 use crate::perturbations::Perturbation;
-use crate::public::{downcast_from_arc, expression_error, generic_expression_error, is_zero_expr};
+use crate::public::{
+    NumberTolerance, downcast_from_arc, expression_error, generic_expression_error, is_zero_expr,
+};
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Composition {
@@ -93,6 +95,26 @@ impl Expr for Composition {
         this.order,
         arg
     ));
+
+    #[inline]
+    fn has_unperturbed_term(&self) -> bool {
+        self.inner.has_unperturbed_term()
+    }
+
+    #[inline]
+    fn substitute_zero_perturbations(
+        &self,
+        freq_tol: Option<NumberTolerance>,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        impl_unary_expr_arg_operation!(
+            self,
+            True,
+            inner,
+            |arg: &Arc<dyn Expr>| arg.substitute_zero_perturbations(freq_tol),
+            "Composition::substitute_zero_perturbations() failed",
+            |this: &Composition, arg| Self::new(this.name.clone(), this.order, arg)
+        )
+    }
 
     fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
         // Differentiation using the chain rule in calculus

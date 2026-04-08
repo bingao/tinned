@@ -41,6 +41,19 @@ impl ExprInternal for Symbol {
     ) -> Result<Arc<dyn Expr>, TinnedError> {
         Ok(self.clone_expr())
     }
+
+    #[inline]
+    fn retain_single(
+        &self,
+        s: &Arc<dyn Expr>,
+        include_derivatives: bool,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        if self.match_self_single(s, include_derivatives) {
+            Ok(self.clone_expr())
+        } else {
+            Ok(Number::zero())
+        }
+    }
 }
 
 #[typetag::serde]
@@ -61,19 +74,6 @@ impl Expr for Symbol {
             Ok(Number::zero())
         } else {
             Ok(self.clone_expr())
-        }
-    }
-
-    #[inline]
-    fn retain(
-        &self,
-        set: &HashSet<Arc<dyn Expr>>,
-        include_derivatives: bool,
-    ) -> Result<Arc<dyn Expr>, TinnedError> {
-        if self.match_self_any(set, include_derivatives) {
-            Ok(self.clone_expr())
-        } else {
-            Ok(Number::zero())
         }
     }
 }

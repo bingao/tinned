@@ -2,10 +2,10 @@ use std::sync::Arc;
 
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{
-    Add, AdjointMap, AoTwoElecEnergy, AoTwoElecMatrix, Composition, Conjugate, DotProduct,
-    ExchCorrEnergy, ExchCorrPotential, ExcitationOperator, ExpAdjointMap, HermitianTranspose,
-    LagMultiplier, MatrixAdd, MatrixMul, Mul, NonElecFunction, Number, OneElecMatrix, Power,
-    ResidueParameter, SubExpr, Symbol, TemporumOperator, TemporumOverlap, Trace, Transpose,
+    Add, AdjointMap, AoTwoElecEnergy, AoTwoElecMatrix, BasisTimeEvolution, Composition, Conjugate,
+    DotProduct, ExchCorrEnergy, ExchCorrPotential, ExcitationOperator, ExpAdjointMap,
+    HermitianTranspose, LagMultiplier, MatrixAdd, MatrixMul, Mul, NonElecFunction, Number,
+    OneElecMatrix, Power, ResidueParameter, SubExpr, Symbol, TimeEvolution, Trace, Transpose,
     TwoElecMatrix, WfnParameter, ZeroOperator,
 };
 use crate::public::downcast_from_arc;
@@ -18,6 +18,7 @@ pub enum ExprTag {
     AdjointMap,
     AoTwoElecEnergy,
     AoTwoElecMatrix,
+    BasisTimeEvolution,
     Composition,
     Conjugate,
     DotProduct,
@@ -37,8 +38,7 @@ pub enum ExprTag {
     ResidueParameter,
     SubExpr,
     Symbol,
-    TemporumOperator,
-    TemporumOverlap,
+    TimeEvolution,
     Trace,
     Transpose,
     TwoElecMatrix,
@@ -73,6 +73,9 @@ pub fn walk_expr_postorder<V: ExprVisitor>(
         }
         if downcast_from_arc::<AoTwoElecMatrix>(expr).is_some() {
             return visitor.leaf(ExprTag::AoTwoElecMatrix, expr);
+        }
+        if downcast_from_arc::<BasisTimeEvolution>(expr).is_some() {
+            return visitor.leaf(ExprTag::BasisTimeEvolution, expr);
         }
         if downcast_from_arc::<Composition>(expr).is_some() {
             return visitor.leaf(ExprTag::Composition, expr);
@@ -119,11 +122,8 @@ pub fn walk_expr_postorder<V: ExprVisitor>(
         if downcast_from_arc::<Symbol>(expr).is_some() {
             return visitor.leaf(ExprTag::Symbol, expr);
         }
-        if downcast_from_arc::<TemporumOperator>(expr).is_some() {
-            return visitor.leaf(ExprTag::TemporumOperator, expr);
-        }
-        if downcast_from_arc::<TemporumOverlap>(expr).is_some() {
-            return visitor.leaf(ExprTag::TemporumOverlap, expr);
+        if downcast_from_arc::<TimeEvolution>(expr).is_some() {
+            return visitor.leaf(ExprTag::TimeEvolution, expr);
         }
         if downcast_from_arc::<Trace>(expr).is_some() {
             return visitor.leaf(ExprTag::Trace, expr);

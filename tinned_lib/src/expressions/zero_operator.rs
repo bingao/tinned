@@ -41,6 +41,15 @@ impl ExprInternal for ZeroOperator {
     }
 
     #[inline]
+    fn retain_single(
+        &self,
+        _s: &Arc<dyn Expr>,
+        _include_derivatives: bool,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        Ok(self.clone_expr())
+    }
+
+    #[inline]
     fn is_exact_zero(&self) -> bool {
         true
     }
@@ -49,6 +58,11 @@ impl ExprInternal for ZeroOperator {
 #[typetag::serde]
 impl Expr for ZeroOperator {
     impl_expr_common_methods!(false);
+
+    #[inline]
+    fn has_unperturbed_term(&self) -> bool {
+        false
+    }
 
     #[allow(unused_variables)]
     #[inline]
@@ -61,15 +75,6 @@ impl Expr for ZeroOperator {
 
     #[inline]
     fn remove(&self, _set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
-        Ok(self.clone_expr())
-    }
-
-    #[inline]
-    fn retain(
-        &self,
-        _set: &HashSet<Arc<dyn Expr>>,
-        _include_derivatives: bool,
-    ) -> Result<Arc<dyn Expr>, TinnedError> {
         Ok(self.clone_expr())
     }
 }

@@ -90,9 +90,6 @@ pub struct SubExpr {
     // The use of elimination rules is mostly to let users track which
     // parameters have been eliminated. We do not use it for comparison.
     elimination_rules: Vec<EliminationRule>,
-    // `zero_rules_applied` is mostly used by the function `apply_zero_rules()`. We
-    // do not use it for equality comparison, either.
-    zero_rules_applied: bool,
 }
 
 impl SubExpr {
@@ -103,7 +100,6 @@ impl SubExpr {
             expression,
             derivative: None,
             elimination_rules: None,
-            zero_rules_applied: None,
             // We will always check the name conflict when users try to build a `SubExpr`
             check_name_conflict: true,
         }
@@ -127,11 +123,6 @@ impl SubExpr {
     #[inline]
     pub fn elimination_rules(&self) -> &[EliminationRule] {
         &self.elimination_rules
-    }
-
-    #[inline]
-    pub fn zero_rules_applied(&self) -> bool {
-        self.zero_rules_applied
     }
 }
 
@@ -157,7 +148,6 @@ pub struct SubExprBuilder {
     expression: Arc<dyn Expr>,
     derivative: Option<PertMultichain>,
     elimination_rules: Option<Vec<EliminationRule>>,
-    zero_rules_applied: Option<bool>,
     check_name_conflict: bool,
 }
 
@@ -172,12 +162,6 @@ impl SubExprBuilder {
     #[inline]
     fn elimination_rules(mut self, elimination_rules: Vec<EliminationRule>) -> Self {
         self.elimination_rules = Some(elimination_rules);
-        self
-    }
-
-    #[inline]
-    fn zero_rules_applied(mut self, zero_rules_applied: bool) -> Self {
-        self.zero_rules_applied = Some(zero_rules_applied);
         self
     }
 
@@ -220,8 +204,6 @@ impl SubExprBuilder {
             ));
         }
 
-        let zero_rules_applied = self.zero_rules_applied.unwrap_or(false);
-
         // Check whether users try to build a new undifferentiated `SubExpr`
         // with the same name but different `expression`
         if self.check_name_conflict {
@@ -242,14 +224,11 @@ impl SubExprBuilder {
             expression: self.expression,
             derivative,
             elimination_rules,
-            zero_rules_applied,
         })))
     }
 }
 
 impl ExprInternal for SubExpr {
-    // It is more appropriate to set `zero_rules_applied` as false after the
-    // functions `replace_expr_children`, `retain_expr_fields` and `replace_expr_self`
     impl_unary_expr_internal_methods!(
         SubExpr,
         Argument,
@@ -267,12 +246,11 @@ impl ExprInternal for SubExpr {
     #[inline]
     fn hash_key(&self) -> String {
         format!(
-            "SubExpr({}; {{{}}}; [{}]; [{}]; {})",
+            "SubExpr({}; {{{}}}; [{}]; [{}])",
             self.name,
             self.expression.hash_key(),
             self.derivative.hash_key(),
             join_mapped(self.elimination_rules.iter(), ";", |rule| rule.hash_key()),
-            self.zero_rules_applied,
         )
     }
 
@@ -297,12 +275,7 @@ impl ExprInternal for SubExpr {
     #[inline]
     fn eq_by_superchains(&self, other: &Arc<dyn Expr>) -> bool {
         if let Some(op) = downcast_from_arc::<SubExpr>(other) {
-            // This function is used by `replace()` and `retain_expr()`, except
-            // for `name` and `derivative`, we also require the same value of
-            // `zero_rules_applied`.
-            self.name == op.name
-                && self.derivative.is_subchain(&op.derivative)
-                && self.zero_rules_applied == op.zero_rules_applied
+            self.name == op.name && self.derivative.is_subchain(&op.derivative)
         } else {
             false
         }
@@ -317,34 +290,36 @@ impl Expr for SubExpr {
     }
 
     #[inline]
-    fn is_scalar(&self) -> bool {
-        self.expression.is_scalar()
-    }
-
-    #[inline]
     fn clone_expr(&self) -> Arc<dyn Expr> {
         Arc::new(self.clone())
     }
 
     #[inline]
-    fn apply_zero_rules(
+    fn is_scalar(&self) -> bool {
+        self.expression.is_scalar()
+    }
+
+    #[inline]
+    fn has_unperturbed_term(&self) -> bool {
+        self.expression.has_unperturbed_term()
+    }
+
+    #[inline]
+    fn substitute_zero_perturbations(
         &self,
         freq_tol: Option<NumberTolerance>,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
-        if self.zero_rules_applied {
-            return Ok(self.clone_expr());
-        }
-
-        let new_expr = self.expression.apply_zero_rules(freq_tol.clone()).map_err(|e| {
-            generic_expression_error(
-                format!(
-                    "SubExpr::apply_zero_rules() failed with tolerance {}",
-                    freq_tol.clone().unwrap_or_else(get_number_tolerance)
-                ),
-                self,
-                Some(Box::new(e)),
-            )
-        })?;
+        let new_expr =
+            self.expression.substitute_zero_perturbations(freq_tol.clone()).map_err(|e| {
+                generic_expression_error(
+                    format!(
+                        "SubExpr::substitute_zero_perturbations() failed with tolerance {}",
+                        freq_tol.clone().unwrap_or_else(get_number_tolerance)
+                    ),
+                    self,
+                    Some(Box::new(e)),
+                )
+            })?;
 
         if is_zero_expr(&new_expr, freq_tol) {
             return impl_zero_expr!(new_expr.is_scalar());
@@ -352,7 +327,6 @@ impl Expr for SubExpr {
             SubExpr::builder(self.name.clone(), new_expr)
                 .derivative(self.derivative.clone())
                 .elimination_rules(self.elimination_rules.clone())
-                .zero_rules_applied(true)
                 .check_name_conflict(false)
                 .build()
         }
@@ -373,7 +347,6 @@ impl Expr for SubExpr {
         SubExpr::builder(self.name.clone(), diff_expr)
             .derivative(self.derivative.with_added_perturbation(s))
             .elimination_rules(self.elimination_rules.clone())
-            .zero_rules_applied(self.zero_rules_applied)
             .check_name_conflict(false)
             .build()
     }
@@ -416,7 +389,6 @@ impl Expr for SubExpr {
         SubExpr::builder(self.name.clone(), new_expr)
             .derivative(self.derivative.clone())
             .elimination_rules(elimination_rules)
-            .zero_rules_applied(self.zero_rules_applied)
             .check_name_conflict(false)
             .build()
     }
@@ -459,40 +431,6 @@ impl Expr for SubExpr {
             SubExpr::builder(self.name.clone(), new_expr)
                 .derivative(self.derivative.clone())
                 .elimination_rules(self.elimination_rules.clone())
-                .zero_rules_applied(self.zero_rules_applied)
-                .check_name_conflict(false)
-                .build()
-        }
-    }
-
-    #[inline]
-    fn retain(
-        &self,
-        set: &HashSet<Arc<dyn Expr>>,
-        include_derivatives: bool,
-    ) -> Result<Arc<dyn Expr>, TinnedError> {
-        if self.match_self_any(set, include_derivatives) {
-            return Ok(self.clone_expr());
-        }
-
-        let new_expr = self.expression.retain(set, include_derivatives).map_err(|e| {
-            generic_expression_error(
-                format!(
-                    "SubExpr::retain() failed for set {{{}}}",
-                    join_mapped(set.iter(), ",", |s| s.to_string()),
-                ),
-                self,
-                Some(Box::new(e)),
-            )
-        })?;
-
-        if &new_expr == &self.expression {
-            Ok(self.clone_expr())
-        } else {
-            SubExpr::builder(self.name.clone(), new_expr)
-                .derivative(self.derivative.clone())
-                .elimination_rules(self.elimination_rules.clone())
-                .zero_rules_applied(self.zero_rules_applied)
                 .check_name_conflict(false)
                 .build()
         }
@@ -503,12 +441,11 @@ impl Expr for SubExpr {
 impl PartialEq for SubExpr {
     fn eq(&self, other: &Self) -> bool {
         // We also compare `expression`, which may change after some methods
-        // like `apply_zero_rules()`, `remove()`, `replace()` and `retain()`.
+        // like `substitute_zero_perturbations()`, `remove()`, `replace()` and `retain()`.
         self.name == other.name
             && &self.expression == &other.expression
             && self.derivative == other.derivative
         //&& self.elimination_rules == other.elimination_rules
-        //&& self.zero_rules_applied == other.zero_rules_applied
     }
 }
 
@@ -517,18 +454,13 @@ impl Eq for SubExpr {}
 impl std::fmt::Display for SubExpr {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         if self.elimination_rules.is_empty() {
-            write!(
-                f,
-                "{}({}; {{{}}})^{}",
-                self.name, self.zero_rules_applied, self.expression, self.derivative
-            )
+            write!(f, "{}({{{}}})^{}", self.name, self.expression, self.derivative)
         } else {
             write!(
                 f,
-                "{}([{}]; {}; {{{}}})^{}",
+                "{}([{}]; {{{}}})^{}",
                 self.name,
                 join_mapped(self.elimination_rules.iter(), ",", |rule| rule.to_string()),
-                self.zero_rules_applied,
                 self.expression,
                 self.derivative,
             )

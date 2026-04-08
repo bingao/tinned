@@ -33,21 +33,44 @@ macro_rules! impl_add_traits {
                     $is_scalar
                 )
             }
+
+            fn retain_single(
+                &self,
+                s: expr_arc_ref_ty!(),
+                include_derivatives: bool,
+            ) -> expr_result_ty!() {
+                if self.match_self_single(s, include_derivatives) {
+                    return Ok(self.clone_expr());
+                }
+
+                impl_add_traits!(
+                    @add_termwise_operation
+                    self,
+                    |term: expr_arc_ref_ty!()| term.retain_single(s, include_derivatives),
+                    concat!(stringify!($type_name), "::retain_single() failed"),
+                    $is_scalar
+                )
+            }
         }
 
         #[::typetag::serde]
         impl $crate::core::Expr for $type_name {
             impl_expr_common_methods!($is_scalar);
 
-            fn apply_zero_rules(
+            #[inline]
+            fn has_unperturbed_term(&self) -> bool {
+                self.terms.iter().any(|term| term.has_unperturbed_term())
+            }
+
+            fn substitute_zero_perturbations(
                 &self,
                 freq_tol: ::std::option::Option<$crate::public::NumberTolerance>,
             ) -> expr_result_ty!() {
                 impl_add_traits!(
                     @add_termwise_operation
                     self,
-                    |term: expr_arc_ref_ty!()| term.apply_zero_rules(freq_tol.clone()),
-                    concat!(stringify!($type_name), "::apply_zero_rules() failed"),
+                    |term: expr_arc_ref_ty!()| term.substitute_zero_perturbations(freq_tol.clone()),
+                    concat!(stringify!($type_name), "::substitute_zero_perturbations() failed"),
                     $is_scalar
                 )
             }
@@ -124,24 +147,6 @@ macro_rules! impl_add_traits {
                     self,
                     |term: expr_arc_ref_ty!()| term.remove(set),
                     concat!(stringify!($type_name), "::remove() failed"),
-                    $is_scalar
-                )
-            }
-
-            fn retain(
-                &self,
-                set: &expr_set_ty!(),
-                include_derivatives: bool,
-            ) -> expr_result_ty!() {
-                if self.match_self_any(set, include_derivatives) {
-                    return Ok(self.clone_expr());
-                }
-
-                impl_add_traits!(
-                    @add_termwise_operation
-                    self,
-                    |term: expr_arc_ref_ty!()| term.retain(set, include_derivatives),
-                    concat!(stringify!($type_name), "::retain() failed"),
                     $is_scalar
                 )
             }

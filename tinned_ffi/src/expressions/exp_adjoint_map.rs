@@ -46,6 +46,37 @@ pub extern "C" fn tinned_exp_adjoint_map_new(
     }
 }
 
+#[ffi_export]
+pub extern "C" fn tinned_exp_adjoint_map_time_evolution_new(
+    generator: Option<&ExprHandle>,
+    is_forward: bool,
+    generator_derivative_commute: bool,
+    left_action: bool,
+    max_fold: u32,
+    out_err: Option<Out<'_, TinnedErrorBox>>,
+) -> Option<ExprBox> {
+    let Some(generator) = generator else {
+        tinned_error_new(
+            out_err,
+            generic_error("Null generator passed to tinned_exp_adjoint_map_time_evolution_new", None),
+        );
+        return None;
+    };
+    let generator_arc = generator.clone_arc();
+
+    match ExpAdjointMap::builder_time_evolution(generator_arc, is_forward, Some(generator_derivative_commute))
+        .left_action(left_action)
+        .max_fold(max_fold)
+        .build()
+    {
+        Ok(expr_arc) => Some(ExprBox::new(ExprHandle::new(expr_arc))),
+        Err(e) => {
+            tinned_error_new(out_err, e);
+            None
+        },
+    }
+}
+
 impl_expr_getters!(
     ExpAdjointMap;
     tinned_exp_adjoint_map_generator => |ead| Ok(Arc::clone(ead.generator())),
@@ -56,10 +87,10 @@ impl_expr_getters!(
 impl_val_getters!(
     ExpAdjointMap;
     tinned_exp_adjoint_map_generator_derivative_commute: bool => |ead| ead.generator_derivative_commute(); default = true,
-    tinned_exp_adjoint_map_is_temporum: bool => |ead| ead.is_temporum(); default = false,
+    tinned_exp_adjoint_map_is_time_evolution: bool => |ead| ead.is_time_evolution(); default = false,
     tinned_exp_adjoint_map_left_action: bool => |ead| ead.left_action(); default = false,
     tinned_exp_adjoint_map_max_fold: u32 => |ead| ead.max_fold(); default = 0,
-    tinned_exp_adjoint_map_zero_rules_applied: bool => |ead| ead.zero_rules_applied(); default = false,
+    tinned_exp_adjoint_map_at_zero_perturbations: bool => |ead| ead.at_zero_perturbations(); default = false,
 );
 
 // Get `derivative` (cloned).

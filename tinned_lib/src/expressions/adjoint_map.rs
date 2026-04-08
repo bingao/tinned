@@ -251,6 +251,67 @@ impl ExprInternal for AdjointMap {
             "AdjointMap::replace_expr_children() failed"
         )
     }
+
+    #[inline]
+    fn retain_single(
+        &self,
+        s: &Arc<dyn Expr>,
+        include_derivatives: bool,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        if self.match_self_single(s, include_derivatives) {
+            return Ok(self.clone_expr());
+        }
+
+        let retained_target = self.target.retain_single(s, include_derivatives).map_err(|e| {
+            generic_expression_error("AdjointMap::retain_single() failed", self, Some(Box::new(e)))
+        })?;
+
+        let target_is_zero = is_zero_expr(&retained_target, None);
+        let new_target = if target_is_zero {
+            self.target.clone()
+        } else {
+            retained_target
+        };
+
+        let mut changed = !Arc::ptr_eq(&new_target, &self.target) && &new_target != &self.target;
+        let mut all_zero = target_is_zero;
+
+        let mut new_generators = Vec::with_capacity(self.generators.len());
+
+        for generator in &self.generators {
+            let retained_generator =
+                generator.retain_single(s, include_derivatives).map_err(|e| {
+                    generic_expression_error(
+                        format!("AdjointMap::retain_single() for generator {}", generator),
+                        self,
+                        Some(Box::new(e)),
+                    )
+                })?;
+
+            if is_zero_expr(&retained_generator, None) {
+                new_generators.push(generator.clone());
+            } else {
+                all_zero = false;
+
+                if !changed
+                    && !Arc::ptr_eq(&retained_generator, generator)
+                    && &retained_generator != generator
+                {
+                    changed = true;
+                }
+
+                new_generators.push(retained_generator);
+            }
+        }
+
+        if all_zero {
+            Ok(ZeroOperator::new())
+        } else if changed {
+            Self::new(new_generators, new_target, Some(self.left_action), Some(self.adjoint_mode))
+        } else {
+            Ok(self.clone_expr())
+        }
+    }
 }
 
 #[typetag::serde]
@@ -258,14 +319,20 @@ impl Expr for AdjointMap {
     impl_expr_common_methods!(false);
 
     #[inline]
-    fn apply_zero_rules(
+    fn has_unperturbed_term(&self) -> bool {
+        self.target.has_unperturbed_term()
+            && self.generators.iter().all(|g| g.has_unperturbed_term())
+    }
+
+    #[inline]
+    fn substitute_zero_perturbations(
         &self,
         freq_tol: Option<NumberTolerance>,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
         impl_adjoint_map_operation!(
             self,
-            |x: &Arc<dyn Expr>| x.apply_zero_rules(freq_tol.clone()),
-            "AdjointMap::apply_zero_rules() failed"
+            |x: &Arc<dyn Expr>| x.substitute_zero_perturbations(freq_tol.clone()),
+            "AdjointMap::substitute_zero_perturbations() failed"
         )
     }
 
@@ -364,66 +431,6 @@ impl Expr for AdjointMap {
             |x: &Arc<dyn Expr>| x.remove(set),
             "AdjointMap::remove() failed"
         )
-    }
-
-    #[inline]
-    fn retain(
-        &self,
-        set: &HashSet<Arc<dyn Expr>>,
-        include_derivatives: bool,
-    ) -> Result<Arc<dyn Expr>, TinnedError> {
-        if self.match_self_any(set, include_derivatives) {
-            return Ok(self.clone_expr());
-        }
-
-        let retained_target = self.target.retain(set, include_derivatives).map_err(|e| {
-            generic_expression_error("AdjointMap::retain() failed", self, Some(Box::new(e)))
-        })?;
-
-        let target_is_zero = is_zero_expr(&retained_target, None);
-        let new_target = if target_is_zero {
-            self.target.clone()
-        } else {
-            retained_target
-        };
-
-        let mut changed = !Arc::ptr_eq(&new_target, &self.target) && &new_target != &self.target;
-        let mut all_zero = target_is_zero;
-
-        let mut new_generators = Vec::with_capacity(self.generators.len());
-
-        for generator in &self.generators {
-            let retained_generator = generator.retain(set, include_derivatives).map_err(|e| {
-                generic_expression_error(
-                    format!("AdjointMap::retain() for generator {}", generator),
-                    self,
-                    Some(Box::new(e)),
-                )
-            })?;
-
-            if is_zero_expr(&retained_generator, None) {
-                new_generators.push(generator.clone());
-            } else {
-                all_zero = false;
-
-                if !changed
-                    && !Arc::ptr_eq(&retained_generator, generator)
-                    && &retained_generator != generator
-                {
-                    changed = true;
-                }
-
-                new_generators.push(retained_generator);
-            }
-        }
-
-        if all_zero {
-            Ok(ZeroOperator::new())
-        } else if changed {
-            Self::new(new_generators, new_target, Some(self.left_action), Some(self.adjoint_mode))
-        } else {
-            Ok(self.clone_expr())
-        }
     }
 }
 

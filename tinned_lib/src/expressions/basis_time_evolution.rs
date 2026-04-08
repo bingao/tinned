@@ -4,7 +4,7 @@ use std::sync::Arc;
 use crate::core::expr_internal::sealed::ExprInternal;
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{
-    Add, MatrixAdd, MatrixMul, Mul, Number, OneElecMatrix, TemporumOperator, ZeroOperator,
+    Add, MatrixAdd, MatrixMul, Mul, Number, OneElecMatrix, TimeEvolution, ZeroOperator,
 };
 use crate::internal::intern_expr;
 use crate::perturbations::{PertMultichain, Perturbation};
@@ -13,20 +13,21 @@ use crate::public::{
     unreachable_error,
 };
 
+// Represents the operator (18), J. Comput. Chem. 2024; 45: 2136-2152.
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
-pub struct TemporumOverlap {
-    zero_rules_applied: bool,
+pub struct BasisTimeEvolution {
+    at_zero_perturbations: bool,
     braket: Arc<dyn Expr>,
     dependencies: PertMultichain,
     derivative: PertMultichain,
 }
 
-impl TemporumOverlap {
+impl BasisTimeEvolution {
     // Note: `dependencies` is the perturbation dependencies of Sb and Sk
     #[inline]
-    pub fn builder(dependencies: PertMultichain) -> TemporumOverlapBuilder {
-        TemporumOverlapBuilder {
-            zero_rules_applied: Some(false),
+    pub fn builder(dependencies: PertMultichain) -> BasisTimeEvolutionBuilder {
+        BasisTimeEvolutionBuilder {
+            at_zero_perturbations: Some(false),
             braket: None,
             dependencies,
             derivative: None,
@@ -37,10 +38,10 @@ impl TemporumOverlap {
     fn with_braket(
         &self,
         braket: Arc<dyn Expr>,
-        zero_rules_applied: Option<bool>,
-    ) -> TemporumOverlapBuilder {
-        TemporumOverlapBuilder {
-            zero_rules_applied,
+        at_zero_perturbations: Option<bool>,
+    ) -> BasisTimeEvolutionBuilder {
+        BasisTimeEvolutionBuilder {
+            at_zero_perturbations,
             braket: Some(braket),
             dependencies: self.dependencies.clone(),
             derivative: Some(self.derivative.clone()),
@@ -52,9 +53,9 @@ impl TemporumOverlap {
         &self,
         derivative: PertMultichain,
         braket: Arc<dyn Expr>,
-    ) -> TemporumOverlapBuilder {
-        TemporumOverlapBuilder {
-            zero_rules_applied: Some(self.zero_rules_applied),
+    ) -> BasisTimeEvolutionBuilder {
+        BasisTimeEvolutionBuilder {
+            at_zero_perturbations: Some(self.at_zero_perturbations),
             braket: Some(braket),
             dependencies: self.dependencies.clone(),
             derivative: Some(derivative),
@@ -62,8 +63,8 @@ impl TemporumOverlap {
     }
 
     #[inline]
-    pub fn zero_rules_applied(&self) -> bool {
-        self.zero_rules_applied
+    pub fn at_zero_perturbations(&self) -> bool {
+        self.at_zero_perturbations
     }
 
     #[inline]
@@ -109,14 +110,14 @@ impl TemporumOverlap {
                 ));
             }
 
-            if self.zero_rules_applied {
+            if self.at_zero_perturbations {
                 result.push((
                     mat_mul.coefficient().clone(),
                     factors[0].clone(),
                     factors[1].clone(),
                 ));
             } else {
-                let bra = downcast_from_arc::<TemporumOperator>(&factors[0]).ok_or_else(|| {
+                let bra = downcast_from_arc::<TimeEvolution>(&factors[0]).ok_or_else(|| {
                     unreachable_error(
                         "Unexpected first factor of term inside braket",
                         &factors[0],
@@ -124,7 +125,7 @@ impl TemporumOverlap {
                     )
                 })?;
 
-                let ket = downcast_from_arc::<TemporumOperator>(&factors[1]).ok_or_else(|| {
+                let ket = downcast_from_arc::<TimeEvolution>(&factors[1]).ok_or_else(|| {
                     unreachable_error(
                         "Unexpected second factor of term inside braket",
                         &factors[1],
@@ -154,26 +155,26 @@ impl TemporumOverlap {
 // Equation (62), J. Comput. Chem. 2024; 45: 2136-2152.
 fn build_braket(deps: &PertMultichain) -> Result<Arc<dyn Expr>, TinnedError> {
     let bra = OneElecMatrix::builder("Sb").dependencies(deps.clone()).build()?;
-    let dt_bra = TemporumOperator::builder(bra).is_forward(true).build()?;
+    let dt_bra = TimeEvolution::builder(bra).is_forward(true).build()?;
 
     let ket = OneElecMatrix::builder("Sk").dependencies(deps.clone()).build()?;
-    let dt_ket = TemporumOperator::builder(ket).is_forward(false).build()?;
+    let dt_ket = TimeEvolution::builder(ket).is_forward(false).build()?;
 
     MatrixMul::new(vec![dt_bra, dt_ket])
 }
 
 #[derive(Debug)]
-pub struct TemporumOverlapBuilder {
-    zero_rules_applied: Option<bool>,
+pub struct BasisTimeEvolutionBuilder {
+    at_zero_perturbations: Option<bool>,
     braket: Option<Arc<dyn Expr>>,
     dependencies: PertMultichain,
     derivative: Option<PertMultichain>,
 }
 
-impl TemporumOverlapBuilder {
+impl BasisTimeEvolutionBuilder {
     //#[inline]
-    //fn zero_rules_applied(mut self, zero_rules_applied: bool) -> Self {
-    //    self.zero_rules_applied = Some(zero_rules_applied);
+    //fn at_zero_perturbations(mut self, at_zero_perturbations: bool) -> Self {
+    //    self.at_zero_perturbations = Some(at_zero_perturbations);
     //    self
     //}
 
@@ -190,12 +191,12 @@ impl TemporumOverlapBuilder {
     //}
 
     pub fn build(self) -> Result<Arc<dyn Expr>, TinnedError> {
-        let zero_rules_applied = self.zero_rules_applied.unwrap_or(false);
+        let at_zero_perturbations = self.at_zero_perturbations.unwrap_or(false);
         let braket = self.braket.unwrap_or(build_braket(&self.dependencies)?);
         let derivative = self.derivative.unwrap_or(PertMultichain::new());
 
-        Ok(intern_expr(Arc::new(TemporumOverlap {
-            zero_rules_applied,
+        Ok(intern_expr(Arc::new(BasisTimeEvolution {
+            at_zero_perturbations,
             braket,
             dependencies: self.dependencies,
             derivative,
@@ -203,14 +204,14 @@ impl TemporumOverlapBuilder {
     }
 }
 
-impl ExprInternal for TemporumOverlap {
-    impl_expr_internal_methods!(TemporumOverlap, true);
+impl ExprInternal for BasisTimeEvolution {
+    impl_expr_internal_methods!(BasisTimeEvolution, true);
 
     #[inline]
     fn hash_key(&self) -> String {
         format!(
-            "TemporumOverlap({}; [{}]; {}; [{}])",
-            self.zero_rules_applied,
+            "BasisTimeEvolution({}; [{}]; {}; [{}])",
+            self.at_zero_perturbations,
             self.dependencies.hash_key(),
             self.braket.hash_key(),
             self.derivative.hash_key(),
@@ -224,9 +225,9 @@ impl ExprInternal for TemporumOverlap {
 
     #[inline]
     fn deep_eq_superchains(&self, other: &Arc<dyn Expr>) -> bool {
-        if let Some(op) = downcast_from_arc::<TemporumOverlap>(other) {
+        if let Some(op) = downcast_from_arc::<BasisTimeEvolution>(other) {
             // We care only `dependencies`, regardless whether at zero strength
-            // or not (specified by `zero_rules_applied`, `braket` also changes)
+            // or not (specified by `at_zero_perturbations`, `braket` also changes)
             self.dependencies == op.dependencies && self.derivative.is_subchain(&op.derivative)
         } else {
             false
@@ -235,8 +236,8 @@ impl ExprInternal for TemporumOverlap {
 
     #[inline]
     fn eq_by_superchains(&self, other: &Arc<dyn Expr>) -> bool {
-        if let Some(op) = downcast_from_arc::<TemporumOverlap>(other) {
-            self.zero_rules_applied == op.zero_rules_applied
+        if let Some(op) = downcast_from_arc::<BasisTimeEvolution>(other) {
+            self.at_zero_perturbations == op.at_zero_perturbations
                 && self.dependencies == op.dependencies
                 && self.derivative.is_subchain(&op.derivative)
         } else {
@@ -252,19 +253,37 @@ impl ExprInternal for TemporumOverlap {
     ) -> Result<Arc<dyn Expr>, TinnedError> {
         Ok(self.clone_expr())
     }
+
+    #[inline]
+    fn retain_single(
+        &self,
+        s: &Arc<dyn Expr>,
+        include_derivatives: bool,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        if self.match_self_single(s, include_derivatives) {
+            Ok(self.clone_expr())
+        } else {
+            Ok(ZeroOperator::new())
+        }
+    }
 }
 
 #[typetag::serde]
-impl Expr for TemporumOverlap {
-    impl_nullary_expr_common_methods!(TemporumOverlap, false);
+impl Expr for BasisTimeEvolution {
+    impl_nullary_expr_common_methods!(BasisTimeEvolution, false);
 
-    // `TemporumOverlap` will disappear if it is unperturbed or all
+    #[inline]
+    fn has_unperturbed_term(&self) -> bool {
+        false
+    }
+
+    // `BasisTimeEvolution` will disappear if it is unperturbed or all
     // perturbations have zero frequency
-    fn apply_zero_rules(
+    fn substitute_zero_perturbations(
         &self,
         freq_tol: Option<NumberTolerance>,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
-        if self.zero_rules_applied {
+        if self.at_zero_perturbations {
             return Ok(self.clone_expr());
         } else if self.derivative.is_empty() {
             return Ok(ZeroOperator::new());
@@ -287,7 +306,7 @@ impl Expr for TemporumOverlap {
     fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
         let diff_braket = self.braket.differentiate(s).map_err(|e| {
             generic_expression_error(
-                "TemporumOverlap::differentiate() failed",
+                "BasisTimeEvolution::differentiate() failed",
                 self,
                 Some(Box::new(e)),
             )
@@ -302,23 +321,23 @@ impl Expr for TemporumOverlap {
         self.with_derivative(new_deriv, diff_braket).build()
     }
 
-    // `TemporumOverlap` is an undivided whole for methods `exist_any()`,
-    // `find_superchains()`, `retain()`. So, we use the corresponding methods
-    // of the pub trait `Expr`.
+    // `BasisTimeEvolution` is an undivided whole for methods `exist_any()`,
+    // `find_superchains()`. So, we use the corresponding methods of the
+    // pub trait `Expr`.
 }
 
-impl PartialEq for TemporumOverlap {
+impl PartialEq for BasisTimeEvolution {
     fn eq(&self, other: &Self) -> bool {
-        self.zero_rules_applied == other.zero_rules_applied
+        self.at_zero_perturbations == other.at_zero_perturbations
             && &self.braket == &other.braket
             && self.dependencies == other.dependencies
             && self.derivative == other.derivative
     }
 }
 
-impl Eq for TemporumOverlap {}
+impl Eq for BasisTimeEvolution {}
 
-impl std::fmt::Display for TemporumOverlap {
+impl std::fmt::Display for BasisTimeEvolution {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         if self.derivative.is_empty() {
             write!(f, "op(T)")
@@ -337,23 +356,23 @@ mod tests {
     use crate::perturbations::perturbation::test_utils::make_perturbation_symbol;
     use crate::public::is_one_expr;
 
-    test_struct_safety!(TemporumOverlap);
+    test_struct_safety!(BasisTimeEvolution);
 
     test_thread_interning!(
-        TemporumOverlap::builder(make_pert_multichain(0u32, 0u32, 1u32, 0u32)).build().unwrap()
+        BasisTimeEvolution::builder(make_pert_multichain(0u32, 0u32, 1u32, 0u32)).build().unwrap()
     );
 
     #[test]
     fn test_impl_expr() {
         let deps = make_pert_multichain(2u32, 8u32, 1u32, 10u32);
-        let op1 = TemporumOverlap::builder(deps.clone()).build().unwrap();
+        let op1 = BasisTimeEvolution::builder(deps.clone()).build().unwrap();
 
-        let op = downcast_from_arc::<TemporumOverlap>(&op1).unwrap();
+        let op = downcast_from_arc::<BasisTimeEvolution>(&op1).unwrap();
         let braket = build_braket(&deps).unwrap();
         assert_eq!(
             op,
-            &TemporumOverlap {
-                zero_rules_applied: false,
+            &BasisTimeEvolution {
+                at_zero_perturbations: false,
                 braket: braket.clone(),
                 dependencies: deps.clone(),
                 derivative: PertMultichain::new(),
@@ -365,7 +384,7 @@ mod tests {
         assert_eq!(
             op1.hash_key(),
             format!(
-                "TemporumOverlap({}; [{}]; {}; [{}])",
+                "BasisTimeEvolution({}; [{}]; {}; [{}])",
                 false,
                 deps.hash_key(),
                 braket.hash_key(),
@@ -375,7 +394,7 @@ mod tests {
         assert!(!op1.is_scalar());
         assert_eq!(format!("{}", op1), "op(T)");
 
-        let op2 = TemporumOverlap::builder(make_super_multichain(&deps, 1u32)).build().unwrap();
+        let op2 = BasisTimeEvolution::builder(make_super_multichain(&deps, 1u32)).build().unwrap();
 
         assert_ne!(&op1, &op2);
     }
@@ -384,14 +403,14 @@ mod tests {
     fn test_differentiation() {
         let len_pert_name: u32 = 2;
         let deps = make_pert_multichain(len_pert_name, 8u32, 1u32, 10u32);
-        let op = TemporumOverlap::builder(deps.clone()).build().unwrap();
+        let op = BasisTimeEvolution::builder(deps.clone()).build().unwrap();
 
         let p: Arc<Perturbation> = deps.keys().first().cloned().unwrap();
         let mut diff_op = op.differentiate(&p).unwrap();
         let mut deriv = PertMultichain::new();
         deriv.insert(&p);
 
-        let diff_cast = downcast_from_arc::<TemporumOverlap>(&diff_op).unwrap();
+        let diff_cast = downcast_from_arc::<BasisTimeEvolution>(&diff_op).unwrap();
 
         assert_eq!(diff_cast.derivative(), &deriv);
 
@@ -410,7 +429,7 @@ mod tests {
 
     #[test]
     fn test_serialization() {
-        let op = TemporumOverlap::builder(make_pert_multichain(2u32, 8u32, 1u32, 10u32))
+        let op = BasisTimeEvolution::builder(make_pert_multichain(2u32, 8u32, 1u32, 10u32))
             .build()
             .unwrap();
         let json = serde_json::to_string(&op).unwrap();
@@ -421,14 +440,14 @@ mod tests {
     #[test]
     fn test_utils() {
         let deps = make_pert_multichain(2u32, 8u32, 1u32, 10u32);
-        let op1 = TemporumOverlap::builder(deps.clone()).build().unwrap();
+        let op1 = BasisTimeEvolution::builder(deps.clone()).build().unwrap();
 
-        assert!(is_expr_type::<TemporumOverlap>(&op1));
+        assert!(is_expr_type::<BasisTimeEvolution>(&op1));
         assert!(!is_zero_expr(&op1, None));
         assert!(!is_one_expr(&op1, None));
 
-        let op2 = TemporumOverlap::builder(deps.clone()).build().unwrap();
-        let op3 = TemporumOverlap::builder(make_super_multichain(&deps, 1u32)).build().unwrap();
+        let op2 = BasisTimeEvolution::builder(deps.clone()).build().unwrap();
+        let op3 = BasisTimeEvolution::builder(make_super_multichain(&deps, 1u32)).build().unwrap();
 
         assert!(Arc::ptr_eq(&op1, &op2));
         assert!(!Arc::ptr_eq(&op1, &op3));

@@ -4,7 +4,9 @@ use crate::core::expr_internal::sealed::ExprInternal;
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{MatrixAdd, ResidueParameter, WfnParameter, ZeroOperator};
 use crate::perturbations::{PertMultichain, Perturbation};
-use crate::public::{downcast_from_arc, expression_error, generic_expression_error, is_expr_type};
+use crate::public::{
+    NumberTolerance, downcast_from_arc, expression_error, generic_expression_error, is_expr_type,
+};
 
 // In the atomic orbital (AO) representation, we have two-electron matrix
 // G^{AO}(D^{AO}), see for example equation (64), J. Chem. Phys. 129, 214108
@@ -179,6 +181,26 @@ impl Expr for AoTwoElecMatrix {
         density,
         |this: &AoTwoElecMatrix, arg| this.with_density(arg).build()
     );
+
+    #[inline]
+    fn has_unperturbed_term(&self) -> bool {
+        self.density.has_unperturbed_term()
+    }
+
+    #[inline]
+    fn substitute_zero_perturbations(
+        &self,
+        freq_tol: Option<NumberTolerance>,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        impl_unary_expr_arg_operation!(
+            self,
+            False,
+            density,
+            |arg: &Arc<dyn Expr>| arg.substitute_zero_perturbations(freq_tol),
+            "AoTwoElecMatrix::substitute_zero_perturbations() failed",
+            |this: &AoTwoElecMatrix, arg| this.with_density(arg).build()
+        )
+    }
 
     fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
         let diff_density = self.density.differentiate(s).map_err(|e| {

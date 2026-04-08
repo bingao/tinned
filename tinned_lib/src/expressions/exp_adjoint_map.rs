@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::core::expr_internal::sealed::ExprInternal;
 use crate::core::{Expr, TinnedError};
-use crate::expressions::{AdjointMap, AdjointMode, MatrixAdd, TemporumOperator, ZeroOperator};
+use crate::expressions::{AdjointMap, AdjointMode, MatrixAdd, TimeEvolution, ZeroOperator};
 use crate::internal::intern_expr;
 use crate::perturbations::{PertMultichain, Perturbation};
 use crate::public::{
@@ -18,10 +18,10 @@ pub struct ExpAdjointMap {
     // Whether generator and its derivatives commute
     generator_derivative_commute: bool,
     target: Arc<dyn Expr>,
-    is_temporum: bool,
+    is_time_evolution: bool,
     left_action: bool,
     max_fold: u32,
-    zero_rules_applied: bool,
+    at_zero_perturbations: bool,
     // `result` contains differentiated expression of exponential adjoint map
     result: Arc<dyn Expr>,
     derivative: PertMultichain,
@@ -38,35 +38,35 @@ impl ExpAdjointMap {
             generator,
             generator_derivative_commute,
             target,
-            is_temporum: false,
+            is_time_evolution: false,
             left_action: None,
             max_fold: None,
-            zero_rules_applied: Some(false),
+            at_zero_perturbations: Some(false),
             result: None,
             derivative: None,
         }
     }
 
     #[inline]
-    pub fn builder_temporum(
+    pub fn builder_time_evolution(
         generator: Arc<dyn Expr>,
         is_forward: bool,
         generator_derivative_commute: Option<bool>,
     ) -> ExpAdjointMapBuilder {
-        let target =
-            match TemporumOperator::builder(generator.clone()).is_forward(is_forward).build() {
-                Ok(e) => e,
-                Err(e) => panic!("ExpAdjointMap::builder_temporum() encounters: {e}"),
-            };
+        let target = match TimeEvolution::builder(generator.clone()).is_forward(is_forward).build()
+        {
+            Ok(e) => e,
+            Err(e) => panic!("ExpAdjointMap::builder_time_evolution() encounters: {e}"),
+        };
 
         ExpAdjointMapBuilder {
             generator,
             generator_derivative_commute,
             target,
-            is_temporum: true,
+            is_time_evolution: true,
             left_action: None,
             max_fold: None,
-            zero_rules_applied: Some(false),
+            at_zero_perturbations: Some(false),
             result: None,
             derivative: None,
         }
@@ -77,16 +77,16 @@ impl ExpAdjointMap {
     fn with_result(
         &self,
         result: Arc<dyn Expr>,
-        zero_rules_applied: Option<bool>,
+        at_zero_perturbations: Option<bool>,
     ) -> ExpAdjointMapBuilder {
         ExpAdjointMapBuilder {
             generator: self.generator.clone(),
             generator_derivative_commute: Some(self.generator_derivative_commute),
             target: self.target.clone(),
-            is_temporum: self.is_temporum,
+            is_time_evolution: self.is_time_evolution,
             left_action: Some(self.left_action),
             max_fold: Some(self.max_fold),
-            zero_rules_applied,
+            at_zero_perturbations,
             result: Some(result),
             derivative: Some(self.derivative.clone()),
         }
@@ -102,10 +102,10 @@ impl ExpAdjointMap {
             generator: self.generator.clone(),
             generator_derivative_commute: Some(self.generator_derivative_commute),
             target: self.target.clone(),
-            is_temporum: self.is_temporum,
+            is_time_evolution: self.is_time_evolution,
             left_action: Some(self.left_action),
             max_fold: Some(self.max_fold),
-            zero_rules_applied: Some(self.zero_rules_applied),
+            at_zero_perturbations: Some(self.at_zero_perturbations),
             result: Some(result),
             derivative: Some(derivative),
         }
@@ -127,8 +127,8 @@ impl ExpAdjointMap {
     }
 
     #[inline]
-    pub fn is_temporum(&self) -> bool {
-        self.is_temporum
+    pub fn is_time_evolution(&self) -> bool {
+        self.is_time_evolution
     }
 
     #[inline]
@@ -142,8 +142,8 @@ impl ExpAdjointMap {
     }
 
     #[inline]
-    pub fn zero_rules_applied(&self) -> bool {
-        self.zero_rules_applied
+    pub fn at_zero_perturbations(&self) -> bool {
+        self.at_zero_perturbations
     }
 
     #[inline]
@@ -162,10 +162,10 @@ pub struct ExpAdjointMapBuilder {
     generator: Arc<dyn Expr>,
     generator_derivative_commute: Option<bool>,
     target: Arc<dyn Expr>,
-    is_temporum: bool,
+    is_time_evolution: bool,
     left_action: Option<bool>,
     max_fold: Option<u32>,
-    zero_rules_applied: Option<bool>,
+    at_zero_perturbations: Option<bool>,
     result: Option<Arc<dyn Expr>>,
     derivative: Option<PertMultichain>,
 }
@@ -190,8 +190,8 @@ impl ExpAdjointMapBuilder {
     }
 
     //#[inline]
-    //fn zero_rules_applied(mut self, zero_rules_applied: bool) -> Self {
-    //    self.zero_rules_applied = Some(zero_rules_applied);
+    //fn at_zero_perturbations(mut self, at_zero_perturbations: bool) -> Self {
+    //    self.at_zero_perturbations = Some(at_zero_perturbations);
     //    self
     //}
 
@@ -232,8 +232,18 @@ impl ExpAdjointMapBuilder {
 
         let generator_derivative_commute = self.generator_derivative_commute.unwrap_or(true);
         let left_action = self.left_action.unwrap_or(true);
+
         let max_fold = self.max_fold.unwrap_or(u32::MAX);
-        let zero_rules_applied = self.zero_rules_applied.unwrap_or(false);
+
+        if self.generator.has_unperturbed_term() && max_fold == u32::MAX {
+            return Err(expression_error(
+                "ExpAdjointMapBuilder::build() gets a non-perturbing generator with infinite fold",
+                &self.generator,
+                None,
+            ));
+        }
+
+        let at_zero_perturbations = self.at_zero_perturbations.unwrap_or(false);
 
         // Undifferentiated expression of exponential adjoint map is simply `target`
         let result = self.result.unwrap_or(self.target.clone());
@@ -243,10 +253,10 @@ impl ExpAdjointMapBuilder {
             generator: self.generator,
             generator_derivative_commute,
             target: self.target,
-            is_temporum: self.is_temporum,
+            is_time_evolution: self.is_time_evolution,
             left_action,
             max_fold,
-            zero_rules_applied,
+            at_zero_perturbations,
             result,
             derivative,
         })))
@@ -254,7 +264,7 @@ impl ExpAdjointMapBuilder {
 }
 
 impl ExprInternal for ExpAdjointMap {
-    // It is more appropriate to set `zero_rules_applied` as false after the
+    // It is more appropriate to set `at_zero_perturbations` as false after the
     // functions `replace_expr_children`, `retain_expr_fields` and `replace_expr_self`
     impl_unary_expr_internal_methods!(
         ExpAdjointMap,
@@ -270,11 +280,11 @@ impl ExprInternal for ExpAdjointMap {
             "ExpAdjointMap({}; {}; {}; {}; {}; {}; {}; {}; [{}])",
             self.left_action,
             self.max_fold,
-            self.zero_rules_applied,
+            self.at_zero_perturbations,
             self.generator.hash_key(),
             self.generator_derivative_commute,
             self.target.hash_key(),
-            self.is_temporum,
+            self.is_time_evolution,
             self.result.hash_key(),
             self.derivative.hash_key(),
         )
@@ -289,12 +299,12 @@ impl ExprInternal for ExpAdjointMap {
     fn deep_eq_superchains(&self, other: &Arc<dyn Expr>) -> bool {
         if let Some(op) = downcast_from_arc::<ExpAdjointMap>(other) {
             // We treat exponential adjoint maps with different `left_action`
-            // and `zero_rules_applied` equally
+            // and `at_zero_perturbations` equally
             self.max_fold == op.max_fold
                 && self.generator.deep_eq_superchains(&op.generator)
                 && self.generator_derivative_commute == op.generator_derivative_commute
                 && self.target.deep_eq_superchains(&op.target)
-                && self.is_temporum == op.is_temporum
+                && self.is_time_evolution == op.is_time_evolution
                 && self.derivative.is_subchain(&op.derivative)
         } else {
             false
@@ -306,11 +316,11 @@ impl ExprInternal for ExpAdjointMap {
         if let Some(op) = downcast_from_arc::<ExpAdjointMap>(other) {
             self.left_action == op.left_action
                 && self.max_fold == op.max_fold
-                && self.zero_rules_applied == op.zero_rules_applied
+                && self.at_zero_perturbations == op.at_zero_perturbations
                 && &self.generator == &op.generator
                 && self.generator_derivative_commute == op.generator_derivative_commute
                 && &self.target == &op.target
-                && self.is_temporum == op.is_temporum
+                && self.is_time_evolution == op.is_time_evolution
                 && self.derivative.is_subchain(&op.derivative)
         } else {
             false
@@ -321,21 +331,27 @@ impl ExprInternal for ExpAdjointMap {
 #[typetag::serde]
 impl Expr for ExpAdjointMap {
     impl_unary_expr_common_methods!(ExpAdjointMap, False, result, |this: &ExpAdjointMap, arg| this
-        .with_result(arg, Some(this.zero_rules_applied))
+        .with_result(arg, Some(this.at_zero_perturbations))
         .build());
 
     #[inline]
-    fn apply_zero_rules(
+    fn has_unperturbed_term(&self) -> bool {
+        // See equation (35), J. Comput. Chem. 45, 2136-2152 (2024).
+        self.target.has_unperturbed_term()
+    }
+
+    #[inline]
+    fn substitute_zero_perturbations(
         &self,
         freq_tol: Option<NumberTolerance>,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
-        if self.zero_rules_applied {
+        if self.at_zero_perturbations {
             return Ok(self.clone_expr());
         }
 
-        let result = self.result.apply_zero_rules(freq_tol.clone()).map_err(|e| {
+        let result = self.result.substitute_zero_perturbations(freq_tol.clone()).map_err(|e| {
             generic_expression_error(
-                "ExpAdjointMap::apply_zero_rules() failed for result",
+                "ExpAdjointMap::substitute_zero_perturbations() failed for result",
                 self,
                 Some(Box::new(e)),
             )
@@ -359,9 +375,9 @@ impl Expr for ExpAdjointMap {
             )
         })?;
 
-        // The first order derivative must be performed on the temporum
+        // The first order derivative must be performed on the time evolution
         // operator +/-i*d/dt
-        if self.is_temporum && self.derivative.is_empty() {
+        if self.is_time_evolution && self.derivative.is_empty() {
             return if is_expr_type::<ZeroOperator>(&diff_result) {
                 Ok(diff_result)
             } else {
@@ -397,9 +413,9 @@ impl Expr for ExpAdjointMap {
             terms.push(diff_result);
         }
 
-        // `ad_maps` contains `AdjointMap`'s that should be extracted from the
+        // `adj_maps` contains `AdjointMap`'s that should be extracted from the
         // exponential adjoint map due to maximum folds of commutators
-        let mut ad_maps = Vec::new();
+        let mut adj_maps = Vec::new();
 
         let adjoint_mode = if self.generator_derivative_commute {
             Some(AdjointMode::Commutative)
@@ -409,14 +425,14 @@ impl Expr for ExpAdjointMap {
 
         if let Some(mat_add) = downcast_from_arc::<MatrixAdd>(&self.result) {
             for term in mat_add.terms() {
-                if let Some(ad_map) = downcast_from_arc::<AdjointMap>(term) {
+                if let Some(adj_map) = downcast_from_arc::<AdjointMap>(term) {
                     // Check folds of commutators
-                    if ad_map.generators().len() as u32 + 1 < self.max_fold {
+                    if adj_map.generators().len() as u32 + 1 < self.max_fold {
                         terms.push(
-                            ad_map.with_added_generator(diff_generator.clone(), adjoint_mode)?,
+                            adj_map.with_added_generator(diff_generator.clone(), adjoint_mode)?,
                         );
                     } else {
-                        ad_maps.push(term.clone());
+                        adj_maps.push(term.clone());
                     }
                 } else {
                     // differentiated `target`
@@ -441,25 +457,25 @@ impl Expr for ExpAdjointMap {
         let new_ead_map =
             self.with_result_and_derivative(MatrixAdd::new(terms)?, new_deriv).build()?;
 
-        if ad_maps.is_empty() {
+        if adj_maps.is_empty() {
             Ok(new_ead_map)
         } else {
-            ad_maps.push(new_ead_map);
-            MatrixAdd::new(ad_maps)
+            adj_maps.push(new_ead_map);
+            MatrixAdd::new(adj_maps)
         }
     }
 }
 
 impl PartialEq for ExpAdjointMap {
     fn eq(&self, other: &Self) -> bool {
-        // We also compare `result`, which may change after `apply_zero_rules()`
+        // We also compare `result`, which may change after `substitute_zero_perturbations()`
         &self.generator == &other.generator
             && self.generator_derivative_commute == other.generator_derivative_commute
             && &self.target == &other.target
-            && self.is_temporum == other.is_temporum
+            && self.is_time_evolution == other.is_time_evolution
             && self.left_action == other.left_action
             && self.max_fold == other.max_fold
-            && self.zero_rules_applied == other.zero_rules_applied
+            && self.at_zero_perturbations == other.at_zero_perturbations
             && self.derivative == other.derivative
             && &self.result == &other.result
     }
@@ -479,7 +495,7 @@ impl std::fmt::Display for ExpAdjointMap {
             write!(f, "; {}", self.max_fold)?;
         }
 
-        write!(f, "])({}; {})^{}", self.target, self.zero_rules_applied, self.derivative)
+        write!(f, "])({}; {})^{}", self.target, self.at_zero_perturbations, self.derivative)
     }
 }
 

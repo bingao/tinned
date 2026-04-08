@@ -285,13 +285,27 @@ macro_rules! impl_nullary_expr_traits {
             ) -> expr_result_ty!() {
                 Ok(self.clone_expr())
             }
+
+            #[inline]
+            fn retain_single(&self, s: expr_arc_ref_ty!(), include_derivatives: bool) -> expr_result_ty!() {
+                if self.match_self_single(s, include_derivatives) {
+                    Ok(self.clone_expr())
+                } else {
+                    impl_zero_expr!($is_scalar)
+                }
+            }
         }
 
         #[::typetag::serde]
         impl $crate::core::Expr for $type_name {
             impl_nullary_expr_common_methods!($type_name, $is_scalar);
 
-            impl_nullary_expr_traits!(@nullary_apply_zero_rules $type_name, $is_scalar);
+            #[inline]
+            fn has_unperturbed_term(&self) -> bool {
+                !self.is_perturbing
+            }
+
+            impl_nullary_expr_traits!(@nullary_substitute_zero_perturbations $type_name, $is_scalar);
 
             #[inline]
             fn differentiate(
@@ -354,9 +368,9 @@ macro_rules! impl_nullary_expr_traits {
             && $self.derivative.is_subchain(&$op.derivative)
     };
 
-    (@nullary_apply_zero_rules $type_name:ident, $is_scalar:tt) => {
+    (@nullary_substitute_zero_perturbations $type_name:ident, $is_scalar:tt) => {
         #[inline]
-        fn apply_zero_rules(
+        fn substitute_zero_perturbations(
             &self,
             _freq_tol: ::std::option::Option<$crate::public::NumberTolerance>,
         ) -> expr_result_ty!() {
@@ -471,15 +485,6 @@ macro_rules! impl_nullary_expr_common_methods {
                 impl_zero_expr!($is_scalar)
             } else {
                 Ok(self.clone_expr())
-            }
-        }
-
-        #[inline]
-        fn retain(&self, set: &expr_set_ty!(), include_derivatives: bool) -> expr_result_ty!() {
-            if self.match_self_any(set, include_derivatives) {
-                Ok(self.clone_expr())
-            } else {
-                impl_zero_expr!($is_scalar)
             }
         }
     };
