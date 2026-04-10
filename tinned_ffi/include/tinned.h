@@ -459,7 +459,7 @@ tinned_exp_adjoint_map_left_action (
 
 /** <No documentation available> */
 uint32_t
-tinned_exp_adjoint_map_max_fold (
+tinned_exp_adjoint_map_max_commutator_order (
     ExprHandle_t const * h,
     TinnedErrorHandle_t * * out_err);
 
@@ -470,7 +470,7 @@ tinned_exp_adjoint_map_new (
     bool generator_derivative_commute,
     ExprHandle_t const * target,
     bool left_action,
-    uint32_t max_fold,
+    uint32_t max_commutator_order,
     TinnedErrorHandle_t * * out_err);
 
 /** <No documentation available> */
@@ -492,7 +492,7 @@ tinned_exp_adjoint_map_time_evolution_new (
     bool is_forward,
     bool generator_derivative_commute,
     bool left_action,
-    uint32_t max_fold,
+    uint32_t max_commutator_order,
     TinnedErrorHandle_t * * out_err);
 
 /** <No documentation available> */

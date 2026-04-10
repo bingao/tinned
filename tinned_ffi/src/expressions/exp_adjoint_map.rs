@@ -12,7 +12,7 @@ pub extern "C" fn tinned_exp_adjoint_map_new(
     generator_derivative_commute: bool,
     target: Option<&ExprHandle>,
     left_action: bool,
-    max_fold: u32,
+    max_commutator_order: u32,
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> Option<ExprBox> {
     let Some(generator) = generator else {
@@ -35,7 +35,7 @@ pub extern "C" fn tinned_exp_adjoint_map_new(
 
     match ExpAdjointMap::builder(generator_arc, target_arc, Some(generator_derivative_commute))
         .left_action(left_action)
-        .max_fold(max_fold)
+        .max_commutator_order(max_commutator_order)
         .build()
     {
         Ok(expr_arc) => Some(ExprBox::new(ExprHandle::new(expr_arc))),
@@ -52,7 +52,7 @@ pub extern "C" fn tinned_exp_adjoint_map_time_evolution_new(
     is_forward: bool,
     generator_derivative_commute: bool,
     left_action: bool,
-    max_fold: u32,
+    max_commutator_order: u32,
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> Option<ExprBox> {
     let Some(generator) = generator else {
@@ -66,7 +66,7 @@ pub extern "C" fn tinned_exp_adjoint_map_time_evolution_new(
 
     match ExpAdjointMap::builder_time_evolution(generator_arc, is_forward, Some(generator_derivative_commute))
         .left_action(left_action)
-        .max_fold(max_fold)
+        .max_commutator_order(max_commutator_order)
         .build()
     {
         Ok(expr_arc) => Some(ExprBox::new(ExprHandle::new(expr_arc))),
@@ -89,7 +89,7 @@ impl_val_getters!(
     tinned_exp_adjoint_map_generator_derivative_commute: bool => |ead| ead.generator_derivative_commute(); default = true,
     tinned_exp_adjoint_map_is_time_evolution: bool => |ead| ead.is_time_evolution(); default = false,
     tinned_exp_adjoint_map_left_action: bool => |ead| ead.left_action(); default = false,
-    tinned_exp_adjoint_map_max_fold: u32 => |ead| ead.max_fold(); default = 0,
+    tinned_exp_adjoint_map_max_commutator_order: u32 => |ead| ead.max_commutator_order(); default = 0,
     tinned_exp_adjoint_map_at_zero_perturbations: bool => |ead| ead.at_zero_perturbations(); default = false,
 );
 

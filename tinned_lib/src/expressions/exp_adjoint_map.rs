@@ -20,7 +20,7 @@ pub struct ExpAdjointMap {
     target: Arc<dyn Expr>,
     is_time_evolution: bool,
     left_action: bool,
-    max_fold: u32,
+    max_commutator_order: u32,
     at_zero_perturbations: bool,
     // `result` contains differentiated expression of exponential adjoint map
     result: Arc<dyn Expr>,
@@ -40,7 +40,7 @@ impl ExpAdjointMap {
             target,
             is_time_evolution: false,
             left_action: None,
-            max_fold: None,
+            max_commutator_order: None,
             at_zero_perturbations: Some(false),
             result: None,
             derivative: None,
@@ -65,7 +65,7 @@ impl ExpAdjointMap {
             target,
             is_time_evolution: true,
             left_action: None,
-            max_fold: None,
+            max_commutator_order: None,
             at_zero_perturbations: Some(false),
             result: None,
             derivative: None,
@@ -85,7 +85,7 @@ impl ExpAdjointMap {
             target: self.target.clone(),
             is_time_evolution: self.is_time_evolution,
             left_action: Some(self.left_action),
-            max_fold: Some(self.max_fold),
+            max_commutator_order: Some(self.max_commutator_order),
             at_zero_perturbations,
             result: Some(result),
             derivative: Some(self.derivative.clone()),
@@ -104,7 +104,7 @@ impl ExpAdjointMap {
             target: self.target.clone(),
             is_time_evolution: self.is_time_evolution,
             left_action: Some(self.left_action),
-            max_fold: Some(self.max_fold),
+            max_commutator_order: Some(self.max_commutator_order),
             at_zero_perturbations: Some(self.at_zero_perturbations),
             result: Some(result),
             derivative: Some(derivative),
@@ -137,8 +137,8 @@ impl ExpAdjointMap {
     }
 
     #[inline]
-    pub fn max_fold(&self) -> u32 {
-        self.max_fold
+    pub fn max_commutator_order(&self) -> u32 {
+        self.max_commutator_order
     }
 
     #[inline]
@@ -164,7 +164,7 @@ pub struct ExpAdjointMapBuilder {
     target: Arc<dyn Expr>,
     is_time_evolution: bool,
     left_action: Option<bool>,
-    max_fold: Option<u32>,
+    max_commutator_order: Option<u32>,
     at_zero_perturbations: Option<bool>,
     result: Option<Arc<dyn Expr>>,
     derivative: Option<PertMultichain>,
@@ -184,8 +184,8 @@ impl ExpAdjointMapBuilder {
     }
 
     #[inline]
-    pub fn max_fold(mut self, max_fold: u32) -> Self {
-        self.max_fold = Some(max_fold);
+    pub fn max_commutator_order(mut self, max_commutator_order: u32) -> Self {
+        self.max_commutator_order = Some(max_commutator_order);
         self
     }
 
@@ -233,9 +233,9 @@ impl ExpAdjointMapBuilder {
         let generator_derivative_commute = self.generator_derivative_commute.unwrap_or(true);
         let left_action = self.left_action.unwrap_or(true);
 
-        let max_fold = self.max_fold.unwrap_or(u32::MAX);
+        let max_commutator_order = self.max_commutator_order.unwrap_or(u32::MAX);
 
-        if self.generator.has_unperturbed_term() && max_fold == u32::MAX {
+        if self.generator.has_unperturbed_term() && max_commutator_order == u32::MAX {
             return Err(expression_error(
                 "ExpAdjointMapBuilder::build() gets a non-perturbing generator with infinite fold",
                 &self.generator,
@@ -255,7 +255,7 @@ impl ExpAdjointMapBuilder {
             target: self.target,
             is_time_evolution: self.is_time_evolution,
             left_action,
-            max_fold,
+            max_commutator_order,
             at_zero_perturbations,
             result,
             derivative,
@@ -279,7 +279,7 @@ impl ExprInternal for ExpAdjointMap {
         format!(
             "ExpAdjointMap({}; {}; {}; {}; {}; {}; {}; {}; [{}])",
             self.left_action,
-            self.max_fold,
+            self.max_commutator_order,
             self.at_zero_perturbations,
             self.generator.hash_key(),
             self.generator_derivative_commute,
@@ -300,7 +300,7 @@ impl ExprInternal for ExpAdjointMap {
         if let Some(op) = downcast_from_arc::<ExpAdjointMap>(other) {
             // We treat exponential adjoint maps with different `left_action`
             // and `at_zero_perturbations` equally
-            self.max_fold == op.max_fold
+            self.max_commutator_order == op.max_commutator_order
                 && self.generator.deep_eq_superchains(&op.generator)
                 && self.generator_derivative_commute == op.generator_derivative_commute
                 && self.target.deep_eq_superchains(&op.target)
@@ -315,7 +315,7 @@ impl ExprInternal for ExpAdjointMap {
     fn eq_by_superchains(&self, other: &Arc<dyn Expr>) -> bool {
         if let Some(op) = downcast_from_arc::<ExpAdjointMap>(other) {
             self.left_action == op.left_action
-                && self.max_fold == op.max_fold
+                && self.max_commutator_order == op.max_commutator_order
                 && self.at_zero_perturbations == op.at_zero_perturbations
                 && &self.generator == &op.generator
                 && self.generator_derivative_commute == op.generator_derivative_commute
@@ -427,7 +427,7 @@ impl Expr for ExpAdjointMap {
             for term in mat_add.terms() {
                 if let Some(adj_map) = downcast_from_arc::<AdjointMap>(term) {
                     // Check folds of commutators
-                    if adj_map.generators().len() as u32 + 1 < self.max_fold {
+                    if adj_map.generators().len() as u32 + 1 < self.max_commutator_order {
                         terms.push(
                             adj_map.with_added_generator(diff_generator.clone(), adjoint_mode)?,
                         );
@@ -474,7 +474,7 @@ impl PartialEq for ExpAdjointMap {
             && &self.target == &other.target
             && self.is_time_evolution == other.is_time_evolution
             && self.left_action == other.left_action
-            && self.max_fold == other.max_fold
+            && self.max_commutator_order == other.max_commutator_order
             && self.at_zero_perturbations == other.at_zero_perturbations
             && self.derivative == other.derivative
             && &self.result == &other.result
@@ -491,8 +491,8 @@ impl std::fmt::Display for ExpAdjointMap {
             write!(f, "exp(ad[-({}); {}", self.generator, self.generator_derivative_commute)?;
         }
 
-        if self.max_fold < u32::MAX {
-            write!(f, "; {}", self.max_fold)?;
+        if self.max_commutator_order < u32::MAX {
+            write!(f, "; {}", self.max_commutator_order)?;
         }
 
         write!(f, "])({}; {})^{}", self.target, self.at_zero_perturbations, self.derivative)
