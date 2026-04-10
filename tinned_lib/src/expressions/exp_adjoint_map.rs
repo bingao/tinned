@@ -237,7 +237,7 @@ impl ExpAdjointMapBuilder {
 
         if self.generator.has_unperturbed_term() && max_commutator_order == u32::MAX {
             return Err(expression_error(
-                "ExpAdjointMapBuilder::build() gets a non-perturbing generator with infinite fold",
+                "ExpAdjointMapBuilder::build() gets a non-perturbing generator with infinite commutator order",
                 &self.generator,
                 None,
             ));
@@ -349,6 +349,7 @@ impl Expr for ExpAdjointMap {
             return Ok(self.clone_expr());
         }
 
+        //FIXME: should we return expanded `ExpAdjointMap`?
         let result = self.result.substitute_zero_perturbations(freq_tol.clone()).map_err(|e| {
             generic_expression_error(
                 "ExpAdjointMap::substitute_zero_perturbations() failed for result",
@@ -360,13 +361,16 @@ impl Expr for ExpAdjointMap {
         self.with_result(result, Some(true)).build()
     }
 
+    //FIXME: test this function
     // Equation (47)
     fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
-        // `result` is (i) an `MatrixAdd` of `AdjointMap`'s and differentiated
-        // `target`, or (ii) undifferentiated `target`.  We first differentiate
-        // `result` with respect to `s`, which gives us all differentiated
-        // terms (including the differentiation on each `AdjointMap`'s field
-        // `target`) with number of generators fixed for each `AdjointMap`.
+        // `result` is either (i) undifferentiated `target`, (ii) an
+        // `AdjointMap` when only `generator` was differentiated, or (iii) an
+        // `MatrixAdd` of `AdjointMap`'s and differentiated `target`. We first
+        // differentiate `result` with respect to `s`, which gives us all
+        // differentiated terms (including the differentiation on each
+        // `AdjointMap`'s field `target`) with number of generators fixed for
+        // each `AdjointMap`.
         let diff_result = self.result.differentiate(s).map_err(|e| {
             generic_expression_error(
                 "ExpAdjointMap::differentiate() failed for result",
@@ -414,7 +418,7 @@ impl Expr for ExpAdjointMap {
         }
 
         // `adj_maps` contains `AdjointMap`'s that should be extracted from the
-        // exponential adjoint map due to maximum folds of commutators
+        // exponential adjoint map due to maximum commutator order
         let mut adj_maps = Vec::new();
 
         let adjoint_mode = if self.generator_derivative_commute {
@@ -426,7 +430,7 @@ impl Expr for ExpAdjointMap {
         if let Some(mat_add) = downcast_from_arc::<MatrixAdd>(&self.result) {
             for term in mat_add.terms() {
                 if let Some(adj_map) = downcast_from_arc::<AdjointMap>(term) {
-                    // Check folds of commutators
+                    // Check commutator order
                     if adj_map.generators().len() as u32 + 1 < self.max_commutator_order {
                         terms.push(
                             adj_map.with_added_generator(diff_generator.clone(), adjoint_mode)?,
@@ -443,6 +447,14 @@ impl Expr for ExpAdjointMap {
                         adjoint_mode,
                     )?);
                 }
+            }
+        } else if let Some(adj_map) = downcast_from_arc::<AdjointMap>(&self.result) {
+            if adj_map.generators().len() as u32 + 1 < self.max_commutator_order {
+                terms.push(
+                    adj_map.with_added_generator(diff_generator.clone(), adjoint_mode)?,
+                );
+            } else {
+                adj_maps.push(self.result.clone());
             }
         } else {
             // `result` is undifferentiated `target`
