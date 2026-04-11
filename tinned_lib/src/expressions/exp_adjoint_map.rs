@@ -247,6 +247,11 @@ impl ExpAdjointMapBuilder {
 
         // Undifferentiated expression of exponential adjoint map is simply `target`
         let result = self.result.unwrap_or(self.target.clone());
+        if is_expr_type::<ZeroOperator>(&result)
+        {
+            return Ok(ZeroOperator::new());
+        }
+
         let derivative = self.derivative.unwrap_or(PertMultichain::new());
 
         Ok(intern_expr(Arc::new(ExpAdjointMap {
