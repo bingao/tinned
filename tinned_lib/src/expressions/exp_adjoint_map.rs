@@ -337,15 +337,21 @@ impl Expr for ExpAdjointMap {
             return Ok(ZeroOperator::new());
         }
 
+        // For finite commutator order like coupled-cluster theory, we return
+        // `ExpAdjointMap` with updated `result`.
+        if self.max_commutator_order < u32::MAX {
+            return ExpAdjointMap::with_result(&self, result).build();
+        }
+
         // For `generator` as a perturbing operator, the
         // Baker-Campbell-Hausdorff (BCH) expansion is simply `result` at zero
-        // perturbation strength
+        // perturbation strength.
         if !self.generator.has_unperturbed_term() {
             return Ok(result);
         }
 
         // `ExpAdjointMapBuilder::build()` should prevent this error, but it is
-        // worthy of checking again
+        // worthy of checking again.
         if self.max_commutator_order == u32::MAX {
             return Err(unreachable_error(
                 "ExpAdjointMap::substitute_zero_perturbations() gets a non-perturbing generator with infinite commutator order",
@@ -355,7 +361,7 @@ impl Expr for ExpAdjointMap {
         }
 
         // We need to apply `substitute_zero_perturbations()` for `generator`
-        // and use its result for BCH expansion
+        // and use its result for the BCH expansion.
         let generator = self.generator.substitute_zero_perturbations(freq_tol).map_err(|e| {
             generic_expression_error(
                 "ExpAdjointMap::substitute_zero_perturbations() failed for generator",
@@ -365,7 +371,7 @@ impl Expr for ExpAdjointMap {
         })?;
 
         // This method expands the exponential adjoint map using the
-        // Baker-Campbell-Hausdorff (BCH) expansion
+        // Baker-Campbell-Hausdorff (BCH) expansion.
         #[inline]
         fn do_bch_expansion(
             generator: &Arc<dyn Expr>,
