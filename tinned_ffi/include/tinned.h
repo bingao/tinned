@@ -422,12 +422,6 @@ tinned_excitation_operator_new (
     TinnedErrorHandle_t * * out_err);
 
 /** <No documentation available> */
-bool
-tinned_exp_adjoint_map_at_zero_perturbations (
-    ExprHandle_t const * h,
-    TinnedErrorHandle_t * * out_err);
-
-/** <No documentation available> */
 PertMultichainHandle_t *
 tinned_exp_adjoint_map_derivative (
     ExprHandle_t const * h,

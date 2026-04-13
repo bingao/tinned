@@ -90,7 +90,6 @@ impl_val_getters!(
     tinned_exp_adjoint_map_is_time_evolution: bool => |ead| ead.is_time_evolution(); default = false,
     tinned_exp_adjoint_map_left_action: bool => |ead| ead.left_action(); default = false,
     tinned_exp_adjoint_map_max_commutator_order: u32 => |ead| ead.max_commutator_order(); default = 0,
-    tinned_exp_adjoint_map_at_zero_perturbations: bool => |ead| ead.at_zero_perturbations(); default = false,
 );
 
 // Get `derivative` (cloned).

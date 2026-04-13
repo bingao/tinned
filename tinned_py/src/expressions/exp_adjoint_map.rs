@@ -125,14 +125,6 @@ impl_expr_getter_interface!(
 );
 
 impl_expr_getter_interface!(
-    fn_name = exp_adjoint_map_at_zero_perturbations,
-    fn_doc = impl_expr_getter_doc!("whether evaluated at zero-field strength", ExpAdjointMap),
-    expr_ty = ExpAdjointMap,
-    out_ty = bool,
-    body = |op: &ExpAdjointMap| Ok(op.at_zero_perturbations())
-);
-
-impl_expr_getter_interface!(
     fn_name = exp_adjoint_map_result,
     fn_doc = impl_expr_getter_doc!("result expression", ExpAdjointMap),
     expr_ty = ExpAdjointMap,
@@ -156,7 +148,6 @@ pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(exp_adjoint_map_is_time_evolution, m)?)?;
     m.add_function(wrap_pyfunction!(exp_adjoint_map_left_action, m)?)?;
     m.add_function(wrap_pyfunction!(exp_adjoint_map_max_commutator_order, m)?)?;
-    m.add_function(wrap_pyfunction!(exp_adjoint_map_at_zero_perturbations, m)?)?;
     m.add_function(wrap_pyfunction!(exp_adjoint_map_result, m)?)?;
     m.add_function(wrap_pyfunction!(exp_adjoint_map_derivative, m)?)?;
 

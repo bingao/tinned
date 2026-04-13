@@ -2,12 +2,16 @@ use std::sync::Arc;
 
 use crate::core::expr_internal::sealed::ExprInternal;
 use crate::core::{Expr, TinnedError};
-use crate::expressions::{AdjointMap, AdjointMode, MatrixAdd, TimeEvolution, ZeroOperator};
+use crate::expressions::{
+    AdjointMap, AdjointMode, MatrixAdd, MatrixMul, Number, TimeEvolution, ZeroOperator,
+};
 use crate::internal::intern_expr;
 use crate::perturbations::{PertMultichain, Perturbation};
 use crate::public::{
     NumberTolerance, downcast_from_arc, expression_error, generic_expression_error, is_expr_type,
+    is_zero_expr,
 };
+use crate::unreachable_error;
 
 // Exponential adjoint map (or conjugation operation in Lie algebra):
 // exp(ad_{X})(Y) = exp(X)*Y*exp(-X) (`left_action` is `true`), or
@@ -21,7 +25,6 @@ pub struct ExpAdjointMap {
     is_time_evolution: bool,
     left_action: bool,
     max_commutator_order: u32,
-    at_zero_perturbations: bool,
     // `result` contains differentiated expression of exponential adjoint map
     result: Arc<dyn Expr>,
     derivative: PertMultichain,
@@ -41,7 +44,6 @@ impl ExpAdjointMap {
             is_time_evolution: false,
             left_action: None,
             max_commutator_order: None,
-            at_zero_perturbations: Some(false),
             result: None,
             derivative: None,
         }
@@ -66,7 +68,6 @@ impl ExpAdjointMap {
             is_time_evolution: true,
             left_action: None,
             max_commutator_order: None,
-            at_zero_perturbations: Some(false),
             result: None,
             derivative: None,
         }
@@ -74,11 +75,7 @@ impl ExpAdjointMap {
 
     // This function and `with_result_and_derivative()` are only used inside this file
     #[inline]
-    fn with_result(
-        &self,
-        result: Arc<dyn Expr>,
-        at_zero_perturbations: Option<bool>,
-    ) -> ExpAdjointMapBuilder {
+    fn with_result(&self, result: Arc<dyn Expr>) -> ExpAdjointMapBuilder {
         ExpAdjointMapBuilder {
             generator: self.generator.clone(),
             generator_derivative_commute: Some(self.generator_derivative_commute),
@@ -86,7 +83,6 @@ impl ExpAdjointMap {
             is_time_evolution: self.is_time_evolution,
             left_action: Some(self.left_action),
             max_commutator_order: Some(self.max_commutator_order),
-            at_zero_perturbations,
             result: Some(result),
             derivative: Some(self.derivative.clone()),
         }
@@ -105,7 +101,6 @@ impl ExpAdjointMap {
             is_time_evolution: self.is_time_evolution,
             left_action: Some(self.left_action),
             max_commutator_order: Some(self.max_commutator_order),
-            at_zero_perturbations: Some(self.at_zero_perturbations),
             result: Some(result),
             derivative: Some(derivative),
         }
@@ -142,11 +137,6 @@ impl ExpAdjointMap {
     }
 
     #[inline]
-    pub fn at_zero_perturbations(&self) -> bool {
-        self.at_zero_perturbations
-    }
-
-    #[inline]
     pub fn result(&self) -> &Arc<dyn Expr> {
         &self.result
     }
@@ -165,7 +155,6 @@ pub struct ExpAdjointMapBuilder {
     is_time_evolution: bool,
     left_action: Option<bool>,
     max_commutator_order: Option<u32>,
-    at_zero_perturbations: Option<bool>,
     result: Option<Arc<dyn Expr>>,
     derivative: Option<PertMultichain>,
 }
@@ -188,12 +177,6 @@ impl ExpAdjointMapBuilder {
         self.max_commutator_order = Some(max_commutator_order);
         self
     }
-
-    //#[inline]
-    //fn at_zero_perturbations(mut self, at_zero_perturbations: bool) -> Self {
-    //    self.at_zero_perturbations = Some(at_zero_perturbations);
-    //    self
-    //}
 
     //#[inline]
     //fn result(mut self, result: Arc<dyn Expr>) -> Self {
@@ -243,12 +226,9 @@ impl ExpAdjointMapBuilder {
             ));
         }
 
-        let at_zero_perturbations = self.at_zero_perturbations.unwrap_or(false);
-
         // Undifferentiated expression of exponential adjoint map is simply `target`
         let result = self.result.unwrap_or(self.target.clone());
-        if is_expr_type::<ZeroOperator>(&result)
-        {
+        if is_expr_type::<ZeroOperator>(&result) {
             return Ok(ZeroOperator::new());
         }
 
@@ -261,7 +241,6 @@ impl ExpAdjointMapBuilder {
             is_time_evolution: self.is_time_evolution,
             left_action,
             max_commutator_order,
-            at_zero_perturbations,
             result,
             derivative,
         })))
@@ -269,23 +248,20 @@ impl ExpAdjointMapBuilder {
 }
 
 impl ExprInternal for ExpAdjointMap {
-    // It is more appropriate to set `at_zero_perturbations` as false after the
-    // functions `replace_expr_children`, `retain_expr_fields` and `replace_expr_self`
     impl_unary_expr_internal_methods!(
         ExpAdjointMap,
         False,
         result,
         true,
-        |this: &ExpAdjointMap, arg| { this.with_result(arg, Some(false)).build() }
+        |this: &ExpAdjointMap, arg| { this.with_result(arg).build() }
     );
 
     #[inline]
     fn hash_key(&self) -> String {
         format!(
-            "ExpAdjointMap({}; {}; {}; {}; {}; {}; {}; {}; [{}])",
+            "ExpAdjointMap({}; {}; {}; {}; {}; {}; {}; [{}])",
             self.left_action,
             self.max_commutator_order,
-            self.at_zero_perturbations,
             self.generator.hash_key(),
             self.generator_derivative_commute,
             self.target.hash_key(),
@@ -303,8 +279,7 @@ impl ExprInternal for ExpAdjointMap {
     #[inline]
     fn deep_eq_superchains(&self, other: &Arc<dyn Expr>) -> bool {
         if let Some(op) = downcast_from_arc::<ExpAdjointMap>(other) {
-            // We treat exponential adjoint maps with different `left_action`
-            // and `at_zero_perturbations` equally
+            // We treat exponential adjoint maps with different `left_action`'s equally
             self.max_commutator_order == op.max_commutator_order
                 && self.generator.deep_eq_superchains(&op.generator)
                 && self.generator_derivative_commute == op.generator_derivative_commute
@@ -321,7 +296,6 @@ impl ExprInternal for ExpAdjointMap {
         if let Some(op) = downcast_from_arc::<ExpAdjointMap>(other) {
             self.left_action == op.left_action
                 && self.max_commutator_order == op.max_commutator_order
-                && self.at_zero_perturbations == op.at_zero_perturbations
                 && &self.generator == &op.generator
                 && self.generator_derivative_commute == op.generator_derivative_commute
                 && &self.target == &op.target
@@ -336,7 +310,7 @@ impl ExprInternal for ExpAdjointMap {
 #[typetag::serde]
 impl Expr for ExpAdjointMap {
     impl_unary_expr_common_methods!(ExpAdjointMap, False, result, |this: &ExpAdjointMap, arg| this
-        .with_result(arg, Some(this.at_zero_perturbations))
+        .with_result(arg)
         .build());
 
     #[inline]
@@ -345,16 +319,12 @@ impl Expr for ExpAdjointMap {
         self.target.has_unperturbed_term()
     }
 
+    //FIXME: test this function
     #[inline]
     fn substitute_zero_perturbations(
         &self,
         freq_tol: Option<NumberTolerance>,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
-        if self.at_zero_perturbations {
-            return Ok(self.clone_expr());
-        }
-
-        //FIXME: should we return expanded `ExpAdjointMap`?
         let result = self.result.substitute_zero_perturbations(freq_tol.clone()).map_err(|e| {
             generic_expression_error(
                 "ExpAdjointMap::substitute_zero_perturbations() failed for result",
@@ -363,7 +333,134 @@ impl Expr for ExpAdjointMap {
             )
         })?;
 
-        self.with_result(result, Some(true)).build()
+        if is_zero_expr(&result, freq_tol.clone()) {
+            return Ok(ZeroOperator::new());
+        }
+
+        // For `generator` as a perturbing operator, the
+        // Baker-Campbell-Hausdorff (BCH) expansion is simply `result` at zero
+        // perturbation strength
+        if !self.generator.has_unperturbed_term() {
+            return Ok(result);
+        }
+
+        // `ExpAdjointMapBuilder::build()` should prevent this error, but it is
+        // worthy of checking again
+        if self.max_commutator_order == u32::MAX {
+            return Err(unreachable_error(
+                "ExpAdjointMap::substitute_zero_perturbations() gets a non-perturbing generator with infinite commutator order",
+                &self.generator,
+                None,
+            ));
+        }
+
+        // We need to apply `substitute_zero_perturbations()` for `generator`
+        // and use its result for BCH expansion
+        let generator = self.generator.substitute_zero_perturbations(freq_tol).map_err(|e| {
+            generic_expression_error(
+                "ExpAdjointMap::substitute_zero_perturbations() failed for generator",
+                self,
+                Some(Box::new(e)),
+            )
+        })?;
+
+        // This method expands the exponential adjoint map using the
+        // Baker-Campbell-Hausdorff (BCH) expansion
+        #[inline]
+        fn do_bch_expansion(
+            generator: &Arc<dyn Expr>,
+            target: &Arc<dyn Expr>,
+            max_commutator_order: u32,
+            left_action: Option<bool>,
+            adjoint_mode: Option<AdjointMode>,
+        ) -> Result<Vec<Arc<dyn Expr>>, TinnedError> {
+            let mut terms = Vec::with_capacity((max_commutator_order as usize) + 1);
+            terms.push(target.clone());
+
+            if max_commutator_order == 0 {
+                return Ok(terms);
+            }
+
+            let mut generators = Vec::with_capacity(max_commutator_order as usize);
+            let mut denom: i64 = 1;
+
+            for order in 1..=max_commutator_order {
+                generators.push(generator.clone());
+
+                let adj_map =
+                    AdjointMap::new(generators.clone(), target.clone(), left_action, adjoint_mode)?;
+
+                if order == 1 {
+                    terms.push(adj_map);
+                } else {
+                    denom *= order as i64;
+                    let coefficient =
+                        Number::from_rational(num_rational::Rational64::new(1, denom));
+                    terms.push(MatrixMul::new(vec![coefficient, adj_map])?);
+                }
+            }
+
+            Ok(terms)
+        }
+
+        // Now, we will apply the BCH expansion for `generator` and `result`,
+        // which will result into an `MatrixAdd`.  `result` is either (i)
+        // undifferentiated `target`, (ii) an `AdjointMap` when only
+        // `generator` was differentiated, or (iii) an `MatrixAdd` of
+        // `AdjointMap`'s and differentiated `target`.
+        let estimated_terms = if let Some(mat_add) = downcast_from_arc::<MatrixAdd>(&result) {
+            mat_add.terms().len() * ((self.max_commutator_order as usize) + 1)
+        } else {
+            (self.max_commutator_order as usize) + 1
+        };
+
+        let mut adj_maps = Vec::with_capacity(estimated_terms);
+
+        let adjoint_mode = if self.generator_derivative_commute {
+            Some(AdjointMode::Commutative)
+        } else {
+            Some(AdjointMode::Symmetric)
+        };
+
+        // A helper closure to process `result` or its terms when it is an `MatrixAdd`
+        let mut process_term = |term: &Arc<dyn Expr>| -> Result<(), TinnedError> {
+            let commutator_order = if let Some(adj_map) = downcast_from_arc::<AdjointMap>(term) {
+                adj_map.generators().len() as u32
+            } else {
+                0
+            };
+
+            if commutator_order > self.max_commutator_order {
+                return Err(unreachable_error(
+                    format!(
+                        "ExpAdjointMap::substitute_zero_perturbations() got a target violating its maximum commutator order {}",
+                        self.max_commutator_order
+                    ),
+                    term,
+                    None,
+                ));
+            }
+
+            let bch_terms = do_bch_expansion(
+                &generator,
+                term,
+                self.max_commutator_order - commutator_order,
+                Some(self.left_action),
+                adjoint_mode,
+            )?;
+            adj_maps.extend(bch_terms);
+            Ok(())
+        };
+
+        if let Some(mat_add) = downcast_from_arc::<MatrixAdd>(&result) {
+            for term in mat_add.terms() {
+                process_term(term)?;
+            }
+        } else {
+            process_term(&result)?;
+        }
+
+        MatrixAdd::new(adj_maps)
     }
 
     //FIXME: test this function
@@ -444,7 +541,7 @@ impl Expr for ExpAdjointMap {
                         adj_maps.push(term.clone());
                     }
                 } else {
-                    // differentiated `target`
+                    // `term` is a differentiated `target`
                     terms.push(AdjointMap::new(
                         vec![diff_generator.clone()],
                         term.clone(),
@@ -455,14 +552,12 @@ impl Expr for ExpAdjointMap {
             }
         } else if let Some(adj_map) = downcast_from_arc::<AdjointMap>(&self.result) {
             if adj_map.generators().len() as u32 + 1 < self.max_commutator_order {
-                terms.push(
-                    adj_map.with_added_generator(diff_generator.clone(), adjoint_mode)?,
-                );
+                terms.push(adj_map.with_added_generator(diff_generator.clone(), adjoint_mode)?);
             } else {
                 adj_maps.push(self.result.clone());
             }
         } else {
-            // `result` is undifferentiated `target`
+            // `result` is the undifferentiated `target`
             terms.push(AdjointMap::new(
                 vec![diff_generator],
                 self.result.clone(),
@@ -492,7 +587,6 @@ impl PartialEq for ExpAdjointMap {
             && self.is_time_evolution == other.is_time_evolution
             && self.left_action == other.left_action
             && self.max_commutator_order == other.max_commutator_order
-            && self.at_zero_perturbations == other.at_zero_perturbations
             && self.derivative == other.derivative
             && &self.result == &other.result
     }
@@ -512,7 +606,7 @@ impl std::fmt::Display for ExpAdjointMap {
             write!(f, "; {}", self.max_commutator_order)?;
         }
 
-        write!(f, "])({}; {})^{}", self.target, self.at_zero_perturbations, self.derivative)
+        write!(f, "])({})^{}", self.target, self.derivative)
     }
 }
 
