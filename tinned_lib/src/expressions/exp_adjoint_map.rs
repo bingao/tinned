@@ -444,7 +444,7 @@ impl Expr for ExpAdjointMap {
         let adjoint_mode = if self.generator_derivative_commute {
             Some(AdjointMode::Commutative)
         } else {
-            Some(AdjointMode::Symmetric)
+            Some(AdjointMode::Symmetrized)
         };
 
         // A helper closure to process `result` or its terms when it is an `MatrixAdd`
@@ -551,7 +551,7 @@ impl Expr for ExpAdjointMap {
         let adjoint_mode = if self.generator_derivative_commute {
             Some(AdjointMode::Commutative)
         } else {
-            Some(AdjointMode::Symmetric)
+            Some(AdjointMode::Symmetrized)
         };
 
         if let Some(mat_add) = downcast_from_arc::<MatrixAdd>(&self.result) {
@@ -616,7 +616,10 @@ impl Expr for ExpAdjointMap {
             result,
             |arg: &Arc<dyn Expr>| arg.eliminate(parameter, perturbations, min_order),
             "ExpAdjointMap::eliminate() failed",
-            |this: &ExpAdjointMap, generator, result| this.with_result(result).generator(generator).build()
+            |this: &ExpAdjointMap, generator, result| this
+                .with_result(result)
+                .generator(generator)
+                .build()
         )
     }
 
@@ -655,7 +658,10 @@ impl Expr for ExpAdjointMap {
             result,
             |arg: &Arc<dyn Expr>| arg.remove(set),
             "ExpAdjointMap::remove() failed",
-            |this: &ExpAdjointMap, generator, result| this.with_result(result).generator(generator).build()
+            |this: &ExpAdjointMap, generator, result| this
+                .with_result(result)
+                .generator(generator)
+                .build()
         )
     }
 }

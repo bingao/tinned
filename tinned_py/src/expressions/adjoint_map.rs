@@ -31,11 +31,11 @@ impl<'py> FromPyObject<'_, 'py> for PyAdjointMode {
 
         let mode = match s {
             "commutative" => AdjointMode::Commutative,
-            "symmetric" => AdjointMode::Symmetric,
+            "symmetrized" => AdjointMode::Symmetrized,
             "ordered" => AdjointMode::Ordered,
             _ => {
                 return Err(PyValueError::new_err(
-                    "adjoint_mode must be 'commutative', 'symmetric', or 'ordered'",
+                    "adjoint_mode must be 'commutative', 'symmetrized', or 'ordered'",
                 ));
             },
         };
@@ -52,7 +52,7 @@ impl<'py> IntoPyObject<'py> for PyAdjointMode {
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let s = match self.0 {
             AdjointMode::Commutative => "commutative",
-            AdjointMode::Symmetric => "symmetric",
+            AdjointMode::Symmetrized => "symmetrized",
             AdjointMode::Ordered => "ordered",
         };
 
@@ -68,7 +68,7 @@ impl<'py> IntoPyObject<'py> for PyAdjointMode {
 ///   left_action: If provided, sets whether the adjoint map acts
 ///                from the left (default True).
 ///   adjoint_mode: mode of an adjoint map or its generators which can be
-///                 either "commutative", "symmetric", or "ordered" (default
+///                 either "commutative", "symmetrized", or "ordered" (default
 ///                 "commutative").
 ///
 /// Returns:

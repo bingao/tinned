@@ -17,7 +17,7 @@ use crate::public::{
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum AdjointMode {
     Commutative, // generators and their derivatives commute -> canonical order
-    Symmetric,   // symmetrized nested commutator
+    Symmetrized, // symmetrized nested commutator
     Ordered,     // noncommutative generators, order preserved
 }
 
@@ -25,7 +25,7 @@ impl std::fmt::Display for AdjointMode {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let s = match self {
             AdjointMode::Commutative => "commutative",
-            AdjointMode::Symmetric => "symmetric",
+            AdjointMode::Symmetrized => "symmetrized",
             AdjointMode::Ordered => "ordered",
         };
         write!(f, "{s}")
@@ -39,8 +39,8 @@ impl std::fmt::Display for AdjointMode {
 //
 // `generators` holds x0, x1, ..., xn, and y is stored in `target`.
 //
-// For `AdjointMode` as `Commutative` and `Symmetric`, we sort `generators` in
-// a deterministic way without changing the result of adjoint map.
+// For `AdjointMode` as `Commutative` and `Symmetrized`, we sort `generators`
+// in a deterministic way without changing the result of adjoint map.
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct AdjointMap {
     generators: Vec<Arc<dyn Expr>>,
@@ -176,12 +176,12 @@ impl AdjointMap {
         other: &Self,
     ) -> Option<(Vec<Arc<dyn Expr>>, Vec<Arc<dyn Expr>>)> {
         let same_mode = self.adjoint_mode == other.adjoint_mode;
-        let either_symmetric = matches!(self.adjoint_mode, AdjointMode::Symmetric)
-            || matches!(other.adjoint_mode, AdjointMode::Symmetric);
+        let either_symmetrized = matches!(self.adjoint_mode, AdjointMode::Symmetrized)
+            || matches!(other.adjoint_mode, AdjointMode::Symmetrized);
 
-        // An adjoint map with `Symmetric` mode can only be compared to the
+        // An adjoint map with `Symmetrized` mode can only be compared to the
         // other with the same mode
-        if either_symmetric && !same_mode {
+        if either_symmetrized && !same_mode {
             return None;
         }
 

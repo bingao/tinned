@@ -73,7 +73,7 @@ enum AdjointMode {
     /** <No documentation available> */
     ADJOINT_MODE_COMMUTATIVE,
     /** <No documentation available> */
-    ADJOINT_MODE_SYMMETRIC,
+    ADJOINT_MODE_SYMMETRIZED,
     /** <No documentation available> */
     ADJOINT_MODE_ORDERED,
 }
