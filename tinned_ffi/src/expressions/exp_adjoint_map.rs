@@ -58,16 +58,23 @@ pub extern "C" fn tinned_exp_adjoint_map_time_evolution_new(
     let Some(generator) = generator else {
         tinned_error_new(
             out_err,
-            generic_error("Null generator passed to tinned_exp_adjoint_map_time_evolution_new", None),
+            generic_error(
+                "Null generator passed to tinned_exp_adjoint_map_time_evolution_new",
+                None,
+            ),
         );
         return None;
     };
     let generator_arc = generator.clone_arc();
 
-    match ExpAdjointMap::builder_time_evolution(generator_arc, is_forward, Some(generator_derivative_commute))
-        .left_action(left_action)
-        .max_commutator_order(max_commutator_order)
-        .build()
+    match ExpAdjointMap::builder_time_evolution(
+        generator_arc,
+        is_forward,
+        Some(generator_derivative_commute),
+    )
+    .left_action(left_action)
+    .max_commutator_order(max_commutator_order)
+    .build()
     {
         Ok(expr_arc) => Some(ExprBox::new(ExprHandle::new(expr_arc))),
         Err(e) => {

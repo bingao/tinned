@@ -49,14 +49,8 @@ pub extern "C" fn tinned_time_evolution_derivative(
     h: Option<&ExprHandle>,
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> Option<PertMultichainBox> {
-    ffi_map_expr_as::<TimeEvolution, _>(
-        h,
-        out_err,
-        "tinned_time_evolution_derivative",
-        |op| {
-            op.derivative().map(|chain| {
-                PertMultichainBox::new(PertMultichainHandle::new(Arc::new(chain.clone())))
-            })
-        },
-    )
+    ffi_map_expr_as::<TimeEvolution, _>(h, out_err, "tinned_time_evolution_derivative", |op| {
+        op.derivative()
+            .map(|chain| PertMultichainBox::new(PertMultichainHandle::new(Arc::new(chain.clone()))))
+    })
 }

@@ -61,7 +61,10 @@ impl PyExpr {
     /// Returns:
     ///   A PyExpr wrapping the canonicalized expression.
     #[pyo3(signature = (freq_tol=None))]
-    fn substitute_zero_perturbations(&self, freq_tol: Option<PyNumberTolerance>) -> PyResult<PyExpr> {
+    fn substitute_zero_perturbations(
+        &self,
+        freq_tol: Option<PyNumberTolerance>,
+    ) -> PyResult<PyExpr> {
         let tol = freq_tol.map(|t| t.into_inner());
         let out = self.inner.substitute_zero_perturbations(tol).map_err(to_pyerr)?;
         Ok(PyExpr::new(out))

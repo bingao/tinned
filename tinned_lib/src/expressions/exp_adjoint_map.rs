@@ -1,3 +1,4 @@
+use std::collections::{BTreeMap, HashSet};
 use std::sync::Arc;
 
 use crate::core::expr_internal::sealed::ExprInternal;
@@ -21,11 +22,13 @@ pub struct ExpAdjointMap {
     generator: Arc<dyn Expr>,
     // Whether generator and its derivatives commute
     generator_derivative_commute: bool,
+    // `target` is mostly used for zeorth order
     target: Arc<dyn Expr>,
     is_time_evolution: bool,
     left_action: bool,
     max_commutator_order: u32,
-    // `result` contains differentiated expression of exponential adjoint map
+    // `result` contains differentiated expression of exponential adjoint map,
+    // and can be viewed as "new" `target`
     result: Arc<dyn Expr>,
     derivative: PertMultichain,
 }
@@ -161,10 +164,28 @@ pub struct ExpAdjointMapBuilder {
 
 impl ExpAdjointMapBuilder {
     #[inline]
+    fn generator(mut self, generator: Arc<dyn Expr>) -> Self {
+        self.generator = generator;
+        self
+    }
+
+    #[inline]
     pub fn generator_derivative_commute(mut self, generator_derivative_commute: bool) -> Self {
         self.generator_derivative_commute = Some(generator_derivative_commute);
         self
     }
+
+    //#[inline]
+    //fn target(mut self, target: Arc<dyn Expr>) -> Self {
+    //    self.target = target;
+    //    self
+    //}
+
+    //#[inline]
+    //fn is_time_evolution(mut self, is_time_evolution: bool) -> Self {
+    //    self.is_time_evolution = is_time_evolution;
+    //    self
+    //}
 
     #[inline]
     pub fn left_action(mut self, left_action: bool) -> Self {
@@ -309,9 +330,7 @@ impl ExprInternal for ExpAdjointMap {
 
 #[typetag::serde]
 impl Expr for ExpAdjointMap {
-    impl_unary_expr_common_methods!(ExpAdjointMap, False, result, |this: &ExpAdjointMap, arg| this
-        .with_result(arg)
-        .build());
+    impl_expr_common_methods!(false);
 
     #[inline]
     fn has_unperturbed_term(&self) -> bool {
@@ -581,6 +600,63 @@ impl Expr for ExpAdjointMap {
             adj_maps.push(new_ead_map);
             MatrixAdd::new(adj_maps)
         }
+    }
+
+    #[inline]
+    fn eliminate(
+        &self,
+        parameter: &Arc<dyn Expr>,
+        perturbations: &[Arc<Perturbation>],
+        min_order: u32,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        impl_binary_expr_arg_operation!(
+            self,
+            false,
+            generator,
+            result,
+            |arg: &Arc<dyn Expr>| arg.eliminate(parameter, perturbations, min_order),
+            "ExpAdjointMap::eliminate() failed",
+            |this: &ExpAdjointMap, generator, result| this.with_result(result).generator(generator).build()
+        )
+    }
+
+    #[inline]
+    fn exist_any(&self, set: &HashSet<Arc<dyn Expr>>, include_derivatives: bool) -> bool {
+        // `target` should exists in `result`
+        self.match_self_any(set, include_derivatives)
+            || self.generator.exist_any(set, include_derivatives)
+            || self.result.exist_any(set, include_derivatives)
+    }
+
+    #[inline]
+    fn find_superchains(&self, s: &Arc<dyn Expr>) -> BTreeMap<u32, HashSet<Arc<dyn Expr>>> {
+        if self.deep_eq_superchains(s) {
+            BTreeMap::from([(self.total_order(), HashSet::from([self.clone_expr()]))])
+        } else {
+            let mut result = self.generator.find_superchains(s);
+            for (order, subset) in self.result.find_superchains(s) {
+                result.entry(order).or_default().extend(subset);
+            }
+
+            result
+        }
+    }
+
+    #[inline]
+    fn remove(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
+        if self.match_self_any(set, false) {
+            return Ok(ZeroOperator::new());
+        }
+
+        impl_binary_expr_arg_operation!(
+            self,
+            false,
+            generator,
+            result,
+            |arg: &Arc<dyn Expr>| arg.remove(set),
+            "ExpAdjointMap::remove() failed",
+            |this: &ExpAdjointMap, generator, result| this.with_result(result).generator(generator).build()
+        )
     }
 }
 

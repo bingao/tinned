@@ -162,7 +162,9 @@ pub fn tinned_expr_has_unperturbed_term(
     h: Option<&ExprHandle>,
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> bool {
-    ffi_expr_return_val(h, "tinned_expr_has_unperturbed_term", out_err, |e| Ok(e.has_unperturbed_term()))
+    ffi_expr_return_val(h, "tinned_expr_has_unperturbed_term", out_err, |e| {
+        Ok(e.has_unperturbed_term())
+    })
 }
 
 // Cleans `TimeEvolution` and unperturbed `BasisTimeEvolution` objects.
