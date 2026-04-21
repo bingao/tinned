@@ -30,8 +30,3 @@ macro_rules! define_interner {
 
 define_interner!(intern_expr, dyn Expr, EXPR_INTERNER);
 define_interner!(intern_pert, Perturbation, PERT_INTERNER);
-
-#[inline]
-pub(crate) fn any_interned_expr_matches(predicate: impl Fn(&Arc<dyn Expr>) -> bool) -> bool {
-    EXPR_INTERNER.iter().any(|entry| predicate(entry.value()))
-}

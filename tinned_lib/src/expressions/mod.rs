@@ -51,7 +51,7 @@ pub use number::Number;
 pub use one_elec_matrix::{OneElecMatrix, OneElecMatrixBuilder};
 pub use power::Power;
 pub use residue_parameter::{ResidueParameter, ResidueParameterBuilder};
-pub use sub_expr::{EliminationRule, SubExpr};
+pub use sub_expr::{EliminationRule, ReplacementRule, RetainmentRule, SubExpr};
 pub use symbol::Symbol;
 pub use time_evolution::{TimeEvolution, TimeEvolutionBuilder};
 pub use trace::Trace;

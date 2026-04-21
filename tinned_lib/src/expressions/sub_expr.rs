@@ -1,13 +1,14 @@
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
+use std::fmt;
 use std::sync::Arc;
 
 use crate::core::expr_internal::sealed::ExprInternal;
 use crate::core::{Expr, TinnedError};
-use crate::internal::{any_interned_expr_matches, intern_expr, join_mapped};
+use crate::internal::{intern_expr, join_mapped};
 use crate::perturbations::{PertMultichain, Perturbation};
 use crate::public::{
-    NumberTolerance, downcast_from_arc, expression_error, generic_expression_error,
-    get_number_tolerance, is_zero_expr, unreachable_error,
+    NumberTolerance, downcast_from_arc, generic_expression_error, get_number_tolerance,
+    is_zero_expr,
 };
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -47,30 +48,10 @@ impl EliminationRule {
     pub fn perturbations(&self) -> &[Arc<Perturbation>] {
         &self.perturbations
     }
-
-    #[inline]
-    pub fn hash_key(&self) -> String {
-        format!(
-            "EliminationRule({}; {}; [{}])",
-            self.parameter.hash_key(),
-            self.min_order,
-            join_mapped(self.perturbations.iter(), ",", |p| p.hash_key()),
-        )
-    }
 }
 
-impl PartialEq for EliminationRule {
-    fn eq(&self, other: &Self) -> bool {
-        &self.parameter == &other.parameter
-            && self.min_order == other.min_order
-            && self.perturbations == other.perturbations
-    }
-}
-
-impl Eq for EliminationRule {}
-
-impl std::fmt::Display for EliminationRule {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+impl fmt::Display for EliminationRule {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
             "({}; {}; [{}])",
@@ -81,28 +62,242 @@ impl std::fmt::Display for EliminationRule {
     }
 }
 
-// A `SubExpr` is uniquely determined by its fields `name`, `expression` and `derivative`.
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct ReplacementRule {
+    map: HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
+    include_derivatives: bool,
+}
+
+impl ReplacementRule {
+    pub fn new(map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>, include_derivatives: bool) -> Self {
+        Self {
+            map: map.clone(),
+            include_derivatives,
+        }
+    }
+
+    #[inline]
+    pub fn map(&self) -> &HashMap<Arc<dyn Expr>, Arc<dyn Expr>> {
+        &self.map
+    }
+
+    #[inline]
+    pub fn include_derivatives(&self) -> bool {
+        self.include_derivatives
+    }
+}
+
+impl fmt::Display for ReplacementRule {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{{")?;
+
+        for (k, v) in &self.map {
+            write!(f, "{} -> {}; ", k, v)?;
+        }
+
+        write!(f, "{}}}", self.include_derivatives)
+    }
+}
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct RetainmentRule {
+    s: Arc<dyn Expr>,
+    include_derivatives: bool,
+}
+
+impl RetainmentRule {
+    pub fn new(s: &Arc<dyn Expr>, include_derivatives: bool) -> Self {
+        Self {
+            s: s.clone(),
+            include_derivatives,
+        }
+    }
+
+    #[inline]
+    pub fn s(&self) -> &Arc<dyn Expr> {
+        &self.s
+    }
+
+    #[inline]
+    pub fn include_derivatives(&self) -> bool {
+        self.include_derivatives
+    }
+}
+
+impl fmt::Display for RetainmentRule {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{{{}; {}}}", self.s, self.include_derivatives)
+    }
+}
+
+// A `SubExpr` represents one high level concrete expression struct with
+// `name`, and `expression` containing its detail.
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct SubExpr {
     name: String,
     expression: Arc<dyn Expr>,
+    // Users may give one same `name` but different `expression`'s when they
+    // build `SubExpr`, which is not reasonable. We do not prevent it, but we
+    // introduce a unique `identifier` that combines `name` and the hash key of
+    // `expression` for the first time the `SubExpr` was built. Instead of
+    // using `name`, we actually use `identifier` to distinguish one `SubExpr`
+    // from others. Note that `identifier` should not change in different
+    // methods of the trait `Expr`.
+    identifier: String,
     derivative: PertMultichain,
-    // The use of elimination rules is mostly to let users track which
-    // parameters have been eliminated. We do not use it for comparison.
+    // The following fields are mostly used to let users track which methods
+    // have been applied to `SubExpr`. We do not use them for comparison of
+    // `SubExpr`'s.
+    at_zero_perturbations: bool,
     elimination_rules: Vec<EliminationRule>,
+    removal_rules: Vec<HashSet<Arc<dyn Expr>>>,
+    replacement_rules: Vec<ReplacementRule>,
+    retainment_rules: Vec<RetainmentRule>,
 }
 
 impl SubExpr {
     #[inline]
-    pub fn builder(name: impl Into<String>, expression: Arc<dyn Expr>) -> SubExprBuilder {
-        SubExprBuilder {
-            name: name.into(),
+    pub fn new(name: impl Into<String>, expression: Arc<dyn Expr>) -> Arc<dyn Expr> {
+        let name = name.into();
+        let identifier = format!("{}({})", name, expression.hash_key());
+
+        intern_expr(Arc::new(Self {
+            name,
             expression,
-            derivative: None,
-            elimination_rules: None,
-            // We will always check the name conflict when users try to build a `SubExpr`
-            check_name_conflict: true,
-        }
+            identifier,
+            derivative: PertMultichain::new(),
+            at_zero_perturbations: false,
+            elimination_rules: Vec::new(),
+            removal_rules: Vec::new(),
+            replacement_rules: Vec::new(),
+            retainment_rules: Vec::new(),
+        }))
+    }
+
+    #[inline]
+    fn with_zero_perturbations(&self, expression: Arc<dyn Expr>) -> Arc<dyn Expr> {
+        intern_expr(Arc::new(Self {
+            name: self.name.clone(),
+            expression,
+            identifier: self.identifier.clone(),
+            derivative: self.derivative.clone(),
+            at_zero_perturbations: true,
+            elimination_rules: self.elimination_rules.clone(),
+            removal_rules: self.removal_rules.clone(),
+            replacement_rules: self.replacement_rules.clone(),
+            retainment_rules: self.retainment_rules.clone(),
+        }))
+    }
+
+    #[inline]
+    fn with_differentiation(
+        &self,
+        expression: Arc<dyn Expr>,
+        s: &Arc<Perturbation>,
+    ) -> Arc<dyn Expr> {
+        intern_expr(Arc::new(Self {
+            name: self.name.clone(),
+            expression,
+            identifier: self.identifier.clone(),
+            derivative: self.derivative.with_added_perturbation(s),
+            at_zero_perturbations: self.at_zero_perturbations,
+            elimination_rules: self.elimination_rules.clone(),
+            removal_rules: self.removal_rules.clone(),
+            replacement_rules: self.replacement_rules.clone(),
+            retainment_rules: self.retainment_rules.clone(),
+        }))
+    }
+
+    #[inline]
+    fn with_elimination(
+        &self,
+        expression: Arc<dyn Expr>,
+        parameter: &Arc<dyn Expr>,
+        perturbations: &[Arc<Perturbation>],
+        min_order: u32,
+    ) -> Arc<dyn Expr> {
+        let mut elimination_rules = self.elimination_rules.clone();
+        elimination_rules.push(EliminationRule::new(parameter.clone(), min_order, perturbations));
+
+        intern_expr(Arc::new(Self {
+            name: self.name.clone(),
+            expression,
+            identifier: self.identifier.clone(),
+            derivative: self.derivative.clone(),
+            at_zero_perturbations: self.at_zero_perturbations,
+            elimination_rules,
+            removal_rules: self.removal_rules.clone(),
+            replacement_rules: self.replacement_rules.clone(),
+            retainment_rules: self.retainment_rules.clone(),
+        }))
+    }
+
+    #[inline]
+    fn with_removal(
+        &self,
+        expression: Arc<dyn Expr>,
+        set: &HashSet<Arc<dyn Expr>>,
+    ) -> Arc<dyn Expr> {
+        let mut removal_rules = self.removal_rules.clone();
+        removal_rules.push(set.clone());
+
+        intern_expr(Arc::new(Self {
+            name: self.name.clone(),
+            expression,
+            identifier: self.identifier.clone(),
+            derivative: self.derivative.clone(),
+            at_zero_perturbations: self.at_zero_perturbations,
+            elimination_rules: self.elimination_rules.clone(),
+            removal_rules,
+            replacement_rules: self.replacement_rules.clone(),
+            retainment_rules: self.retainment_rules.clone(),
+        }))
+    }
+
+    #[inline]
+    fn with_replacement(
+        &self,
+        expression: Arc<dyn Expr>,
+        map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
+        include_derivatives: bool,
+    ) -> Arc<dyn Expr> {
+        let mut replacement_rules = self.replacement_rules.clone();
+        replacement_rules.push(ReplacementRule::new(map, include_derivatives));
+
+        intern_expr(Arc::new(Self {
+            name: self.name.clone(),
+            expression,
+            identifier: self.identifier.clone(),
+            derivative: self.derivative.clone(),
+            at_zero_perturbations: self.at_zero_perturbations,
+            elimination_rules: self.elimination_rules.clone(),
+            removal_rules: self.removal_rules.clone(),
+            replacement_rules,
+            retainment_rules: self.retainment_rules.clone(),
+        }))
+    }
+
+    #[inline]
+    fn with_retainment(
+        &self,
+        expression: Arc<dyn Expr>,
+        s: &Arc<dyn Expr>,
+        include_derivatives: bool,
+    ) -> Arc<dyn Expr> {
+        let mut retainment_rules = self.retainment_rules.clone();
+        retainment_rules.push(RetainmentRule::new(s, include_derivatives));
+
+        intern_expr(Arc::new(Self {
+            name: self.name.clone(),
+            expression,
+            identifier: self.identifier.clone(),
+            derivative: self.derivative.clone(),
+            at_zero_perturbations: self.at_zero_perturbations,
+            elimination_rules: self.elimination_rules.clone(),
+            removal_rules: self.removal_rules.clone(),
+            replacement_rules: self.replacement_rules.clone(),
+            retainment_rules,
+        }))
     }
 
     #[inline]
@@ -116,141 +311,87 @@ impl SubExpr {
     }
 
     #[inline]
+    pub fn identifier(&self) -> &str {
+        &self.identifier
+    }
+
+    #[inline]
     pub fn derivative(&self) -> &PertMultichain {
         &self.derivative
+    }
+
+    #[inline]
+    pub fn at_zero_perturbations(&self) -> bool {
+        self.at_zero_perturbations
     }
 
     #[inline]
     pub fn elimination_rules(&self) -> &[EliminationRule] {
         &self.elimination_rules
     }
-}
 
-// This function is used for checking whether users try to build a new
-// undifferentiated `SubExpr` with the same name but different `expression`
-#[inline]
-fn subexpr_name_conflict(name: &str, expression: &Arc<dyn Expr>) -> bool {
-    any_interned_expr_matches(|expr| {
-        let Some(subexpr) = downcast_from_arc::<SubExpr>(expr) else {
-            return false;
-        };
-
-        subexpr.name == name
-            && subexpr.derivative.is_empty()
-            && subexpr.elimination_rules.is_empty()
-            && &subexpr.expression != expression
-    })
-}
-
-#[derive(Debug)]
-pub struct SubExprBuilder {
-    name: String,
-    expression: Arc<dyn Expr>,
-    derivative: Option<PertMultichain>,
-    elimination_rules: Option<Vec<EliminationRule>>,
-    check_name_conflict: bool,
-}
-
-impl SubExprBuilder {
-    // The following methods are ONLY used inside this file
     #[inline]
-    fn derivative(mut self, derivative: PertMultichain) -> Self {
-        self.derivative = Some(derivative);
-        self
+    pub fn removal_rules(&self) -> &[HashSet<Arc<dyn Expr>>] {
+        &self.removal_rules
     }
 
     #[inline]
-    fn elimination_rules(mut self, elimination_rules: Vec<EliminationRule>) -> Self {
-        self.elimination_rules = Some(elimination_rules);
-        self
+    pub fn replacement_rules(&self) -> &[ReplacementRule] {
+        &self.replacement_rules
     }
 
-    // This function should MOSTLY be called by `SubExpr::builder()` function
     #[inline]
-    fn check_name_conflict(mut self, check_name_conflict: bool) -> Self {
-        self.check_name_conflict = check_name_conflict;
-        self
-    }
-
-    pub fn build(self) -> Result<Arc<dyn Expr>, TinnedError> {
-        if is_zero_expr(&self.expression, None) {
-            return impl_zero_expr!(self.expression.is_scalar());
-        }
-
-        let derivative = self.derivative.unwrap_or(PertMultichain::new());
-        if self.check_name_conflict && !derivative.is_empty() {
-            return Err(unreachable_error(
-                format!(
-                    "A new SubExpr {} cannot have derivative {}",
-                    self.name,
-                    derivative.to_string()
-                ),
-                &self.expression,
-                None,
-            ));
-        }
-
-        let mut elimination_rules = self.elimination_rules.unwrap_or_default();
-        elimination_rules.sort_by_key(|rule| rule.hash_key());
-        if self.check_name_conflict && !elimination_rules.is_empty() {
-            return Err(unreachable_error(
-                format!(
-                    "A new SubExpr {} cannot have elimination rules {}",
-                    self.name,
-                    join_mapped(elimination_rules.iter(), ";", |rule| rule.to_string()),
-                ),
-                &self.expression,
-                None,
-            ));
-        }
-
-        // Check whether users try to build a new undifferentiated `SubExpr`
-        // with the same name but different `expression`
-        if self.check_name_conflict {
-            if subexpr_name_conflict(&self.name, &self.expression) {
-                return Err(expression_error(
-                    format!(
-                        "A SubExpr exists with the same name {} but different expression",
-                        self.name
-                    ),
-                    &self.expression,
-                    None,
-                ));
-            }
-        }
-
-        Ok(intern_expr(Arc::new(SubExpr {
-            name: self.name,
-            expression: self.expression,
-            derivative,
-            elimination_rules,
-        })))
+    pub fn retainment_rules(&self) -> &[RetainmentRule] {
+        &self.retainment_rules
     }
 }
 
 impl ExprInternal for SubExpr {
-    impl_unary_expr_internal_methods!(
-        SubExpr,
-        Argument,
-        expression,
-        true,
-        |this: &SubExpr, arg| {
-            SubExpr::builder(this.name.clone(), arg)
-                .derivative(this.derivative.clone())
-                .elimination_rules(this.elimination_rules.clone())
-                .check_name_conflict(false)
-                .build()
+    impl_expr_internal_methods!(SubExpr, true);
+
+    #[inline]
+    fn replace_expr_children(
+        &self,
+        map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
+        include_derivatives: bool,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        impl_unary_expr_arg_operation!(
+            self,
+            Argument,
+            expression,
+            |arg: &Arc<dyn Expr>| arg.replace(map, include_derivatives),
+            "SubExpr::replace_expr_children() failed",
+            |this: &SubExpr, arg| Ok(this.with_replacement(arg, map, include_derivatives))
+        )
+    }
+
+    #[inline]
+    fn retain_single(
+        &self,
+        s: &Arc<dyn Expr>,
+        include_derivatives: bool,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        if self.match_self_single(s, include_derivatives) {
+            return Ok(self.clone_expr());
         }
-    );
+
+        impl_unary_expr_arg_operation!(
+            self,
+            Argument,
+            expression,
+            |arg: &Arc<dyn Expr>| arg.retain_single(s, include_derivatives),
+            "SubExpr::retain_single() failed",
+            |this: &SubExpr, arg| Ok(this.with_retainment(arg, s, include_derivatives))
+        )
+    }
 
     #[inline]
     fn hash_key(&self) -> String {
         format!(
-            "SubExpr({}; {{{}}}; [{}]; [{}])",
-            self.name,
+            "SubExpr({}; {{{}}}; [{}])",
+            self.identifier,
             self.expression.hash_key(),
             self.derivative.hash_key(),
-            join_mapped(self.elimination_rules.iter(), ";", |rule| rule.hash_key()),
         )
     }
 
@@ -265,8 +406,9 @@ impl ExprInternal for SubExpr {
     #[inline]
     fn deep_eq_superchains(&self, other: &Arc<dyn Expr>) -> bool {
         if let Some(op) = downcast_from_arc::<SubExpr>(other) {
-            // Since this function is used by `find_superchains()`, we check ONLY `name` and `derivative`.
-            self.name == op.name && self.derivative.is_subchain(&op.derivative)
+            // Since this function is used by `find_superchains()`, we check
+            // ONLY `identifier` and `derivative`.
+            self.identifier == op.identifier && self.derivative.is_subchain(&op.derivative)
         } else {
             false
         }
@@ -275,7 +417,7 @@ impl ExprInternal for SubExpr {
     #[inline]
     fn eq_by_superchains(&self, other: &Arc<dyn Expr>) -> bool {
         if let Some(op) = downcast_from_arc::<SubExpr>(other) {
-            self.name == op.name && self.derivative.is_subchain(&op.derivative)
+            self.identifier == op.identifier && self.derivative.is_subchain(&op.derivative)
         } else {
             false
         }
@@ -322,13 +464,9 @@ impl Expr for SubExpr {
             })?;
 
         if is_zero_expr(&new_expr, freq_tol) {
-            return impl_zero_expr!(new_expr.is_scalar());
+            impl_zero_expr!(new_expr.is_scalar())
         } else {
-            SubExpr::builder(self.name.clone(), new_expr)
-                .derivative(self.derivative.clone())
-                .elimination_rules(self.elimination_rules.clone())
-                .check_name_conflict(false)
-                .build()
+            Ok(self.with_zero_perturbations(new_expr))
         }
     }
 
@@ -344,11 +482,7 @@ impl Expr for SubExpr {
             )
         })?;
 
-        SubExpr::builder(self.name.clone(), diff_expr)
-            .derivative(self.derivative.with_added_perturbation(s))
-            .elimination_rules(self.elimination_rules.clone())
-            .check_name_conflict(false)
-            .build()
+        Ok(self.with_differentiation(diff_expr, s))
     }
 
     #[inline]
@@ -383,14 +517,7 @@ impl Expr for SubExpr {
                 )
             })?;
 
-        let mut elimination_rules = self.elimination_rules.clone();
-        elimination_rules.push(EliminationRule::new(parameter.clone(), min_order, perturbations));
-
-        SubExpr::builder(self.name.clone(), new_expr)
-            .derivative(self.derivative.clone())
-            .elimination_rules(elimination_rules)
-            .check_name_conflict(false)
-            .build()
+        Ok(self.with_elimination(new_expr, parameter, perturbations, min_order))
     }
 
     #[inline]
@@ -428,11 +555,7 @@ impl Expr for SubExpr {
         if &new_expr == &self.expression {
             Ok(self.clone_expr())
         } else {
-            SubExpr::builder(self.name.clone(), new_expr)
-                .derivative(self.derivative.clone())
-                .elimination_rules(self.elimination_rules.clone())
-                .check_name_conflict(false)
-                .build()
+            Ok(self.with_removal(new_expr, set))
         }
     }
 }
@@ -442,28 +565,31 @@ impl PartialEq for SubExpr {
     fn eq(&self, other: &Self) -> bool {
         // We also compare `expression`, which may change after some methods
         // like `substitute_zero_perturbations()`, `remove()`, `replace()` and `retain()`.
-        self.name == other.name
+        self.identifier == other.identifier
             && &self.expression == &other.expression
             && self.derivative == other.derivative
-        //&& self.elimination_rules == other.elimination_rules
     }
 }
 
 impl Eq for SubExpr {}
 
-impl std::fmt::Display for SubExpr {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        if self.elimination_rules.is_empty() {
-            write!(f, "{}({{{}}})^{}", self.name, self.expression, self.derivative)
-        } else {
-            write!(
-                f,
-                "{}([{}]; {{{}}})^{}",
-                self.name,
-                join_mapped(self.elimination_rules.iter(), ",", |rule| rule.to_string()),
-                self.expression,
-                self.derivative,
-            )
-        }
+impl fmt::Display for SubExpr {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{}({{{}}}; {}; [{}]; [{}]; [{}]; [{}])^{}",
+            self.identifier,
+            self.expression,
+            self.at_zero_perturbations,
+            join_mapped(self.elimination_rules.iter(), ";", |rule| rule.to_string()),
+            join_mapped(self.removal_rules.iter(), ";", |exprs| join_mapped(
+                exprs.iter(),
+                ";",
+                |expr| expr.to_string()
+            )),
+            join_mapped(self.replacement_rules.iter(), ";", |rule| rule.to_string()),
+            join_mapped(self.retainment_rules.iter(), ";", |rule| rule.to_string()),
+            self.derivative,
+        )
     }
 }
