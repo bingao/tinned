@@ -137,6 +137,10 @@ pub fn s_anticommutator(
 pub fn sum_pert_frequencies<T: PertSequence>(
     perturbations: &T,
 ) -> Result<Arc<dyn Expr>, TinnedError> {
+    if perturbations.is_empty() {
+        return Ok(Number::zero());
+    }
+
     Add::new(perturbations.as_vec().into_iter().map(|p| p.frequency().clone()).collect())
 }
 

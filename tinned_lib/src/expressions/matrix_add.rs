@@ -23,6 +23,10 @@ impl MatrixAdd {
     // - Identities: A + op(0) = A
     // - Sort terms based on type names and hash keys
     pub fn new(terms: Vec<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
+        if terms.is_empty() {
+            return Ok(ZeroOperator::new());
+        }
+
         let mut merged: HashMap<String, (Arc<dyn Expr>, Vec<Arc<dyn Expr>>)> = HashMap::new();
 
         #[inline]

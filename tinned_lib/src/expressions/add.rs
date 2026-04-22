@@ -23,6 +23,10 @@ impl Add {
     // - Identities: x + 0 = x
     // - Sort terms based on type names and hash keys
     pub fn new(terms: Vec<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
+        if terms.is_empty() {
+            return Ok(Number::zero());
+        }
+
         let mut constant = Number::Integer(0);
         // Key: hash_key() of term, Value: (expr, accumulated coefficient)
         let mut merged: HashMap<String, (Arc<dyn Expr>, Number)> = HashMap::new();
