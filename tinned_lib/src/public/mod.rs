@@ -12,7 +12,7 @@ pub use error_helpers::{
     multi_perturbation_error, perturbation_error, unreachable_error,
 };
 pub use expr_visitor::{ExprTag, ExprVisitor, walk_expr_postorder};
-pub use inspect::{downcast_from_arc, downcast_from_ref, is_expr_type};
+pub use inspect::{downcast_arc_expr, downcast_from_arc, downcast_from_ref, is_expr_type};
 pub use json::{expr_from_json, expr_to_json};
 pub use number_tolerance::{NumberTolerance, get_number_tolerance, set_number_tolerance};
 pub use operations::{
