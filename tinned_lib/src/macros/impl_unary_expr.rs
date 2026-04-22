@@ -141,7 +141,7 @@ macro_rules! impl_unary_expr_common_methods {
 
         #[inline]
         fn clone_expr(&self) -> expr_arc_ty!() {
-            ::std::sync::Arc::new(self.clone())
+            $crate::internal::intern_expr(::std::sync::Arc::new(self.clone()))
         }
 
         impl_unary_expr_common_methods!(@unary_is_scalar $arg_field, $type_scalar);

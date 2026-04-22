@@ -54,7 +54,7 @@ macro_rules! impl_expr_common_methods {
 
         #[inline]
         fn clone_expr(&self) -> expr_arc_ty!() {
-            ::std::sync::Arc::new(self.clone())
+            $crate::internal::intern_expr(::std::sync::Arc::new(self.clone()))
         }
 
         impl_is_scalar!($is_scalar);

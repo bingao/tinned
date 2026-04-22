@@ -433,7 +433,7 @@ impl Expr for SubExpr {
 
     #[inline]
     fn clone_expr(&self) -> Arc<dyn Expr> {
-        Arc::new(self.clone())
+        intern_expr(Arc::new(self.clone()))
     }
 
     #[inline]
