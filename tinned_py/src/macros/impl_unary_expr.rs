@@ -9,20 +9,18 @@ macro_rules! impl_unary_expr_interface {
     ) => {
         #[doc = $new_doc]
         #[::pyo3::prelude::pyfunction]
-        pub fn $new_fn(
-            argument: $crate::core::expr::PyExpr,
-        ) -> ::pyo3::PyResult<$crate::core::expr::PyExpr> {
+        pub fn $new_fn(argument: py_expr_ref_ty!()) -> ::pyo3::PyResult<py_expr_ty!()> {
             let rust_argument: ::std::sync::Arc<dyn ::tinned::Expr> = argument.inner().clone();
             let out = <$expr_ty>::new(rust_argument).map_err($crate::core::errors::to_pyerr)?;
-            Ok($crate::core::expr::PyExpr::new(out))
+            Ok(<py_expr_ty!()>::new(out))
         }
 
         impl_expr_getter_interface!(
             fn_name = $argument_fn,
             fn_doc = $argument_doc,
             expr_ty = $expr_ty,
-            out_ty = $crate::core::expr::PyExpr,
-            body = |op: &$expr_ty| Ok($crate::core::expr::PyExpr::new(op.argument().clone()))
+            out_ty = py_expr_ty!(),
+            body = |op: &$expr_ty| Ok(<py_expr_ty!()>::new(op.argument().clone()))
         );
 
         pub fn $register_fn(

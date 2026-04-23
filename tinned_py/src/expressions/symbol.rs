@@ -1,7 +1,6 @@
 use pyo3::prelude::*;
-use std::sync::Arc;
 
-use tinned::{Expr, Symbol};
+use tinned::Symbol;
 
 use crate::core::expr::PyExpr;
 
@@ -14,7 +13,7 @@ use crate::core::expr::PyExpr;
 ///   A PyExpr wrapping the constructed symbol (interned).
 #[pyfunction]
 pub fn symbol_new(name: String) -> PyResult<PyExpr> {
-    let out: Arc<dyn Expr> = Symbol::new(name);
+    let out = Symbol::new(name);
     Ok(PyExpr::new(out))
 }
 

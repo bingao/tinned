@@ -1,8 +1,7 @@
 use pyo3::prelude::*;
-use std::sync::Arc;
 use std::vec::Vec;
 
-use tinned::{Expr, MatrixMul};
+use tinned::MatrixMul;
 
 use crate::core::{errors::to_pyerr, expr::PyExpr};
 
@@ -15,7 +14,7 @@ use crate::core::{errors::to_pyerr, expr::PyExpr};
 ///   A PyExpr wrapping the constructed expression (interned).
 #[pyfunction]
 pub fn matrix_mul_new(terms: Vec<PyExpr>) -> PyResult<PyExpr> {
-    let rust_terms: Vec<Arc<dyn Expr>> = terms.into_iter().map(|t| t.inner().clone()).collect();
+    let rust_terms = terms.into_iter().map(|t| t.inner().clone()).collect();
 
     let out = MatrixMul::new(rust_terms).map_err(to_pyerr)?;
     Ok(PyExpr::new(out))

@@ -309,11 +309,11 @@ mod tests {
         let p = make_perturbation_symbol(4u32, 4u32);
 
         assert_eq!(
-            &add.differentiate(&p).unwrap(),
+            &add.differentiate(p.clone()).unwrap(),
             &MatrixAdd::new(vec![
-                op_a.differentiate(&p).unwrap(),
-                op_b.differentiate(&p).unwrap(),
-                op_c.differentiate(&p).unwrap()
+                op_a.differentiate(p.clone()).unwrap(),
+                op_b.differentiate(p.clone()).unwrap(),
+                op_c.differentiate(p).unwrap()
             ])
             .unwrap()
         );

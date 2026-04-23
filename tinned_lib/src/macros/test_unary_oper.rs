@@ -25,10 +25,10 @@ macro_rules! test_unary_oper_properties {
             let p = $crate::perturbations::perturbation::test_utils::make_perturbation_symbol(
                 4u32, 4u32,
             );
-            let diff_op = &op.differentiate(&p).unwrap();
+            let diff_op = &op.differentiate(p.clone()).unwrap();
             let diff_cast = $crate::public::downcast_from_arc::<$type_name>(&diff_op).unwrap();
 
-            assert_eq!(diff_cast.argument(), &argument.differentiate(&p).unwrap());
+            assert_eq!(diff_cast.argument(), &argument.differentiate(p).unwrap());
         }
 
         #[test]

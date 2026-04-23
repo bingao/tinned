@@ -19,7 +19,7 @@ use crate::perturbations::pert_multichain::PyPertMultichain;
 #[pyo3(signature = (name, density, dependencies=None, derivative=None))]
 pub fn ao_two_elec_matrix_new(
     name: String,
-    density: PyExpr,
+    density: &PyExpr,
     dependencies: Option<&PyPertMultichain>,
     derivative: Option<&PyPertMultichain>,
 ) -> PyResult<PyExpr> {

@@ -247,8 +247,8 @@ mod tests {
         let p = make_perturbation_symbol(4u32, 4u32);
 
         assert_eq!(
-            &op.differentiate(&p).unwrap(),
-            &Conjugate::new(argument.differentiate(&p).unwrap()).unwrap()
+            &op.differentiate(p.clone()).unwrap(),
+            &Conjugate::new(argument.differentiate(p.clone()).unwrap()).unwrap()
         );
 
         argument =
@@ -257,12 +257,12 @@ mod tests {
         op = Conjugate::new(argument.clone()).unwrap();
 
         assert_eq!(
-            &op.differentiate(&p).unwrap(),
-            &Conjugate::new(argument.differentiate(&p).unwrap()).unwrap()
+            &op.differentiate(p.clone()).unwrap(),
+            &Conjugate::new(argument.differentiate(p.clone()).unwrap()).unwrap()
         );
 
         assert_eq!(
-            &Conjugate::new(make_symbol(4u32)).unwrap().differentiate(&p).unwrap(),
+            &Conjugate::new(make_symbol(4u32)).unwrap().differentiate(p).unwrap(),
             &Number::zero()
         );
     }

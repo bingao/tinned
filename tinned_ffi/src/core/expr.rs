@@ -96,7 +96,7 @@ pub fn expr_map_from_slices(
     )
 }
 
-// Used for `find_superchains` method of `Expr`
+// Used for `find_all` method of `Expr`
 #[derive_ReprC]
 #[repr(opaque)]
 pub struct ExprSuperchainHandle {

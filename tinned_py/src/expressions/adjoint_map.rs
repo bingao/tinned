@@ -2,9 +2,8 @@ use pyo3::conversion::{FromPyObject, IntoPyObject};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyString};
-use std::sync::Arc;
 
-use tinned::{AdjointMap, AdjointMode, Expr};
+use tinned::{AdjointMap, AdjointMode};
 
 use crate::core::{errors::to_pyerr, expr::PyExpr};
 
@@ -77,13 +76,12 @@ impl<'py> IntoPyObject<'py> for PyAdjointMode {
 #[pyo3(signature = (generators, target, left_action=true, adjoint_mode=PyAdjointMode(AdjointMode::Commutative)))]
 pub fn adjoint_map_new(
     generators: Vec<PyExpr>,
-    target: PyExpr,
+    target: &PyExpr,
     left_action: bool,
     adjoint_mode: PyAdjointMode,
 ) -> PyResult<PyExpr> {
-    let rust_generators: Vec<Arc<dyn Expr>> =
-        generators.into_iter().map(|t| t.inner().clone()).collect();
-    let rust_target: Arc<dyn Expr> = target.inner().clone();
+    let rust_generators = generators.into_iter().map(|t| t.inner().clone()).collect();
+    let rust_target = target.inner().clone();
     let adjoint_mode: AdjointMode = adjoint_mode.into();
 
     let out = AdjointMap::new(rust_generators, rust_target, Some(left_action), Some(adjoint_mode))

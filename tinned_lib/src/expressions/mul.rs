@@ -306,11 +306,11 @@ mod tests {
         let mul = Mul::new(vec![coef.clone(), op_a.clone(), op_b.clone(), op_c.clone()]).unwrap();
 
         let p = make_perturbation_symbol(4u32, 4u32);
-        let diff_mul = mul.differentiate(&p).unwrap();
-        let diff_coef = coef.differentiate(&p).unwrap();
-        let diff_a = op_a.differentiate(&p).unwrap();
-        let diff_b = op_b.differentiate(&p).unwrap();
-        let diff_c = op_c.differentiate(&p).unwrap();
+        let diff_mul = mul.differentiate(p.clone()).unwrap();
+        let diff_coef = coef.differentiate(p.clone()).unwrap();
+        let diff_a = op_a.differentiate(p.clone()).unwrap();
+        let diff_b = op_b.differentiate(p.clone()).unwrap();
+        let diff_c = op_c.differentiate(p).unwrap();
 
         assert_eq!(
             &diff_mul,

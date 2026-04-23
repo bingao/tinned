@@ -14,12 +14,12 @@ macro_rules! impl_expr_internal_methods {
             ::std::write!(f, "{self}")
         }
 
-        impl_expr_internal_methods!(@impl_replace_expr_self $type_name, $has_derivative);
+        impl_expr_internal_methods!(@impl_apply_replacement $type_name, $has_derivative);
     };
 
-    (@impl_replace_expr_self $type_name:ident, true) => {
+    (@impl_apply_replacement $type_name:ident, true) => {
         #[inline]
-        fn replace_expr_self(
+        fn apply_replacement(
             &self,
             expr: expr_arc_ref_ty!(),
             replacement: expr_arc_ty!(),
@@ -42,7 +42,7 @@ macro_rules! impl_expr_internal_methods {
         }
     };
 
-    (@impl_replace_expr_self $type_name:ident, false) => {};
+    (@impl_apply_replacement $type_name:ident, false) => {};
 }
 
 macro_rules! impl_expr_common_methods {

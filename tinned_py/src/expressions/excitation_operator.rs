@@ -1,7 +1,6 @@
 use pyo3::prelude::*;
-use std::sync::Arc;
 
-use tinned::{ExcitationOperator, Expr};
+use tinned::ExcitationOperator;
 
 use crate::core::expr::PyExpr;
 
@@ -14,7 +13,7 @@ use crate::core::expr::PyExpr;
 ///   A PyExpr wrapping the constructed excitation operator (interned).
 #[pyfunction]
 pub fn excitation_operator_new(name: String) -> PyResult<PyExpr> {
-    let out: Arc<dyn Expr> = ExcitationOperator::new(name);
+    let out = ExcitationOperator::new(name);
     Ok(PyExpr::new(out))
 }
 

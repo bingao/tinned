@@ -53,7 +53,7 @@ pub fn differentiate_expr<T: PertSequence>(
     let mut result = expr.clone();
     for pert in perturbations.as_vec() {
         result = result
-            .differentiate(&pert)
+            .differentiate(pert)
             .map_err(|e| expression_error("Differentiation failed", expr, Some(Box::new(e))))?;
     }
 

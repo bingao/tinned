@@ -38,8 +38,8 @@ macro_rules! impl_nullary_expr_interface {
             fn_name = $derivative_fn,
             fn_doc = impl_expr_getter_doc!("derivative", $expr_ty),
             expr_ty = $expr_ty,
-            out_ty = $crate::perturbations::pert_multichain::PyPertMultichain,
-            body = |op: &$expr_ty| Ok($crate::perturbations::pert_multichain::PyPertMultichain::new(
+            out_ty = py_pert_multichain_ty!(),
+            body = |op: &$expr_ty| Ok(<py_pert_multichain_ty!()>::new(
                 op.derivative().clone(),
             ))
         );
@@ -94,10 +94,10 @@ macro_rules! impl_nullary_expr_interface {
         pub fn $new_fn(
             name: ::std::string::String,
             is_perturbing: ::std::option::Option<bool>,
-            dependencies: ::std::option::Option<&$crate::perturbations::pert_multichain::PyPertMultichain>,
-            independent_perturbations: ::std::option::Option<::std::vec::Vec<$crate::perturbations::perturbation::PyPerturbation>>,
-            derivative: ::std::option::Option<&$crate::perturbations::pert_multichain::PyPertMultichain>,
-        ) -> ::pyo3::PyResult<$crate::core::expr::PyExpr> {
+            dependencies: ::std::option::Option<py_pert_multichain_ref_ty!()>,
+            independent_perturbations: ::std::option::Option<::std::vec::Vec<py_pert_ty!()>>,
+            derivative: ::std::option::Option<py_pert_multichain_ref_ty!()>,
+        ) -> ::pyo3::PyResult<py_expr_ty!()> {
             let mut b = <$expr_ty>::builder(name);
 
             if let Some(v) = is_perturbing {
@@ -119,7 +119,7 @@ macro_rules! impl_nullary_expr_interface {
             }
 
             let out = b.build().map_err($crate::core::errors::to_pyerr)?;
-            Ok($crate::core::expr::PyExpr::new(out))
+            Ok(<py_expr_ty!()>::new(out))
         }
     };
 
@@ -146,8 +146,8 @@ macro_rules! impl_nullary_expr_interface {
         pub fn $new_fn(
             name: ::std::string::String,
             is_perturbing: ::std::option::Option<bool>,
-            derivative: ::std::option::Option<&$crate::perturbations::pert_multichain::PyPertMultichain>,
-        ) -> ::pyo3::PyResult<$crate::core::expr::PyExpr> {
+            derivative: ::std::option::Option<py_pert_multichain_ref_ty!()>,
+        ) -> ::pyo3::PyResult<py_expr_ty!()> {
             let mut b = <$expr_ty>::builder(name);
 
             if let Some(v) = is_perturbing {
@@ -158,7 +158,7 @@ macro_rules! impl_nullary_expr_interface {
             }
 
             let out = b.build().map_err($crate::core::errors::to_pyerr)?;
-            Ok($crate::core::expr::PyExpr::new(out))
+            Ok(<py_expr_ty!()>::new(out))
         }
     };
 
@@ -171,8 +171,8 @@ macro_rules! impl_nullary_expr_interface {
             fn_name = $deps_fn,
             fn_doc = impl_expr_getter_doc!("dependencies", $expr_ty),
             expr_ty = $expr_ty,
-            out_ty = $crate::perturbations::pert_multichain::PyPertMultichain,
-            body = |op: &$expr_ty| Ok($crate::perturbations::pert_multichain::PyPertMultichain::new(
+            out_ty = py_pert_multichain_ty!(),
+            body = |op: &$expr_ty| Ok(<py_pert_multichain_ty!()>::new(
                 op.dependencies().clone(),
             ))
         );
@@ -181,12 +181,12 @@ macro_rules! impl_nullary_expr_interface {
             fn_name = $indep_perts_fn,
             fn_doc = impl_expr_getter_doc!("independent perturbations", $expr_ty),
             expr_ty = $expr_ty,
-            out_ty = ::std::vec::Vec<$crate::perturbations::perturbation::PyPerturbation>,
+            out_ty = ::std::vec::Vec<py_pert_ty!()>,
             body = |op: &$expr_ty| Ok(
                 op.independent_perturbations()
                     .iter()
                     .cloned()
-                    .map($crate::perturbations::perturbation::PyPerturbation::new)
+                    .map(<py_pert_ty!()>::new)
                     .collect::<Vec<_>>()
             )
         );

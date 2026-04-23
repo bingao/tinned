@@ -202,24 +202,24 @@ impl Expr for AoTwoElecMatrix {
         )
     }
 
-    fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
-        let diff_density = self.density.differentiate(s).map_err(|e| {
+    fn differentiate(&self, s: Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
+        let diff_density = self.density.differentiate(s.clone()).map_err(|e| {
             generic_expression_error(
                 "AoTwoElecMatrix::differentiate() failed for density",
                 self,
                 Some(Box::new(e)),
             )
         })?;
-        let term1 = self.with_density(diff_density).build()?;
+        let op_diff_density = self.with_density(diff_density).build()?;
 
         let new_deriv = self.derivative.with_added_perturbation(s);
-        let term2 = self.with_derivative(new_deriv).build()?;
+        let op_diff_eri = self.with_derivative(new_deriv).build()?;
 
-        if is_expr_type::<ZeroOperator>(&term2) {
-            return Ok(term1);
+        if is_expr_type::<ZeroOperator>(&op_diff_eri) {
+            return Ok(op_diff_density);
         }
 
-        MatrixAdd::new(vec![term1, term2])
+        MatrixAdd::new(vec![op_diff_density, op_diff_eri])
     }
 }
 
@@ -397,9 +397,9 @@ mod tests {
             .unwrap();
 
         let mut p: Arc<Perturbation> = deps.keys().first().cloned().unwrap();
-        let mut diff_op = op.differentiate(&p).unwrap();
+        let mut diff_op = op.differentiate(p.clone()).unwrap();
         let mut deriv = PertMultichain::new();
-        deriv.insert(&p);
+        deriv.insert(p.clone());
 
         assert_eq!(
             &diff_op,
@@ -409,7 +409,7 @@ mod tests {
                     .derivative(deriv.clone())
                     .build()
                     .unwrap(),
-                AoTwoElecMatrix::builder(TEST_OPER_NAME, density.differentiate(&p).unwrap())
+                AoTwoElecMatrix::builder(TEST_OPER_NAME, density.differentiate(p.clone()).unwrap())
                     .dependencies(deps.clone())
                     .build()
                     .unwrap(),
@@ -418,11 +418,11 @@ mod tests {
         );
 
         p = make_perturbation_symbol(len_pert_name + 1u32, 4u32);
-        diff_op = op.differentiate(&p).unwrap();
+        diff_op = op.differentiate(p.clone()).unwrap();
 
         assert_eq!(
             &diff_op,
-            &AoTwoElecMatrix::builder(TEST_OPER_NAME, density.differentiate(&p).unwrap())
+            &AoTwoElecMatrix::builder(TEST_OPER_NAME, density.differentiate(p).unwrap())
                 .dependencies(deps.clone())
                 .build()
                 .unwrap()

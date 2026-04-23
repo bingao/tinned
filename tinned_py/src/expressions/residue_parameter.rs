@@ -22,8 +22,8 @@ use crate::perturbations::{pert_multichain::PyPertMultichain, perturbation::PyPe
 #[pyo3(signature = (perturbations, excited_state, parameter, positive_frequency=None))]
 pub fn residue_parameter_new(
     perturbations: Vec<PyPerturbation>,
-    excited_state: PyExpr,
-    parameter: PyExpr,
+    excited_state: &PyExpr,
+    parameter: &PyExpr,
     positive_frequency: Option<bool>,
 ) -> PyResult<PyExpr> {
     let perts = perturbations.into_iter().map(|p| p.inner().clone()).collect();

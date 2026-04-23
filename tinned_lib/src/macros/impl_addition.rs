@@ -18,9 +18,25 @@ macro_rules! impl_add_traits {
 
             // For unambiguous replacement, we require equality for the
             // whole `Add` so that we do not override methods
-            // `eq_by_superchains()` and `replace_expr_self()` of
+            // `eq_by_superchains()` and `apply_replacement()` of
             // `ExprInternal`.
-            fn replace_expr_children(
+
+            fn replace_one_in_children(
+                &self,
+                expr: expr_arc_ref_ty!(),
+                replacement: expr_arc_ty!(),
+                include_derivatives: bool,
+            ) -> expr_result_ty!() {
+                impl_add_traits!(
+                    @add_termwise_operation
+                    self,
+                    |term: expr_arc_ref_ty!()| term.replace_one(expr, replacement.clone(), include_derivatives),
+                    concat!(stringify!($type_name), "::replace_one_in_children() failed"),
+                    $is_scalar
+                )
+            }
+
+            fn replace_all_in_children(
                 &self,
                 map: &expr_map_ty!(),
                 include_derivatives: bool,
@@ -28,26 +44,8 @@ macro_rules! impl_add_traits {
                 impl_add_traits!(
                     @add_termwise_operation
                     self,
-                    |term: expr_arc_ref_ty!()| term.replace(map, include_derivatives),
-                    concat!(stringify!($type_name), "::replace_expr_children() failed"),
-                    $is_scalar
-                )
-            }
-
-            fn retain_single(
-                &self,
-                s: expr_arc_ref_ty!(),
-                include_derivatives: bool,
-            ) -> expr_result_ty!() {
-                if self.match_self_single(s, include_derivatives) {
-                    return Ok(self.clone_expr());
-                }
-
-                impl_add_traits!(
-                    @add_termwise_operation
-                    self,
-                    |term: expr_arc_ref_ty!()| term.retain_single(s, include_derivatives),
-                    concat!(stringify!($type_name), "::retain_single() failed"),
+                    |term: expr_arc_ref_ty!()| term.replace_all(map, include_derivatives),
+                    concat!(stringify!($type_name), "::replace_all_in_children() failed"),
                     $is_scalar
                 )
             }
@@ -77,12 +75,12 @@ macro_rules! impl_add_traits {
 
             fn differentiate(
                 &self,
-                s: &pert_arc_ty!(),
+                s: pert_arc_ty!(),
             ) -> expr_result_ty!() {
                 let mut diff_terms = ::std::vec::Vec::with_capacity(self.terms.len());
 
                 for term in &self.terms {
-                    let diff = term.differentiate(s).map_err(|e| {
+                    let diff = term.differentiate(s.clone()).map_err(|e| {
                         $crate::public::generic_expression_error(
                             concat!(stringify!($type_name), "::differentiate() failed"),
                             self,
@@ -99,26 +97,20 @@ macro_rules! impl_add_traits {
 
             fn eliminate(
                 &self,
-                parameter: expr_arc_ref_ty!(),
+                parameter: expr_arc_ty!(),
                 perturbations: &[pert_arc_ty!()],
                 min_order: u32,
             ) -> expr_result_ty!() {
                 impl_add_traits!(
                     @add_termwise_operation
                     self,
-                    |term: expr_arc_ref_ty!()| term.eliminate(parameter, perturbations, min_order),
+                    |term: expr_arc_ref_ty!()| term.eliminate(parameter.clone(), perturbations, min_order),
                     concat!(stringify!($type_name), "::eliminate() failed"),
                     $is_scalar
                 )
             }
 
-            #[inline]
-            fn exist_any(&self, set: &expr_set_ty!(), include_derivatives: bool) -> bool {
-                self.match_self_any(set, include_derivatives)
-                    || self.terms.iter().any(|term| term.exist_any(set, include_derivatives))
-            }
-
-            fn find_superchains(&self, s: expr_arc_ref_ty!()) -> expr_differentiation_map_ty!() {
+            fn find_all(&self, s: expr_arc_ref_ty!()) -> expr_differentiation_map_ty!() {
                 if self.deep_eq_superchains(s) {
                     return ::std::collections::BTreeMap::from([(
                         self.total_order(),
@@ -129,7 +121,7 @@ macro_rules! impl_add_traits {
                 let mut result: expr_differentiation_map_ty!() = ::std::collections::BTreeMap::new();
 
                 for term in &self.terms {
-                    for (order, subset) in term.find_superchains(s) {
+                    for (order, subset) in term.find_all(s) {
                         result.entry(order).or_default().extend(subset);
                     }
                 }
@@ -137,16 +129,60 @@ macro_rules! impl_add_traits {
                 result
             }
 
-            fn remove(&self, set: &expr_set_ty!()) -> expr_result_ty!() {
-                if self.match_self_any(set, false) {
+            #[inline]
+            fn match_one(&self, s: expr_arc_ref_ty!(), include_derivatives: bool) -> bool {
+                self.match_one_self(s, include_derivatives)
+                    || self.terms.iter().any(|term| term.match_one(s, include_derivatives))
+            }
+
+            #[inline]
+            fn match_any(&self, set: &expr_set_ty!(), include_derivatives: bool) -> bool {
+                self.match_any_self(set, include_derivatives)
+                    || self.terms.iter().any(|term| term.match_any(set, include_derivatives))
+            }
+
+            fn remove_one(&self, s: expr_arc_ref_ty!()) -> expr_result_ty!() {
+                if self.match_one_self(s, false) {
                     return impl_zero_expr!($is_scalar);
                 }
 
                 impl_add_traits!(
                     @add_termwise_operation
                     self,
-                    |term: expr_arc_ref_ty!()| term.remove(set),
-                    concat!(stringify!($type_name), "::remove() failed"),
+                    |term: expr_arc_ref_ty!()| term.remove_one(s),
+                    concat!(stringify!($type_name), "::remove_one() failed"),
+                    $is_scalar
+                )
+            }
+
+            fn remove_all(&self, set: &expr_set_ty!()) -> expr_result_ty!() {
+                if self.match_any_self(set, false) {
+                    return impl_zero_expr!($is_scalar);
+                }
+
+                impl_add_traits!(
+                    @add_termwise_operation
+                    self,
+                    |term: expr_arc_ref_ty!()| term.remove_all(set),
+                    concat!(stringify!($type_name), "::remove_all() failed"),
+                    $is_scalar
+                )
+            }
+
+            fn retain_one(
+                &self,
+                s: expr_arc_ref_ty!(),
+                include_derivatives: bool,
+            ) -> expr_result_ty!() {
+                if self.match_one_self(s, include_derivatives) {
+                    return Ok(self.clone_expr());
+                }
+
+                impl_add_traits!(
+                    @add_termwise_operation
+                    self,
+                    |term: expr_arc_ref_ty!()| term.retain_one(s, include_derivatives),
+                    concat!(stringify!($type_name), "::retain_one() failed"),
                     $is_scalar
                 )
             }

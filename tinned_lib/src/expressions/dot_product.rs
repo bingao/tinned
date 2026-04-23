@@ -195,7 +195,7 @@ impl ExprInternal for DotProduct {
 
     // For unambiguous replacement, we require equality of `bra` and `ket`, and
     // make replacement by ignoring derivatives of `bra` and `ket`. So we do
-    // not override methods `eq_by_superchains()` and `replace_expr_self()` of
+    // not override methods `eq_by_superchains()` and `apply_replacement()` of
     // `ExprInternal`.
 }
 
@@ -215,8 +215,8 @@ impl Expr for DotProduct {
         true
     );
 
-    fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
-        let diff_bra = self.bra.differentiate(s).map_err(|e| {
+    fn differentiate(&self, s: Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
+        let diff_bra = self.bra.differentiate(s.clone()).map_err(|e| {
             generic_expression_error(
                 "DotProduct::differentiate() failed for bra",
                 self,
@@ -474,9 +474,9 @@ mod tests {
         let psi2 = make_wfn_parameter("");
         let op = DotProduct::new(psi1.clone(), true, psi2.clone(), true, None).unwrap();
         let p = make_perturbation_symbol(4u32, 4u32);
-        let mut diff_op = op.differentiate(&p).unwrap();
-        let diff_psi1 = psi1.differentiate(&p).unwrap();
-        let diff_psi2 = psi2.differentiate(&p).unwrap();
+        let mut diff_op = op.differentiate(p.clone()).unwrap();
+        let diff_psi1 = psi1.differentiate(p.clone()).unwrap();
+        let diff_psi2 = psi2.differentiate(p.clone()).unwrap();
 
         assert_eq!(
             &diff_op,
@@ -487,13 +487,13 @@ mod tests {
             .unwrap()
         );
 
-        diff_op = diff_op.differentiate(&p).unwrap();
+        diff_op = diff_op.differentiate(p.clone()).unwrap();
 
         assert_eq!(
             &diff_op,
             &Add::new(vec![
                 DotProduct::new(
-                    diff_psi1.differentiate(&p).unwrap(),
+                    diff_psi1.differentiate(p.clone()).unwrap(),
                     true,
                     psi2.clone(),
                     true,
@@ -509,7 +509,7 @@ mod tests {
                 DotProduct::new(
                     psi1.clone(),
                     true,
-                    diff_psi2.differentiate(&p).unwrap(),
+                    diff_psi2.differentiate(p).unwrap(),
                     true,
                     None
                 )

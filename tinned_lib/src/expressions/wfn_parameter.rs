@@ -1,5 +1,4 @@
 use crate::core::Expr;
-use crate::core::expr_internal::sealed::ExprInternal;
 
 impl_nullary_expr_type!(WfnParameter, WfnParameterBuilder, false, false);
 impl_nullary_expr_traits!(WfnParameter, false, false);

@@ -217,7 +217,7 @@ pub extern "C" fn tinned_pert_multichain_add(
 
     // Validate the chain handle and build a new chain with the perturbation added.
     ffi_pert_multichain_return_val(h, "tinned_pert_multichain_add", out_err, |chain| {
-        let new_chain = chain.with_added_perturbation(&pert_arc);
+        let new_chain = chain.with_added_perturbation(pert_arc);
         Ok(Some(PertMultichainBox::new(PertMultichainHandle::new(Arc::new(new_chain)))))
     })
 }
@@ -265,7 +265,7 @@ pub extern "C" fn tinned_pert_multichain_insert(
     };
 
     // Perform the mutation.
-    chain.insert(&pert_arc);
+    chain.insert(pert_arc);
     true
 }
 

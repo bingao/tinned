@@ -1,5 +1,4 @@
 use crate::core::Expr;
-use crate::core::expr_internal::sealed::ExprInternal;
 
 impl_nullary_expr_type!(NonElecFunction, NonElecFunctionBuilder, true, true);
 impl_nullary_expr_traits!(NonElecFunction, true, true);

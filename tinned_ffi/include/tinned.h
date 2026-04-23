@@ -547,19 +547,11 @@ tinned_expr_eq (
     TinnedErrorHandle_t * * out_err);
 
 /** <No documentation available> */
-bool
-tinned_expr_exist_any (
-    ExprHandle_t const * h,
-    ExprSlice_t const * set,
-    bool include_derivatives,
-    TinnedErrorHandle_t * * out_err);
-
-/** <No documentation available> */
 typedef struct ExprSuperchainHandle ExprSuperchainHandle_t;
 
 /** <No documentation available> */
 ExprSuperchainHandle_t *
-tinned_expr_find_superchains (
+tinned_expr_find_all (
     ExprHandle_t const * h,
     ExprHandle_t const * s,
     TinnedErrorHandle_t * * out_err);
@@ -588,15 +580,30 @@ tinned_expr_is_scalar (
     TinnedErrorHandle_t * * out_err);
 
 /** <No documentation available> */
+bool
+tinned_expr_match_any (
+    ExprHandle_t const * h,
+    ExprSlice_t const * set,
+    bool include_derivatives,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
 ExprHandle_t *
-tinned_expr_remove (
+tinned_expr_remove_all (
     ExprHandle_t const * h,
     ExprSlice_t const * set,
     TinnedErrorHandle_t * * out_err);
 
 /** <No documentation available> */
 ExprHandle_t *
-tinned_expr_replace (
+tinned_expr_remove_one (
+    ExprHandle_t const * h,
+    ExprHandle_t const * s,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_expr_replace_all (
     ExprHandle_t const * h,
     ExprSlice_t const * keys,
     ExprSlice_t const * values,
@@ -605,7 +612,7 @@ tinned_expr_replace (
 
 /** <No documentation available> */
 ExprHandle_t *
-tinned_expr_retain (
+tinned_expr_retain_all (
     ExprHandle_t const * h,
     ExprSlice_t const * set,
     bool include_derivatives,

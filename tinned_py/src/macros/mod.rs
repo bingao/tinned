@@ -1,4 +1,7 @@
 #[macro_use]
+pub mod common_types;
+
+#[macro_use]
 pub mod impl_addition;
 
 #[macro_use]

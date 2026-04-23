@@ -78,7 +78,7 @@ impl PyExpr {
     /// Returns:
     ///   A PyExpr wrapping the differentiated expression.
     fn differentiate(&self, s: &PyPerturbation) -> PyResult<PyExpr> {
-        let out = self.inner.differentiate(s.inner()).map_err(to_pyerr)?;
+        let out = self.inner.differentiate(s.inner().clone()).map_err(to_pyerr)?;
         Ok(PyExpr::new(out))
     }
 
@@ -93,14 +93,15 @@ impl PyExpr {
     ///   A PyExpr wrapping the eliminated expression.
     fn eliminate(
         &self,
-        parameter: PyExpr,
+        parameter: &PyExpr,
         perturbations: Vec<PyPerturbation>,
         min_order: u32,
     ) -> PyResult<PyExpr> {
         let perts: Vec<Arc<Perturbation>> =
             perturbations.into_iter().map(|p| p.inner().clone()).collect();
 
-        let out = self.inner.eliminate(parameter.inner(), &perts, min_order).map_err(to_pyerr)?;
+        let out =
+            self.inner.eliminate(parameter.inner().clone(), &perts, min_order).map_err(to_pyerr)?;
 
         Ok(PyExpr::new(out))
     }
@@ -114,9 +115,9 @@ impl PyExpr {
     ///
     /// Returns:
     ///   True if any exists, otherwise False.
-    fn exist_any(&self, set: Vec<PyExpr>, include_derivatives: bool) -> PyResult<bool> {
+    fn match_any(&self, set: Vec<PyExpr>, include_derivatives: bool) -> PyResult<bool> {
         let rust_set: HashSet<Arc<dyn Expr>> = set.into_iter().map(|e| e.inner().clone()).collect();
-        Ok(self.inner.exist_any(&rust_set, include_derivatives))
+        Ok(self.inner.match_any(&rust_set, include_derivatives))
     }
 
     /// Find the given expression and all its higher-order superchain matches.
@@ -126,8 +127,8 @@ impl PyExpr {
     ///
     /// Returns:
     ///   A dict mapping total_order (int) to a list of matching Expr.
-    fn find_superchains<'py>(&self, py: Python<'py>, s: PyExpr) -> PyResult<Py<PyDict>> {
-        let m: BTreeMap<u32, HashSet<Arc<dyn Expr>>> = self.inner.find_superchains(s.inner());
+    fn find_all<'py>(&self, py: Python<'py>, s: &PyExpr) -> PyResult<Py<PyDict>> {
+        let m: BTreeMap<u32, HashSet<Arc<dyn Expr>>> = self.inner.find_all(s.inner());
 
         let out = PyDict::new(py);
         for (order, set) in m {
@@ -138,6 +139,18 @@ impl PyExpr {
         Ok(out.into())
     }
 
+    /// Remove a given expression from the current expression.
+    ///
+    /// Args:
+    ///   s: The given expression.
+    ///
+    /// Returns:
+    ///   A PyExpr wrapping the resulting expression.
+    fn remove_one(&self, s: &PyExpr) -> PyResult<PyExpr> {
+        let out = self.inner.remove_one(s.inner()).map_err(to_pyerr)?;
+        Ok(PyExpr::new(out))
+    }
+
     /// Remove all expressions in set from the current expression.
     ///
     /// Args:
@@ -145,9 +158,9 @@ impl PyExpr {
     ///
     /// Returns:
     ///   A PyExpr wrapping the resulting expression.
-    fn remove(&self, set: Vec<PyExpr>) -> PyResult<PyExpr> {
+    fn remove_all(&self, set: Vec<PyExpr>) -> PyResult<PyExpr> {
         let rust_set: HashSet<Arc<dyn Expr>> = set.into_iter().map(|e| e.inner().clone()).collect();
-        let out = self.inner.remove(&rust_set).map_err(to_pyerr)?;
+        let out = self.inner.remove_all(&rust_set).map_err(to_pyerr)?;
         Ok(PyExpr::new(out))
     }
 
@@ -160,7 +173,7 @@ impl PyExpr {
     ///
     /// Returns:
     ///   A PyExpr wrapping the replaced expression.
-    fn replace(&self, map: &Bound<'_, PyDict>, include_derivatives: bool) -> PyResult<PyExpr> {
+    fn replace_all(&self, map: &Bound<'_, PyDict>, include_derivatives: bool) -> PyResult<PyExpr> {
         let mut rust_map: HashMap<Arc<dyn Expr>, Arc<dyn Expr>> = HashMap::new();
 
         for (k, v) in map.iter() {
@@ -169,7 +182,7 @@ impl PyExpr {
             rust_map.insert(key.inner().clone(), val.inner().clone());
         }
 
-        let out = self.inner.replace(&rust_map, include_derivatives).map_err(to_pyerr)?;
+        let out = self.inner.replace_all(&rust_map, include_derivatives).map_err(to_pyerr)?;
         Ok(PyExpr::new(out))
     }
 
@@ -182,9 +195,9 @@ impl PyExpr {
     ///
     /// Returns:
     ///   A PyExpr wrapping the retained expression.
-    fn retain(&self, set: Vec<PyExpr>, include_derivatives: bool) -> PyResult<PyExpr> {
+    fn retain_all(&self, set: Vec<PyExpr>, include_derivatives: bool) -> PyResult<PyExpr> {
         let rust_set: HashSet<Arc<dyn Expr>> = set.into_iter().map(|e| e.inner().clone()).collect();
-        let out = self.inner.retain(&rust_set, include_derivatives).map_err(to_pyerr)?;
+        let out = self.inner.retain_all(&rust_set, include_derivatives).map_err(to_pyerr)?;
         Ok(PyExpr::new(out))
     }
 

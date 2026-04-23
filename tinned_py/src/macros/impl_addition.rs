@@ -10,21 +10,21 @@ macro_rules! impl_addition_interface {
         #[doc = $new_doc]
         #[::pyo3::prelude::pyfunction]
         pub fn $new_fn(
-            terms: ::std::vec::Vec<$crate::core::expr::PyExpr>,
-        ) -> ::pyo3::PyResult<$crate::core::expr::PyExpr> {
+            terms: ::std::vec::Vec<py_expr_ty!()>,
+        ) -> ::pyo3::PyResult<py_expr_ty!()> {
             let rust_terms: ::std::vec::Vec<::std::sync::Arc<dyn ::tinned::Expr>> =
                 terms.into_iter().map(|t| t.inner().clone()).collect();
 
             let out = <$expr_ty>::new(rust_terms).map_err($crate::core::errors::to_pyerr)?;
-            Ok($crate::core::expr::PyExpr::new(out))
+            Ok(<py_expr_ty!()>::new(out))
         }
 
         impl_expr_getter_interface!(
             fn_name = $terms_fn,
             fn_doc = $terms_doc,
             expr_ty = $expr_ty,
-            out_ty = ::std::vec::Vec<$crate::core::expr::PyExpr>,
-            body = |add: &$expr_ty| Ok(add.terms().iter().cloned().map($crate::core::expr::PyExpr::new).collect())
+            out_ty = ::std::vec::Vec<py_expr_ty!()>,
+            body = |add: &$expr_ty| Ok(add.terms().iter().cloned().map(<py_expr_ty!()>::new).collect())
         );
 
         pub fn $register_fn(

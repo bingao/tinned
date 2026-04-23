@@ -126,7 +126,7 @@ impl Expr for Power {
         )
     }
 
-    fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
+    fn differentiate(&self, s: Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
         let new_exp = self.exponent - 1;
         let diff_base = self.base.differentiate(s).map_err(|e| {
             generic_expression_error(
@@ -218,18 +218,18 @@ mod tests {
         let mut op = Power::new(make_symbol(2u32), rand::random_range(2..=16) as i64).unwrap();
         let p = make_perturbation_symbol(4u32, 4u32);
 
-        assert!(is_zero_expr(&op.differentiate(&p).unwrap(), None));
+        assert!(is_zero_expr(&op.differentiate(p.clone()).unwrap(), None));
 
         let base = make_exch_corr_energy("", None, None, None);
         let mut exponent: i64 = rand::random_range(2..=16);
         op = Power::new(base.clone(), exponent).unwrap();
 
         assert_eq!(
-            &op.differentiate(&p).unwrap(),
+            &op.differentiate(p.clone()).unwrap(),
             &crate::expressions::Mul::new(vec![
                 Number::from_i64(exponent),
                 Power::new(base.clone(), exponent - 1).unwrap(),
-                base.differentiate(&p).unwrap(),
+                base.differentiate(p.clone()).unwrap(),
             ])
             .unwrap()
         );
@@ -238,11 +238,11 @@ mod tests {
         op = Power::new(base.clone(), exponent).unwrap();
 
         assert_eq!(
-            &op.differentiate(&p).unwrap(),
+            &op.differentiate(p.clone()).unwrap(),
             &crate::expressions::Mul::new(vec![
                 Number::from_i64(exponent),
                 Power::new(base.clone(), exponent - 1).unwrap(),
-                base.differentiate(&p).unwrap(),
+                base.differentiate(p).unwrap(),
             ])
             .unwrap()
         );

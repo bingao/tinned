@@ -25,10 +25,10 @@ macro_rules! impl_exch_corr_interface {
         #[::pyo3::prelude::pyfunction]
         pub fn $build_fn(
             name: ::std::string::String,
-            grid_weight: $crate::core::expr::PyExpr,
-            density_matrix: $crate::core::expr::PyExpr,
-            overlap_distribution: $crate::core::expr::PyExpr,
-        ) -> ::pyo3::PyResult<$crate::core::expr::PyExpr> {
+            grid_weight: py_expr_ref_ty!(),
+            density_matrix: py_expr_ref_ty!(),
+            overlap_distribution: py_expr_ref_ty!(),
+        ) -> ::pyo3::PyResult<py_expr_ty!()> {
             let out = <$expr_ty>::builder(
                 name,
                 grid_weight.inner().clone(),
@@ -38,7 +38,7 @@ macro_rules! impl_exch_corr_interface {
             .build()
             .map_err($crate::core::errors::to_pyerr)?;
 
-            Ok($crate::core::expr::PyExpr::new(out))
+            Ok(<py_expr_ty!()>::new(out))
         }
 
         impl_expr_getter_interface!(
@@ -53,41 +53,41 @@ macro_rules! impl_exch_corr_interface {
             fn_name = $grid_weight_fn,
             fn_doc = impl_expr_getter_doc!("grid weight", $expr_ty),
             expr_ty = $expr_ty,
-            out_ty = $crate::core::expr::PyExpr,
-            body = |op: &$expr_ty| Ok($crate::core::expr::PyExpr::new(op.grid_weight().clone()))
+            out_ty = py_expr_ty!(),
+            body = |op: &$expr_ty| Ok(<py_expr_ty!()>::new(op.grid_weight().clone()))
         );
 
         impl_expr_getter_interface!(
             fn_name = $density_matrix_fn,
             fn_doc = impl_expr_getter_doc!("density matrix", $expr_ty),
             expr_ty = $expr_ty,
-            out_ty = $crate::core::expr::PyExpr,
-            body = |op: &$expr_ty| Ok($crate::core::expr::PyExpr::new(op.density_matrix().clone()))
+            out_ty = py_expr_ty!(),
+            body = |op: &$expr_ty| Ok(<py_expr_ty!()>::new(op.density_matrix().clone()))
         );
 
         impl_expr_getter_interface!(
             fn_name = $overlap_distribution_fn,
             fn_doc = impl_expr_getter_doc!("overlap distribution", $expr_ty),
             expr_ty = $expr_ty,
-            out_ty = $crate::core::expr::PyExpr,
+            out_ty = py_expr_ty!(),
             body =
-                |op: &$expr_ty| Ok($crate::core::expr::PyExpr::new(op.overlap_distribution().clone()))
+                |op: &$expr_ty| Ok(<py_expr_ty!()>::new(op.overlap_distribution().clone()))
         );
 
         impl_expr_getter_interface!(
             fn_name = $grid_expr_fn,
             fn_doc = impl_expr_getter_doc!("grid expression", $expr_ty),
             expr_ty = $expr_ty,
-            out_ty = $crate::core::expr::PyExpr,
-            body = |op: &$expr_ty| Ok($crate::core::expr::PyExpr::new(op.$grid_expr_method().clone()))
+            out_ty = py_expr_ty!(),
+            body = |op: &$expr_ty| Ok(<py_expr_ty!()>::new(op.$grid_expr_method().clone()))
         );
 
         impl_expr_getter_interface!(
             fn_name = $derivative_fn,
             fn_doc = impl_expr_getter_doc!("derivative", $expr_ty),
             expr_ty = $expr_ty,
-            out_ty = $crate::perturbations::pert_multichain::PyPertMultichain,
-            body = |op: &$expr_ty| Ok($crate::perturbations::pert_multichain::PyPertMultichain::new(
+            out_ty = py_pert_multichain_ty!(),
+            body = |op: &$expr_ty| Ok(<py_pert_multichain_ty!()>::new(
                 op.derivative().clone(),
             ))
         );

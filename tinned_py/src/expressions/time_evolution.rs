@@ -16,7 +16,7 @@ use crate::perturbations::pert_multichain::PyPertMultichain;
 ///   A PyExpr wrapping the constructed expression (interned).
 #[pyfunction]
 #[pyo3(signature = (argument, is_forward=None))]
-pub fn time_evolution_new(argument: PyExpr, is_forward: Option<bool>) -> PyResult<PyExpr> {
+pub fn time_evolution_new(argument: &PyExpr, is_forward: Option<bool>) -> PyResult<PyExpr> {
     let mut b = TimeEvolution::builder(argument.inner().clone());
 
     if let Some(v) = is_forward {

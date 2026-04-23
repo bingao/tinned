@@ -34,25 +34,22 @@ impl ExprInternal for Symbol {
     }
 
     #[inline]
-    fn replace_expr_children(
+    fn replace_one_in_children(
         &self,
-        _map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
+        _expr: &Arc<dyn Expr>,
+        _replacement: Arc<dyn Expr>,
         _include_derivatives: bool,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
         Ok(self.clone_expr())
     }
 
     #[inline]
-    fn retain_single(
+    fn replace_all_in_children(
         &self,
-        s: &Arc<dyn Expr>,
-        include_derivatives: bool,
+        _map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
+        _include_derivatives: bool,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
-        if self.match_self_single(s, include_derivatives) {
-            Ok(self.clone_expr())
-        } else {
-            Ok(Number::zero())
-        }
+        Ok(self.clone_expr())
     }
 }
 
@@ -63,17 +60,39 @@ impl Expr for Symbol {
     #[inline]
     fn differentiate(
         &self,
-        _s: &Arc<crate::perturbations::Perturbation>,
+        _s: Arc<crate::perturbations::Perturbation>,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
         Ok(Number::zero())
     }
 
     #[inline]
-    fn remove(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
-        if self.match_self_any(set, false) {
+    fn remove_one(&self, s: &Arc<dyn Expr>) -> Result<Arc<dyn Expr>, TinnedError> {
+        if self.match_one_self(s, false) {
             Ok(Number::zero())
         } else {
             Ok(self.clone_expr())
+        }
+    }
+
+    #[inline]
+    fn remove_all(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
+        if self.match_any_self(set, false) {
+            Ok(Number::zero())
+        } else {
+            Ok(self.clone_expr())
+        }
+    }
+
+    #[inline]
+    fn retain_one(
+        &self,
+        s: &Arc<dyn Expr>,
+        include_derivatives: bool,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        if self.match_one_self(s, include_derivatives) {
+            Ok(self.clone_expr())
+        } else {
+            Ok(Number::zero())
         }
     }
 }
@@ -156,7 +175,7 @@ mod tests {
     fn test_differentiation() {
         let s = make_symbol(10u32);
         let p = make_perturbation_symbol(4u32, 4u32);
-        assert_eq!(&s.differentiate(&p).unwrap(), &Number::zero());
+        assert_eq!(&s.differentiate(p).unwrap(), &Number::zero());
     }
 
     // Test serialization and deserialization via `serde_json`

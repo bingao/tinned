@@ -32,18 +32,19 @@ impl ExprInternal for ZeroOperator {
     }
 
     #[inline]
-    fn replace_expr_children(
+    fn replace_one_in_children(
         &self,
-        _map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
+        _expr: &Arc<dyn Expr>,
+        _replacement: Arc<dyn Expr>,
         _include_derivatives: bool,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
         Ok(self.clone_expr())
     }
 
     #[inline]
-    fn retain_single(
+    fn replace_all_in_children(
         &self,
-        _s: &Arc<dyn Expr>,
+        _map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
         _include_derivatives: bool,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
         Ok(self.clone_expr())
@@ -68,13 +69,27 @@ impl Expr for ZeroOperator {
     #[inline]
     fn differentiate(
         &self,
-        _s: &Arc<crate::perturbations::Perturbation>,
+        _s: Arc<crate::perturbations::Perturbation>,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
         Ok(Self::new())
     }
 
     #[inline]
-    fn remove(&self, _set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
+    fn remove_one(&self, _s: &Arc<dyn Expr>) -> Result<Arc<dyn Expr>, TinnedError> {
+        Ok(self.clone_expr())
+    }
+
+    #[inline]
+    fn remove_all(&self, _set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
+        Ok(self.clone_expr())
+    }
+
+    #[inline]
+    fn retain_one(
+        &self,
+        _s: &Arc<dyn Expr>,
+        _include_derivatives: bool,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
         Ok(self.clone_expr())
     }
 }
@@ -116,7 +131,7 @@ mod tests {
     fn test_differentiation() {
         let z = ZeroOperator::new();
         let p = make_perturbation_symbol(4u32, 4u32);
-        assert_eq!(&z.differentiate(&p).unwrap(), &ZeroOperator::new());
+        assert_eq!(&z.differentiate(p).unwrap(), &ZeroOperator::new());
     }
 
     #[test]

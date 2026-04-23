@@ -1,7 +1,6 @@
 use pyo3::prelude::*;
-use std::sync::Arc;
 
-use tinned::{DotProduct, Expr};
+use tinned::DotProduct;
 
 use crate::core::{errors::to_pyerr, expr::PyExpr};
 
@@ -30,14 +29,14 @@ use crate::core::{errors::to_pyerr, expr::PyExpr};
     is_scalar=true
 ))]
 pub fn dot_product_new(
-    bra: PyExpr,
+    bra: &PyExpr,
     use_hermitian: bool,
-    ket: PyExpr,
+    ket: &PyExpr,
     allow_braket_swap: bool,
     is_scalar: bool,
 ) -> PyResult<PyExpr> {
-    let rust_bra: Arc<dyn Expr> = bra.inner().clone();
-    let rust_ket: Arc<dyn Expr> = ket.inner().clone();
+    let rust_bra = bra.inner().clone();
+    let rust_ket = ket.inner().clone();
 
     let out =
         DotProduct::new(rust_bra, use_hermitian, rust_ket, allow_braket_swap, Some(is_scalar))

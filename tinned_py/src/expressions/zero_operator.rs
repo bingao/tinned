@@ -1,7 +1,6 @@
 use pyo3::prelude::*;
-use std::sync::Arc;
 
-use tinned::{Expr, ZeroOperator};
+use tinned::ZeroOperator;
 
 use crate::core::expr::PyExpr;
 
@@ -11,7 +10,7 @@ use crate::core::expr::PyExpr;
 ///   A PyExpr wrapping the zero operator (interned).
 #[pyfunction]
 pub fn zero_operator_new() -> PyResult<PyExpr> {
-    let out: Arc<dyn Expr> = ZeroOperator::new();
+    let out = ZeroOperator::new();
     Ok(PyExpr::new(out))
 }
 

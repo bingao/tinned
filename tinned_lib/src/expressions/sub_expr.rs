@@ -69,9 +69,9 @@ pub struct ReplacementRule {
 }
 
 impl ReplacementRule {
-    pub fn new(map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>, include_derivatives: bool) -> Self {
+    pub fn new(map: HashMap<Arc<dyn Expr>, Arc<dyn Expr>>, include_derivatives: bool) -> Self {
         Self {
-            map: map.clone(),
+            map,
             include_derivatives,
         }
     }
@@ -106,9 +106,9 @@ pub struct RetainmentRule {
 }
 
 impl RetainmentRule {
-    pub fn new(s: &Arc<dyn Expr>, include_derivatives: bool) -> Self {
+    pub fn new(s: Arc<dyn Expr>, include_derivatives: bool) -> Self {
         Self {
-            s: s.clone(),
+            s,
             include_derivatives,
         }
     }
@@ -193,7 +193,7 @@ impl SubExpr {
     fn with_differentiation(
         &self,
         expression: Arc<dyn Expr>,
-        s: &Arc<Perturbation>,
+        s: Arc<Perturbation>,
     ) -> Arc<dyn Expr> {
         intern_expr(Arc::new(Self {
             name: self.name.clone(),
@@ -212,12 +212,12 @@ impl SubExpr {
     fn with_elimination(
         &self,
         expression: Arc<dyn Expr>,
-        parameter: &Arc<dyn Expr>,
+        parameter: Arc<dyn Expr>,
         perturbations: &[Arc<Perturbation>],
         min_order: u32,
     ) -> Arc<dyn Expr> {
         let mut elimination_rules = self.elimination_rules.clone();
-        elimination_rules.push(EliminationRule::new(parameter.clone(), min_order, perturbations));
+        elimination_rules.push(EliminationRule::new(parameter, min_order, perturbations));
 
         intern_expr(Arc::new(Self {
             name: self.name.clone(),
@@ -236,10 +236,10 @@ impl SubExpr {
     fn with_removal(
         &self,
         expression: Arc<dyn Expr>,
-        set: &HashSet<Arc<dyn Expr>>,
+        set: HashSet<Arc<dyn Expr>>,
     ) -> Arc<dyn Expr> {
         let mut removal_rules = self.removal_rules.clone();
-        removal_rules.push(set.clone());
+        removal_rules.push(set);
 
         intern_expr(Arc::new(Self {
             name: self.name.clone(),
@@ -258,7 +258,7 @@ impl SubExpr {
     fn with_replacement(
         &self,
         expression: Arc<dyn Expr>,
-        map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
+        map: HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
         include_derivatives: bool,
     ) -> Arc<dyn Expr> {
         let mut replacement_rules = self.replacement_rules.clone();
@@ -281,7 +281,7 @@ impl SubExpr {
     fn with_retainment(
         &self,
         expression: Arc<dyn Expr>,
-        s: &Arc<dyn Expr>,
+        s: Arc<dyn Expr>,
         include_derivatives: bool,
     ) -> Arc<dyn Expr> {
         let mut retainment_rules = self.retainment_rules.clone();
@@ -350,7 +350,28 @@ impl ExprInternal for SubExpr {
     impl_expr_internal_methods!(SubExpr, true);
 
     #[inline]
-    fn replace_expr_children(
+    fn replace_one_in_children(
+        &self,
+        expr: &Arc<dyn Expr>,
+        replacement: Arc<dyn Expr>,
+        include_derivatives: bool,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        impl_unary_expr_arg_operation!(
+            self,
+            Argument,
+            expression,
+            |arg: &Arc<dyn Expr>| arg.replace_one(expr, replacement.clone(), include_derivatives),
+            "SubExpr::replace_one_in_children() failed",
+            |this: &SubExpr, arg| Ok(this.with_replacement(
+                arg,
+                HashMap::from([(expr.clone(), replacement)]),
+                include_derivatives
+            ))
+        )
+    }
+
+    #[inline]
+    fn replace_all_in_children(
         &self,
         map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
         include_derivatives: bool,
@@ -359,29 +380,9 @@ impl ExprInternal for SubExpr {
             self,
             Argument,
             expression,
-            |arg: &Arc<dyn Expr>| arg.replace(map, include_derivatives),
-            "SubExpr::replace_expr_children() failed",
-            |this: &SubExpr, arg| Ok(this.with_replacement(arg, map, include_derivatives))
-        )
-    }
-
-    #[inline]
-    fn retain_single(
-        &self,
-        s: &Arc<dyn Expr>,
-        include_derivatives: bool,
-    ) -> Result<Arc<dyn Expr>, TinnedError> {
-        if self.match_self_single(s, include_derivatives) {
-            return Ok(self.clone_expr());
-        }
-
-        impl_unary_expr_arg_operation!(
-            self,
-            Argument,
-            expression,
-            |arg: &Arc<dyn Expr>| arg.retain_single(s, include_derivatives),
-            "SubExpr::retain_single() failed",
-            |this: &SubExpr, arg| Ok(this.with_retainment(arg, s, include_derivatives))
+            |arg: &Arc<dyn Expr>| arg.replace_all(map, include_derivatives),
+            "SubExpr::replace_all_in_children() failed",
+            |this: &SubExpr, arg| Ok(this.with_replacement(arg, map.clone(), include_derivatives))
         )
     }
 
@@ -406,7 +407,7 @@ impl ExprInternal for SubExpr {
     #[inline]
     fn deep_eq_superchains(&self, other: &Arc<dyn Expr>) -> bool {
         if let Some(op) = downcast_from_arc::<SubExpr>(other) {
-            // Since this function is used by `find_superchains()`, we check
+            // Since this function is used by `find_all()`, we check
             // ONLY `identifier` and `derivative`.
             self.identifier == op.identifier && self.derivative.is_subchain(&op.derivative)
         } else {
@@ -470,8 +471,8 @@ impl Expr for SubExpr {
         }
     }
 
-    fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
-        let diff_expr = self.expression.differentiate(s).map_err(|e| {
+    fn differentiate(&self, s: Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
+        let diff_expr = self.expression.differentiate(s.clone()).map_err(|e| {
             generic_expression_error(
                 format!(
                     "SubExpr::differentiate() failed for differentiation with respect to {}",
@@ -488,11 +489,11 @@ impl Expr for SubExpr {
     #[inline]
     fn eliminate(
         &self,
-        parameter: &Arc<dyn Expr>,
+        parameter: Arc<dyn Expr>,
         perturbations: &[Arc<Perturbation>],
         min_order: u32,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
-        if self.elimination_rules.iter().any(|rule| rule.parameter() == parameter) {
+        if self.elimination_rules.iter().any(|rule| rule.parameter() == &parameter) {
             return Err(generic_expression_error(
                 format!(
                     "SubExpr::eliminate() got repeated elimination of a parameter {}",
@@ -504,7 +505,7 @@ impl Expr for SubExpr {
         }
 
         let new_expr =
-            self.expression.eliminate(parameter, perturbations, min_order).map_err(|e| {
+            self.expression.eliminate(parameter.clone(), perturbations, min_order).map_err(|e| {
                 generic_expression_error(
                     format!(
                         "SubExpr::eliminate() failed for the parameter {}, minimum order {}, and perturbations [{}]",
@@ -521,30 +522,57 @@ impl Expr for SubExpr {
     }
 
     #[inline]
-    fn exist_any(&self, set: &HashSet<Arc<dyn Expr>>, include_derivatives: bool) -> bool {
-        self.match_self_any(set, include_derivatives)
-            || self.expression.exist_any(set, include_derivatives)
-    }
-
-    #[inline]
-    fn find_superchains(&self, s: &Arc<dyn Expr>) -> BTreeMap<u32, HashSet<Arc<dyn Expr>>> {
+    fn find_all(&self, s: &Arc<dyn Expr>) -> BTreeMap<u32, HashSet<Arc<dyn Expr>>> {
         if self.deep_eq_superchains(s) {
             BTreeMap::from([(self.total_order(), HashSet::from([self.clone_expr()]))])
         } else {
-            self.expression.find_superchains(s)
+            self.expression.find_all(s)
         }
     }
 
     #[inline]
-    fn remove(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
-        if self.match_self_any(set, false) {
+    fn match_one(&self, s: &Arc<dyn Expr>, include_derivatives: bool) -> bool {
+        self.match_one_self(s, include_derivatives)
+            || self.expression.match_one(s, include_derivatives)
+    }
+
+    #[inline]
+    fn match_any(&self, set: &HashSet<Arc<dyn Expr>>, include_derivatives: bool) -> bool {
+        self.match_any_self(set, include_derivatives)
+            || self.expression.match_any(set, include_derivatives)
+    }
+
+    #[inline]
+    fn remove_one(&self, s: &Arc<dyn Expr>) -> Result<Arc<dyn Expr>, TinnedError> {
+        if self.match_one_self(s, false) {
             return impl_zero_expr!(self.expression.is_scalar());
         }
 
-        let new_expr = self.expression.remove(set).map_err(|e| {
+        let new_expr = self.expression.remove_one(s).map_err(|e| {
+            generic_expression_error(
+                format!("SubExpr::remove_one() failed for removing {}", s,),
+                self,
+                Some(Box::new(e)),
+            )
+        })?;
+
+        if &new_expr == &self.expression {
+            Ok(self.clone_expr())
+        } else {
+            Ok(self.with_removal(new_expr, HashSet::from([s.clone()])))
+        }
+    }
+
+    #[inline]
+    fn remove_all(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
+        if self.match_any_self(set, false) {
+            return impl_zero_expr!(self.expression.is_scalar());
+        }
+
+        let new_expr = self.expression.remove_all(set).map_err(|e| {
             generic_expression_error(
                 format!(
-                    "SubExpr::remove() failed for removing {{{}}}",
+                    "SubExpr::remove_all() failed for removing {{{}}}",
                     join_mapped(set.iter(), ",", |s| s.to_string()),
                 ),
                 self,
@@ -555,8 +583,28 @@ impl Expr for SubExpr {
         if &new_expr == &self.expression {
             Ok(self.clone_expr())
         } else {
-            Ok(self.with_removal(new_expr, set))
+            Ok(self.with_removal(new_expr, set.clone()))
         }
+    }
+
+    #[inline]
+    fn retain_one(
+        &self,
+        s: &Arc<dyn Expr>,
+        include_derivatives: bool,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        if self.match_one_self(s, include_derivatives) {
+            return Ok(self.clone_expr());
+        }
+
+        impl_unary_expr_arg_operation!(
+            self,
+            Argument,
+            expression,
+            |arg: &Arc<dyn Expr>| arg.retain_one(s, include_derivatives),
+            "SubExpr::retain_one() failed",
+            |this: &SubExpr, arg| Ok(this.with_retainment(arg, s.clone(), include_derivatives))
+        )
     }
 }
 
@@ -564,7 +612,7 @@ impl Expr for SubExpr {
 impl PartialEq for SubExpr {
     fn eq(&self, other: &Self) -> bool {
         // We also compare `expression`, which may change after some methods
-        // like `substitute_zero_perturbations()`, `remove()`, `replace()` and `retain()`.
+        // like `substitute_zero_perturbations()`, `remove_all()`, `replace_all()` and `retain_one()`.
         self.identifier == other.identifier
             && &self.expression == &other.expression
             && self.derivative == other.derivative

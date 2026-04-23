@@ -8,7 +8,7 @@ macro_rules! impl_expr_getter_interface {
     ) => {
         #[doc = $fn_doc]
         #[::pyo3::prelude::pyfunction]
-        pub fn $fn_name(expr: $crate::core::expr::PyExpr) -> ::pyo3::PyResult<$out_ty> {
+        pub fn $fn_name(expr: py_expr_ref_ty!()) -> ::pyo3::PyResult<$out_ty> {
             let inner = expr.inner().clone();
 
             let op_ref = inner.as_any().downcast_ref::<$expr_ty>().ok_or_else(|| {

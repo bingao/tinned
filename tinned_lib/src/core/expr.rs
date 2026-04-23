@@ -58,7 +58,7 @@ pub trait Expr: Debug + Send + Sync + ExprInternal {
     // Differentiates with respect to a `Perturbation`.
     fn differentiate(
         &self,
-        s: &Arc<crate::perturbations::Perturbation>,
+        s: Arc<crate::perturbations::Perturbation>,
     ) -> Result<Arc<dyn Expr>, TinnedError>;
 
     // Eliminates a given response `parameter`'s derivatives from the
@@ -75,20 +75,11 @@ pub trait Expr: Debug + Send + Sync + ExprInternal {
     #[inline]
     fn eliminate(
         &self,
-        _parameter: &Arc<dyn Expr>,
+        _parameter: Arc<dyn Expr>,
         _perturbations: &[Arc<crate::perturbations::Perturbation>],
         _min_order: u32,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
         Ok(self.clone_expr())
-    }
-
-    // Checks if any expression in `set` exists in the current expression
-    // `self` and its children.  If the parameter `include_derivatives` is
-    // `true`, we also consider derivatives (including order 0) of expressions
-    // in `set` when checking existence.
-    #[inline]
-    fn exist_any(&self, set: &HashSet<Arc<dyn Expr>>, include_derivatives: bool) -> bool {
-        self.match_self_any(set, include_derivatives)
     }
 
     // Finds a given expression `s` and all its higher-order "differentiated"
@@ -112,7 +103,7 @@ pub trait Expr: Debug + Send + Sync + ExprInternal {
     // To summarize, this method returns objects that match `s` according to
     // the method `deep_eq_superchains()`.
     #[inline]
-    fn find_superchains(&self, s: &Arc<dyn Expr>) -> BTreeMap<u32, HashSet<Arc<dyn Expr>>> {
+    fn find_all(&self, s: &Arc<dyn Expr>) -> BTreeMap<u32, HashSet<Arc<dyn Expr>>> {
         if self.deep_eq_superchains(s) {
             BTreeMap::from([(self.total_order(), HashSet::from([self.clone_expr()]))])
         } else {
@@ -120,8 +111,96 @@ pub trait Expr: Debug + Send + Sync + ExprInternal {
         }
     }
 
+    // For a given expression `s`, checks if the current expression is equal to
+    // `s`, or is a derivative (including order 0) of `s` when
+    // `include_derivatives` is `true`.
+    //
+    //FIXME: implement its FFI
+    #[inline]
+    fn match_one_self(&self, s: &Arc<dyn Expr>, include_derivatives: bool) -> bool {
+        if include_derivatives {
+            self.eq_by_superchains(s)
+        } else {
+            self.eq_expr(s.as_ref())
+        }
+    }
+
+    // This method is similar to `match_one_self()`, but when the current
+    // expression does not match the expression `s`, this method will
+    // call `match_one()` on all its child expressions if exist. This
+    // method can be viewed as a recursive version of matching, and should be
+    // overridden by concrete expression struct's when they have child
+    // expression(s).
+    //
+    //FIXME: implement its FFI
+    #[inline]
+    fn match_one(&self, s: &Arc<dyn Expr>, include_derivatives: bool) -> bool {
+        self.match_one_self(s, include_derivatives)
+    }
+
+    // For a given `set` of expressions, checks if the current expression is
+    // equal to, or a derivative (including order 0) of any expression in the
+    // `set`. Matching derivatives is enabled when `include_derivatives` is
+    // `true`.
+    //
+    //FIXME: implement its FFI
+    #[inline]
+    fn match_any_self(&self, set: &HashSet<Arc<dyn Expr>>, include_derivatives: bool) -> bool {
+        if include_derivatives {
+            set.iter().any(|expr| self.eq_by_superchains(expr))
+        } else {
+            set.iter().any(|expr| self.eq_expr(expr.as_ref()))
+        }
+    }
+
+    // This method is similar to `match_any_self()`, but when the current
+    // expression does not match any expression in the `set`, this method will
+    // call `match_any()` on all its child expressions if exist. This
+    // method can be viewed as a recursive version of matching, and should be
+    // overridden by concrete expression struct's when they have child
+    // expression(s).
+    #[inline]
+    fn match_any(&self, set: &HashSet<Arc<dyn Expr>>, include_derivatives: bool) -> bool {
+        self.match_any_self(set, include_derivatives)
+    }
+
+    // Removes a given expressions `s` from the current expression.
+    fn remove_one(&self, s: &Arc<dyn Expr>) -> Result<Arc<dyn Expr>, TinnedError>;
+
     // Removes all expressions in `set` from the current expression.
-    fn remove(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError>;
+    fn remove_all(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError>;
+
+    // If the parameter `include_derivatives` is `false`, the method replaces
+    // `expr` with `replacement` in the current expression.
+    //
+    // If the parameter `include_derivatives` is `true`, the method replaces
+    // `expr` and its higher-order "derivatives" with corresponding values of
+    // `replacement` and its derivatives in the current expression. Here,
+    // "higher-order" is the same as that of method `find_all()`. The meaning
+    // of "derivatives" is taken care by different concrete expression types.
+    // One requirement is that `replace_one()` should not return same results
+    // for two different paris of `expr` and `replacement`. Expressions to be
+    // replaced are determined by the method `eq_by_superchains()`, which can
+    // be overriden by concrete expression types.
+    //
+    //FIXME: add its FFI
+    #[inline]
+    fn replace_one(
+        &self,
+        expr: &Arc<dyn Expr>,
+        replacement: Arc<dyn Expr>,
+        include_derivatives: bool,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        if include_derivatives {
+            if self.eq_by_superchains(expr) {
+                return self.apply_replacement(expr, replacement);
+            }
+        } else if self.eq_expr(expr.as_ref()) {
+            return Ok(replacement);
+        }
+
+        self.replace_one_in_children(expr, replacement, include_derivatives)
+    }
 
     // If the parameter `include_derivatives` is `false`, the method replaces
     // expressions (keys of `map`) with corresponding values of `map` in the
@@ -129,24 +208,28 @@ pub trait Expr: Debug + Send + Sync + ExprInternal {
     //
     // If the parameter `include_derivatives` is `true`, the method replaces
     // expressions (keys of `map`) and their higher-order "derivatives" with
-    // corresponding values of `map` and their derivatives in the concrete
+    // corresponding values of `map` and their derivatives in the current
     // expression. Here, "higher-order" is the same as that of method
-    // `find_superchains()`. The meaning of "derivatives" is taken care by
+    // `find_all()`. The meaning of "derivatives" is taken care by
     // different concrete expression types. One requirement is that
-    // `replace_superchains()` should not return same results for two different
+    // `replace_all()` should not return same results for two different
     // `map`'s. Expressions to be replaced are determined by the method
     // `eq_by_superchains()`, which can be overriden by concrete expression
     // types.
     #[inline]
-    fn replace(
+    fn replace_all(
         &self,
         map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
         include_derivatives: bool,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
+        // Note that we cannot iterate `map` and use the method `replace_one()`
+        // because we will first check if the current expression matches any
+        // key of `map` and make the replacement if matching. Unless no
+        // matching at all, we will work on its child expression(s).
         let found = if include_derivatives {
             map.iter()
                 .find(|(key, _)| self.eq_by_superchains(key))
-                .map(|(expr, value)| self.replace_expr_self(expr, value.clone()))
+                .map(|(expr, value)| self.apply_replacement(expr, value.clone()))
         } else {
             map.iter()
                 .find(|(key, _)| self.eq_expr(key.as_ref()))
@@ -155,15 +238,38 @@ pub trait Expr: Debug + Send + Sync + ExprInternal {
 
         match found {
             Some(result) => result,
-            None => self.replace_expr_children(map, include_derivatives),
+            None => self.replace_all_in_children(map, include_derivatives),
         }
     }
+
+    /// Retains parts of the expression that match the given expression `s`.
+    ///
+    /// If the current expression matches `s`, or (when
+    /// `include_derivatives` is `true`) / corresponds to a higher-order
+    /// derivative of `s`, it is kept unchanged.
+    ///
+    /// Otherwise, if the current expression has no child expressions, zero
+    /// is returned. If it has child expressions, the same procedure is
+    /// applied recursively to each child. Based on the results, the
+    /// function may return zero, the original expression, or a modified
+    /// expression, depending on how the concrete expression type combines
+    /// its children.
+    ///
+    /// This function is composable and may be applied repeatedly, for
+    /// example in higher-order residue computations.
+    ///
+    /// FIXME: add its FFI
+    fn retain_one(
+        &self,
+        s: &Arc<dyn crate::core::expr::Expr>,
+        include_derivatives: bool,
+    ) -> Result<Arc<dyn crate::core::expr::Expr>, TinnedError>;
 
     /// Applies successive retention operations with respect to each expression
     /// in `set`.
     ///
     /// Starting from the current expression, this function repeatedly applies
-    /// [`retain_single`] for each expression in `set`, updating the expression
+    /// [`retain`] for each expression in `set`, updating the expression
     /// at each step.  Conceptually, this corresponds to extracting the
     /// component of the expression that is consistent with all retention
     /// conditions induced by elements of `set`.
@@ -176,7 +282,7 @@ pub trait Expr: Debug + Send + Sync + ExprInternal {
     ///
     /// This function is primarily intended for (higher-order) residue
     /// computations.
-    fn retain(
+    fn retain_all(
         &self,
         set: &HashSet<Arc<dyn Expr>>,
         include_derivatives: bool,
@@ -184,7 +290,7 @@ pub trait Expr: Debug + Send + Sync + ExprInternal {
         let mut result = self.clone_expr();
 
         for s in set {
-            result = result.retain_single(s, include_derivatives)?;
+            result = result.retain_one(s, include_derivatives)?;
 
             if result.is_exact_zero() {
                 return Ok(result);

@@ -1,7 +1,6 @@
 use pyo3::prelude::*;
-use std::sync::Arc;
 
-use tinned::{Expr, Power};
+use tinned::Power;
 
 use crate::core::{errors::to_pyerr, expr::PyExpr};
 
@@ -14,8 +13,8 @@ use crate::core::{errors::to_pyerr, expr::PyExpr};
 /// Returns:
 ///   A PyExpr wrapping the constructed expression (interned).
 #[pyfunction]
-pub fn power_new(base: PyExpr, exponent: i64) -> PyResult<PyExpr> {
-    let base_inner: Arc<dyn Expr> = base.inner().clone();
+pub fn power_new(base: &PyExpr, exponent: i64) -> PyResult<PyExpr> {
+    let base_inner = base.inner().clone();
 
     let out = Power::new(base_inner, exponent).map_err(to_pyerr)?;
     Ok(PyExpr::new(out))

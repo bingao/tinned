@@ -246,25 +246,22 @@ impl ExprInternal for BasisTimeEvolution {
     }
 
     #[inline]
-    fn replace_expr_children(
+    fn replace_one_in_children(
         &self,
-        _map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
+        _expr: &Arc<dyn Expr>,
+        _replacement: Arc<dyn Expr>,
         _include_derivatives: bool,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
         Ok(self.clone_expr())
     }
 
     #[inline]
-    fn retain_single(
+    fn replace_all_in_children(
         &self,
-        s: &Arc<dyn Expr>,
-        include_derivatives: bool,
+        _map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
+        _include_derivatives: bool,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
-        if self.match_self_single(s, include_derivatives) {
-            Ok(self.clone_expr())
-        } else {
-            Ok(ZeroOperator::new())
-        }
+        Ok(self.clone_expr())
     }
 }
 
@@ -303,8 +300,8 @@ impl Expr for BasisTimeEvolution {
         self.with_braket(MatrixAdd::new(terms)?, Some(true)).build()
     }
 
-    fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
-        let diff_braket = self.braket.differentiate(s).map_err(|e| {
+    fn differentiate(&self, s: Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
+        let diff_braket = self.braket.differentiate(s.clone()).map_err(|e| {
             generic_expression_error(
                 "BasisTimeEvolution::differentiate() failed",
                 self,
@@ -321,8 +318,21 @@ impl Expr for BasisTimeEvolution {
         self.with_derivative(new_deriv, diff_braket).build()
     }
 
-    // `BasisTimeEvolution` is an undivided whole for methods `exist_any()`,
-    // `find_superchains()`. So, we use the corresponding methods of the
+    #[inline]
+    fn retain_one(
+        &self,
+        s: &Arc<dyn Expr>,
+        include_derivatives: bool,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        if self.match_one_self(s, include_derivatives) {
+            Ok(self.clone_expr())
+        } else {
+            Ok(ZeroOperator::new())
+        }
+    }
+
+    // `BasisTimeEvolution` is an undivided whole for methods `match_any()`,
+    // `find_all()`. So, we use the corresponding methods of the
     // pub trait `Expr`.
 }
 
@@ -406,9 +416,9 @@ mod tests {
         let op = BasisTimeEvolution::builder(deps.clone()).build().unwrap();
 
         let p: Arc<Perturbation> = deps.keys().first().cloned().unwrap();
-        let mut diff_op = op.differentiate(&p).unwrap();
+        let mut diff_op = op.differentiate(p.clone()).unwrap();
         let mut deriv = PertMultichain::new();
-        deriv.insert(&p);
+        deriv.insert(p.clone());
 
         let diff_cast = downcast_from_arc::<BasisTimeEvolution>(&diff_op).unwrap();
 
@@ -416,13 +426,13 @@ mod tests {
 
         let max_order = deps.get_order(&p);
         for _ in 1..=2 * max_order + 1 {
-            diff_op = diff_op.differentiate(&p).unwrap();
+            diff_op = diff_op.differentiate(p.clone()).unwrap();
         }
 
         assert_eq!(&diff_op, &ZeroOperator::new());
 
         assert!(is_zero_expr(
-            &op.differentiate(&make_perturbation_symbol(len_pert_name + 1u32, 4u32)).unwrap(),
+            &op.differentiate(make_perturbation_symbol(len_pert_name + 1u32, 4u32)).unwrap(),
             None
         ));
     }

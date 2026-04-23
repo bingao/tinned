@@ -1,5 +1,4 @@
 use crate::core::Expr;
-use crate::core::expr_internal::sealed::ExprInternal;
 
 // One-electron second-quantization matrix, see (1.4.12) of the pink bible
 // "Molecular Electronic-Structure Theory", which can be contracted with

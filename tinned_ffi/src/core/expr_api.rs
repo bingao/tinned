@@ -196,8 +196,9 @@ pub fn tinned_expr_differentiate(
             return None;
         },
     };
+
     ffi_expr_return_exprbox(h, "tinned_expr_differentiate", out_err, move |expr| {
-        expr.differentiate(&pert)
+        expr.differentiate(pert)
     })
 }
 
@@ -232,13 +233,13 @@ pub fn tinned_expr_eliminate(
     };
 
     ffi_expr_return_exprbox(h, "tinned_expr_eliminate", out_err, move |expr| {
-        expr.eliminate(&param, &perts, min_order)
+        expr.eliminate(param, &perts, min_order)
     })
 }
 
 // Checks if any expression in `set` exists in the current expression.
 #[ffi_export]
-pub fn tinned_expr_exist_any(
+pub fn tinned_expr_match_any(
     h: Option<&ExprHandle>,
     set: Option<&ExprSlice>,
     include_derivatives: bool,
@@ -246,7 +247,7 @@ pub fn tinned_expr_exist_any(
 ) -> bool {
     let expr_set = match set {
         Some(slice) => {
-            match expr_set_from_slice::<HashSet<Arc<dyn Expr>>>(slice, "tinned_expr_exist_any") {
+            match expr_set_from_slice::<HashSet<Arc<dyn Expr>>>(slice, "tinned_expr_match_any") {
                 Ok(s) => s,
                 Err(e) => {
                     tinned_error_new(out_err, e);
@@ -256,30 +257,30 @@ pub fn tinned_expr_exist_any(
         },
         None => HashSet::new(),
     };
-    ffi_expr_return_val(h, "tinned_expr_exist_any", out_err, |e| {
-        Ok(e.exist_any(&expr_set, include_derivatives))
+
+    ffi_expr_return_val(h, "tinned_expr_match_any", out_err, |e| {
+        Ok(e.match_any(&expr_set, include_derivatives))
     })
 }
 
 // Finds a given expression `s` and all its higher-order "differentiated" ones in the current expression.
 #[ffi_export]
-pub fn tinned_expr_find_superchains(
+pub fn tinned_expr_find_all(
     h: Option<&ExprHandle>,
     s: Option<&ExprHandle>,
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> Option<ExprSuperchainBox> {
-    let s_expr = match try_from_handle(s, "tinned_expr_find_superchains_new", "ExprHandle", |eh| {
-        eh.clone_arc()
-    }) {
-        Ok(x) => x,
-        Err(e) => {
-            tinned_error_new(out_err, e);
-            return None;
-        },
-    };
+    let s_expr =
+        match try_from_handle(s, "tinned_expr_find_all_new", "ExprHandle", |eh| eh.clone_arc()) {
+            Ok(x) => x,
+            Err(e) => {
+                tinned_error_new(out_err, e);
+                return None;
+            },
+        };
 
-    match try_with_handle(h, "tinned_expr_find_superchains_new", "ExprHandle", |eh| {
-        let superchains = eh.as_ref().find_superchains(&s_expr);
+    match try_with_handle(h, "tinned_expr_find_all_new", "ExprHandle", |eh| {
+        let superchains = eh.as_ref().find_all(&s_expr);
 
         let mut orders: Vec<u32> = superchains.keys().copied().collect();
         orders.sort_unstable();
@@ -302,16 +303,37 @@ pub fn tinned_expr_find_superchains(
     }
 }
 
+// Removes a given expressions `s` from the current expression.
+#[ffi_export]
+pub fn tinned_expr_remove_one(
+    h: Option<&ExprHandle>,
+    s: Option<&ExprHandle>,
+    out_err: Option<Out<'_, TinnedErrorBox>>,
+) -> Option<ExprBox> {
+    let s_expr =
+        match try_from_handle(s, "tinned_expr_remove_one", "ExprHandle", |eh| eh.clone_arc()) {
+            Ok(p) => p,
+            Err(e) => {
+                tinned_error_new(out_err, e);
+                return None;
+            },
+        };
+
+    ffi_expr_return_exprbox(h, "tinned_expr_remove_one", out_err, move |expr| {
+        expr.remove_one(&s_expr)
+    })
+}
+
 // Removes all expressions in `set` from the current expression.
 #[ffi_export]
-pub fn tinned_expr_remove(
+pub fn tinned_expr_remove_all(
     h: Option<&ExprHandle>,
     set: Option<&ExprSlice>,
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> Option<ExprBox> {
     let expr_set = match set {
         Some(slice) => {
-            match expr_set_from_slice::<HashSet<Arc<dyn Expr>>>(slice, "tinned_expr_remove") {
+            match expr_set_from_slice::<HashSet<Arc<dyn Expr>>>(slice, "tinned_expr_remove_all") {
                 Ok(s) => s,
                 Err(e) => {
                     tinned_error_new(out_err, e);
@@ -321,11 +343,14 @@ pub fn tinned_expr_remove(
         },
         None => Default::default(),
     };
-    ffi_expr_return_exprbox(h, "tinned_expr_remove", out_err, move |expr| expr.remove(&expr_set))
+
+    ffi_expr_return_exprbox(h, "tinned_expr_remove_all", out_err, move |expr| {
+        expr.remove_all(&expr_set)
+    })
 }
 
 #[ffi_export]
-pub fn tinned_expr_replace(
+pub fn tinned_expr_replace_all(
     h: Option<&ExprHandle>,
     keys: Option<&ExprSlice>,
     values: Option<&ExprSlice>,
@@ -333,7 +358,7 @@ pub fn tinned_expr_replace(
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> Option<ExprBox> {
     let expr_map = match (keys, values) {
-        (Some(k), Some(v)) => match expr_map_from_slices(k, v, "tinned_expr_replace") {
+        (Some(k), Some(v)) => match expr_map_from_slices(k, v, "tinned_expr_replace_all") {
             Ok(m) => m,
             Err(e) => {
                 tinned_error_new(out_err, e);
@@ -343,18 +368,19 @@ pub fn tinned_expr_replace(
         _ => {
             tinned_error_new(
                 out_err,
-                generic_error("tinned_expr_replace: keys/values must be non-NULL", None),
+                generic_error("tinned_expr_replace_all: keys/values must be non-NULL", None),
             );
             return None;
         },
     };
-    ffi_expr_return_exprbox(h, "tinned_expr_replace", out_err, move |expr| {
-        expr.replace(&expr_map, include_derivatives)
+
+    ffi_expr_return_exprbox(h, "tinned_expr_replace_all", out_err, move |expr| {
+        expr.replace_all(&expr_map, include_derivatives)
     })
 }
 
 #[ffi_export]
-pub fn tinned_expr_retain(
+pub fn tinned_expr_retain_all(
     h: Option<&ExprHandle>,
     set: Option<&ExprSlice>,
     include_derivatives: bool,
@@ -362,7 +388,7 @@ pub fn tinned_expr_retain(
 ) -> Option<ExprBox> {
     let expr_set = match set {
         Some(slice) => {
-            match expr_set_from_slice::<HashSet<Arc<dyn Expr>>>(slice, "tinned_expr_retain") {
+            match expr_set_from_slice::<HashSet<Arc<dyn Expr>>>(slice, "tinned_expr_retain_all") {
                 Ok(s) => s,
                 Err(e) => {
                     tinned_error_new(out_err, e);
@@ -372,8 +398,9 @@ pub fn tinned_expr_retain(
         },
         None => HashSet::new(),
     };
-    ffi_expr_return_exprbox(h, "tinned_expr_retain", out_err, move |expr| {
-        expr.retain(&expr_set, include_derivatives)
+
+    ffi_expr_return_exprbox(h, "tinned_expr_retain_all", out_err, move |expr| {
+        expr.retain_all(&expr_set, include_derivatives)
     })
 }
 

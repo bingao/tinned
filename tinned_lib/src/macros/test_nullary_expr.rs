@@ -234,19 +234,19 @@ macro_rules! test_nullary_expr {
 
             let p: pert_arc_ty!() =
                 deps.keys().first().cloned().unwrap();
-            let diff_op = op.differentiate(&p).unwrap();
-            deriv.insert(&p);
+            let diff_op = op.differentiate(p.clone()).unwrap();
+            deriv.insert(p.clone());
 
             let diff_cast = $crate::public::downcast_from_arc::<$type_name>(&diff_op).unwrap();
             assert_eq!(diff_cast.derivative(), &deriv);
 
             assert!($crate::public::is_zero_expr(
-                &diff_op.differentiate(&p).unwrap(),
+                &diff_op.differentiate(p).unwrap(),
                 None
             ));
 
             assert!($crate::public::is_zero_expr(
-                &op.differentiate(&$crate::perturbations::perturbation::test_utils::make_perturbation_symbol(len_pert_name + 1u32, 4u32))
+                &op.differentiate($crate::perturbations::perturbation::test_utils::make_perturbation_symbol(len_pert_name + 1u32, 4u32))
                     .unwrap(),
                 None
             ));
@@ -264,8 +264,8 @@ macro_rules! test_nullary_expr {
                 .unwrap();
 
             let p = $crate::perturbations::perturbation::test_utils::make_perturbation_symbol(len_pert_name + 1u32, 4u32);
-            let diff_op = op.differentiate(&p).unwrap();
-            deriv.insert(&p);
+            let diff_op = op.differentiate(p.clone()).unwrap();
+            deriv.insert(p);
 
             let diff_cast = $crate::public::downcast_from_arc::<$type_name>(&diff_op).unwrap();
             assert_eq!(diff_cast.derivative(), &deriv);

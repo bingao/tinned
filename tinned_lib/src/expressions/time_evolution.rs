@@ -172,7 +172,7 @@ impl Expr for TimeEvolution {
     }
 
     #[inline]
-    fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
+    fn differentiate(&self, s: Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
         let diff_arg = self.argument.differentiate(s).map_err(|e| {
             generic_expression_error(
                 "TimeEvolution::differentiate() failed for argument",
@@ -276,8 +276,8 @@ mod tests {
         let op1 = TimeEvolution::builder(argument.clone()).is_forward(is_forward).build().unwrap();
 
         let p = make_perturbation_symbol(4u32, 4u32);
-        let diff_op1 = op1.differentiate(&p).unwrap();
-        let diff_arg = argument.differentiate(&p).unwrap();
+        let diff_op1 = op1.differentiate(p.clone()).unwrap();
+        let diff_arg = argument.differentiate(p.clone()).unwrap();
 
         if is_expr_type::<ZeroOperator>(&diff_arg) {
             assert!(is_expr_type::<ZeroOperator>(&diff_op1));
@@ -289,10 +289,10 @@ mod tests {
 
         argument = make_wfn_parameter("");
         let op2 = TimeEvolution::builder(argument.clone()).build().unwrap();
-        let diff_op2 = op2.differentiate(&p).unwrap();
+        let diff_op2 = op2.differentiate(p.clone()).unwrap();
         let diff_cast = downcast_from_arc::<TimeEvolution>(&diff_op2).unwrap();
 
-        assert_eq!(diff_cast.argument(), &argument.differentiate(&p).unwrap());
+        assert_eq!(diff_cast.argument(), &argument.differentiate(p).unwrap());
     }
 
     #[test]

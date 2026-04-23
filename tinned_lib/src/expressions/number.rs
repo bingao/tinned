@@ -319,25 +319,22 @@ impl ExprInternal for Number {
     }
 
     #[inline]
-    fn replace_expr_children(
+    fn replace_one_in_children(
         &self,
-        _map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
+        _expr: &Arc<dyn Expr>,
+        _replacement: Arc<dyn Expr>,
         _include_derivatives: bool,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
         Ok(self.clone_expr())
     }
 
     #[inline]
-    fn retain_single(
+    fn replace_all_in_children(
         &self,
-        s: &Arc<dyn Expr>,
-        include_derivatives: bool,
+        _map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
+        _include_derivatives: bool,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
-        if self.match_self_single(s, include_derivatives) {
-            Ok(self.clone_expr())
-        } else {
-            Ok(Number::zero())
-        }
+        Ok(self.clone_expr())
     }
 
     #[inline]
@@ -359,17 +356,39 @@ impl Expr for Number {
     #[inline]
     fn differentiate(
         &self,
-        _s: &Arc<crate::perturbations::Perturbation>,
+        _s: Arc<crate::perturbations::Perturbation>,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
         Ok(Number::zero())
     }
 
     #[inline]
-    fn remove(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
-        if self.match_self_any(set, false) {
+    fn remove_one(&self, s: &Arc<dyn Expr>) -> Result<Arc<dyn Expr>, TinnedError> {
+        if self.match_one_self(s, false) {
             Ok(Number::zero())
         } else {
             Ok(self.clone_expr())
+        }
+    }
+
+    #[inline]
+    fn remove_all(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
+        if self.match_any_self(set, false) {
+            Ok(Number::zero())
+        } else {
+            Ok(self.clone_expr())
+        }
+    }
+
+    #[inline]
+    fn retain_one(
+        &self,
+        s: &Arc<dyn Expr>,
+        include_derivatives: bool,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        if self.match_one_self(s, include_derivatives) {
+            Ok(self.clone_expr())
+        } else {
+            Ok(Number::zero())
         }
     }
 }
@@ -798,14 +817,14 @@ mod tests {
         assert!(frac.eq_by_superchains(&frac));
 
         //FIXME: add the following tests
-        //assert_eq!(&int.replace_expr_self().unwrap(), &int);
-        //assert_eq!(&real.replace_expr_self().unwrap(), &real);
-        //assert_eq!(&cmplx.replace_expr_self().unwrap(), &cmplx);
-        //assert_eq!(&frac.replace_expr_self().unwrap(), &frac);
+        //assert_eq!(&int.apply_replacement().unwrap(), &int);
+        //assert_eq!(&real.apply_replacement().unwrap(), &real);
+        //assert_eq!(&cmplx.apply_replacement().unwrap(), &cmplx);
+        //assert_eq!(&frac.apply_replacement().unwrap(), &frac);
 
-        //replace_expr_self
-        //replace_expr_children
-        //retain_expr_fields
+        //apply_replacement
+        //replace_all_in_children
+        //retain_fields
 
         assert!(int.is_scalar());
         assert!(real.is_scalar());
@@ -822,10 +841,10 @@ mod tests {
 
         let p = make_perturbation_symbol(4u32, 4u32);
 
-        assert_eq!(&int.differentiate(&p).unwrap(), &Number::zero());
-        assert_eq!(&real.differentiate(&p).unwrap(), &Number::zero());
-        assert_eq!(&cmplx.differentiate(&p).unwrap(), &Number::zero());
-        assert_eq!(&frac.differentiate(&p).unwrap(), &Number::zero());
+        assert_eq!(&int.differentiate(p.clone()).unwrap(), &Number::zero());
+        assert_eq!(&real.differentiate(p.clone()).unwrap(), &Number::zero());
+        assert_eq!(&cmplx.differentiate(p.clone()).unwrap(), &Number::zero());
+        assert_eq!(&frac.differentiate(p).unwrap(), &Number::zero());
     }
 
     // Test serialization and deserialization via `serde_json`

@@ -490,7 +490,7 @@ impl Expr for ExpAdjointMap {
 
     //FIXME: test this function
     // Equation (47)
-    fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
+    fn differentiate(&self, s: Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
         // `result` is either (i) undifferentiated `target`, (ii) an
         // `AdjointMap` when only `generator` was differentiated, or (iii) an
         // `MatrixAdd` of `AdjointMap`'s and differentiated `target`. We first
@@ -498,7 +498,7 @@ impl Expr for ExpAdjointMap {
         // differentiated terms (including the differentiation on each
         // `AdjointMap`'s field `target`) with number of generators fixed for
         // each `AdjointMap`.
-        let diff_result = self.result.differentiate(s).map_err(|e| {
+        let diff_result = self.result.differentiate(s.clone()).map_err(|e| {
             generic_expression_error(
                 "ExpAdjointMap::differentiate() failed for result",
                 self,
@@ -512,7 +512,7 @@ impl Expr for ExpAdjointMap {
             return if is_expr_type::<ZeroOperator>(&diff_result) {
                 Ok(diff_result)
             } else {
-                let slice: &[Arc<Perturbation>] = std::slice::from_ref(s);
+                let slice: &[Arc<Perturbation>] = std::slice::from_ref(&s);
                 self.with_result_and_derivative(diff_result, PertMultichain::from_slice(slice))
                     .build()
             };
@@ -521,7 +521,7 @@ impl Expr for ExpAdjointMap {
         // For each previous differentiated `AdjointMap` and (un)differentiated
         // `target`, we can also introduce a new `generator` that is
         // differentiated with respect to `s`.
-        let diff_generator = self.generator.differentiate(s).map_err(|e| {
+        let diff_generator = self.generator.differentiate(s.clone()).map_err(|e| {
             generic_expression_error(
                 "ExpAdjointMap::differentiate() failed for generator",
                 self,
@@ -605,7 +605,7 @@ impl Expr for ExpAdjointMap {
     #[inline]
     fn eliminate(
         &self,
-        parameter: &Arc<dyn Expr>,
+        parameter: Arc<dyn Expr>,
         perturbations: &[Arc<Perturbation>],
         min_order: u32,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
@@ -614,7 +614,12 @@ impl Expr for ExpAdjointMap {
             false,
             generator,
             result,
-            |arg: &Arc<dyn Expr>| arg.eliminate(parameter, perturbations, min_order),
+            |generator: &Arc<dyn Expr>| generator.eliminate(
+                parameter.clone(),
+                perturbations,
+                min_order
+            ),
+            |result: &Arc<dyn Expr>| result.eliminate(parameter, perturbations, min_order),
             "ExpAdjointMap::eliminate() failed",
             |this: &ExpAdjointMap, generator, result| this
                 .with_result(result)
@@ -624,20 +629,12 @@ impl Expr for ExpAdjointMap {
     }
 
     #[inline]
-    fn exist_any(&self, set: &HashSet<Arc<dyn Expr>>, include_derivatives: bool) -> bool {
-        // `target` should exists in `result`
-        self.match_self_any(set, include_derivatives)
-            || self.generator.exist_any(set, include_derivatives)
-            || self.result.exist_any(set, include_derivatives)
-    }
-
-    #[inline]
-    fn find_superchains(&self, s: &Arc<dyn Expr>) -> BTreeMap<u32, HashSet<Arc<dyn Expr>>> {
+    fn find_all(&self, s: &Arc<dyn Expr>) -> BTreeMap<u32, HashSet<Arc<dyn Expr>>> {
         if self.deep_eq_superchains(s) {
             BTreeMap::from([(self.total_order(), HashSet::from([self.clone_expr()]))])
         } else {
-            let mut result = self.generator.find_superchains(s);
-            for (order, subset) in self.result.find_superchains(s) {
+            let mut result = self.generator.find_all(s);
+            for (order, subset) in self.result.find_all(s) {
                 result.entry(order).or_default().extend(subset);
             }
 
@@ -646,8 +643,24 @@ impl Expr for ExpAdjointMap {
     }
 
     #[inline]
-    fn remove(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
-        if self.match_self_any(set, false) {
+    fn match_one(&self, s: &Arc<dyn Expr>, include_derivatives: bool) -> bool {
+        // `target` should exists in `result`
+        self.match_one_self(s, include_derivatives)
+            || self.generator.match_one(s, include_derivatives)
+            || self.result.match_one(s, include_derivatives)
+    }
+
+    #[inline]
+    fn match_any(&self, set: &HashSet<Arc<dyn Expr>>, include_derivatives: bool) -> bool {
+        // `target` should exists in `result`
+        self.match_any_self(set, include_derivatives)
+            || self.generator.match_any(set, include_derivatives)
+            || self.result.match_any(set, include_derivatives)
+    }
+
+    #[inline]
+    fn remove_one(&self, s: &Arc<dyn Expr>) -> Result<Arc<dyn Expr>, TinnedError> {
+        if self.match_one_self(s, false) {
             return Ok(ZeroOperator::new());
         }
 
@@ -656,12 +669,48 @@ impl Expr for ExpAdjointMap {
             false,
             generator,
             result,
-            |arg: &Arc<dyn Expr>| arg.remove(set),
-            "ExpAdjointMap::remove() failed",
+            |arg: &Arc<dyn Expr>| arg.remove_one(s),
+            "ExpAdjointMap::remove_one() failed",
             |this: &ExpAdjointMap, generator, result| this
                 .with_result(result)
                 .generator(generator)
                 .build()
+        )
+    }
+
+    #[inline]
+    fn remove_all(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
+        if self.match_any_self(set, false) {
+            return Ok(ZeroOperator::new());
+        }
+
+        impl_binary_expr_arg_operation!(
+            self,
+            false,
+            generator,
+            result,
+            |arg: &Arc<dyn Expr>| arg.remove_all(set),
+            "ExpAdjointMap::remove_all() failed",
+            |this: &ExpAdjointMap, generator, result| this
+                .with_result(result)
+                .generator(generator)
+                .build()
+        )
+    }
+
+    #[inline]
+    fn retain_one(&self, s: &Arc<dyn Expr>, include_derivatives: bool) -> expr_result_ty!() {
+        if self.match_one_self(s, include_derivatives) {
+            return Ok(self.clone_expr());
+        }
+
+        impl_unary_expr_arg_operation!(
+            self,
+            False,
+            result,
+            |arg: &Arc<dyn Expr>| arg.retain_one(s, include_derivatives),
+            "ExpAdjointMap::retain_one() failed",
+            |this: &ExpAdjointMap, arg| { this.with_result(arg).build() }
         )
     }
 }

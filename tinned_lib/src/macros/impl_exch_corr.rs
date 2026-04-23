@@ -140,7 +140,25 @@ macro_rules! impl_exch_corr_traits {
             }
 
             #[inline]
-            fn replace_expr_children(
+            fn replace_one_in_children(
+                &self,
+                expr: expr_arc_ref_ty!(),
+                replacement: expr_arc_ty!(),
+                include_derivatives: bool,
+            ) -> expr_result_ty!() {
+                impl_exch_corr_traits!(
+                    @grid_expr_operation
+                    self,
+                    $grid_expr_name,
+                    |grid_expr: expr_arc_ref_ty!()| grid_expr.replace_one(expr, replacement.clone(), include_derivatives),
+                    concat!(stringify!($type_name), "::replace_one_in_children() failed"),
+                    $is_scalar,
+                    true
+                )
+            }
+
+            #[inline]
+            fn replace_all_in_children(
                 &self,
                 map: &expr_map_ty!(),
                 include_derivatives: bool,
@@ -149,31 +167,10 @@ macro_rules! impl_exch_corr_traits {
                     @grid_expr_operation
                     self,
                     $grid_expr_name,
-                    |grid_expr: expr_arc_ref_ty!()| grid_expr.replace(map, include_derivatives),
-                    concat!(stringify!($type_name), "::replace_expr_children() failed"),
+                    |grid_expr: expr_arc_ref_ty!()| grid_expr.replace_all(map, include_derivatives),
+                    concat!(stringify!($type_name), "::replace_all_in_children() failed"),
                     $is_scalar,
                     true
-                )
-            }
-
-            #[inline]
-            fn retain_single(
-                &self,
-                s: expr_arc_ref_ty!(),
-                include_derivatives: bool,
-            ) -> expr_result_ty!() {
-                if self.match_self_single(s, include_derivatives) {
-                    return Ok(self.clone_expr());
-                }
-
-                impl_exch_corr_traits!(
-                    @grid_expr_operation
-                    self,
-                    $grid_expr_name,
-                    |grid_expr: expr_arc_ref_ty!()| grid_expr.retain_single(s, include_derivatives),
-                    concat!(stringify!($type_name), "::retain_single() failed"),
-                    $is_scalar,
-                    false
                 )
             }
         }
@@ -210,9 +207,9 @@ macro_rules! impl_exch_corr_traits {
 
             fn differentiate(
                 &self,
-                s: &pert_arc_ty!(),
+                s: pert_arc_ty!(),
             ) -> expr_result_ty!() {
-                let diff_expr = self.$grid_expr_name.differentiate(s).map_err(|e| {
+                let diff_expr = self.$grid_expr_name.differentiate(s.clone()).map_err(|e| {
                     $crate::public::generic_expression_error(
                         concat!(
                             stringify!($type_name),
@@ -238,7 +235,7 @@ macro_rules! impl_exch_corr_traits {
 
             fn eliminate(
                 &self,
-                parameter: expr_arc_ref_ty!(),
+                parameter: expr_arc_ty!(),
                 perturbations: &[pert_arc_ty!()],
                 min_order: u32,
             ) -> expr_result_ty!() {
@@ -256,26 +253,32 @@ macro_rules! impl_exch_corr_traits {
             }
 
             #[inline]
-            fn exist_any(&self, set: &expr_set_ty!(), include_derivatives: bool) -> bool {
-                self.match_self_any(set, include_derivatives)
-                    || self.$grid_expr_name.exist_any(set, include_derivatives)
-            }
-
-            #[inline]
-            fn find_superchains(&self, s: expr_arc_ref_ty!()) -> expr_differentiation_map_ty!() {
+            fn find_all(&self, s: expr_arc_ref_ty!()) -> expr_differentiation_map_ty!() {
                 if self.deep_eq_superchains(s) {
                     ::std::collections::BTreeMap::from([(
                         self.total_order(),
                         ::std::collections::HashSet::from([self.clone_expr()]),
                     )])
                 } else {
-                    self.$grid_expr_name.find_superchains(s)
+                    self.$grid_expr_name.find_all(s)
                 }
             }
 
             #[inline]
-            fn remove(&self, set: &expr_set_ty!()) -> expr_result_ty!() {
-                if self.match_self_any(set, false) {
+            fn match_one(&self, s: expr_arc_ref_ty!(), include_derivatives: bool) -> bool {
+                self.match_one_self(s, include_derivatives)
+                    || self.$grid_expr_name.match_one(s, include_derivatives)
+            }
+
+            #[inline]
+            fn match_any(&self, set: &expr_set_ty!(), include_derivatives: bool) -> bool {
+                self.match_any_self(set, include_derivatives)
+                    || self.$grid_expr_name.match_any(set, include_derivatives)
+            }
+
+            #[inline]
+            fn remove_one(&self, s: expr_arc_ref_ty!()) -> expr_result_ty!() {
+                if self.match_one_self(s, false) {
                     return impl_zero_expr!($is_scalar);
                 }
 
@@ -283,8 +286,46 @@ macro_rules! impl_exch_corr_traits {
                     @grid_expr_operation
                     self,
                     $grid_expr_name,
-                    |grid_expr: expr_arc_ref_ty!()| grid_expr.remove(set),
-                    concat!(stringify!($type_name), "::remove() failed"),
+                    |grid_expr: expr_arc_ref_ty!()| grid_expr.remove_one(s),
+                    concat!(stringify!($type_name), "::remove_one() failed"),
+                    $is_scalar,
+                    false
+                )
+            }
+
+            #[inline]
+            fn remove_all(&self, set: &expr_set_ty!()) -> expr_result_ty!() {
+                if self.match_any_self(set, false) {
+                    return impl_zero_expr!($is_scalar);
+                }
+
+                impl_exch_corr_traits!(
+                    @grid_expr_operation
+                    self,
+                    $grid_expr_name,
+                    |grid_expr: expr_arc_ref_ty!()| grid_expr.remove_all(set),
+                    concat!(stringify!($type_name), "::remove_all() failed"),
+                    $is_scalar,
+                    false
+                )
+            }
+
+            #[inline]
+            fn retain_one(
+                &self,
+                s: expr_arc_ref_ty!(),
+                include_derivatives: bool,
+            ) -> expr_result_ty!() {
+                if self.match_one_self(s, include_derivatives) {
+                    return Ok(self.clone_expr());
+                }
+
+                impl_exch_corr_traits!(
+                    @grid_expr_operation
+                    self,
+                    $grid_expr_name,
+                    |grid_expr: expr_arc_ref_ty!()| grid_expr.retain_one(s, include_derivatives),
+                    concat!(stringify!($type_name), "::retain_one() failed"),
                     $is_scalar,
                     false
                 )

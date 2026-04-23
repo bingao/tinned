@@ -20,7 +20,7 @@ macro_rules! impl_unary_expr_traits {
             }
 
             #[inline]
-            fn deep_eq_superchains(&self, other: &expr_arc_ty!()) -> bool {
+            fn deep_eq_superchains(&self, other: expr_arc_ref_ty!()) -> bool {
                 if let Some(expr) = $crate::public::downcast_from_arc::<$type_name>(other) {
                     self.argument.deep_eq_superchains(&expr.argument)
                 } else {
@@ -61,7 +61,7 @@ macro_rules! impl_unary_expr_traits {
             }
 
             #[inline]
-            fn differentiate(&self, s: &pert_arc_ty!()) -> expr_result_ty!() {
+            fn differentiate(&self, s: pert_arc_ty!()) -> expr_result_ty!() {
                 let diff_arg = self.argument.differentiate(s).map_err(|e| {
                     $crate::public::generic_expression_error(
                         concat!(stringify!($type_name), "::differentiate() failed for argument"),
@@ -95,7 +95,24 @@ macro_rules! impl_unary_expr_internal_methods {
         impl_expr_internal_methods!($type_name, $has_derivative);
 
         #[inline]
-        fn replace_expr_children(
+        fn replace_one_in_children(
+            &self,
+            expr: expr_arc_ref_ty!(),
+            replacement: expr_arc_ty!(),
+            include_derivatives: bool,
+        ) -> expr_result_ty!() {
+            impl_unary_expr_arg_operation!(
+                self,
+                $type_scalar,
+                $arg_field,
+                |arg: expr_arc_ref_ty!()| arg.replace_one(expr, replacement, include_derivatives),
+                concat!(stringify!($type_name), "::replace_one_in_children() failed"),
+                $build_expr
+            )
+        }
+
+        #[inline]
+        fn replace_all_in_children(
             &self,
             map: &expr_map_ty!(),
             include_derivatives: bool,
@@ -104,28 +121,8 @@ macro_rules! impl_unary_expr_internal_methods {
                 self,
                 $type_scalar,
                 $arg_field,
-                |arg: expr_arc_ref_ty!()| arg.replace(map, include_derivatives),
-                concat!(stringify!($type_name), "::replace_expr_children() failed"),
-                $build_expr
-            )
-        }
-
-        #[inline]
-        fn retain_single(
-            &self,
-            s: expr_arc_ref_ty!(),
-            include_derivatives: bool,
-        ) -> expr_result_ty!() {
-            if self.match_self_single(s, include_derivatives) {
-                return Ok(self.clone_expr());
-            }
-
-            impl_unary_expr_arg_operation!(
-                self,
-                $type_scalar,
-                $arg_field,
-                |arg: expr_arc_ref_ty!()| arg.retain_single(s, include_derivatives),
-                concat!(stringify!($type_name), "::retain_single() failed"),
+                |arg: expr_arc_ref_ty!()| arg.replace_all(map, include_derivatives),
+                concat!(stringify!($type_name), "::replace_all_in_children() failed"),
                 $build_expr
             )
         }
@@ -149,7 +146,7 @@ macro_rules! impl_unary_expr_common_methods {
         #[inline]
         fn eliminate(
             &self,
-            parameter: &expr_arc_ty!(),
+            parameter: expr_arc_ty!(),
             perturbations: &[pert_arc_ty!()],
             min_order: u32,
         ) -> expr_result_ty!() {
@@ -164,15 +161,9 @@ macro_rules! impl_unary_expr_common_methods {
         }
 
         #[inline]
-        fn exist_any(&self, set: &expr_set_ty!(), include_derivatives: bool) -> bool {
-            self.match_self_any(set, include_derivatives)
-                || self.$arg_field.exist_any(set, include_derivatives)
-        }
-
-        #[inline]
-        fn find_superchains(
+        fn find_all(
             &self,
-            s: &expr_arc_ty!(),
+            s: expr_arc_ref_ty!(),
         ) -> expr_differentiation_map_ty!() {
             if self.deep_eq_superchains(s) {
                 ::std::collections::BTreeMap::from([(
@@ -180,13 +171,25 @@ macro_rules! impl_unary_expr_common_methods {
                     ::std::collections::HashSet::from([self.clone_expr()]),
                 )])
             } else {
-                self.$arg_field.find_superchains(s)
+                self.$arg_field.find_all(s)
             }
         }
 
         #[inline]
-        fn remove(&self, set: &expr_set_ty!()) -> expr_result_ty!() {
-            if self.match_self_any(set, false) {
+        fn match_one(&self, s: expr_arc_ref_ty!(), include_derivatives: bool) -> bool {
+            self.match_one_self(s, include_derivatives)
+                || self.$arg_field.match_one(s, include_derivatives)
+        }
+
+        #[inline]
+        fn match_any(&self, set: &expr_set_ty!(), include_derivatives: bool) -> bool {
+            self.match_any_self(set, include_derivatives)
+                || self.$arg_field.match_any(set, include_derivatives)
+        }
+
+        #[inline]
+        fn remove_one(&self, s: expr_arc_ref_ty!()) -> expr_result_ty!() {
+            if self.match_one_self(s, false) {
                 return impl_unary_zero_expr!(self.$arg_field, $type_scalar);
             }
 
@@ -194,8 +197,44 @@ macro_rules! impl_unary_expr_common_methods {
                 self,
                 $type_scalar,
                 $arg_field,
-                |arg: expr_arc_ref_ty!()| arg.remove(set),
-                concat!(stringify!($type_name), "::remove() failed"),
+                |arg: expr_arc_ref_ty!()| arg.remove_one(s),
+                concat!(stringify!($type_name), "::remove_one() failed"),
+                $build_expr
+            )
+        }
+
+        #[inline]
+        fn remove_all(&self, set: &expr_set_ty!()) -> expr_result_ty!() {
+            if self.match_any_self(set, false) {
+                return impl_unary_zero_expr!(self.$arg_field, $type_scalar);
+            }
+
+            impl_unary_expr_arg_operation!(
+                self,
+                $type_scalar,
+                $arg_field,
+                |arg: expr_arc_ref_ty!()| arg.remove_all(set),
+                concat!(stringify!($type_name), "::remove_all() failed"),
+                $build_expr
+            )
+        }
+
+        #[inline]
+        fn retain_one(
+            &self,
+            s: expr_arc_ref_ty!(),
+            include_derivatives: bool,
+        ) -> expr_result_ty!() {
+            if self.match_one_self(s, include_derivatives) {
+                return Ok(self.clone_expr());
+            }
+
+            impl_unary_expr_arg_operation!(
+                self,
+                $type_scalar,
+                $arg_field,
+                |arg: expr_arc_ref_ty!()| arg.retain_one(s, include_derivatives),
+                concat!(stringify!($type_name), "::retain_one() failed"),
                 $build_expr
             )
         }

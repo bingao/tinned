@@ -116,7 +116,7 @@ impl Expr for Composition {
         )
     }
 
-    fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
+    fn differentiate(&self, s: Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
         // Differentiation using the chain rule in calculus
         let diff_outer = Self::new(self.name.clone(), self.order + 1, self.inner.clone())?;
         let diff_inner = self.inner.differentiate(s).map_err(|e| {
@@ -221,13 +221,13 @@ mod tests {
         let op = Composition::new(name.clone(), order, inner.clone()).unwrap();
 
         let p = make_perturbation_symbol(4u32, 4u32);
-        let diff_op = op.differentiate(&p).unwrap();
+        let diff_op = op.differentiate(p.clone()).unwrap();
 
         assert_eq!(
             &diff_op,
             &Mul::new(vec![
                 Composition::new(name.clone(), order + 1, inner.clone()).unwrap(),
-                inner.differentiate(&p).unwrap(),
+                inner.differentiate(p).unwrap(),
             ])
             .unwrap()
         );

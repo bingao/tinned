@@ -115,9 +115,9 @@ macro_rules! test_exch_corr {
             );
 
             let mut p = make_perturbation_symbol(4u32, 4u32);
-            let mut diff_op = op.differentiate(&p).unwrap();
+            let mut diff_op = op.differentiate(p.clone()).unwrap();
             let mut deriv = $crate::perturbations::PertMultichain::new();
-            deriv.insert(&p);
+            deriv.insert(p.clone());
 
             let mut diff_cast = $crate::public::downcast_from_arc::<$type_name>(&diff_op).unwrap();
 
@@ -125,7 +125,7 @@ macro_rules! test_exch_corr {
 
             let $grid_expr_name =
                 $build_grid_expr(weight.clone(), density.clone(), overlap.clone()).unwrap();
-            let mut diff_grid_expr = $grid_expr_name.differentiate(&p).unwrap();
+            let mut diff_grid_expr = $grid_expr_name.differentiate(p).unwrap();
 
             assert_eq!(diff_cast.$grid_expr_name(), &diff_grid_expr);
 
@@ -133,13 +133,13 @@ macro_rules! test_exch_corr {
             p = $crate::perturbations::perturbation::test_utils::make_perturbation_symbol(
                 4u32, 4u32,
             );
-            diff_op = diff_op.differentiate(&p).unwrap();
-            deriv.insert(&p);
+            diff_op = diff_op.differentiate(p.clone()).unwrap();
+            deriv.insert(p.clone());
             diff_cast = $crate::public::downcast_from_arc::<$type_name>(&diff_op).unwrap();
 
             assert_eq!(diff_cast.derivative(), &deriv);
 
-            diff_grid_expr = diff_grid_expr.differentiate(&p).unwrap();
+            diff_grid_expr = diff_grid_expr.differentiate(p).unwrap();
 
             assert_eq!(diff_cast.$grid_expr_name(), &diff_grid_expr);
         }

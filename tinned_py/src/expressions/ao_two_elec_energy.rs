@@ -28,8 +28,8 @@ use crate::perturbations::pert_multichain::PyPertMultichain;
 ))]
 pub fn ao_two_elec_energy_new(
     name: String,
-    inner_density: PyExpr,
-    outer_density: Option<PyExpr>,
+    inner_density: &PyExpr,
+    outer_density: Option<&PyExpr>,
     allow_density_swap: Option<bool>,
     dependencies: Option<&PyPertMultichain>,
     derivative: Option<&PyPertMultichain>,
@@ -73,8 +73,8 @@ pub fn ao_two_elec_energy_new(
     derivative=None
 ))]
 pub fn ao_two_elec_energy_from_operator(
-    two_elec_op: PyExpr,
-    outer_density: Option<PyExpr>,
+    two_elec_op: &PyExpr,
+    outer_density: Option<&PyExpr>,
     allow_density_swap: Option<bool>,
     dependencies: Option<&PyPertMultichain>,
     derivative: Option<&PyPertMultichain>,

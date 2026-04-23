@@ -167,7 +167,7 @@ impl ExprInternal for ResidueParameter {
 #[typetag::serde]
 impl Expr for ResidueParameter {
     // We treat `ResidueParameter` the same type as its `parameter` so that
-    // `exist_any()` will return true and `find_superchains()` will return
+    // `match_any()` will return true and `find_all()` will return
     // `ResidueParameter` itself if its `parameter` is the input parameter of
     // these two methods.
     //
@@ -216,7 +216,7 @@ impl Expr for ResidueParameter {
         )
     }
 
-    fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
+    fn differentiate(&self, s: Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
         let diff_param = self.parameter.differentiate(s).map_err(|e| {
             generic_expression_error(
                 "ResidueParameter::differentiate() failed for parameter",
@@ -380,7 +380,7 @@ mod tests {
         .build()
         .unwrap();
         let p = make_perturbation_symbol(len_pert_name + 1, 8u32);
-        parameter = parameter.differentiate(&p).unwrap();
+        parameter = parameter.differentiate(p.clone()).unwrap();
         let op6 = ResidueParameter::builder(
             perturbations.clone(),
             excited_state.clone(),
@@ -415,8 +415,8 @@ mod tests {
             .unwrap();
 
         let p = make_perturbation_symbol(len_pert_name, 8u32);
-        let diff_op = op.differentiate(&p).unwrap();
-        let diff_param = parameter.differentiate(&p).unwrap();
+        let diff_op = op.differentiate(p.clone()).unwrap();
+        let diff_param = parameter.differentiate(p).unwrap();
 
         let op_cast = downcast_from_arc::<ResidueParameter>(&op).unwrap();
         let diff_cast = downcast_from_arc::<ResidueParameter>(&diff_op).unwrap();
@@ -498,7 +498,7 @@ mod tests {
         .build()
         .unwrap();
         let p = make_perturbation_symbol(len_pert_name + 1, 8u32);
-        parameter = parameter.differentiate(&p).unwrap();
+        parameter = parameter.differentiate(p.clone()).unwrap();
         let op6 = ResidueParameter::builder(
             perturbations.clone(),
             excited_state.clone(),

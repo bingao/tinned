@@ -35,18 +35,18 @@ impl PertMultichain {
     /// Creates a new perturbation multichain by deeply cloning the underlying
     /// `BTreeMap` and inserting a given perturbation.
     #[inline]
-    pub fn with_added_perturbation(&self, p: &Arc<Perturbation>) -> Self {
+    pub fn with_added_perturbation(&self, p: Arc<Perturbation>) -> Self {
         let mut map = self.get_map_clone();
-        *map.entry(p.clone()).or_insert(0) += 1;
+        *map.entry(p).or_insert(0) += 1;
         Self::from_map(map)
     }
 
     /// Inserts a perturbation into the multichain, or increases the order by 1
     /// if the perturbation already exists in the multichain.
     #[inline]
-    pub fn insert(&mut self, p: &Arc<Perturbation>) {
+    pub fn insert(&mut self, p: Arc<Perturbation>) {
         let mut map = self.0.lock().unwrap();
-        let entry = map.entry(p.clone()).or_insert(0);
+        let entry = map.entry(p).or_insert(0);
         *entry += 1;
     }
 
@@ -338,10 +338,10 @@ mod tests {
 
         assert_eq!(chain.get_order(&p1), 0);
 
-        chain.insert(&p1);
+        chain.insert(p1.clone());
         assert_eq!(chain.get_order(&p1), 1);
 
-        chain.insert(&p1);
+        chain.insert(p1.clone());
         assert_eq!(chain.get_order(&p1), 2);
 
         let mut keys: Vec<Arc<Perturbation>> = chain.keys();
@@ -353,15 +353,14 @@ mod tests {
         let p4 = make_perturbation_rational(2u32, 10u32);
         let p5 = make_perturbation_symbol(2u32, 4u32);
 
-        chain.insert(&p2);
-        chain.insert(&p3);
-        chain.insert(&p4);
-        chain.insert(&p5);
+        chain.insert(p2.clone());
+        chain.insert(p3.clone());
+        chain.insert(p4.clone());
+        chain.insert(p5.clone());
 
         keys = chain.keys();
 
-        let mut expected_keys: Vec<Arc<Perturbation>> =
-            vec![p1.clone(), p2.clone(), p3.clone(), p4.clone(), p5.clone()];
+        let mut expected_keys = vec![p1, p2, p3, p4, p5];
         expected_keys.sort();
 
         assert_eq!(keys, expected_keys);
@@ -402,13 +401,13 @@ mod tests {
         let p4 = make_perturbation_rational(2u32, 10u32);
         let p5 = make_perturbation_symbol(2u32, 4u32);
 
-        chain.insert(&p1);
-        chain.insert(&p1);
-        chain.insert(&p1);
-        chain.insert(&p2);
-        chain.insert(&p2);
-        chain.insert(&p3);
-        chain.insert(&p4);
+        chain.insert(p1.clone());
+        chain.insert(p1.clone());
+        chain.insert(p1.clone());
+        chain.insert(p2.clone());
+        chain.insert(p2.clone());
+        chain.insert(p3.clone());
+        chain.insert(p4.clone());
 
         let map = chain.get_map_clone();
 
@@ -430,7 +429,7 @@ mod tests {
         assert!(c2.is_subchain(&c1));
 
         for p in c2.keys() {
-            c1.insert(&p);
+            c1.insert(p);
         }
 
         assert_eq!(c1, c2);
@@ -440,8 +439,8 @@ mod tests {
         assert!(c2.is_superchain(&c1));
         assert!(c2.is_subchain(&c1));
 
-        c1.insert(&make_perturbation_i64(2u32, 10u32));
-        c2.insert(&make_perturbation_f64(2u32, 10u32));
+        c1.insert(make_perturbation_i64(2u32, 10u32));
+        c2.insert(make_perturbation_f64(2u32, 10u32));
 
         assert!(!c1.is_superchain(&c2));
         assert!(!c1.is_subchain(&c2));
@@ -457,11 +456,11 @@ mod tests {
     fn test_with_added_perturbation() {
         let mut c1 = make_pert_multichain(2u32, 8u32, 0u32, 10u32);
         let p = make_perturbation_symbol(2u32, 4u32);
-        let c2 = c1.with_added_perturbation(&p);
+        let c2 = c1.with_added_perturbation(p.clone());
 
         assert!(c1.is_superchain(&c2));
 
-        c1.insert(&p);
+        c1.insert(p);
 
         assert_eq!(c1, c2);
     }

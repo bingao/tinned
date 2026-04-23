@@ -45,7 +45,7 @@ impl PyPertMultichain {
     }
 
     fn insert(&mut self, p: &PyPerturbation) {
-        self.inner.insert(p.inner());
+        self.inner.insert(p.inner().clone());
     }
 
     fn is_empty(&self) -> bool {

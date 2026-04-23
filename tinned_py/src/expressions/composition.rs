@@ -1,7 +1,6 @@
 use pyo3::prelude::*;
-use std::sync::Arc;
 
-use tinned::{Composition, Expr};
+use tinned::Composition;
 
 use crate::core::{errors::to_pyerr, expr::PyExpr};
 
@@ -19,8 +18,8 @@ use crate::core::{errors::to_pyerr, expr::PyExpr};
 ///   - inner must be scalar.
 ///   - If inner is zero, the result is Number::zero().
 #[pyfunction]
-pub fn composition_new(name: String, order: u32, inner: PyExpr) -> PyResult<PyExpr> {
-    let rust_inner: Arc<dyn Expr> = inner.inner().clone();
+pub fn composition_new(name: String, order: u32, inner: &PyExpr) -> PyResult<PyExpr> {
+    let rust_inner = inner.inner().clone();
 
     let out = Composition::new(name, order, rust_inner).map_err(to_pyerr)?;
     Ok(PyExpr::new(out))

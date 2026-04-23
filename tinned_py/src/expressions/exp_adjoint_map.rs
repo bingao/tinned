@@ -22,8 +22,8 @@ use crate::perturbations::pert_multichain::PyPertMultichain;
 #[pyfunction]
 #[pyo3(signature = (generator, target, generator_derivative_commute=None, left_action=None, max_commutator_order=None))]
 pub fn exp_adjoint_map_new(
-    generator: PyExpr,
-    target: PyExpr,
+    generator: &PyExpr,
+    target: &PyExpr,
     generator_derivative_commute: Option<bool>,
     left_action: Option<bool>,
     max_commutator_order: Option<u32>,
@@ -60,7 +60,7 @@ pub fn exp_adjoint_map_new(
 #[pyfunction]
 #[pyo3(signature = (generator, is_forward, generator_derivative_commute=None, left_action=None, max_commutator_order=None))]
 pub fn exp_adjoint_map_time_evolution_new(
-    generator: PyExpr,
+    generator: &PyExpr,
     is_forward: bool,
     generator_derivative_commute: Option<bool>,
     left_action: Option<bool>,

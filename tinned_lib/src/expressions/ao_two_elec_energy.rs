@@ -317,15 +317,15 @@ impl Expr for AoTwoElecEnergy {
         false
     );
 
-    fn differentiate(&self, s: &Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
-        let diff_inner = self.inner_density.differentiate(s).map_err(|e| {
+    fn differentiate(&self, s: Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
+        let diff_inner = self.inner_density.differentiate(s.clone()).map_err(|e| {
             generic_expression_error(
                 "AoTwoElecEnergy::differentiate() failed for inner density",
                 self,
                 Some(Box::new(e)),
             )
         })?;
-        let diff_outer = self.outer_density.differentiate(s).map_err(|e| {
+        let diff_outer = self.outer_density.differentiate(s.clone()).map_err(|e| {
             generic_expression_error(
                 "AoTwoElecEnergy::differentiate() failed for outer density",
                 self,
@@ -578,9 +578,9 @@ mod tests {
             .unwrap();
 
         let mut p: Arc<Perturbation> = deps.keys().first().cloned().unwrap();
-        let mut diff_op = op.differentiate(&p).unwrap();
+        let mut diff_op = op.differentiate(p.clone()).unwrap();
         let mut deriv = PertMultichain::new();
-        deriv.insert(&p);
+        deriv.insert(p.clone());
 
         assert_eq!(
             &diff_op,
@@ -591,13 +591,16 @@ mod tests {
                     .derivative(deriv.clone())
                     .build()
                     .unwrap(),
-                AoTwoElecEnergy::builder(TEST_OPER_NAME, inner_density.differentiate(&p).unwrap())
-                    .outer_density(outer_density.clone())
-                    .dependencies(deps.clone())
-                    .build()
-                    .unwrap(),
+                AoTwoElecEnergy::builder(
+                    TEST_OPER_NAME,
+                    inner_density.differentiate(p.clone()).unwrap()
+                )
+                .outer_density(outer_density.clone())
+                .dependencies(deps.clone())
+                .build()
+                .unwrap(),
                 AoTwoElecEnergy::builder(TEST_OPER_NAME, inner_density.clone())
-                    .outer_density(outer_density.differentiate(&p).unwrap())
+                    .outer_density(outer_density.differentiate(p.clone()).unwrap())
                     .dependencies(deps.clone())
                     .build()
                     .unwrap(),
@@ -606,18 +609,21 @@ mod tests {
         );
 
         p = make_perturbation_symbol(len_pert_name + 1u32, 4u32);
-        diff_op = op.differentiate(&p).unwrap();
+        diff_op = op.differentiate(p.clone()).unwrap();
 
         assert_eq!(
             &diff_op,
             &Add::new(vec![
-                AoTwoElecEnergy::builder(TEST_OPER_NAME, inner_density.differentiate(&p).unwrap())
-                    .outer_density(outer_density.clone())
-                    .dependencies(deps.clone())
-                    .build()
-                    .unwrap(),
+                AoTwoElecEnergy::builder(
+                    TEST_OPER_NAME,
+                    inner_density.differentiate(p.clone()).unwrap()
+                )
+                .outer_density(outer_density.clone())
+                .dependencies(deps.clone())
+                .build()
+                .unwrap(),
                 AoTwoElecEnergy::builder(TEST_OPER_NAME, inner_density.clone())
-                    .outer_density(outer_density.differentiate(&p).unwrap())
+                    .outer_density(outer_density.differentiate(p).unwrap())
                     .dependencies(deps.clone())
                     .build()
                     .unwrap(),

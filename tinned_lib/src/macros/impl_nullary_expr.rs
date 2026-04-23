@@ -256,7 +256,7 @@ macro_rules! impl_nullary_expr_traits {
             #[inline]
             fn deep_eq_superchains(
                 &self,
-                other: &expr_arc_ty!(),
+                other: expr_arc_ref_ty!(),
             ) -> bool {
                 if let Some(op) = $crate::public::downcast_from_arc::<$type_name>(other) {
                     impl_nullary_expr_traits!(
@@ -272,27 +272,28 @@ macro_rules! impl_nullary_expr_traits {
             #[inline]
             fn eq_by_superchains(
                 &self,
-                other: &expr_arc_ty!(),
+                other: expr_arc_ref_ty!(),
             ) -> bool {
                 self.deep_eq_superchains(other)
             }
 
             #[inline]
-            fn replace_expr_children(
+            fn replace_one_in_children(
                 &self,
-                _map: &expr_map_ty!(),
+                _expr: expr_arc_ref_ty!(),
+                _replacement: expr_arc_ty!(),
                 _include_derivatives: bool,
             ) -> expr_result_ty!() {
                 Ok(self.clone_expr())
             }
 
             #[inline]
-            fn retain_single(&self, s: expr_arc_ref_ty!(), include_derivatives: bool) -> expr_result_ty!() {
-                if self.match_self_single(s, include_derivatives) {
-                    Ok(self.clone_expr())
-                } else {
-                    impl_zero_expr!($is_scalar)
-                }
+            fn replace_all_in_children(
+                &self,
+                _map: &expr_map_ty!(),
+                _include_derivatives: bool,
+            ) -> expr_result_ty!() {
+                Ok(self.clone_expr())
             }
         }
 
@@ -310,13 +311,22 @@ macro_rules! impl_nullary_expr_traits {
             #[inline]
             fn differentiate(
                 &self,
-                s: &pert_arc_ty!(),
+                s: pert_arc_ty!(),
             ) -> expr_result_ty!() {
                 let new_deriv = self.derivative.with_added_perturbation(s);
                 self.with_derivative(new_deriv).build()
             }
 
             impl_nullary_expr_traits!(@nullary_eliminate $type_name, $has_deps);
+
+            #[inline]
+            fn retain_one(&self, s: expr_arc_ref_ty!(), include_derivatives: bool) -> expr_result_ty!() {
+                if self.match_one_self(s, include_derivatives) {
+                    Ok(self.clone_expr())
+                } else {
+                    impl_zero_expr!($is_scalar)
+                }
+            }
         }
 
         impl_nullary_expr_traits!(@nullary_display $type_name, $has_deps);
@@ -390,11 +400,11 @@ macro_rules! impl_nullary_expr_traits {
         #[inline]
         fn eliminate(
             &self,
-            parameter: &expr_arc_ty!(),
+            parameter: expr_arc_ty!(),
             perturbations: &[pert_arc_ty!()],
             min_order: u32,
         ) -> expr_result_ty!() {
-            if let Some(op) = $crate::public::downcast_from_arc::<$type_name>(parameter) {
+            if let Some(op) = $crate::public::downcast_from_arc::<$type_name>(&parameter) {
                 if self.name == op.name {
                     let map = self.derivative.get_map_clone();
 
@@ -480,8 +490,17 @@ macro_rules! impl_nullary_expr_common_methods {
         impl_expr_common_methods!($is_scalar);
 
         #[inline]
-        fn remove(&self, set: &expr_set_ty!()) -> expr_result_ty!() {
-            if self.match_self_any(set, false) {
+        fn remove_one(&self, s: expr_arc_ref_ty!()) -> expr_result_ty!() {
+            if self.match_one_self(s, false) {
+                impl_zero_expr!($is_scalar)
+            } else {
+                Ok(self.clone_expr())
+            }
+        }
+
+        #[inline]
+        fn remove_all(&self, set: &expr_set_ty!()) -> expr_result_ty!() {
+            if self.match_any_self(set, false) {
                 impl_zero_expr!($is_scalar)
             } else {
                 Ok(self.clone_expr())
