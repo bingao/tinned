@@ -2,6 +2,8 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt;
 use std::sync::Arc;
 
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
 use crate::core::expr_internal::sealed::ExprInternal;
 use crate::core::{Expr, TinnedError};
 use crate::internal::{intern_expr, join_mapped};
@@ -11,7 +13,7 @@ use crate::public::{
     is_zero_expr,
 };
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct EliminationRule {
     parameter: Arc<dyn Expr>,
     min_order: u32,
@@ -62,8 +64,9 @@ impl fmt::Display for EliminationRule {
     }
 }
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ReplacementRule {
+    #[serde(with = "replacement_rule_map_serde")]
     map: HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
     include_derivatives: bool,
 }
@@ -99,7 +102,34 @@ impl fmt::Display for ReplacementRule {
     }
 }
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+mod replacement_rule_map_serde {
+    use super::*;
+
+    pub fn serialize<S>(
+        map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let entries: Vec<(&Arc<dyn Expr>, &Arc<dyn Expr>)> = map.iter().collect();
+
+        entries.serialize(serializer)
+    }
+
+    pub fn deserialize<'de, D>(
+        deserializer: D,
+    ) -> Result<HashMap<Arc<dyn Expr>, Arc<dyn Expr>>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let entries: Vec<(Arc<dyn Expr>, Arc<dyn Expr>)> = Vec::deserialize(deserializer)?;
+
+        Ok(entries.into_iter().collect())
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RetainmentRule {
     s: Arc<dyn Expr>,
     include_derivatives: bool,
@@ -132,7 +162,7 @@ impl fmt::Display for RetainmentRule {
 
 // A `SubExpr` represents one high level concrete expression struct with
 // `name`, and `expression` containing its detail.
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SubExpr {
     name: String,
     expression: Arc<dyn Expr>,
@@ -159,7 +189,7 @@ impl SubExpr {
     #[inline]
     pub fn new(name: impl Into<String>, expression: Arc<dyn Expr>) -> Arc<dyn Expr> {
         let name = name.into();
-        let identifier = format!("{}({})", name, expression.hash_key());
+        let identifier = format!("{}({})", name, expression.hash_value());
 
         intern_expr(Arc::new(Self {
             name,
