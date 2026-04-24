@@ -251,7 +251,7 @@ int main(void)
     }
 
     // Make one-electron spin-orbital density matrix
-    ExprHandle_t* D = tinned_wfn_parameter_new("D", &err);
+    ExprHandle_t* D = tinned_wfn_parameter_new("D", false, &err);
     if (!D) {
         fprintf(
             stderr,
@@ -262,7 +262,7 @@ int main(void)
     }
 
     // Make grid weight
-    ExprHandle_t* weight = tinned_non_elec_function_new("weight", dependencies, &err);
+    ExprHandle_t* weight = tinned_non_elec_function_new("weight", false, dependencies, NULL, &err);
     if (!weight) {
         fprintf(
             stderr,
@@ -273,7 +273,7 @@ int main(void)
     }
 
     // Make generalized overlap distribution
-    ExprHandle_t* Omega = tinned_one_elec_operator_new("Omega", dependencies, &err);
+    ExprHandle_t* Omega = tinned_one_elec_matrix_new("Omega", false, dependencies, NULL, &err);
     if (!Omega) {
         fprintf(
             stderr,

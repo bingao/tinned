@@ -101,8 +101,8 @@ bool traversal_on_leaf(void *ctx, ExprTag_t tag, ExprHandle_t* expr) {
             TINNED_SAFE_FREE_STR(str_number);
             break;
         }
-        case EXPR_TAG_ONE_ELEC_OPERATOR:
-            printf("traversal_on_leaf() gets a one-electron operator\n");
+        case EXPR_TAG_ONE_ELEC_MATRIX:
+            printf("traversal_on_leaf() gets a one-electron matrix\n");
             break;
         case EXPR_TAG_POWER:
             printf("traversal_on_leaf() gets a power\n");
@@ -124,11 +124,11 @@ bool traversal_on_leaf(void *ctx, ExprTag_t tag, ExprHandle_t* expr) {
             TINNED_SAFE_FREE_STR(name);
             break;
         }
-        case EXPR_TAG_TEMPORUM_OPERATOR:
-            printf("traversal_on_leaf() gets a temporum operator\n");
+        case EXPR_TAG_TIME_EVOLUTION:
+            printf("traversal_on_leaf() gets a time-evolution operator\n");
             break;
-        case EXPR_TAG_TEMPORUM_OVERLAP:
-            printf("traversal_on_leaf() gets a temporum overlap\n");
+        case EXPR_TAG_BASIS_TIME_EVOLUTION:
+            printf("traversal_on_leaf() gets a time-evolution overlap\n");
             break;
         case EXPR_TAG_TRACE: {
             TinnedErrorHandle_t* err = NULL;
@@ -156,11 +156,11 @@ bool traversal_on_leaf(void *ctx, ExprTag_t tag, ExprHandle_t* expr) {
         case EXPR_TAG_TRANSPOSE:
             printf("traversal_on_leaf() gets a transpose\n");
             break;
-        case EXPR_TAG_TWO_ELEC_ENERGY:
+        case EXPR_TAG_AO_TWO_ELEC_ENERGY:
             printf("traversal_on_leaf() gets a two-electron energy\n");
             break;
-        case EXPR_TAG_TWO_ELEC_OPERATOR:
-            printf("traversal_on_leaf() gets a two-electron operator\n");
+        case EXPR_TAG_AO_TWO_ELEC_MATRIX:
+            printf("traversal_on_leaf() gets a two-electron matrix\n");
             break;
         case EXPR_TAG_WFN_PARAMETER:
             printf("traversal_on_leaf() gets a wave function parameter\n");

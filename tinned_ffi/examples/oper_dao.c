@@ -71,7 +71,7 @@ int main(void) {
     }
 
     // Create a one-electron operator
-    ExprHandle_t* oper_1el = tinned_one_elec_operator_new("h", dependencies, &err);
+    ExprHandle_t* oper_1el = tinned_one_elec_matrix_new("h", false, dependencies, NULL, &err);
     if (!oper_1el) {
         fprintf(
             stderr,
@@ -82,7 +82,7 @@ int main(void) {
     }
 
     // Create a density matrix
-    ExprHandle_t* ao_dens = tinned_wfn_parameter_new("D", &err);
+    ExprHandle_t* ao_dens = tinned_wfn_parameter_new("D", false, &err);
     if (!ao_dens) {
         fprintf(
             stderr,
@@ -93,7 +93,7 @@ int main(void) {
     }
 
     // Create two-electron energy
-    ExprHandle_t* energy_2el = tinned_two_elec_energy_new("E_H", ao_dens, NULL, true, dependencies, NULL, &err);
+    ExprHandle_t* energy_2el = tinned_ao_two_elec_energy_new("E_H", ao_dens, NULL, true, dependencies, NULL, &err);
     if (!energy_2el) {
         fprintf(
             stderr,
