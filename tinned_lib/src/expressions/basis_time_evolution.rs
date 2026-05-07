@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use crate::core::expr_internal::sealed::ExprInternal;
@@ -325,6 +325,19 @@ impl Expr for BasisTimeEvolution {
         include_derivatives: bool,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
         if self.match_one_self(s, include_derivatives) {
+            Ok(self.clone_expr())
+        } else {
+            Ok(ZeroOperator::new())
+        }
+    }
+
+    #[inline]
+    fn retain_any(
+        &self,
+        set: &HashSet<Arc<dyn Expr>>,
+        include_derivatives: bool,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        if self.match_any_self(set, include_derivatives) {
             Ok(self.clone_expr())
         } else {
             Ok(ZeroOperator::new())

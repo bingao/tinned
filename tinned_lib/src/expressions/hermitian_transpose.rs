@@ -56,7 +56,7 @@ impl HermitianTranspose {
     }
 }
 
-impl_unary_expr_traits!(HermitianTranspose, False, "{arg}^H");
+impl_unary_expr_traits!(HermitianTranspose, false, "{arg}^H");
 
 #[cfg(test)]
 mod tests {

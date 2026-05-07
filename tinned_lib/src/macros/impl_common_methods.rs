@@ -57,11 +57,11 @@ macro_rules! impl_expr_common_methods {
             $crate::internal::intern_expr(::std::sync::Arc::new(self.clone()))
         }
 
-        impl_is_scalar!($is_scalar);
+        impl_expr_is_scalar!($is_scalar);
     };
 }
 
-macro_rules! impl_is_scalar {
+macro_rules! impl_expr_is_scalar {
     (true) => {
         #[inline]
         fn is_scalar(&self) -> bool {
@@ -73,13 +73,6 @@ macro_rules! impl_is_scalar {
         #[inline]
         fn is_scalar(&self) -> bool {
             false
-        }
-    };
-
-    ($is_scalar:tt) => {
-        #[inline]
-        fn is_scalar(&self) -> bool {
-            self.$is_scalar
         }
     };
 }

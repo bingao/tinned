@@ -23,7 +23,13 @@ fn build_xc_potential(
     ])
 }
 
-impl_exch_corr_type!(ExchCorrPotential, ExchCorrPotentialBuilder, xc_potential, build_xc_potential);
+impl_exch_corr_type!(
+    ExchCorrPotential,
+    ExchCorrPotentialBuilder,
+    xc_potential,
+    build_xc_potential,
+    false
+);
 impl_exch_corr_traits!(ExchCorrPotential, xc_potential, false);
 
 #[cfg(test)]

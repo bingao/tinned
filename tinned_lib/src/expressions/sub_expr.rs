@@ -6,7 +6,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::core::expr_internal::sealed::ExprInternal;
 use crate::core::{Expr, TinnedError};
-use crate::internal::{intern_expr, join_mapped};
+use crate::internal::{intern_expr, join_mapped, transform_unary_any_zero};
 use crate::perturbations::{PertMultichain, Perturbation};
 use crate::public::{
     NumberTolerance, downcast_from_arc, generic_expression_error, get_number_tolerance,
@@ -131,21 +131,21 @@ mod replacement_rule_map_serde {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RetainmentRule {
-    s: Arc<dyn Expr>,
+    set: HashSet<Arc<dyn Expr>>,
     include_derivatives: bool,
 }
 
 impl RetainmentRule {
-    pub fn new(s: Arc<dyn Expr>, include_derivatives: bool) -> Self {
+    pub fn new(set: HashSet<Arc<dyn Expr>>, include_derivatives: bool) -> Self {
         Self {
-            s,
+            set,
             include_derivatives,
         }
     }
 
     #[inline]
-    pub fn s(&self) -> &Arc<dyn Expr> {
-        &self.s
+    pub fn set(&self) -> &HashSet<Arc<dyn Expr>> {
+        &self.set
     }
 
     #[inline]
@@ -156,7 +156,12 @@ impl RetainmentRule {
 
 impl fmt::Display for RetainmentRule {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{{{}; {}}}", self.s, self.include_derivatives)
+        write!(
+            f,
+            "{{{}; {}}}",
+            join_mapped(self.set.iter(), ", ", |s| s.to_string()),
+            self.include_derivatives
+        )
     }
 }
 
@@ -311,11 +316,11 @@ impl SubExpr {
     fn with_retainment(
         &self,
         expression: Arc<dyn Expr>,
-        s: Arc<dyn Expr>,
+        set: HashSet<Arc<dyn Expr>>,
         include_derivatives: bool,
     ) -> Arc<dyn Expr> {
         let mut retainment_rules = self.retainment_rules.clone();
-        retainment_rules.push(RetainmentRule::new(s, include_derivatives));
+        retainment_rules.push(RetainmentRule::new(set, include_derivatives));
 
         intern_expr(Arc::new(Self {
             name: self.name.clone(),
@@ -386,17 +391,19 @@ impl ExprInternal for SubExpr {
         replacement: Arc<dyn Expr>,
         include_derivatives: bool,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
-        impl_unary_expr_arg_operation!(
+        transform_unary_any_zero(
             self,
-            Argument,
-            expression,
+            &self.expression,
             |arg: &Arc<dyn Expr>| arg.replace_one(expr, replacement.clone(), include_derivatives),
-            "SubExpr::replace_one_in_children() failed",
-            |this: &SubExpr, arg| Ok(this.with_replacement(
-                arg,
-                HashMap::from([(expr.clone(), replacement)]),
-                include_derivatives
-            ))
+            "SubExpr::replace_one_in_children() failed for expression",
+            |arg| {
+                Ok(self.with_replacement(
+                    arg,
+                    HashMap::from([(expr.clone(), replacement.clone())]),
+                    include_derivatives,
+                ))
+            },
+            || impl_zero_expr!(self.expression.is_scalar()),
         )
     }
 
@@ -406,13 +413,13 @@ impl ExprInternal for SubExpr {
         map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
         include_derivatives: bool,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
-        impl_unary_expr_arg_operation!(
+        transform_unary_any_zero(
             self,
-            Argument,
-            expression,
+            &self.expression,
             |arg: &Arc<dyn Expr>| arg.replace_all(map, include_derivatives),
-            "SubExpr::replace_all_in_children() failed",
-            |this: &SubExpr, arg| Ok(this.with_replacement(arg, map.clone(), include_derivatives))
+            "SubExpr::replace_all_in_children() failed for expression",
+            |arg| Ok(self.with_replacement(arg, map.clone(), include_derivatives)),
+            || impl_zero_expr!(self.expression.is_scalar()),
         )
     }
 
@@ -627,13 +634,33 @@ impl Expr for SubExpr {
             return Ok(self.clone_expr());
         }
 
-        impl_unary_expr_arg_operation!(
+        transform_unary_any_zero(
             self,
-            Argument,
-            expression,
+            &self.expression,
             |arg: &Arc<dyn Expr>| arg.retain_one(s, include_derivatives),
-            "SubExpr::retain_one() failed",
-            |this: &SubExpr, arg| Ok(this.with_retainment(arg, s.clone(), include_derivatives))
+            "SubExpr::retain_one() failed for expression",
+            |arg| Ok(self.with_retainment(arg, HashSet::from([s.clone()]), include_derivatives)),
+            || impl_zero_expr!(self.expression.is_scalar()),
+        )
+    }
+
+    #[inline]
+    fn retain_any(
+        &self,
+        set: &HashSet<Arc<dyn Expr>>,
+        include_derivatives: bool,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        if self.match_any_self(set, include_derivatives) {
+            return Ok(self.clone_expr());
+        }
+
+        transform_unary_any_zero(
+            self,
+            &self.expression,
+            |arg: &Arc<dyn Expr>| arg.retain_any(set, include_derivatives),
+            "SubExpr::retain_any() failed for expression",
+            |arg| Ok(self.with_retainment(arg, set.clone(), include_derivatives)),
+            || impl_zero_expr!(self.expression.is_scalar()),
         )
     }
 }

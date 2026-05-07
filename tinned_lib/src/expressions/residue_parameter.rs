@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::core::expr_internal::sealed::ExprInternal;
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{LagMultiplier, WfnParameter, ZeroOperator};
-use crate::internal::{intern_expr, join_mapped};
+use crate::internal::{intern_expr, join_mapped, transform_unary_any_zero};
 use crate::perturbations::{PertMultichain, Perturbation};
 use crate::public::{
     NumberTolerance, downcast_from_arc, expression_error, generic_expression_error, is_expr_type,
@@ -126,7 +126,7 @@ impl ResidueParameterBuilder {
 impl ExprInternal for ResidueParameter {
     impl_unary_expr_internal_methods!(
         ResidueParameter,
-        False,
+        false,
         parameter,
         false,
         |this: &ResidueParameter, arg| Self::builder(
@@ -179,7 +179,7 @@ impl Expr for ResidueParameter {
     // eliminate() method for `ResidueParameter`.
     impl_unary_expr_common_methods!(
         ResidueParameter,
-        False,
+        false,
         parameter,
         |this: &ResidueParameter, arg| Self::builder(
             this.perturbations.clone(),
@@ -200,19 +200,17 @@ impl Expr for ResidueParameter {
         &self,
         freq_tol: Option<NumberTolerance>,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
-        impl_unary_expr_arg_operation!(
+        transform_unary_any_zero(
             self,
-            False,
-            parameter,
+            &self.parameter,
             |arg: &Arc<dyn Expr>| arg.substitute_zero_perturbations(freq_tol),
-            "ResidueParameter::substitute_zero_perturbations() failed",
-            |this: &ResidueParameter, arg| Self::builder(
-                this.perturbations.clone(),
-                this.excited_state.clone(),
-                arg
-            )
-            .positive_frequency(this.positive_frequency)
-            .build()
+            "ResidueParameter::substitute_zero_perturbations() failed for parameter",
+            |arg| {
+                Self::builder(self.perturbations.clone(), self.excited_state.clone(), arg)
+                    .positive_frequency(self.positive_frequency)
+                    .build()
+            },
+            || Ok(ZeroOperator::new()),
         )
     }
 

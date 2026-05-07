@@ -33,6 +33,20 @@ impl PyExpr {
     }
 }
 
+impl PartialEq for PyExpr {
+    fn eq(&self, other: &Self) -> bool {
+        self.inner.eq(&other.inner)
+    }
+}
+
+impl Eq for PyExpr {}
+
+impl std::hash::Hash for PyExpr {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.inner.hash(state);
+    }
+}
+
 #[pymethods]
 impl PyExpr {
     fn __repr__(&self) -> String {
@@ -195,9 +209,17 @@ impl PyExpr {
     ///
     /// Returns:
     ///   A PyExpr wrapping the retained expression.
-    fn retain_all(&self, set: Vec<PyExpr>, include_derivatives: bool) -> PyResult<PyExpr> {
-        let rust_set: HashSet<Arc<dyn Expr>> = set.into_iter().map(|e| e.inner().clone()).collect();
-        let out = self.inner.retain_all(&rust_set, include_derivatives).map_err(to_pyerr)?;
+    fn retain_all(
+        &self,
+        sets: Vec<HashSet<PyExpr>>,
+        include_derivatives: bool,
+    ) -> PyResult<PyExpr> {
+        let rust_sets = sets
+            .into_iter()
+            .map(|set| set.into_iter().map(|expr| expr.inner().clone()).collect::<HashSet<_>>())
+            .collect::<Vec<_>>();
+
+        let out = self.inner.retain_all(&rust_sets, include_derivatives).map_err(to_pyerr)?;
         Ok(PyExpr::new(out))
     }
 

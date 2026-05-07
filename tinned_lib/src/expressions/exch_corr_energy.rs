@@ -18,7 +18,7 @@ fn build_xc_energy(
     crate::expressions::Mul::new(vec![grid_weight, xc_density])
 }
 
-impl_exch_corr_type!(ExchCorrEnergy, ExchCorrEnergyBuilder, xc_energy, build_xc_energy);
+impl_exch_corr_type!(ExchCorrEnergy, ExchCorrEnergyBuilder, xc_energy, build_xc_energy, true);
 impl_exch_corr_traits!(ExchCorrEnergy, xc_energy, true);
 
 #[cfg(test)]

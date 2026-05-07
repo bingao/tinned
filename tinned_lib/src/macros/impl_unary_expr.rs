@@ -1,9 +1,9 @@
 macro_rules! impl_unary_expr_traits {
-    ($type_name:ident, $type_scalar:ident, $display_fmt:expr) => {
+    ($type_name:ident, $scalar_rule:ident, $display_fmt:expr) => {
         impl $crate::core::ExprInternal for $type_name {
             impl_unary_expr_internal_methods!(
                 $type_name,
-                $type_scalar,
+                $scalar_rule,
                 argument,
                 false,
                 |_this, arg| Self::new(arg)
@@ -36,7 +36,7 @@ macro_rules! impl_unary_expr_traits {
 
         #[::typetag::serde]
         impl $crate::core::Expr for $type_name {
-            impl_unary_expr_common_methods!($type_name, $type_scalar, argument, |_this, arg| {
+            impl_unary_expr_common_methods!($type_name, $scalar_rule, argument, |_this, arg| {
                 Self::new(arg)
             });
 
@@ -50,27 +50,29 @@ macro_rules! impl_unary_expr_traits {
                 &self,
                 freq_tol: ::std::option::Option<$crate::public::NumberTolerance>,
             ) -> expr_result_ty!() {
-                impl_unary_expr_arg_operation!(
+                $crate::internal::transform_unary_any_zero(
                     self,
-                    $type_scalar,
-                    argument,
+                    &self.argument,
                     |arg: expr_arc_ref_ty!()| arg.substitute_zero_perturbations(freq_tol),
-                    concat!(stringify!($type_name), "::substitute_zero_perturbations() failed"),
-                    |_this, arg| Self::new(arg)
+                    concat!(
+                        stringify!($type_name),
+                        "::substitute_zero_perturbations() failed for argument"
+                    ),
+                    |arg| Self::new(arg),
+                    || impl_unary_expr_zero!(self.argument, $scalar_rule),
                 )
             }
 
             #[inline]
             fn differentiate(&self, s: pert_arc_ty!()) -> expr_result_ty!() {
-                let diff_arg = self.argument.differentiate(s).map_err(|e| {
-                    $crate::public::generic_expression_error(
-                        concat!(stringify!($type_name), "::differentiate() failed for argument"),
-                        self,
-                        Some(::std::boxed::Box::new(e)),
-                    )
-                })?;
-
-                Self::new(diff_arg)
+                $crate::internal::transform_unary_any_zero(
+                    self,
+                    &self.argument,
+                    |arg: expr_arc_ref_ty!()| arg.differentiate(s),
+                    concat!(stringify!($type_name), "::differentiate() failed for argument"),
+                    |arg| Self::new(arg),
+                    || impl_unary_expr_zero!(self.argument, $scalar_rule),
+                )
             }
         }
 
@@ -91,7 +93,7 @@ macro_rules! impl_unary_expr_traits {
 }
 
 macro_rules! impl_unary_expr_internal_methods {
-    ($type_name:ident, $type_scalar:ident, $arg_field:ident, $has_derivative:tt, $build_expr:expr) => {
+    ($type_name:ident, $scalar_rule:ident, $arg_field:ident, $has_derivative:tt, $build_expr:expr) => {
         impl_expr_internal_methods!($type_name, $has_derivative);
 
         #[inline]
@@ -101,13 +103,17 @@ macro_rules! impl_unary_expr_internal_methods {
             replacement: expr_arc_ty!(),
             include_derivatives: bool,
         ) -> expr_result_ty!() {
-            impl_unary_expr_arg_operation!(
+            $crate::internal::transform_unary_any_zero(
                 self,
-                $type_scalar,
-                $arg_field,
+                &self.$arg_field,
                 |arg: expr_arc_ref_ty!()| arg.replace_one(expr, replacement, include_derivatives),
-                concat!(stringify!($type_name), "::replace_one_in_children() failed"),
-                $build_expr
+                concat!(
+                    stringify!($type_name),
+                    "::replace_one_in_children() failed for ",
+                    stringify!($arg_field)
+                ),
+                |arg| ($build_expr)(self, arg),
+                || impl_unary_expr_zero!(self.$arg_field, $scalar_rule),
             )
         }
 
@@ -117,20 +123,24 @@ macro_rules! impl_unary_expr_internal_methods {
             map: &expr_map_ty!(),
             include_derivatives: bool,
         ) -> expr_result_ty!() {
-            impl_unary_expr_arg_operation!(
+            $crate::internal::transform_unary_any_zero(
                 self,
-                $type_scalar,
-                $arg_field,
+                &self.$arg_field,
                 |arg: expr_arc_ref_ty!()| arg.replace_all(map, include_derivatives),
-                concat!(stringify!($type_name), "::replace_all_in_children() failed"),
-                $build_expr
+                concat!(
+                    stringify!($type_name),
+                    "::replace_all_in_children() failed for ",
+                    stringify!($arg_field)
+                ),
+                |arg| ($build_expr)(self, arg),
+                || impl_unary_expr_zero!(self.$arg_field, $scalar_rule),
             )
         }
     };
 }
 
 macro_rules! impl_unary_expr_common_methods {
-    ($type_name:ident, $type_scalar:ident, $arg_field:ident, $build_expr:expr) => {
+    ($type_name:ident, $scalar_rule:ident, $arg_field:ident, $build_expr:expr) => {
         #[inline]
         fn as_any(&self) -> &dyn ::std::any::Any {
             self
@@ -141,7 +151,7 @@ macro_rules! impl_unary_expr_common_methods {
             $crate::internal::intern_expr(::std::sync::Arc::new(self.clone()))
         }
 
-        impl_unary_expr_common_methods!(@unary_is_scalar $arg_field, $type_scalar);
+        impl_unary_expr_is_scalar!($arg_field, $scalar_rule);
 
         #[inline]
         fn eliminate(
@@ -150,21 +160,22 @@ macro_rules! impl_unary_expr_common_methods {
             perturbations: &[pert_arc_ty!()],
             min_order: u32,
         ) -> expr_result_ty!() {
-            impl_unary_expr_arg_operation!(
+            $crate::internal::transform_unary_any_zero(
                 self,
-                $type_scalar,
-                $arg_field,
+                &self.$arg_field,
                 |arg: expr_arc_ref_ty!()| arg.eliminate(parameter, perturbations, min_order),
-                concat!(stringify!($type_name), "::eliminate() failed"),
-                $build_expr
+                concat!(
+                    stringify!($type_name),
+                    "::eliminate() failed for ",
+                    stringify!($arg_field)
+                ),
+                |arg| ($build_expr)(self, arg),
+                || impl_unary_expr_zero!(self.$arg_field, $scalar_rule),
             )
         }
 
         #[inline]
-        fn find_all(
-            &self,
-            s: expr_arc_ref_ty!(),
-        ) -> expr_differentiation_map_ty!() {
+        fn find_all(&self, s: expr_arc_ref_ty!()) -> expr_differentiation_map_ty!() {
             if self.deep_eq_superchains(s) {
                 ::std::collections::BTreeMap::from([(
                     self.total_order(),
@@ -190,32 +201,40 @@ macro_rules! impl_unary_expr_common_methods {
         #[inline]
         fn remove_one(&self, s: expr_arc_ref_ty!()) -> expr_result_ty!() {
             if self.match_one_self(s, false) {
-                return impl_unary_zero_expr!(self.$arg_field, $type_scalar);
+                return impl_unary_expr_zero!(self.$arg_field, $scalar_rule);
             }
 
-            impl_unary_expr_arg_operation!(
+            $crate::internal::transform_unary_any_zero(
                 self,
-                $type_scalar,
-                $arg_field,
+                &self.$arg_field,
                 |arg: expr_arc_ref_ty!()| arg.remove_one(s),
-                concat!(stringify!($type_name), "::remove_one() failed"),
-                $build_expr
+                concat!(
+                    stringify!($type_name),
+                    "::remove_one() failed for ",
+                    stringify!($arg_field)
+                ),
+                |arg| ($build_expr)(self, arg),
+                || impl_unary_expr_zero!(self.$arg_field, $scalar_rule),
             )
         }
 
         #[inline]
         fn remove_all(&self, set: &expr_set_ty!()) -> expr_result_ty!() {
             if self.match_any_self(set, false) {
-                return impl_unary_zero_expr!(self.$arg_field, $type_scalar);
+                return impl_unary_expr_zero!(self.$arg_field, $scalar_rule);
             }
 
-            impl_unary_expr_arg_operation!(
+            $crate::internal::transform_unary_any_zero(
                 self,
-                $type_scalar,
-                $arg_field,
+                &self.$arg_field,
                 |arg: expr_arc_ref_ty!()| arg.remove_all(set),
-                concat!(stringify!($type_name), "::remove_all() failed"),
-                $build_expr
+                concat!(
+                    stringify!($type_name),
+                    "::remove_all() failed for ",
+                    stringify!($arg_field)
+                ),
+                |arg| ($build_expr)(self, arg),
+                || impl_unary_expr_zero!(self.$arg_field, $scalar_rule),
             )
         }
 
@@ -229,76 +248,79 @@ macro_rules! impl_unary_expr_common_methods {
                 return Ok(self.clone_expr());
             }
 
-            impl_unary_expr_arg_operation!(
+            $crate::internal::transform_unary_any_zero(
                 self,
-                $type_scalar,
-                $arg_field,
+                &self.$arg_field,
                 |arg: expr_arc_ref_ty!()| arg.retain_one(s, include_derivatives),
-                concat!(stringify!($type_name), "::retain_one() failed"),
-                $build_expr
+                concat!(
+                    stringify!($type_name),
+                    "::retain_one() failed for ",
+                    stringify!($arg_field)
+                ),
+                |arg| ($build_expr)(self, arg),
+                || impl_unary_expr_zero!(self.$arg_field, $scalar_rule),
+            )
+        }
+
+        #[inline]
+        fn retain_any(&self, set: &expr_set_ty!(), include_derivatives: bool) -> expr_result_ty!() {
+            if self.match_any_self(set, include_derivatives) {
+                return Ok(self.clone_expr());
+            }
+
+            $crate::internal::transform_unary_any_zero(
+                self,
+                &self.$arg_field,
+                |arg: expr_arc_ref_ty!()| arg.retain_any(set, include_derivatives),
+                concat!(
+                    stringify!($type_name),
+                    "::retain_any() failed for ",
+                    stringify!($arg_field)
+                ),
+                |arg| ($build_expr)(self, arg),
+                || impl_unary_expr_zero!(self.$arg_field, $scalar_rule),
             )
         }
     };
+}
 
-    (@unary_is_scalar $_arg_field:ident, True) => {
+macro_rules! impl_unary_expr_zero {
+    ($_arg_field:expr, true) => {
+        Ok($crate::expressions::Number::zero())
+    };
+
+    ($_arg_field:expr, false) => {
+        Ok($crate::expressions::ZeroOperator::new())
+    };
+
+    ($arg_field:expr, FROM_ARG) => {
+        if $arg_field.is_scalar() {
+            Ok($crate::expressions::Number::zero())
+        } else {
+            Ok($crate::expressions::ZeroOperator::new())
+        }
+    };
+}
+
+macro_rules! impl_unary_expr_is_scalar {
+    ($_arg_field:ident, true) => {
         #[inline]
         fn is_scalar(&self) -> bool {
             true
         }
     };
 
-    (@unary_is_scalar $_arg_field:ident, False) => {
+    ($_arg_field:ident, false) => {
         #[inline]
         fn is_scalar(&self) -> bool {
             false
         }
     };
 
-    (@unary_is_scalar $arg_field:ident, Argument) => {
+    ($arg_field:ident, FROM_ARG) => {
         #[inline]
         fn is_scalar(&self) -> bool {
             self.$arg_field.is_scalar()
         }
     };
-}
-
-macro_rules! impl_unary_zero_expr {
-    ($_argument:expr, True) => {
-        impl_zero_expr!(true)
-    };
-
-    ($_argument:expr, False) => {
-        impl_zero_expr!(false)
-    };
-
-    ($argument:expr, Argument) => {
-        impl_zero_expr!($argument.is_scalar())
-    };
-}
-
-macro_rules! impl_unary_expr_arg_operation {
-    (
-        $self:ident,
-        $type_scalar:ident,
-        $arg_field:ident,
-        $arg_operation:expr,
-        $message:expr,
-        $build_expr:expr
-    ) => {{
-        let new_arg = ($arg_operation)(&$self.$arg_field).map_err(|e| {
-            $crate::public::generic_expression_error(
-                concat!($message, " for ", stringify!($arg_field)),
-                $self,
-                Some(::std::boxed::Box::new(e)),
-            )
-        })?;
-
-        if $crate::public::is_zero_expr(&new_arg, None) {
-            impl_unary_zero_expr!($self.$arg_field, $type_scalar)
-        } else if &new_arg == &$self.$arg_field {
-            Ok($self.clone_expr())
-        } else {
-            ($build_expr)($self, new_arg)
-        }
-    }};
 }

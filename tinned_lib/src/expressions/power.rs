@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::core::expr_internal::sealed::ExprInternal;
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{Mul, Number};
-use crate::internal::intern_expr;
+use crate::internal::{intern_expr, transform_unary_any_zero};
 use crate::perturbations::Perturbation;
 use crate::public::{
     NumberTolerance, downcast_from_arc, expression_error, generic_expression_error, is_zero_expr,
@@ -79,7 +79,7 @@ impl Power {
 }
 
 impl ExprInternal for Power {
-    impl_unary_expr_internal_methods!(Power, True, base, false, |this: &Power, arg| Self::new(
+    impl_unary_expr_internal_methods!(Power, true, base, false, |this: &Power, arg| Self::new(
         arg,
         this.exponent
     ));
@@ -101,7 +101,7 @@ impl ExprInternal for Power {
 
 #[typetag::serde]
 impl Expr for Power {
-    impl_unary_expr_common_methods!(Power, True, base, |this: &Power, arg| Self::new(
+    impl_unary_expr_common_methods!(Power, true, base, |this: &Power, arg| Self::new(
         arg,
         this.exponent
     ));
@@ -116,13 +116,13 @@ impl Expr for Power {
         &self,
         freq_tol: Option<NumberTolerance>,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
-        impl_unary_expr_arg_operation!(
+        transform_unary_any_zero(
             self,
-            True,
-            base,
+            &self.base,
             |arg: &Arc<dyn Expr>| arg.substitute_zero_perturbations(freq_tol),
-            "Power::substitute_zero_perturbations() failed",
-            |this: &Power, arg| Self::new(arg, this.exponent)
+            "Power::substitute_zero_perturbations() failed for base",
+            |arg| Self::new(arg, self.exponent),
+            || Ok(Number::zero()),
         )
     }
 

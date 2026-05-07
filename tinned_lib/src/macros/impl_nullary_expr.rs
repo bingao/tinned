@@ -327,6 +327,15 @@ macro_rules! impl_nullary_expr_traits {
                     impl_zero_expr!($is_scalar)
                 }
             }
+
+            #[inline]
+            fn retain_any(&self, set: &expr_set_ty!(), include_derivatives: bool) -> expr_result_ty!() {
+                if self.match_any_self(set, include_derivatives) {
+                    return Ok(self.clone_expr());
+                } else {
+                    impl_zero_expr!($is_scalar)
+                }
+            }
         }
 
         impl_nullary_expr_traits!(@nullary_display $type_name, $has_deps);

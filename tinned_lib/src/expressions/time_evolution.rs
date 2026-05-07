@@ -120,7 +120,7 @@ impl TimeEvolutionBuilder {
 impl ExprInternal for TimeEvolution {
     impl_unary_expr_internal_methods!(
         TimeEvolution,
-        False,
+        false,
         argument,
         false,
         |this: &TimeEvolution, arg| this.with_argument(arg).build()
@@ -148,7 +148,7 @@ impl ExprInternal for TimeEvolution {
 
 #[typetag::serde]
 impl Expr for TimeEvolution {
-    impl_unary_expr_common_methods!(TimeEvolution, False, argument, |this: &TimeEvolution, arg| {
+    impl_unary_expr_common_methods!(TimeEvolution, false, argument, |this: &TimeEvolution, arg| {
         this.with_argument(arg).build()
     });
 

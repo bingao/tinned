@@ -60,7 +60,7 @@ impl Composition {
 impl ExprInternal for Composition {
     impl_unary_expr_internal_methods!(
         Composition,
-        True,
+        true,
         inner,
         false,
         |this: &Composition, arg| { Self::new(this.name.clone(), this.order, arg) }
@@ -90,7 +90,7 @@ impl ExprInternal for Composition {
 
 #[typetag::serde]
 impl Expr for Composition {
-    impl_unary_expr_common_methods!(Composition, True, inner, |this: &Composition, arg| Self::new(
+    impl_unary_expr_common_methods!(Composition, true, inner, |this: &Composition, arg| Self::new(
         this.name.clone(),
         this.order,
         arg
@@ -106,13 +106,13 @@ impl Expr for Composition {
         &self,
         freq_tol: Option<NumberTolerance>,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
-        impl_unary_expr_arg_operation!(
+        crate::internal::transform_unary_any_zero(
             self,
-            True,
-            inner,
+            &self.inner,
             |arg: &Arc<dyn Expr>| arg.substitute_zero_perturbations(freq_tol),
-            "Composition::substitute_zero_perturbations() failed",
-            |this: &Composition, arg| Self::new(this.name.clone(), this.order, arg)
+            "Composition::substitute_zero_perturbations() failed for inner",
+            |arg| Self::new(self.name.clone(), self.order, arg),
+            || Ok(Number::zero()),
         )
     }
 

@@ -123,7 +123,7 @@ impl AoTwoElecMatrixBuilder {
 impl ExprInternal for AoTwoElecMatrix {
     impl_unary_expr_internal_methods!(
         AoTwoElecMatrix,
-        False,
+        false,
         density,
         true,
         |this: &AoTwoElecMatrix, arg| this.with_density(arg).build()
@@ -177,7 +177,7 @@ impl ExprInternal for AoTwoElecMatrix {
 impl Expr for AoTwoElecMatrix {
     impl_unary_expr_common_methods!(
         AoTwoElecMatrix,
-        False,
+        false,
         density,
         |this: &AoTwoElecMatrix, arg| this.with_density(arg).build()
     );
@@ -192,13 +192,13 @@ impl Expr for AoTwoElecMatrix {
         &self,
         freq_tol: Option<NumberTolerance>,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
-        impl_unary_expr_arg_operation!(
+        crate::internal::transform_unary_any_zero(
             self,
-            False,
-            density,
+            &self.density,
             |arg: &Arc<dyn Expr>| arg.substitute_zero_perturbations(freq_tol),
-            "AoTwoElecMatrix::substitute_zero_perturbations() failed",
-            |this: &AoTwoElecMatrix, arg| this.with_density(arg).build()
+            "AoTwoElecMatrix::substitute_zero_perturbations() failed for density",
+            |arg| self.with_density(arg).build(),
+            || Ok(ZeroOperator::new()),
         )
     }
 

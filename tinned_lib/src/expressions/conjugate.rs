@@ -68,7 +68,7 @@ impl Conjugate {
     }
 }
 
-impl_unary_expr_traits!(Conjugate, Argument, "conj({arg})");
+impl_unary_expr_traits!(Conjugate, FROM_ARG, "conj({arg})");
 
 #[cfg(test)]
 mod tests {

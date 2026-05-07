@@ -56,7 +56,7 @@ impl Transpose {
     }
 }
 
-impl_unary_expr_traits!(Transpose, False, "{arg}^T");
+impl_unary_expr_traits!(Transpose, false, "{arg}^T");
 
 #[cfg(test)]
 mod tests {

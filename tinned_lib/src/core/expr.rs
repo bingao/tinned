@@ -265,14 +265,34 @@ pub trait Expr: Debug + Send + Sync + ExprInternal {
         include_derivatives: bool,
     ) -> Result<Arc<dyn crate::core::expr::Expr>, TinnedError>;
 
-    /// Applies successive retention operations with respect to each expression
-    /// in `set`.
+    /// Retains parts of the expression that match any expression in the `set`.
+    ///
+    /// If the current expression matches at least one expression in the `set`,
+    /// or (when `include_derivatives` is `true`) corresponds to a
+    /// higher-order derivative of the expression, it is kept unchanged.
+    ///
+    /// Otherwise, if the current expression has no child expressions, zero
+    /// is returned. If it has child expressions, the same procedure is
+    /// applied recursively to each child. Based on the results, the
+    /// function may return zero, the original expression, or a modified
+    /// expression, depending on how the concrete expression type combines
+    /// its children.
+    //
+    //FIXME: add its FFI
+    fn retain_any(
+        &self,
+        set: &HashSet<Arc<dyn Expr>>,
+        include_derivatives: bool,
+    ) -> Result<Arc<dyn Expr>, TinnedError>;
+
+    /// Applies successive retention operations with respect to each set of
+    /// expressions in `sets`.
     ///
     /// Starting from the current expression, this function repeatedly applies
-    /// [`retain`] for each expression in `set`, updating the expression
-    /// at each step.  Conceptually, this corresponds to extracting the
+    /// [`retain_any`] for each set of expressions, updating the expression
+    /// at each step. Conceptually, this corresponds to extracting the
     /// component of the expression that is consistent with all retention
-    /// conditions induced by elements of `set`.
+    /// conditions induced by elements of `sets`.
     ///
     /// When `include_derivatives` is `true`, higher-order derivatives are also
     /// considered in each retention step.
@@ -284,13 +304,13 @@ pub trait Expr: Debug + Send + Sync + ExprInternal {
     /// computations.
     fn retain_all(
         &self,
-        set: &HashSet<Arc<dyn Expr>>,
+        sets: &[HashSet<Arc<dyn Expr>>],
         include_derivatives: bool,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
         let mut result = self.clone_expr();
 
-        for s in set {
-            result = result.retain_one(s, include_derivatives)?;
+        for set in sets {
+            result = result.retain_any(set, include_derivatives)?;
 
             if result.is_exact_zero() {
                 return Ok(result);

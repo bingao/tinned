@@ -391,6 +391,19 @@ impl Expr for Number {
             Ok(Number::zero())
         }
     }
+
+    #[inline]
+    fn retain_any(
+        &self,
+        set: &HashSet<Arc<dyn Expr>>,
+        include_derivatives: bool,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        if self.match_any_self(set, include_derivatives) {
+            Ok(self.clone_expr())
+        } else {
+            Ok(Number::zero())
+        }
+    }
 }
 
 impl PartialEq for Number {

@@ -5,7 +5,7 @@ use crate::core::{Expr, TinnedError};
 use crate::expressions::{
     Add, Conjugate, HermitianTranspose, MatrixAdd, MatrixMul, Mul, Number, Transpose, ZeroOperator,
 };
-use crate::internal::intern_expr;
+use crate::internal::{intern_expr, transform_binary_any_zero};
 use crate::perturbations::Perturbation;
 use crate::public::{
     downcast_from_arc, expression_error, generic_expression_error, is_expr_type, is_one_expr,
@@ -121,19 +121,14 @@ impl DotProduct {
 
     #[inline]
     pub fn conjugate(&self) -> Result<Arc<dyn Expr>, TinnedError> {
-        impl_binary_expr_arg_operation!(
+        transform_binary_any_zero(
             self,
-            is_scalar,
-            bra,
-            ket,
+            &self.bra,
+            &self.ket,
             |arg: &Arc<dyn Expr>| Conjugate::new(arg.clone()),
             "DotProduct::conjugate() failed",
-            |this: &DotProduct, bra, ket| Self::make_dot_product(
-                bra,
-                ket,
-                this.allow_braket_swap,
-                this.is_scalar
-            )
+            |bra, ket| Self::make_dot_product(bra, ket, self.allow_braket_swap, self.is_scalar),
+            || impl_zero_expr!(self.is_scalar),
         )
     }
 }
@@ -141,7 +136,7 @@ impl DotProduct {
 impl ExprInternal for DotProduct {
     impl_binary_expr_internal_methods!(
         DotProduct,
-        is_scalar,
+        FROM_SELF,
         bra,
         ket,
         false,
@@ -203,7 +198,7 @@ impl ExprInternal for DotProduct {
 impl Expr for DotProduct {
     impl_binary_expr_common_methods!(
         DotProduct,
-        is_scalar,
+        FROM_SELF,
         bra,
         ket,
         |this: &DotProduct, bra, ket| Self::make_dot_product(

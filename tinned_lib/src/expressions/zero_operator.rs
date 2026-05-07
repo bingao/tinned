@@ -92,6 +92,15 @@ impl Expr for ZeroOperator {
     ) -> Result<Arc<dyn Expr>, TinnedError> {
         Ok(self.clone_expr())
     }
+
+    #[inline]
+    fn retain_any(
+        &self,
+        _set: &HashSet<Arc<dyn Expr>>,
+        _include_derivatives: bool,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        Ok(self.clone_expr())
+    }
 }
 
 impl std::fmt::Display for ZeroOperator {

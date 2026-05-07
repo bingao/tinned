@@ -1,5 +1,5 @@
 use safer_ffi::prelude::*;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use tinned::core::{Expr, TinnedError};
@@ -177,4 +177,45 @@ pub fn tinned_expr_superchains_order_expr_at(
 pub fn tinned_expr_superchains_free(h: Option<ExprSuperchainBox>) {
     // Taking by value transfers ownership back to Rust; drop runs on return.
     drop(h);
+}
+
+/// Borrowed slice of ExprSlice values.
+///
+/// C layout:
+/// - ptr points to an array of ExprSlice
+/// - len is the number of ExprSlice elements
+#[repr(C)]
+#[derive_ReprC]
+pub struct ExprSetSlice {
+    ptr: *const ExprSlice,
+    len: usize,
+}
+
+#[inline]
+pub fn expr_sets_from_slice(
+    slice: &ExprSetSlice,
+    caller: &'static str,
+) -> Result<Vec<HashSet<Arc<dyn Expr>>>, TinnedError> {
+    if slice.ptr.is_null() {
+        if slice.len == 0 {
+            return Ok(Vec::new());
+        }
+
+        return Err(generic_error(
+            format!("{caller}: ExprSetSlice.ptr is NULL but len is {}", slice.len),
+            None,
+        ));
+    }
+
+    let slices = unsafe { std::slice::from_raw_parts(slice.ptr, slice.len) };
+
+    slices
+        .iter()
+        .enumerate()
+        .map(|(idx, expr_slice)| {
+            expr_set_from_slice::<HashSet<Arc<dyn Expr>>>(expr_slice, caller).map_err(|e| {
+                generic_error(format!("{caller}: failed to read set at index {idx}: {e}"), None)
+            })
+        })
+        .collect()
 }

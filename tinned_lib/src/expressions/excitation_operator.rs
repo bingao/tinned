@@ -96,6 +96,19 @@ impl Expr for ExcitationOperator {
             Ok(ZeroOperator::new())
         }
     }
+
+    #[inline]
+    fn retain_any(
+        &self,
+        set: &HashSet<Arc<dyn Expr>>,
+        include_derivatives: bool,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        if self.match_any_self(set, include_derivatives) {
+            Ok(self.clone_expr())
+        } else {
+            Ok(ZeroOperator::new())
+        }
+    }
 }
 
 impl std::fmt::Display for ExcitationOperator {

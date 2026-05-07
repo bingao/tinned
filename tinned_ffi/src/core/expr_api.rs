@@ -9,8 +9,9 @@ use crate::c_support::{
     tinned_string_from_cstr, tinned_string_to_cstr, try_from_handle, try_with_handle,
 };
 use crate::core::{
-    ExprBox, ExprHandle, ExprSlice, ExprSuperchainBox, ExprSuperchainHandle, TinnedErrorBox,
-    expr_map_from_slices, expr_set_from_slice, tinned_error_new,
+    ExprBox, ExprHandle, ExprSetSlice, ExprSlice, ExprSuperchainBox, ExprSuperchainHandle,
+    TinnedErrorBox, expr_map_from_slices, expr_set_from_slice, expr_sets_from_slice,
+    tinned_error_new,
 };
 use crate::perturbations::{PerturbationHandle, PerturbationSlice, perturbation_vec_from_slice};
 use crate::public::NumberToleranceHandle;
@@ -382,25 +383,29 @@ pub fn tinned_expr_replace_all(
 #[ffi_export]
 pub fn tinned_expr_retain_all(
     h: Option<&ExprHandle>,
-    set: Option<&ExprSlice>,
+    sets: Option<&ExprSetSlice>,
     include_derivatives: bool,
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> Option<ExprBox> {
-    let expr_set = match set {
-        Some(slice) => {
-            match expr_set_from_slice::<HashSet<Arc<dyn Expr>>>(slice, "tinned_expr_retain_all") {
-                Ok(s) => s,
-                Err(e) => {
-                    tinned_error_new(out_err, e);
-                    return None;
-                },
-            }
+    let sets = match sets {
+        Some(sets) => match expr_sets_from_slice(sets, "tinned_expr_retain_all") {
+            Ok(sets) => sets,
+            Err(e) => {
+                tinned_error_new(out_err, e);
+                return None;
+            },
         },
-        None => HashSet::new(),
+        None => {
+            tinned_error_new(
+                out_err,
+                generic_error("tinned_expr_retain_all: sets must be non-NULL", None),
+            );
+            return None;
+        },
     };
 
     ffi_expr_return_exprbox(h, "tinned_expr_retain_all", out_err, move |expr| {
-        expr.retain_all(&expr_set, include_derivatives)
+        expr.retain_all(&sets, include_derivatives)
     })
 }
 

@@ -6,7 +6,7 @@ use crate::core::{Expr, TinnedError};
 use crate::expressions::{
     AdjointMap, AdjointMode, MatrixAdd, MatrixMul, Number, TimeEvolution, ZeroOperator,
 };
-use crate::internal::intern_expr;
+use crate::internal::{intern_expr, transform_binary_any_zero, transform_unary_any_zero};
 use crate::perturbations::{PertMultichain, Perturbation};
 use crate::public::{
     NumberTolerance, downcast_from_arc, expression_error, generic_expression_error, is_expr_type,
@@ -271,7 +271,7 @@ impl ExpAdjointMapBuilder {
 impl ExprInternal for ExpAdjointMap {
     impl_unary_expr_internal_methods!(
         ExpAdjointMap,
-        False,
+        false,
         result,
         true,
         |this: &ExpAdjointMap, arg| { this.with_result(arg).build() }
@@ -339,7 +339,7 @@ impl Expr for ExpAdjointMap {
     }
 
     //FIXME: test this function
-    #[inline]
+    //FIXME: add function to do BCH expansion for self.max_commutator_order < u32::MAX
     fn substitute_zero_perturbations(
         &self,
         freq_tol: Option<NumberTolerance>,
@@ -609,22 +609,14 @@ impl Expr for ExpAdjointMap {
         perturbations: &[Arc<Perturbation>],
         min_order: u32,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
-        impl_binary_expr_arg_operation!(
+        transform_binary_any_zero(
             self,
-            false,
-            generator,
-            result,
-            |generator: &Arc<dyn Expr>| generator.eliminate(
-                parameter.clone(),
-                perturbations,
-                min_order
-            ),
-            |result: &Arc<dyn Expr>| result.eliminate(parameter, perturbations, min_order),
+            &self.generator,
+            &self.result,
+            |arg: &Arc<dyn Expr>| arg.eliminate(parameter.clone(), perturbations, min_order),
             "ExpAdjointMap::eliminate() failed",
-            |this: &ExpAdjointMap, generator, result| this
-                .with_result(result)
-                .generator(generator)
-                .build()
+            |generator, result| self.with_result(result).generator(generator).build(),
+            || Ok(ZeroOperator::new()),
         )
     }
 
@@ -664,17 +656,14 @@ impl Expr for ExpAdjointMap {
             return Ok(ZeroOperator::new());
         }
 
-        impl_binary_expr_arg_operation!(
+        transform_binary_any_zero(
             self,
-            false,
-            generator,
-            result,
+            &self.generator,
+            &self.result,
             |arg: &Arc<dyn Expr>| arg.remove_one(s),
             "ExpAdjointMap::remove_one() failed",
-            |this: &ExpAdjointMap, generator, result| this
-                .with_result(result)
-                .generator(generator)
-                .build()
+            |generator, result| self.with_result(result).generator(generator).build(),
+            || Ok(ZeroOperator::new()),
         )
     }
 
@@ -684,33 +673,54 @@ impl Expr for ExpAdjointMap {
             return Ok(ZeroOperator::new());
         }
 
-        impl_binary_expr_arg_operation!(
+        transform_binary_any_zero(
             self,
-            false,
-            generator,
-            result,
+            &self.generator,
+            &self.result,
             |arg: &Arc<dyn Expr>| arg.remove_all(set),
             "ExpAdjointMap::remove_all() failed",
-            |this: &ExpAdjointMap, generator, result| this
-                .with_result(result)
-                .generator(generator)
-                .build()
+            |generator, result| self.with_result(result).generator(generator).build(),
+            || Ok(ZeroOperator::new()),
         )
     }
 
     #[inline]
-    fn retain_one(&self, s: &Arc<dyn Expr>, include_derivatives: bool) -> expr_result_ty!() {
+    fn retain_one(
+        &self,
+        s: &Arc<dyn Expr>,
+        include_derivatives: bool,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
         if self.match_one_self(s, include_derivatives) {
             return Ok(self.clone_expr());
         }
 
-        impl_unary_expr_arg_operation!(
+        transform_unary_any_zero(
             self,
-            False,
-            result,
+            &self.result,
             |arg: &Arc<dyn Expr>| arg.retain_one(s, include_derivatives),
-            "ExpAdjointMap::retain_one() failed",
-            |this: &ExpAdjointMap, arg| { this.with_result(arg).build() }
+            "ExpAdjointMap::retain_one() failed for result",
+            |arg| self.with_result(arg).build(),
+            || Ok(ZeroOperator::new()),
+        )
+    }
+
+    #[inline]
+    fn retain_any(
+        &self,
+        set: &HashSet<Arc<dyn Expr>>,
+        include_derivatives: bool,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        if self.match_any_self(set, include_derivatives) {
+            return Ok(self.clone_expr());
+        }
+
+        transform_unary_any_zero(
+            self,
+            &self.result,
+            |arg: &Arc<dyn Expr>| arg.retain_any(set, include_derivatives),
+            "ExpAdjointMap::retain_any() failed for result",
+            |arg| self.with_result(arg).build(),
+            || Ok(ZeroOperator::new()),
         )
     }
 }

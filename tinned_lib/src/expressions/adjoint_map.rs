@@ -170,7 +170,6 @@ impl AdjointMap {
 
     // Checks modes of two adjoint maps, and returns comparable generators if
     // modes are compatible
-    #[inline]
     fn comparable_generators_if_compatible(
         &self,
         other: &Self,
@@ -200,6 +199,136 @@ impl AdjointMap {
         };
 
         Some((self_generators, other_generators))
+    }
+
+    // Applies a fallible operation to the target and generators of this
+    // AdjointMap and reconstructs the expression if needed.
+    //
+    // Semantics:
+    // - The provided operation is applied to the target and each generator.
+    // - If the resulting target is zero, the entire AdjointMap collapses to ZeroOperator.
+    // - If any resulting generator is zero, the entire AdjointMap collapses to ZeroOperator.
+    // - If no child changes, the original expression is returned.
+    // - Otherwise, a new AdjointMap is constructed with the transformed children.
+    fn transform_children_any_zero(
+        &self,
+        operation: impl Fn(&Arc<dyn Expr>) -> Result<Arc<dyn Expr>, TinnedError>,
+        message: &'static str,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        let new_target = operation(&self.target).map_err(|e| {
+            generic_expression_error(format!("{} for target", message), self, Some(Box::new(e)))
+        })?;
+
+        if is_zero_expr(&new_target, None) {
+            return Ok(ZeroOperator::new());
+        }
+
+        let mut changed = !Arc::ptr_eq(&new_target, &self.target) && &new_target != &self.target;
+
+        let mut new_generators = Vec::with_capacity(self.generators.len());
+
+        for generator in &self.generators {
+            let new_generator = operation(generator).map_err(|e| {
+                generic_expression_error(
+                    format!("{} for generator {}", message, generator),
+                    self,
+                    Some(Box::new(e)),
+                )
+            })?;
+
+            if is_zero_expr(&new_generator, None) {
+                return Ok(ZeroOperator::new());
+            }
+
+            if !changed && !Arc::ptr_eq(&new_generator, generator) && &new_generator != generator {
+                changed = true;
+            }
+
+            new_generators.push(new_generator);
+        }
+
+        if changed {
+            Self::new(new_generators, new_target, Some(self.left_action), Some(self.adjoint_mode))
+        } else {
+            Ok(self.clone_expr())
+        }
+    }
+
+    // Applies a fallible operation to the target and generators of this
+    // AdjointMap and reconstructs the expression if needed.
+    //
+    // Semantics:
+    // - The provided operation is applied to the target and each generator.
+    // - If the resulting target and all resulting generators are zero, the entire AdjointMap collapses to ZeroOperator.
+    // - If only some resulting children are zero, those children are treated as
+    //   unchanged and their original child expressions are retained.
+    // - If no child changes, the original expression is returned.
+    // - Otherwise, a new AdjointMap is constructed with the transformed children.
+    fn transform_children_all_zero(
+        &self,
+        match_self: impl FnOnce(&Self, bool) -> bool,
+        include_derivatives: bool,
+        retain_child: impl Fn(&Arc<dyn Expr>, bool) -> Result<Arc<dyn Expr>, TinnedError>,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        if match_self(self, include_derivatives) {
+            return Ok(self.clone_expr());
+        }
+
+        let retained_target = retain_child(&self.target, include_derivatives).map_err(|e| {
+            generic_expression_error(
+                "AdjointMap::transform_children_all_zero() failed for target",
+                self,
+                Some(Box::new(e)),
+            )
+        })?;
+
+        let target_is_zero = is_zero_expr(&retained_target, None);
+        let new_target = if target_is_zero {
+            self.target.clone()
+        } else {
+            retained_target
+        };
+
+        let mut changed = !Arc::ptr_eq(&new_target, &self.target) && &new_target != &self.target;
+
+        let mut all_zero = target_is_zero;
+        let mut new_generators = Vec::with_capacity(self.generators.len());
+
+        for generator in &self.generators {
+            let retained_generator = retain_child(generator, include_derivatives).map_err(|e| {
+                generic_expression_error(
+                    format!(
+                        "AdjointMap::transform_children_all_zero() failed for generator {}",
+                        generator
+                    ),
+                    self,
+                    Some(Box::new(e)),
+                )
+            })?;
+
+            if is_zero_expr(&retained_generator, None) {
+                new_generators.push(generator.clone());
+            } else {
+                all_zero = false;
+
+                if !changed
+                    && !Arc::ptr_eq(&retained_generator, generator)
+                    && &retained_generator != generator
+                {
+                    changed = true;
+                }
+
+                new_generators.push(retained_generator);
+            }
+        }
+
+        if all_zero {
+            Ok(ZeroOperator::new())
+        } else if changed {
+            Self::new(new_generators, new_target, Some(self.left_action), Some(self.adjoint_mode))
+        } else {
+            Ok(self.clone_expr())
+        }
     }
 }
 
@@ -239,30 +368,26 @@ impl ExprInternal for AdjointMap {
         self_generators.iter().zip(&other_generators).all(|(a, b)| a.deep_eq_superchains(b))
     }
 
-    #[inline]
     fn replace_one_in_children(
         &self,
         expr: &Arc<dyn Expr>,
         replacement: Arc<dyn Expr>,
         include_derivatives: bool,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
-        impl_adjoint_map_operation!(
-            self,
-            |x: &Arc<dyn Expr>| x.replace_one(expr, replacement.clone(), include_derivatives),
-            "AdjointMap::replace_one_in_children() failed"
+        self.transform_children_any_zero(
+            |x| x.replace_one(expr, replacement.clone(), include_derivatives),
+            "AdjointMap::replace_one_in_children() failed",
         )
     }
 
-    #[inline]
     fn replace_all_in_children(
         &self,
         map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
         include_derivatives: bool,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
-        impl_adjoint_map_operation!(
-            self,
-            |x: &Arc<dyn Expr>| x.replace_all(map, include_derivatives),
-            "AdjointMap::replace_all_in_children() failed"
+        self.transform_children_any_zero(
+            |x| x.replace_all(map, include_derivatives),
+            "AdjointMap::replace_all_in_children() failed",
         )
     }
 }
@@ -277,15 +402,13 @@ impl Expr for AdjointMap {
             && self.generators.iter().all(|g| g.has_unperturbed_term())
     }
 
-    #[inline]
     fn substitute_zero_perturbations(
         &self,
         freq_tol: Option<NumberTolerance>,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
-        impl_adjoint_map_operation!(
-            self,
-            |x: &Arc<dyn Expr>| x.substitute_zero_perturbations(freq_tol.clone()),
-            "AdjointMap::substitute_zero_perturbations() failed"
+        self.transform_children_any_zero(
+            |x| x.substitute_zero_perturbations(freq_tol.clone()),
+            "AdjointMap::substitute_zero_perturbations() failed",
         )
     }
 
@@ -335,17 +458,15 @@ impl Expr for AdjointMap {
         MatrixAdd::new(results)
     }
 
-    #[inline]
     fn eliminate(
         &self,
         parameter: Arc<dyn Expr>,
         perturbations: &[Arc<Perturbation>],
         min_order: u32,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
-        impl_adjoint_map_operation!(
-            self,
-            |x: &Arc<dyn Expr>| x.eliminate(parameter.clone(), perturbations, min_order),
-            "AdjointMap::eliminate() failed"
+        self.transform_children_any_zero(
+            |x| x.eliminate(parameter.clone(), perturbations, min_order),
+            "AdjointMap::eliminate() failed",
         )
     }
 
@@ -380,90 +501,44 @@ impl Expr for AdjointMap {
             || self.generators.iter().any(|x| x.match_any(set, include_derivatives))
     }
 
-    #[inline]
     fn remove_one(&self, s: &Arc<dyn Expr>) -> Result<Arc<dyn Expr>, TinnedError> {
         if self.match_one_self(s, false) {
             return Ok(ZeroOperator::new());
         }
 
-        impl_adjoint_map_operation!(
-            self,
-            |x: &Arc<dyn Expr>| x.remove_one(s),
-            "AdjointMap::remove_one() failed"
-        )
+        self.transform_children_any_zero(|x| x.remove_one(s), "AdjointMap::remove_one() failed")
     }
 
-    #[inline]
     fn remove_all(&self, set: &HashSet<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError> {
         if self.match_any_self(set, false) {
             return Ok(ZeroOperator::new());
         }
 
-        impl_adjoint_map_operation!(
-            self,
-            |x: &Arc<dyn Expr>| x.remove_all(set),
-            "AdjointMap::remove_all() failed"
-        )
+        self.transform_children_any_zero(|x| x.remove_all(set), "AdjointMap::remove_all() failed")
     }
 
-    #[inline]
     fn retain_one(
         &self,
         s: &Arc<dyn Expr>,
         include_derivatives: bool,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
-        if self.match_one_self(s, include_derivatives) {
-            return Ok(self.clone_expr());
-        }
+        self.transform_children_all_zero(
+            |this, include_derivatives| this.match_one_self(s, include_derivatives),
+            include_derivatives,
+            |expr, include_derivatives| expr.retain_one(s, include_derivatives),
+        )
+    }
 
-        let retained_target = self.target.retain_one(s, include_derivatives).map_err(|e| {
-            generic_expression_error("AdjointMap::retain_one() failed", self, Some(Box::new(e)))
-        })?;
-
-        let target_is_zero = is_zero_expr(&retained_target, None);
-        let new_target = if target_is_zero {
-            self.target.clone()
-        } else {
-            retained_target
-        };
-
-        let mut changed = !Arc::ptr_eq(&new_target, &self.target) && &new_target != &self.target;
-        let mut all_zero = target_is_zero;
-
-        let mut new_generators = Vec::with_capacity(self.generators.len());
-
-        for generator in &self.generators {
-            let retained_generator = generator.retain_one(s, include_derivatives).map_err(|e| {
-                generic_expression_error(
-                    format!("AdjointMap::retain_one() for generator {}", generator),
-                    self,
-                    Some(Box::new(e)),
-                )
-            })?;
-
-            if is_zero_expr(&retained_generator, None) {
-                new_generators.push(generator.clone());
-            } else {
-                all_zero = false;
-
-                if !changed
-                    && !Arc::ptr_eq(&retained_generator, generator)
-                    && &retained_generator != generator
-                {
-                    changed = true;
-                }
-
-                new_generators.push(retained_generator);
-            }
-        }
-
-        if all_zero {
-            Ok(ZeroOperator::new())
-        } else if changed {
-            Self::new(new_generators, new_target, Some(self.left_action), Some(self.adjoint_mode))
-        } else {
-            Ok(self.clone_expr())
-        }
+    fn retain_any(
+        &self,
+        set: &HashSet<Arc<dyn Expr>>,
+        include_derivatives: bool,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        self.transform_children_all_zero(
+            |this, include_derivatives| this.match_any_self(set, include_derivatives),
+            include_derivatives,
+            |expr, include_derivatives| expr.retain_any(set, include_derivatives),
+        )
     }
 }
 

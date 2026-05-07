@@ -3,7 +3,8 @@ macro_rules! impl_exch_corr_type {
         $type_name:ident,       // ExchCorrEnergy or ExchCorrPotential
         $builder_name:ident,    // ExchCorrEnergyBuilder or ExchCorrPotentialBuilder
         $grid_expr_name:ident,  // xc_energy or xc_potential
-        $build_grid_expr:ident  // build_xc_energy or build_xc_potential
+        $build_grid_expr:ident, // build_xc_energy or build_xc_potential
+        $is_scalar:tt           // Whether the expression is scalar or not
     ) => {
         #[derive(Clone, Debug, ::serde::Serialize, ::serde::Deserialize)]
         pub struct $type_name {
@@ -28,6 +29,36 @@ macro_rules! impl_exch_corr_type {
                     grid_weight,
                     density_matrix,
                     overlap_distribution,
+                    $grid_expr_name: None,
+                    derivative: None,
+                }
+            }
+
+            #[inline]
+            fn with_grid_expr(&self, grid_expr: expr_arc_ty!()) -> $builder_name {
+                $builder_name {
+                    name: self.name.clone(),
+                    grid_weight: self.grid_weight.clone(),
+                    density_matrix: self.density_matrix.clone(),
+                    overlap_distribution: self.overlap_distribution.clone(),
+                    $grid_expr_name: Some(grid_expr),
+                    derivative: Some(self.derivative.clone()),
+                }
+            }
+
+            #[inline]
+            fn with_grid_expr_and_derivative(
+                &self,
+                grid_expr: expr_arc_ty!(),
+                derivative: $crate::perturbations::PertMultichain,
+            ) -> $builder_name {
+                $builder_name {
+                    name: self.name.clone(),
+                    grid_weight: self.grid_weight.clone(),
+                    density_matrix: self.density_matrix.clone(),
+                    overlap_distribution: self.overlap_distribution.clone(),
+                    $grid_expr_name: Some(grid_expr),
+                    derivative: Some(derivative),
                 }
             }
 
@@ -60,6 +91,57 @@ macro_rules! impl_exch_corr_type {
             pub fn derivative(&self) -> &$crate::perturbations::PertMultichain {
                 &self.derivative
             }
+
+            fn apply_to_children(
+                &self,
+                operation: impl Fn(&Arc<dyn Expr>) -> Result<Arc<dyn Expr>, TinnedError>,
+                message: impl Into<String>,
+            ) -> Result<Arc<dyn Expr>, TinnedError> {
+                let message = message.into();
+
+                let grid_weight = operation(&self.grid_weight).map_err(|e| {
+                    $crate::public::generic_expression_error(
+                        format!("{} for grid weight", message),
+                        self,
+                        Some(::std::boxed::Box::new(e)),
+                    )
+                })?;
+
+                let density_matrix = operation(&self.density_matrix).map_err(|e| {
+                    $crate::public::generic_expression_error(
+                        format!("{} for density matrix", message),
+                        self,
+                        Some(::std::boxed::Box::new(e)),
+                    )
+                })?;
+
+                let overlap_distribution = operation(&self.overlap_distribution).map_err(|e| {
+                    $crate::public::generic_expression_error(
+                        format!("{} for overlap distribution", message),
+                        self,
+                        Some(::std::boxed::Box::new(e)),
+                    )
+                })?;
+
+                $crate::internal::transform_unary_any_zero(
+                    self,
+                    &self.$grid_expr_name,
+                    |grid_expr| operation(grid_expr),
+                    format!("{} for {}", message, stringify!($grid_expr_name)),
+                    |grid_expr| {
+                        $type_name::builder(
+                            self.name.clone(),
+                            grid_weight,
+                            density_matrix,
+                            overlap_distribution,
+                        )
+                        .$grid_expr_name(grid_expr)
+                        .derivative(self.derivative.clone())
+                        .build()
+                    },
+                    || impl_zero_expr!($is_scalar),
+                )
+            }
         }
 
         #[derive(Debug)]
@@ -68,9 +150,23 @@ macro_rules! impl_exch_corr_type {
             grid_weight: expr_arc_ty!(),
             density_matrix: expr_arc_ty!(),
             overlap_distribution: expr_arc_ty!(),
+            $grid_expr_name: ::std::option::Option<expr_arc_ty!()>,
+            derivative: ::std::option::Option<$crate::perturbations::PertMultichain>,
         }
 
         impl $builder_name {
+            #[inline]
+            fn $grid_expr_name(mut self, $grid_expr_name: expr_arc_ty!()) -> Self {
+                self.$grid_expr_name = Some($grid_expr_name);
+                self
+            }
+
+            #[inline]
+            fn derivative(mut self, derivative: $crate::perturbations::PertMultichain) -> Self {
+                self.derivative = Some(derivative);
+                self
+            }
+
             pub fn build(self) -> expr_result_ty!() {
                 $crate::internal::validate_xc_inputs(
                     &self.density_matrix,
@@ -78,11 +174,14 @@ macro_rules! impl_exch_corr_type {
                     &self.overlap_distribution,
                 )?;
 
-                let $grid_expr_name = $build_grid_expr(
+                let $grid_expr_name = self.$grid_expr_name.unwrap_or($build_grid_expr(
                     self.grid_weight.clone(),
                     self.density_matrix.clone(),
                     self.overlap_distribution.clone(),
-                )?;
+                )?);
+
+                let derivative =
+                    self.derivative.unwrap_or($crate::perturbations::PertMultichain::new());
 
                 Ok($crate::internal::intern_expr(::std::sync::Arc::new($type_name {
                     name: self.name,
@@ -90,7 +189,7 @@ macro_rules! impl_exch_corr_type {
                     density_matrix: self.density_matrix,
                     overlap_distribution: self.overlap_distribution,
                     $grid_expr_name,
-                    derivative: $crate::perturbations::PertMultichain::new(),
+                    derivative,
                 })))
             }
         }
@@ -146,14 +245,11 @@ macro_rules! impl_exch_corr_traits {
                 replacement: expr_arc_ty!(),
                 include_derivatives: bool,
             ) -> expr_result_ty!() {
-                impl_exch_corr_traits!(
-                    @grid_expr_operation
-                    self,
-                    $grid_expr_name,
-                    |grid_expr: expr_arc_ref_ty!()| grid_expr.replace_one(expr, replacement.clone(), include_derivatives),
+                self.apply_to_children(
+                    |arg: expr_arc_ref_ty!()| {
+                        arg.replace_one(expr, replacement.clone(), include_derivatives)
+                    },
                     concat!(stringify!($type_name), "::replace_one_in_children() failed"),
-                    $is_scalar,
-                    true
                 )
             }
 
@@ -163,14 +259,9 @@ macro_rules! impl_exch_corr_traits {
                 map: &expr_map_ty!(),
                 include_derivatives: bool,
             ) -> expr_result_ty!() {
-                impl_exch_corr_traits!(
-                    @grid_expr_operation
-                    self,
-                    $grid_expr_name,
-                    |grid_expr: expr_arc_ref_ty!()| grid_expr.replace_all(map, include_derivatives),
+                self.apply_to_children(
+                    |arg: expr_arc_ref_ty!()| arg.replace_all(map, include_derivatives),
                     concat!(stringify!($type_name), "::replace_all_in_children() failed"),
-                    $is_scalar,
-                    true
                 )
             }
         }
@@ -184,53 +275,42 @@ macro_rules! impl_exch_corr_traits {
                 self.grid_weight.has_unperturbed_term()
                     && self.density_matrix.has_unperturbed_term()
                     && self.overlap_distribution.has_unperturbed_term()
-
             }
 
             #[inline]
             fn substitute_zero_perturbations(
                 &self,
-                freq_tol: Option<$crate::public::NumberTolerance>,
+                freq_tol: ::std::option::Option<$crate::public::NumberTolerance>,
             ) -> Result<Arc<dyn Expr>, TinnedError> {
-                impl_exch_corr_traits!(
-                    @grid_expr_operation
+                $crate::internal::transform_unary_any_zero(
                     self,
-                    $grid_expr_name,
-                    |grid_expr: expr_arc_ref_ty!()| {
-                        grid_expr.substitute_zero_perturbations(freq_tol)
-                    },
-                    concat!(stringify!($type_name), "::substitute_zero_perturbations() failed"),
-                    $is_scalar,
-                    false
+                    &self.$grid_expr_name,
+                    |grid_expr| grid_expr.substitute_zero_perturbations(freq_tol),
+                    concat!(
+                        stringify!($type_name),
+                        "::substitute_zero_perturbations() failed for ",
+                        stringify!($grid_expr_name)
+                    ),
+                    |grid_expr| self.with_grid_expr(grid_expr).build(),
+                    || impl_zero_expr!($is_scalar),
                 )
             }
 
-            fn differentiate(
-                &self,
-                s: pert_arc_ty!(),
-            ) -> expr_result_ty!() {
-                let diff_expr = self.$grid_expr_name.differentiate(s.clone()).map_err(|e| {
-                    $crate::public::generic_expression_error(
-                        concat!(
-                            stringify!($type_name),
-                            "::differentiate() failed for ",
-                            stringify!($grid_expr_name)
-                        ),
-                        self,
-                        Some(::std::boxed::Box::new(e)),
-                    )
-                })?;
+            fn differentiate(&self, s: pert_arc_ty!()) -> expr_result_ty!() {
+                let derivative = self.derivative.with_added_perturbation(s.clone());
 
-                let new_deriv = self.derivative.with_added_perturbation(s);
-
-                Ok($crate::internal::intern_expr(::std::sync::Arc::new(Self {
-                    name: self.name.clone(),
-                    grid_weight: self.grid_weight.clone(),
-                    density_matrix: self.density_matrix.clone(),
-                    overlap_distribution: self.overlap_distribution.clone(),
-                    $grid_expr_name: diff_expr,
-                    derivative: new_deriv,
-                })))
+                $crate::internal::transform_unary_any_zero(
+                    self,
+                    &self.$grid_expr_name,
+                    |grid_expr| grid_expr.differentiate(s),
+                    concat!(
+                        stringify!($type_name),
+                        "::differentiate() failed for ",
+                        stringify!($grid_expr_name)
+                    ),
+                    |grid_expr| self.with_grid_expr_and_derivative(grid_expr, derivative).build(),
+                    || impl_zero_expr!($is_scalar),
+                )
             }
 
             fn eliminate(
@@ -239,16 +319,17 @@ macro_rules! impl_exch_corr_traits {
                 perturbations: &[pert_arc_ty!()],
                 min_order: u32,
             ) -> expr_result_ty!() {
-                impl_exch_corr_traits!(
-                    @grid_expr_operation
+                $crate::internal::transform_unary_any_zero(
                     self,
-                    $grid_expr_name,
-                    |grid_expr: expr_arc_ref_ty!()| {
-                        grid_expr.eliminate(parameter, perturbations, min_order)
-                    },
-                    concat!(stringify!($type_name), "::eliminate() failed"),
-                    $is_scalar,
-                    false
+                    &self.$grid_expr_name,
+                    |grid_expr| grid_expr.eliminate(parameter, perturbations, min_order),
+                    concat!(
+                        stringify!($type_name),
+                        "::eliminate() failed for ",
+                        stringify!($grid_expr_name)
+                    ),
+                    |grid_expr| self.with_grid_expr(grid_expr).build(),
+                    || impl_zero_expr!($is_scalar),
                 )
             }
 
@@ -282,14 +363,17 @@ macro_rules! impl_exch_corr_traits {
                     return impl_zero_expr!($is_scalar);
                 }
 
-                impl_exch_corr_traits!(
-                    @grid_expr_operation
+                $crate::internal::transform_unary_any_zero(
                     self,
-                    $grid_expr_name,
-                    |grid_expr: expr_arc_ref_ty!()| grid_expr.remove_one(s),
-                    concat!(stringify!($type_name), "::remove_one() failed"),
-                    $is_scalar,
-                    false
+                    &self.$grid_expr_name,
+                    |grid_expr| grid_expr.remove_one(s),
+                    concat!(
+                        stringify!($type_name),
+                        "::remove_one() failed for ",
+                        stringify!($grid_expr_name)
+                    ),
+                    |grid_expr| self.with_grid_expr(grid_expr).build(),
+                    || impl_zero_expr!($is_scalar),
                 )
             }
 
@@ -299,14 +383,17 @@ macro_rules! impl_exch_corr_traits {
                     return impl_zero_expr!($is_scalar);
                 }
 
-                impl_exch_corr_traits!(
-                    @grid_expr_operation
+                $crate::internal::transform_unary_any_zero(
                     self,
-                    $grid_expr_name,
-                    |grid_expr: expr_arc_ref_ty!()| grid_expr.remove_all(set),
-                    concat!(stringify!($type_name), "::remove_all() failed"),
-                    $is_scalar,
-                    false
+                    &self.$grid_expr_name,
+                    |grid_expr| grid_expr.remove_all(set),
+                    concat!(
+                        stringify!($type_name),
+                        "::remove_all() failed for ",
+                        stringify!($grid_expr_name)
+                    ),
+                    |grid_expr| self.with_grid_expr(grid_expr).build(),
+                    || impl_zero_expr!($is_scalar),
                 )
             }
 
@@ -320,14 +407,41 @@ macro_rules! impl_exch_corr_traits {
                     return Ok(self.clone_expr());
                 }
 
-                impl_exch_corr_traits!(
-                    @grid_expr_operation
+                $crate::internal::transform_unary_any_zero(
                     self,
-                    $grid_expr_name,
-                    |grid_expr: expr_arc_ref_ty!()| grid_expr.retain_one(s, include_derivatives),
-                    concat!(stringify!($type_name), "::retain_one() failed"),
-                    $is_scalar,
-                    false
+                    &self.$grid_expr_name,
+                    |grid_expr| grid_expr.retain_one(s, include_derivatives),
+                    concat!(
+                        stringify!($type_name),
+                        "::retain_one() failed for ",
+                        stringify!($grid_expr_name)
+                    ),
+                    |grid_expr| self.with_grid_expr(grid_expr).build(),
+                    || impl_zero_expr!($is_scalar),
+                )
+            }
+
+            #[inline]
+            fn retain_any(
+                &self,
+                set: &expr_set_ty!(),
+                include_derivatives: bool,
+            ) -> expr_result_ty!() {
+                if self.match_any_self(set, include_derivatives) {
+                    return Ok(self.clone_expr());
+                }
+
+                $crate::internal::transform_unary_any_zero(
+                    self,
+                    &self.$grid_expr_name,
+                    |grid_expr| grid_expr.retain_any(set, include_derivatives),
+                    concat!(
+                        stringify!($type_name),
+                        "::retain_any() failed for ",
+                        stringify!($grid_expr_name)
+                    ),
+                    |grid_expr| self.with_grid_expr(grid_expr).build(),
+                    || impl_zero_expr!($is_scalar),
                 )
             }
         }
@@ -355,94 +469,6 @@ macro_rules! impl_exch_corr_traits {
             }
         }
     };
-
-    (
-        @grid_expr_operation
-        $self:ident,
-        $grid_expr_name:ident,
-        $operation:expr,
-        $message:expr,
-        $is_scalar:tt,
-        true
-    ) => {{
-        let grid_weight = ($operation)(&$self.grid_weight).map_err(|e| {
-            $crate::public::generic_expression_error(
-                concat!($message, " for grid weight"),
-                $self,
-                Some(::std::boxed::Box::new(e)),
-            )
-        })?;
-        let density_matrix = ($operation)(&$self.density_matrix).map_err(|e| {
-            $crate::public::generic_expression_error(
-                concat!($message, " for density matrix"),
-                $self,
-                Some(::std::boxed::Box::new(e)),
-            )
-        })?;
-        let overlap_distribution = ($operation)(&$self.overlap_distribution).map_err(|e| {
-            $crate::public::generic_expression_error(
-                concat!($message, " for overlap distribution"),
-                $self,
-                Some(::std::boxed::Box::new(e)),
-            )
-        })?;
-
-        let new_expr = ($operation)(&$self.$grid_expr_name).map_err(|e| {
-            $crate::public::generic_expression_error(
-                concat!($message, " for ", stringify!($grid_expr_name)),
-                $self,
-                Some(::std::boxed::Box::new(e)),
-            )
-        })?;
-
-        if $crate::public::is_zero_expr(&new_expr, None) {
-            impl_zero_expr!($is_scalar)
-        } else if &new_expr == &$self.$grid_expr_name {
-            Ok($self.clone_expr())
-        } else {
-            Ok($crate::internal::intern_expr(::std::sync::Arc::new(Self {
-                name: $self.name.clone(),
-                grid_weight,
-                density_matrix,
-                overlap_distribution,
-                $grid_expr_name: new_expr,
-                derivative: $self.derivative.clone(),
-            })))
-        }
-    }};
-
-    (
-        @grid_expr_operation
-        $self:ident,
-        $grid_expr_name:ident,
-        $operation:expr,
-        $message:expr,
-        $is_scalar:tt,
-        false
-    ) => {{
-        let new_expr = ($operation)(&$self.$grid_expr_name).map_err(|e| {
-            $crate::public::generic_expression_error(
-                concat!($message, " for ", stringify!($grid_expr_name)),
-                $self,
-                Some(::std::boxed::Box::new(e)),
-            )
-        })?;
-
-        if $crate::public::is_zero_expr(&new_expr, None) {
-            impl_zero_expr!($is_scalar)
-        } else if &new_expr == &$self.$grid_expr_name {
-            Ok($self.clone_expr())
-        } else {
-            Ok($crate::internal::intern_expr(::std::sync::Arc::new(Self {
-                name: $self.name.clone(),
-                grid_weight: $self.grid_weight.clone(),
-                density_matrix: $self.density_matrix.clone(),
-                overlap_distribution: $self.overlap_distribution.clone(),
-                $grid_expr_name: new_expr,
-                derivative: $self.derivative.clone(),
-            })))
-        }
-    }};
 }
 
 #[allow(unused_macros)]

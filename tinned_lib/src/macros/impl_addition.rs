@@ -8,11 +8,8 @@ macro_rules! impl_add_traits {
                 format!(
                     "{}({})",
                     stringify!($type_name),
-                    $crate::internal::join_mapped(
-                        &self.terms,
-                        $hash_delimiter,
-                        |term| term.hash_key(),
-                    ),
+                    $crate::internal::join_mapped(&self.terms, $hash_delimiter, |term| term
+                        .hash_key(),),
                 )
             }
 
@@ -27,12 +24,15 @@ macro_rules! impl_add_traits {
                 replacement: expr_arc_ty!(),
                 include_derivatives: bool,
             ) -> expr_result_ty!() {
-                impl_add_traits!(
-                    @add_termwise_operation
+                $crate::internal::transform_add_all_zero(
                     self,
-                    |term: expr_arc_ref_ty!()| term.replace_one(expr, replacement.clone(), include_derivatives),
+                    &self.terms,
+                    |term: expr_arc_ref_ty!()| {
+                        term.replace_one(expr, replacement.clone(), include_derivatives)
+                    },
                     concat!(stringify!($type_name), "::replace_one_in_children() failed"),
-                    $is_scalar
+                    |new_terms| Self::new(new_terms),
+                    || impl_zero_expr!($is_scalar),
                 )
             }
 
@@ -41,12 +41,13 @@ macro_rules! impl_add_traits {
                 map: &expr_map_ty!(),
                 include_derivatives: bool,
             ) -> expr_result_ty!() {
-                impl_add_traits!(
-                    @add_termwise_operation
+                $crate::internal::transform_add_all_zero(
                     self,
+                    &self.terms,
                     |term: expr_arc_ref_ty!()| term.replace_all(map, include_derivatives),
                     concat!(stringify!($type_name), "::replace_all_in_children() failed"),
-                    $is_scalar
+                    |new_terms| Self::new(new_terms),
+                    || impl_zero_expr!($is_scalar),
                 )
             }
         }
@@ -64,19 +65,17 @@ macro_rules! impl_add_traits {
                 &self,
                 freq_tol: ::std::option::Option<$crate::public::NumberTolerance>,
             ) -> expr_result_ty!() {
-                impl_add_traits!(
-                    @add_termwise_operation
+                $crate::internal::transform_add_all_zero(
                     self,
+                    &self.terms,
                     |term: expr_arc_ref_ty!()| term.substitute_zero_perturbations(freq_tol.clone()),
                     concat!(stringify!($type_name), "::substitute_zero_perturbations() failed"),
-                    $is_scalar
+                    |new_terms| Self::new(new_terms),
+                    || impl_zero_expr!($is_scalar),
                 )
             }
 
-            fn differentiate(
-                &self,
-                s: pert_arc_ty!(),
-            ) -> expr_result_ty!() {
+            fn differentiate(&self, s: pert_arc_ty!()) -> expr_result_ty!() {
                 let mut diff_terms = ::std::vec::Vec::with_capacity(self.terms.len());
 
                 for term in &self.terms {
@@ -101,12 +100,15 @@ macro_rules! impl_add_traits {
                 perturbations: &[pert_arc_ty!()],
                 min_order: u32,
             ) -> expr_result_ty!() {
-                impl_add_traits!(
-                    @add_termwise_operation
+                $crate::internal::transform_add_all_zero(
                     self,
-                    |term: expr_arc_ref_ty!()| term.eliminate(parameter.clone(), perturbations, min_order),
+                    &self.terms,
+                    |term: expr_arc_ref_ty!()| {
+                        term.eliminate(parameter.clone(), perturbations, min_order)
+                    },
                     concat!(stringify!($type_name), "::eliminate() failed"),
-                    $is_scalar
+                    |new_terms| Self::new(new_terms),
+                    || impl_zero_expr!($is_scalar),
                 )
             }
 
@@ -118,7 +120,8 @@ macro_rules! impl_add_traits {
                     )]);
                 }
 
-                let mut result: expr_differentiation_map_ty!() = ::std::collections::BTreeMap::new();
+                let mut result: expr_differentiation_map_ty!() =
+                    ::std::collections::BTreeMap::new();
 
                 for term in &self.terms {
                     for (order, subset) in term.find_all(s) {
@@ -146,12 +149,13 @@ macro_rules! impl_add_traits {
                     return impl_zero_expr!($is_scalar);
                 }
 
-                impl_add_traits!(
-                    @add_termwise_operation
+                $crate::internal::transform_add_all_zero(
                     self,
+                    &self.terms,
                     |term: expr_arc_ref_ty!()| term.remove_one(s),
                     concat!(stringify!($type_name), "::remove_one() failed"),
-                    $is_scalar
+                    |new_terms| Self::new(new_terms),
+                    || impl_zero_expr!($is_scalar),
                 )
             }
 
@@ -160,12 +164,13 @@ macro_rules! impl_add_traits {
                     return impl_zero_expr!($is_scalar);
                 }
 
-                impl_add_traits!(
-                    @add_termwise_operation
+                $crate::internal::transform_add_all_zero(
                     self,
+                    &self.terms,
                     |term: expr_arc_ref_ty!()| term.remove_all(set),
                     concat!(stringify!($type_name), "::remove_all() failed"),
-                    $is_scalar
+                    |new_terms| Self::new(new_terms),
+                    || impl_zero_expr!($is_scalar),
                 )
             }
 
@@ -178,12 +183,32 @@ macro_rules! impl_add_traits {
                     return Ok(self.clone_expr());
                 }
 
-                impl_add_traits!(
-                    @add_termwise_operation
+                $crate::internal::transform_add_all_zero(
                     self,
+                    &self.terms,
                     |term: expr_arc_ref_ty!()| term.retain_one(s, include_derivatives),
                     concat!(stringify!($type_name), "::retain_one() failed"),
-                    $is_scalar
+                    |new_terms| Self::new(new_terms),
+                    || impl_zero_expr!($is_scalar),
+                )
+            }
+
+            fn retain_any(
+                &self,
+                set: &expr_set_ty!(),
+                include_derivatives: bool,
+            ) -> expr_result_ty!() {
+                if self.match_any_self(set, include_derivatives) {
+                    return Ok(self.clone_expr());
+                }
+
+                $crate::internal::transform_add_all_zero(
+                    self,
+                    &self.terms,
+                    |term: expr_arc_ref_ty!()| term.retain_any(set, include_derivatives),
+                    concat!(stringify!($type_name), "::retain_any() failed"),
+                    |new_terms| Self::new(new_terms),
+                    || impl_zero_expr!($is_scalar),
                 )
             }
         }
@@ -197,49 +222,14 @@ macro_rules! impl_add_traits {
         impl ::std::cmp::Eq for $type_name {}
 
         impl ::std::fmt::Display for $type_name {
-            fn fmt(
-                &self,
-                f: &mut ::std::fmt::Formatter,
-            ) -> ::std::fmt::Result {
+            fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
                 ::std::write!(
                     f,
                     "({})",
-                    $crate::internal::join_mapped(
-                        &self.terms,
-                        $fmt_delimiter,
-                        |term| term.to_string(),
-                    )
+                    $crate::internal::join_mapped(&self.terms, $fmt_delimiter, |term| term
+                        .to_string(),)
                 )
             }
         }
     };
-
-    (@add_termwise_operation $self:ident, $operation:expr, $message:expr, $is_scalar:tt) => {{
-        let mut new_terms = ::std::vec::Vec::with_capacity($self.terms.len());
-        let mut new_add = false;
-
-        for term in &$self.terms {
-            let new_term = ($operation)(term).map_err(|e| {
-                $crate::public::generic_expression_error(
-                    $message,
-                    $self,
-                    Some(::std::boxed::Box::new(e)),
-                )
-            })?;
-            if $crate::public::is_zero_expr(&new_term, None) {
-                new_add = true;
-            } else {
-                if !new_add {
-                    new_add = &new_term != term;
-                }
-                new_terms.push(new_term);
-            }
-        }
-
-        if new_add {
-            Self::new(new_terms)
-        } else {
-            Ok($self.clone_expr())
-        }
-    }};
 }
