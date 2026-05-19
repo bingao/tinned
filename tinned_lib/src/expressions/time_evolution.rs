@@ -3,8 +3,8 @@ use std::sync::Arc;
 use crate::core::expr_internal::sealed::ExprInternal;
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{
-    DotProduct, ExcitationOperator, MatrixAdd, MatrixMul, OneElecMatrix, ResidueParameter,
-    WfnParameter, ZeroOperator,
+    DotProduct, ExcitationOperator, HermitianTranspose, MatrixAdd, MatrixMul, OneElecMatrix,
+    ResidueParameter, Transpose, WfnParameter, ZeroOperator,
 };
 use crate::perturbations::{PertMultichain, Perturbation};
 use crate::public::{
@@ -113,9 +113,9 @@ impl TimeEvolutionBuilder {
         // We assume `ExcitationOperator` is time independent
         } else if is_expr_type::<ExcitationOperator>(&self.argument) {
             Ok(ZeroOperator::new())
-        } else if let Some(argument) = downcast_from_arc::<DotProduct>(&self.argument) {
-            let bra = argument.bra();
-            let ket = argument.ket();
+        } else if let Some(op) = downcast_from_arc::<DotProduct>(&self.argument) {
+            let bra = op.bra();
+            let ket = op.ket();
             let bra_builder = Self {
                 is_forward: self.is_forward,
                 argument: bra.clone(),
@@ -129,6 +129,20 @@ impl TimeEvolutionBuilder {
                 MatrixMul::new(vec![bra.clone(), ket_builder.build()?])?,
                 MatrixMul::new(vec![bra_builder.build()?, ket.clone()])?,
             ])
+        } else if let Some(op) = downcast_from_arc::<HermitianTranspose>(&self.argument) {
+            let builder = Self {
+                is_forward: self.is_forward,
+                argument: op.argument().clone(),
+            };
+
+            HermitianTranspose::new(builder.build()?)
+        } else if let Some(op) = downcast_from_arc::<Transpose>(&self.argument) {
+            let builder = Self {
+                is_forward: self.is_forward,
+                argument: op.argument().clone(),
+            };
+
+            Transpose::new(builder.build()?)
         } else {
             Err(expression_error(
                 "TimeEvolutionBuilder::build() - unsupported argument type",
