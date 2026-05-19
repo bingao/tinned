@@ -2,7 +2,10 @@ use std::sync::Arc;
 
 use crate::core::expr_internal::sealed::ExprInternal;
 use crate::core::{Expr, TinnedError};
-use crate::expressions::{MatrixMul, OneElecMatrix, ResidueParameter, WfnParameter, ZeroOperator};
+use crate::expressions::{
+    DotProduct, ExcitationOperator, MatrixAdd, MatrixMul, OneElecMatrix, ResidueParameter,
+    WfnParameter, ZeroOperator,
+};
 use crate::perturbations::{PertMultichain, Perturbation};
 use crate::public::{
     NumberTolerance, downcast_from_arc, expression_error, generic_expression_error, is_expr_type,
@@ -107,6 +110,25 @@ impl TimeEvolutionBuilder {
                 is_forward: self.is_forward,
                 argument: self.argument,
             })))
+        // We assume `ExcitationOperator` is time independent
+        } else if is_expr_type::<ExcitationOperator>(&self.argument) {
+            Ok(ZeroOperator::new())
+        } else if let Some(argument) = downcast_from_arc::<DotProduct>(&self.argument) {
+            let bra = argument.bra();
+            let ket = argument.ket();
+            let bra_builder = Self {
+                is_forward: self.is_forward,
+                argument: bra.clone(),
+            };
+            let ket_builder = Self {
+                is_forward: self.is_forward,
+                argument: ket.clone(),
+            };
+
+            MatrixAdd::new(vec![
+                MatrixMul::new(vec![bra.clone(), ket_builder.build()?])?,
+                MatrixMul::new(vec![bra_builder.build()?, ket.clone()])?,
+            ])
         } else {
             Err(expression_error(
                 "TimeEvolutionBuilder::build() - unsupported argument type",
