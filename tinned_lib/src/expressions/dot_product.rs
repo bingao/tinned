@@ -160,6 +160,11 @@ impl ExprInternal for DotProduct {
     }
 
     #[inline]
+    fn expr_order(&self) -> u32 {
+        self.bra.expr_order() + self.ket.expr_order()
+    }
+
+    #[inline]
     fn deep_eq_superchains(&self, other: &Arc<dyn Expr>) -> bool {
         if let Some(dot) = downcast_from_arc::<DotProduct>(other) {
             if self.bra.deep_eq_superchains(&dot.bra) && self.ket.deep_eq_superchains(&dot.ket) {

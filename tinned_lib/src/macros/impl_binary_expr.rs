@@ -111,7 +111,7 @@ macro_rules! impl_binary_expr_common_methods {
         fn find_all(&self, s: expr_arc_ref_ty!()) -> expr_differentiation_map_ty!() {
             if self.deep_eq_superchains(s) {
                 ::std::collections::BTreeMap::from([(
-                    self.total_order(),
+                    self.expr_order(),
                     ::std::collections::HashSet::from([self.clone_expr()]),
                 )])
             } else {

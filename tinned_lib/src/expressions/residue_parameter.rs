@@ -150,8 +150,8 @@ impl ExprInternal for ResidueParameter {
     }
 
     #[inline]
-    fn total_order(&self) -> u32 {
-        self.parameter.total_order()
+    fn expr_order(&self) -> u32 {
+        self.parameter.expr_order()
     }
 
     #[inline]

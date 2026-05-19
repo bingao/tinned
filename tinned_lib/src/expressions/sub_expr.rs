@@ -434,7 +434,7 @@ impl ExprInternal for SubExpr {
     }
 
     #[inline]
-    fn total_order(&self) -> u32 {
+    fn expr_order(&self) -> u32 {
         self.derivative.total_order()
     }
 
@@ -561,7 +561,7 @@ impl Expr for SubExpr {
     #[inline]
     fn find_all(&self, s: &Arc<dyn Expr>) -> BTreeMap<u32, HashSet<Arc<dyn Expr>>> {
         if self.deep_eq_superchains(s) {
-            BTreeMap::from([(self.total_order(), HashSet::from([self.clone_expr()]))])
+            BTreeMap::from([(self.expr_order(), HashSet::from([self.clone_expr()]))])
         } else {
             self.expression.find_all(s)
         }

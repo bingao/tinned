@@ -254,7 +254,7 @@ impl ExprInternal for AoTwoElecEnergy {
     }
 
     #[inline]
-    fn total_order(&self) -> u32 {
+    fn expr_order(&self) -> u32 {
         self.derivative.total_order()
     }
 

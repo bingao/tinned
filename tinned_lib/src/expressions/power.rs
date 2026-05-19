@@ -79,14 +79,28 @@ impl Power {
 }
 
 impl ExprInternal for Power {
-    impl_unary_expr_internal_methods!(Power, true, base, false, |this: &Power, arg| Self::new(
-        arg,
-        this.exponent
-    ));
+    impl_unary_expr_internal_methods!(
+        Power,
+        true,
+        base,
+        false,
+        |this: &Power, new_base| Self::new(new_base, this.exponent)
+    );
 
     #[inline]
     fn hash_key(&self) -> String {
         format!("Power({}; {})", self.base.hash_key(), self.exponent)
+    }
+
+    #[inline]
+    fn expr_order(&self) -> u32 {
+        let exponent_abs = u32::try_from(self.exponent.unsigned_abs())
+            .expect("Power::expr_order() exponent absolute value does not fit in u32");
+
+        self.base
+            .expr_order()
+            .checked_mul(exponent_abs)
+            .expect("Power::expr_order() expression order overflow")
     }
 
     #[inline]

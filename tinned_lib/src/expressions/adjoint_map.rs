@@ -94,11 +94,11 @@ impl AdjointMap {
         generators: Vec<Arc<dyn Expr>>,
         adjoint_mode: AdjointMode,
     ) -> Vec<Arc<dyn Expr>> {
-        // Sort generators according to `total_order()`
+        // Sort generators according to `expr_order()`
         if matches!(adjoint_mode, AdjointMode::Ordered) {
             generators
         } else {
-            sort_expressions_grouped_by(&generators, |e| e.total_order())
+            sort_expressions_grouped_by(&generators, |e| e.expr_order())
         }
     }
 
@@ -347,6 +347,17 @@ impl ExprInternal for AdjointMap {
     }
 
     #[inline]
+    fn expr_order(&self) -> u32 {
+        let mut expr_order = self.target.expr_order();
+
+        for generator in &self.generators {
+            expr_order += generator.expr_order()
+        }
+
+        expr_order
+    }
+
+    #[inline]
     fn deep_eq_superchains(&self, other: &Arc<dyn Expr>) -> bool {
         let Some(op) = downcast_from_arc::<AdjointMap>(other) else {
             return false;
@@ -473,7 +484,7 @@ impl Expr for AdjointMap {
     #[inline]
     fn find_all(&self, s: &Arc<dyn Expr>) -> BTreeMap<u32, HashSet<Arc<dyn Expr>>> {
         if self.deep_eq_superchains(s) {
-            return BTreeMap::from([(self.total_order(), HashSet::from([self.clone_expr()]))]);
+            return BTreeMap::from([(self.expr_order(), HashSet::from([self.clone_expr()]))]);
         }
 
         let mut result = self.target.find_all(s);

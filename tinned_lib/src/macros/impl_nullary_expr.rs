@@ -249,7 +249,7 @@ macro_rules! impl_nullary_expr_traits {
             impl_nullary_expr_traits!(@nullary_hash_key $type_name, $has_deps);
 
             #[inline]
-            fn total_order(&self) -> u32 {
+            fn expr_order(&self) -> u32 {
                 self.derivative.total_order()
             }
 

@@ -13,6 +13,12 @@ macro_rules! impl_add_traits {
                 )
             }
 
+            // Each term should have the same `expr_order()` for `Add` and `MatrixAdd`
+            #[inline]
+            fn expr_order(&self) -> u32 {
+                self.terms.first().map_or(0, |term| term.expr_order())
+            }
+
             // For unambiguous replacement, we require equality for the
             // whole `Add` so that we do not override methods
             // `eq_by_superchains()` and `apply_replacement()` of
@@ -115,7 +121,7 @@ macro_rules! impl_add_traits {
             fn find_all(&self, s: expr_arc_ref_ty!()) -> expr_differentiation_map_ty!() {
                 if self.deep_eq_superchains(s) {
                     return ::std::collections::BTreeMap::from([(
-                        self.total_order(),
+                        self.expr_order(),
                         ::std::collections::HashSet::from([self.clone_expr()]),
                     )]);
                 }

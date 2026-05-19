@@ -105,7 +105,7 @@ pub trait Expr: Debug + Send + Sync + ExprInternal {
     #[inline]
     fn find_all(&self, s: &Arc<dyn Expr>) -> BTreeMap<u32, HashSet<Arc<dyn Expr>>> {
         if self.deep_eq_superchains(s) {
-            BTreeMap::from([(self.total_order(), HashSet::from([self.clone_expr()]))])
+            BTreeMap::from([(self.expr_order(), HashSet::from([self.clone_expr()]))])
         } else {
             BTreeMap::new()
         }

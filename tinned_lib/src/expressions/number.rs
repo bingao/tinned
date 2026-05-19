@@ -790,10 +790,10 @@ mod tests {
 
         assert_eq!(frac.hash_key(), format!("Fraction({new_n1}/{new_n2})"));
 
-        assert!(int.total_order() == 0);
-        assert!(real.total_order() == 0);
-        assert!(cmplx.total_order() == 0);
-        assert!(frac.total_order() == 0);
+        assert!(int.expr_order() == 0);
+        assert!(real.expr_order() == 0);
+        assert!(cmplx.expr_order() == 0);
+        assert!(frac.expr_order() == 0);
 
         assert!(int.deep_eq_superchains(&int));
         assert!(!int.deep_eq_superchains(&real));

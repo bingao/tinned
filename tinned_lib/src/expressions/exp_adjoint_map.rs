@@ -293,7 +293,7 @@ impl ExprInternal for ExpAdjointMap {
     }
 
     #[inline]
-    fn total_order(&self) -> u32 {
+    fn expr_order(&self) -> u32 {
         self.derivative.total_order()
     }
 
@@ -623,7 +623,7 @@ impl Expr for ExpAdjointMap {
     #[inline]
     fn find_all(&self, s: &Arc<dyn Expr>) -> BTreeMap<u32, HashSet<Arc<dyn Expr>>> {
         if self.deep_eq_superchains(s) {
-            BTreeMap::from([(self.total_order(), HashSet::from([self.clone_expr()]))])
+            BTreeMap::from([(self.expr_order(), HashSet::from([self.clone_expr()]))])
         } else {
             let mut result = self.generator.find_all(s);
             for (order, subset) in self.result.find_all(s) {

@@ -50,6 +50,54 @@ impl PertMultichain {
         *entry += 1;
     }
 
+    //    /// Merges another perturbation multichain into this one in place.
+    //    ///
+    //    /// For each perturbation in `other`, its differentiation order is added to the
+    //    /// corresponding order in `self`. If the perturbation does not already exist in
+    //    /// `self`, it is inserted with the order from `other`.
+    //    ///
+    //    /// This method modifies `self`.
+    //    ///
+    //    /// # Panics
+    //    ///
+    //    /// Panics if the internal mutex of either `self` or `other` is poisoned.
+    //    pub fn merge_in_place(&mut self, other: &PertMultichain) {
+    //        let mut self_map = self.0.lock().unwrap();
+    //
+    //        let other_map = other.0.lock().unwrap();
+    //
+    //        for (perturbation, order) in other_map.iter() {
+    //            let entry = self_map.entry(Arc::clone(perturbation)).or_insert(0);
+    //
+    //            *entry += order;
+    //        }
+    //    }
+    //
+    //    /// Returns a new perturbation multichain formed by merging `self` and `other`.
+    //    ///
+    //    /// For each perturbation appearing in either multichain, the resulting
+    //    /// differentiation order is the sum of its orders in `self` and `other`.
+    //    /// Perturbations that appear in only one multichain are copied unchanged into
+    //    /// the result.
+    //    ///
+    //    /// This method does not modify either `self` or `other`.
+    //    ///
+    //    /// # Panics
+    //    ///
+    //    /// Panics if the internal mutex of either `self` or `other` is poisoned.
+    //    #[inline]
+    //    pub fn merge(&self, other: &PertMultichain) -> PertMultichain {
+    //        let mut result_map = self.get_map_clone();
+    //
+    //        for (perturbation, order) in other.get_map_clone() {
+    //            let entry = result_map.entry(perturbation).or_insert(0);
+    //
+    //            *entry += order;
+    //        }
+    //
+    //        Self::from_map(result_map)
+    //    }
+
     /// Returns true if the perturbation multichain is empty.
     #[inline]
     pub fn is_empty(&self) -> bool {

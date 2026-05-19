@@ -54,7 +54,7 @@ impl TimeEvolution {
             residue.derivative()
         } else {
             Err(unreachable_error(
-                "TimeEvolution::derivative() gets an argument neither OneElecMatrix nor WfnParameter",
+                "TimeEvolution::derivative() gets an argument neither OneElecMatrix, WfnParameter, nor ResidueParameter",
                 &self.argument,
                 None,
             ))
@@ -132,8 +132,8 @@ impl ExprInternal for TimeEvolution {
     }
 
     #[inline]
-    fn total_order(&self) -> u32 {
-        self.argument.total_order()
+    fn expr_order(&self) -> u32 {
+        self.argument.expr_order()
     }
 
     #[inline]

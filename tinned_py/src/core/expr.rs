@@ -140,7 +140,7 @@ impl PyExpr {
     ///   s: Expr to match.
     ///
     /// Returns:
-    ///   A dict mapping total_order (int) to a list of matching Expr.
+    ///   A dict mapping `expr_order` (int) to a list of matching Expr.
     fn find_all<'py>(&self, py: Python<'py>, s: &PyExpr) -> PyResult<Py<PyDict>> {
         let m: BTreeMap<u32, HashSet<Arc<dyn Expr>>> = self.inner.find_all(s.inner());
 

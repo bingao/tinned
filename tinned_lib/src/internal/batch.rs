@@ -26,7 +26,7 @@ where
 ///
 /// Example:
 /// let sorted_by_type = sort_expressions_grouped_by(exprs, |e| e.type_name());
-/// let sorted_by_order = sort_expressions_grouped_by(exprs, |e| e.total_order());
+/// let sorted_by_order = sort_expressions_grouped_by(exprs, |e| e.expr_order());
 #[inline]
 pub(crate) fn sort_expressions_grouped_by<K: Ord + Copy, F: Fn(&Arc<dyn Expr>) -> K>(
     exprs: &[Arc<dyn Expr>],

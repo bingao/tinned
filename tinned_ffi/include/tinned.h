@@ -610,11 +610,26 @@ tinned_expr_replace_all (
     bool include_derivatives,
     TinnedErrorHandle_t * * out_err);
 
+/** \brief
+ *  Borrowed slice of ExprSlice values.
+ *
+ *  C layout:
+ *  - ptr points to an array of ExprSlice
+ *  - len is the number of ExprSlice elements
+ */
+typedef struct ExprSetSlice {
+    /** <No documentation available> */
+    ExprSlice_t const * ptr;
+
+    /** <No documentation available> */
+    size_t len;
+} ExprSetSlice_t;
+
 /** <No documentation available> */
 ExprHandle_t *
 tinned_expr_retain_all (
     ExprHandle_t const * h,
-    ExprSlice_t const * set,
+    ExprSetSlice_t const * sets,
     bool include_derivatives,
     TinnedErrorHandle_t * * out_err);
 
