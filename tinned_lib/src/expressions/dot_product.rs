@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::core::expr_internal::sealed::ExprInternal;
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{
-    Add, Conjugate, HermitianTranspose, MatrixAdd, MatrixMul, Mul, Number, Transpose, ZeroOperator,
+    Add, Conjugate, MatrixAdd, MatrixMul, Mul, Number, Transpose, ZeroOperator,
 };
 use crate::internal::{intern_expr, transform_binary_any_zero};
 use crate::perturbations::Perturbation;
@@ -16,6 +16,7 @@ use crate::public::{
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct DotProduct {
     bra: Arc<dyn Expr>,
+    bra_is_hermitian: bool,
     ket: Arc<dyn Expr>,
     allow_braket_swap: bool,
     is_scalar: bool,
@@ -24,40 +25,20 @@ pub struct DotProduct {
 impl DotProduct {
     pub fn new(
         bra: Arc<dyn Expr>,
-        use_hermitian: bool,
+        bra_is_hermitian: bool,
         ket: Arc<dyn Expr>,
         allow_braket_swap: bool,
         is_scalar: Option<bool>,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
-        let bra = if use_hermitian {
-            HermitianTranspose::new(bra)?
-        } else {
-            Transpose::new(bra)?
-        };
-
         let is_scalar = is_scalar.unwrap_or(true);
 
-        Self::make_dot_product(bra, ket, allow_braket_swap, is_scalar)
-    }
-
-    // Helper function to strip scalar coefficient from a MatrixMul expression
-    #[inline]
-    fn strip_matrixmul_coefficient(
-        expr: Arc<dyn Expr>,
-        coefficients: &mut Vec<Arc<dyn Expr>>,
-    ) -> Result<Arc<dyn Expr>, TinnedError> {
-        if let Some(mat_mul) = downcast_from_arc::<MatrixMul>(&expr) {
-            if !is_one_expr(mat_mul.coefficient(), None) {
-                coefficients.push(mat_mul.coefficient().clone());
-                return MatrixMul::new(mat_mul.factors().to_vec());
-            }
-        }
-        Ok(expr)
+        Self::make_dot_product(bra, bra_is_hermitian, ket, allow_braket_swap, is_scalar)
     }
 
     #[inline]
     fn make_dot_product(
         bra: Arc<dyn Expr>,
+        bra_is_hermitian: bool,
         ket: Arc<dyn Expr>,
         allow_braket_swap: bool,
         is_scalar: bool,
@@ -70,27 +51,54 @@ impl DotProduct {
         }
 
         if is_expr_type::<ZeroOperator>(&bra) || is_expr_type::<ZeroOperator>(&ket) {
-            return Ok(Number::zero());
+            return if is_scalar {
+                Ok(Number::zero())
+            } else {
+                Ok(ZeroOperator::new())
+            };
+        }
+
+        // Helper function to strip scalar coefficient from `bra` or `ket`
+        #[inline]
+        fn strip_argument_coefficient(
+            argument: Arc<dyn Expr>,
+            is_hermitian: bool,
+            coefficients: &mut Vec<Arc<dyn Expr>>,
+        ) -> Result<Arc<dyn Expr>, TinnedError> {
+            let Some(mat_mul) = downcast_from_arc::<MatrixMul>(&argument) else {
+                return Ok(argument);
+            };
+
+            let coefficient = mat_mul.coefficient();
+
+            if is_one_expr(coefficient, None) {
+                return Ok(argument);
+            }
+
+            if is_hermitian {
+                coefficients.push(Conjugate::new(coefficient.clone())?);
+            } else {
+                coefficients.push(coefficient.clone());
+            }
+
+            MatrixMul::new(mat_mul.factors().to_vec())
         }
 
         let mut coefficients = Vec::with_capacity(2);
 
-        let bra = Self::strip_matrixmul_coefficient(bra, &mut coefficients)?;
-        let ket = Self::strip_matrixmul_coefficient(ket, &mut coefficients)?;
+        let bra = strip_argument_coefficient(bra, bra_is_hermitian, &mut coefficients)?;
+        let ket = strip_argument_coefficient(ket, false, &mut coefficients)?;
 
-        let (bra, ket) = if allow_braket_swap {
-            let trans_ket = Transpose::new(ket.clone())?;
-            if bra.hash_key() > trans_ket.hash_key() {
-                (trans_ket, Transpose::new(bra)?)
-            } else {
-                (bra, ket)
-            }
+        // We use the one with least hash key as bra if swapping bra and ket is allowed
+        let (bra, ket) = if allow_braket_swap && bra.hash_key() > ket.hash_key() {
+            (ket, bra)
         } else {
             (bra, ket)
         };
 
         let product = intern_expr(Arc::new(Self {
             bra,
+            bra_is_hermitian,
             ket,
             allow_braket_swap,
             is_scalar,
@@ -100,13 +108,27 @@ impl DotProduct {
             Ok(product)
         } else {
             coefficients.push(product);
-            Mul::new(coefficients)
+            if is_scalar {
+                Mul::new(coefficients)
+            } else {
+                MatrixMul::new(coefficients)
+            }
         }
     }
 
     #[inline]
     pub fn bra(&self) -> &Arc<dyn Expr> {
         &self.bra
+    }
+
+    #[inline]
+    pub fn bra_is_hermitian(&self) -> bool {
+        self.bra_is_hermitian
+    }
+
+    #[inline]
+    pub fn bra_transposed(&self) -> Result<Arc<dyn Expr>, TinnedError> {
+        Transpose::new(self.bra.clone(), self.bra_is_hermitian)
     }
 
     #[inline]
@@ -127,7 +149,15 @@ impl DotProduct {
             &self.ket,
             |arg: &Arc<dyn Expr>| Conjugate::new(arg.clone()),
             "DotProduct::conjugate() failed",
-            |bra, ket| Self::make_dot_product(bra, ket, self.allow_braket_swap, self.is_scalar),
+            |bra, ket| {
+                Self::make_dot_product(
+                    bra,
+                    self.bra_is_hermitian,
+                    ket,
+                    self.allow_braket_swap,
+                    self.is_scalar,
+                )
+            },
             || impl_zero_expr!(self.is_scalar),
         )
     }
@@ -142,6 +172,7 @@ impl ExprInternal for DotProduct {
         false,
         |this: &DotProduct, bra, ket| Self::make_dot_product(
             bra,
+            this.bra_is_hermitian,
             ket,
             this.allow_braket_swap,
             this.is_scalar
@@ -152,10 +183,12 @@ impl ExprInternal for DotProduct {
     fn hash_key(&self) -> String {
         // Important to include `allow_braket_swap` into hash
         format!(
-            "DotProduct({}; {}; {})",
+            "DotProduct({}; {}; {}; {}; {})",
             self.bra.hash_key(),
+            self.bra_is_hermitian,
             self.ket.hash_key(),
             self.allow_braket_swap,
+            self.is_scalar,
         )
     }
 
@@ -167,24 +200,34 @@ impl ExprInternal for DotProduct {
     #[inline]
     fn deep_eq_superchains(&self, other: &Arc<dyn Expr>) -> bool {
         if let Some(dot) = downcast_from_arc::<DotProduct>(other) {
-            if self.bra.deep_eq_superchains(&dot.bra) && self.ket.deep_eq_superchains(&dot.ket) {
+            let bra = self.bra_transposed().unwrap();
+            let other_bra = dot.bra_transposed().unwrap();
+
+            if (self.bra.deep_eq_superchains(&dot.bra)
+                || self.bra.deep_eq_superchains(&other_bra)
+                || bra.deep_eq_superchains(&dot.bra)
+                || bra.deep_eq_superchains(&other_bra))
+                && self.ket.deep_eq_superchains(&dot.ket)
+            {
                 return true;
             }
 
-            if self.allow_braket_swap || dot.allow_braket_swap {
-                let trans_bra = match Transpose::new(self.bra.clone()) {
-                    Ok(expr) => expr,
-                    Err(_) => return false,
-                };
-                if !trans_bra.deep_eq_superchains(&dot.ket) {
-                    return false;
-                }
-                let trans_ket = match Transpose::new(self.ket.clone()) {
-                    Ok(expr) => expr,
-                    Err(_) => return false,
-                };
+            if self.allow_braket_swap {
+                let ket = Transpose::new(self.ket.clone(), self.bra_is_hermitian).unwrap();
 
-                return trans_ket.deep_eq_superchains(&dot.bra);
+                return (self.ket.deep_eq_superchains(&dot.bra)
+                    || self.ket.deep_eq_superchains(&other_bra)
+                    || ket.deep_eq_superchains(&dot.bra)
+                    || ket.deep_eq_superchains(&other_bra))
+                    && self.bra.deep_eq_superchains(&dot.ket);
+            } else if dot.allow_braket_swap {
+                let other_ket = Transpose::new(dot.ket.clone(), dot.bra_is_hermitian).unwrap();
+
+                return (self.bra.deep_eq_superchains(&dot.ket)
+                    || self.bra.deep_eq_superchains(&other_ket)
+                    || bra.deep_eq_superchains(&dot.ket)
+                    || bra.deep_eq_superchains(&other_ket))
+                    && self.ket.deep_eq_superchains(&dot.bra);
             }
 
             false
@@ -208,6 +251,7 @@ impl Expr for DotProduct {
         ket,
         |this: &DotProduct, bra, ket| Self::make_dot_product(
             bra,
+            this.bra_is_hermitian,
             ket,
             this.allow_braket_swap,
             this.is_scalar
@@ -223,6 +267,7 @@ impl Expr for DotProduct {
                 Some(Box::new(e)),
             )
         })?;
+
         let diff_ket = self.ket.differentiate(s).map_err(|e| {
             generic_expression_error(
                 "DotProduct::differentiate() failed for ket",
@@ -233,12 +278,15 @@ impl Expr for DotProduct {
 
         let diff_bra_dp = Self::make_dot_product(
             diff_bra,
+            self.bra_is_hermitian,
             self.ket.clone(),
             self.allow_braket_swap,
             self.is_scalar,
         )?;
+
         let diff_ket_dp = Self::make_dot_product(
             self.bra.clone(),
+            self.bra_is_hermitian,
             diff_ket,
             self.allow_braket_swap,
             self.is_scalar,
@@ -261,24 +309,23 @@ impl Expr for DotProduct {
 
 impl PartialEq for DotProduct {
     fn eq(&self, other: &Self) -> bool {
-        if &self.bra == &other.bra && &self.ket == &other.ket {
+        if self.is_scalar != other.is_scalar {
+            return false;
+        }
+
+        let bra = self.bra_transposed().unwrap();
+        let other_bra = other.bra_transposed().unwrap();
+
+        if &bra == &other_bra && &self.ket == &other.ket {
             return true;
         }
 
-        if self.allow_braket_swap || other.allow_braket_swap {
-            let trans_bra = match Transpose::new(self.bra.clone()) {
-                Ok(expr) => expr,
-                Err(_) => return false,
-            };
-            if &trans_bra != &other.ket {
-                return false;
-            }
-            let trans_ket = match Transpose::new(self.ket.clone()) {
-                Ok(expr) => expr,
-                Err(_) => return false,
-            };
-
-            return &trans_ket == &other.bra;
+        if self.allow_braket_swap {
+            let ket = Transpose::new(self.ket.clone(), self.bra_is_hermitian).unwrap();
+            return &ket == &other_bra && &self.bra == &other.ket;
+        } else if other.allow_braket_swap {
+            let other_ket = Transpose::new(other.ket.clone(), other.bra_is_hermitian).unwrap();
+            return &bra == &other_ket && &self.ket == &other.bra;
         }
 
         false
@@ -290,9 +337,17 @@ impl Eq for DotProduct {}
 impl std::fmt::Display for DotProduct {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         if self.allow_braket_swap {
-            write!(f, "<{};{}>", self.bra, self.ket)
+            write!(
+                f,
+                "<{{{}}}({});{}>({})",
+                self.bra, self.bra_is_hermitian, self.ket, self.is_scalar
+            )
         } else {
-            write!(f, "<{}|{}>", self.bra, self.ket)
+            write!(
+                f,
+                "<{{{}}}({})|{}>({})",
+                self.bra, self.bra_is_hermitian, self.ket, self.is_scalar
+            )
         }
     }
 }
@@ -314,145 +369,202 @@ mod tests {
 
     #[test]
     fn test_impl_expr() {
+        let bra_is_hermitian = true;
         let allow_braket_swap = true;
-        let use_hermitian = true;
+        let is_scalar = true;
         let psi1 = make_wfn_parameter("");
+
         let mut op0 = DotProduct::new(
             ZeroOperator::new(),
-            use_hermitian,
+            bra_is_hermitian,
             psi1.clone(),
             allow_braket_swap,
-            None,
+            Some(is_scalar),
         )
         .unwrap();
         assert!(is_zero_expr(&op0, None));
 
         op0 = DotProduct::new(
             psi1.clone(),
-            !use_hermitian,
+            !bra_is_hermitian,
             ZeroOperator::new(),
             allow_braket_swap,
-            None,
+            Some(is_scalar),
         )
         .unwrap();
         assert!(is_zero_expr(&op0, None));
 
         let psi2 = make_wfn_parameter("");
-        let op1 =
-            DotProduct::new(psi1.clone(), use_hermitian, psi2.clone(), allow_braket_swap, None)
-                .unwrap();
 
-        let psi1_dagger = HermitianTranspose::new(psi1.clone()).unwrap();
-        let conj_psi1 = Conjugate::new(psi1.clone()).unwrap();
-        let trans_psi2 = Transpose::new(psi2.clone()).unwrap();
+        let op1 = DotProduct::new(
+            psi1.clone(),
+            bra_is_hermitian,
+            psi2.clone(),
+            allow_braket_swap,
+            Some(is_scalar),
+        )
+        .unwrap();
 
-        let (bra, ket) = if psi1_dagger.hash_key() <= trans_psi2.hash_key() {
-            (psi1_dagger, psi2.clone())
+        let (bra, ket) = if psi1.hash_key() <= psi2.hash_key() {
+            (psi1, psi2)
         } else {
-            (trans_psi2.clone(), conj_psi1)
+            (psi2, psi1)
         };
 
         assert_eq!(
             op1.hash_key(),
-            format!("DotProduct({}; {}; {})", bra.hash_key(), ket.hash_key(), allow_braket_swap)
+            format!(
+                "DotProduct({}; {}; {}; {}; {})",
+                bra.hash_key(),
+                bra_is_hermitian,
+                ket.hash_key(),
+                allow_braket_swap,
+                is_scalar
+            )
         );
         assert!(op1.is_scalar());
-        assert_eq!(format!("{}", op1), format!("<{};{}>", bra, ket));
+        assert_eq!(
+            format!("{}", op1),
+            format!("<{{{}}}({});{}>({})", bra, bra_is_hermitian, ket, is_scalar)
+        );
 
         let mut op = downcast_from_arc::<DotProduct>(&op1).unwrap();
         assert_eq!(
             op,
             &DotProduct {
                 bra: bra.clone(),
+                bra_is_hermitian,
                 ket: ket.clone(),
                 allow_braket_swap,
-                is_scalar: true,
+                is_scalar,
             }
         );
 
+        let bra_transposed = Transpose::new(bra.clone(), bra_is_hermitian).unwrap();
+
         assert_eq!(op.bra(), &bra);
+        assert!(op.bra_is_hermitian());
+        assert_eq!(&op.bra_transposed().unwrap(), &bra_transposed);
         assert_eq!(op.ket(), &ket);
         assert!(op.allow_braket_swap());
         assert_eq!(
             &op.conjugate().unwrap(),
             &DotProduct::new(
-                ket.clone(),
-                true,
-                HermitianTranspose::new(bra.clone()).unwrap(),
-                true,
-                None,
+                Conjugate::new(bra.clone()).unwrap(),
+                bra_is_hermitian,
+                Conjugate::new(ket.clone()).unwrap(),
+                allow_braket_swap,
+                Some(is_scalar),
             )
             .unwrap()
         );
 
-        let op2 =
-            DotProduct::new(psi1.clone(), use_hermitian, psi2.clone(), allow_braket_swap, None)
-                .unwrap();
+        let op2 = DotProduct::new(
+            bra.clone(),
+            bra_is_hermitian,
+            ket.clone(),
+            allow_braket_swap,
+            Some(is_scalar),
+        )
+        .unwrap();
         assert!(Arc::ptr_eq(&op1, &op2));
         assert_eq!(&op1, &op2);
 
-        let op3 =
-            DotProduct::new(psi1.clone(), !use_hermitian, psi2.clone(), allow_braket_swap, None)
-                .unwrap();
+        let op3 = DotProduct::new(
+            bra.clone(),
+            !bra_is_hermitian,
+            ket.clone(),
+            allow_braket_swap,
+            Some(is_scalar),
+        )
+        .unwrap();
         assert_ne!(&op1, &op3);
 
-        let op4 =
-            DotProduct::new(psi2.clone(), use_hermitian, psi1.clone(), allow_braket_swap, None)
-                .unwrap();
-        assert_ne!(&op1, &op4);
+        let op4 = DotProduct::new(
+            bra.clone(),
+            bra_is_hermitian,
+            ket.clone(),
+            !allow_braket_swap,
+            Some(is_scalar),
+        )
+        .unwrap();
+        assert_eq!(&op1, &op4);
 
-        let op5 =
-            DotProduct::new(psi1.clone(), use_hermitian, psi1.clone(), allow_braket_swap, None)
-                .unwrap();
+        let op5 = DotProduct::new(
+            bra.clone(),
+            bra_is_hermitian,
+            bra.clone(),
+            allow_braket_swap,
+            Some(is_scalar),
+        )
+        .unwrap();
         assert_ne!(&op1, &op5);
 
-        let op6 =
-            DotProduct::new(psi2.clone(), !use_hermitian, psi1.clone(), allow_braket_swap, None)
-                .unwrap();
+        let op6 = DotProduct::new(
+            ket.clone(),
+            !bra_is_hermitian,
+            bra.clone(),
+            allow_braket_swap,
+            Some(is_scalar),
+        )
+        .unwrap();
         assert!(Arc::ptr_eq(&op3, &op6));
         assert_eq!(&op3, &op6);
 
-        let op7 =
-            DotProduct::new(psi2.clone(), !use_hermitian, psi1.clone(), !allow_braket_swap, None)
-                .unwrap();
+        let op7 = DotProduct::new(
+            ket.clone(),
+            !bra_is_hermitian,
+            bra.clone(),
+            !allow_braket_swap,
+            Some(is_scalar),
+        )
+        .unwrap();
         assert!(!Arc::ptr_eq(&op3, &op7));
         assert_eq!(&op3, &op7);
-        assert_eq!(format!("{}", op7), format!("<{}|{}>", trans_psi2, psi1));
+        assert_eq!(
+            format!("{}", op7),
+            format!("<{{{}}}({})|{}>({})", ket, !bra_is_hermitian, bra, is_scalar)
+        );
 
         op = downcast_from_arc::<DotProduct>(&op7).unwrap();
         assert_eq!(
             op,
             &DotProduct {
-                bra: trans_psi2.clone(),
-                ket: psi1.clone(),
+                bra: ket.clone(),
+                bra_is_hermitian: !bra_is_hermitian,
+                ket: bra.clone(),
                 allow_braket_swap: !allow_braket_swap,
-                is_scalar: true
+                is_scalar
             }
         );
 
-        assert_eq!(op.bra(), &trans_psi2);
-        assert_eq!(op.ket(), &psi1);
+        let ket_transposed = Transpose::new(ket.clone(), !bra_is_hermitian).unwrap();
+
+        assert_eq!(op.bra(), &ket);
+        assert!(!op.bra_is_hermitian());
+        assert_eq!(&op.bra_transposed().unwrap(), &ket_transposed);
+        assert_eq!(op.ket(), &bra);
         assert!(!op.allow_braket_swap());
         assert_eq!(
             &op.conjugate().unwrap(),
             &DotProduct::new(
-                psi2.clone(),
-                true,
-                Conjugate::new(psi1.clone()).unwrap(),
-                false,
-                None
+                Conjugate::new(ket.clone()).unwrap(),
+                !bra_is_hermitian,
+                Conjugate::new(bra.clone()).unwrap(),
+                !allow_braket_swap,
+                Some(is_scalar)
             )
             .unwrap()
         );
 
-        let coef_psi1 = make_symbol(4u32);
-        let coef_psi2 = make_symbol(4u32);
+        let coef_bra = make_symbol(4u32);
+        let coef_ket = make_symbol(4u32);
         let op8 = DotProduct::new(
-            MatrixMul::new(vec![coef_psi1.clone(), psi1.clone()]).unwrap(),
-            use_hermitian,
-            MatrixMul::new(vec![coef_psi2.clone(), psi2.clone()]).unwrap(),
+            MatrixMul::new(vec![coef_bra.clone(), bra.clone()]).unwrap(),
+            bra_is_hermitian,
+            MatrixMul::new(vec![coef_ket.clone(), ket.clone()]).unwrap(),
             allow_braket_swap,
-            None,
+            Some(is_scalar),
         )
         .unwrap();
 
@@ -460,8 +572,8 @@ mod tests {
         assert_eq!(
             &op8,
             &Mul::new(vec![
-                Conjugate::new(coef_psi1.clone()).unwrap(),
-                coef_psi2.clone(),
+                Conjugate::new(coef_bra.clone()).unwrap(),
+                coef_ket.clone(),
                 op1.clone(),
             ])
             .unwrap()
@@ -556,7 +668,7 @@ mod tests {
         let op7 = DotProduct::new(psi2.clone(), false, psi1.clone(), true, None).unwrap();
         let op8 = DotProduct::new(psi2.clone(), false, psi1.clone(), false, None).unwrap();
 
-        assert!(!Arc::ptr_eq(&op, &op5));
+        assert!(Arc::ptr_eq(&op, &op5));
         assert!(!Arc::ptr_eq(&op, &op6));
         assert!(!Arc::ptr_eq(&op, &op7));
         assert!(!Arc::ptr_eq(&op, &op8));

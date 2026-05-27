@@ -2,9 +2,7 @@ use std::sync::Arc;
 
 use crate::core::expr_internal::sealed::ExprInternal;
 use crate::core::{Expr, TinnedError};
-use crate::expressions::{
-    Add, DotProduct, HermitianTranspose, MatrixMul, Mul, Number, Power, Transpose, ZeroOperator,
-};
+use crate::expressions::{Add, DotProduct, MatrixMul, Mul, Number, Power, Transpose, ZeroOperator};
 use crate::internal::intern_expr;
 use crate::public::{downcast_from_arc, is_expr_type, is_one_expr};
 
@@ -37,9 +35,7 @@ impl Conjugate {
         } else if let Some(product) = downcast_from_arc::<DotProduct>(&argument) {
             return product.conjugate();
         } else if let Some(trans) = downcast_from_arc::<Transpose>(&argument) {
-            return HermitianTranspose::new(trans.argument().clone());
-        } else if let Some(herm) = downcast_from_arc::<HermitianTranspose>(&argument) {
-            return Transpose::new(herm.argument().clone());
+            return Transpose::new(trans.argument().clone(), !trans.is_hermitian());
         } else if let Some(mat_mul) = downcast_from_arc::<MatrixMul>(&argument) {
             if is_one_expr(mat_mul.coefficient(), None) {
                 return Ok(intern_expr(Arc::new(Self {
@@ -157,7 +153,7 @@ mod tests {
         );
         assert_eq!(&Conjugate::new(conj_mul.clone()).unwrap(), &argument);
 
-        let exponent: i64 = rand::random_range(2..=16);
+        let exponent: i32 = rand::random_range(2..=16);
         argument = Power::new(s1.clone(), exponent).unwrap();
         let conj_power = Conjugate::new(argument.clone()).unwrap();
 
@@ -220,21 +216,20 @@ mod tests {
         assert_eq!(&Conjugate::new(conj_dot.clone()).unwrap(), &argument);
 
         argument = make_wfn_parameter("");
-        let conj_dagger =
-            Conjugate::new(HermitianTranspose::new(argument.clone()).unwrap()).unwrap();
-        let conj_trans = Conjugate::new(Transpose::new(argument.clone()).unwrap()).unwrap();
+        let conj_dagger = Conjugate::new(Transpose::new(argument.clone(), true).unwrap()).unwrap();
+        let conj_trans = Conjugate::new(Transpose::new(argument.clone(), false).unwrap()).unwrap();
 
         assert!(!conj_dagger.is_scalar());
         assert!(!conj_trans.is_scalar());
-        assert_eq!(&conj_dagger, &Transpose::new(argument.clone()).unwrap());
-        assert_eq!(&conj_trans, &HermitianTranspose::new(argument.clone()).unwrap());
+        assert_eq!(&conj_dagger, &Transpose::new(argument.clone(), false).unwrap());
+        assert_eq!(&conj_trans, &Transpose::new(argument.clone(), true).unwrap());
         assert_eq!(
             &Conjugate::new(conj_dagger.clone()).unwrap(),
-            &HermitianTranspose::new(argument.clone()).unwrap()
+            &Transpose::new(argument.clone(), true).unwrap()
         );
         assert_eq!(
             &Conjugate::new(conj_trans.clone()).unwrap(),
-            &Transpose::new(argument.clone()).unwrap()
+            &Transpose::new(argument.clone(), false).unwrap()
         );
 
         assert_eq!(&Conjugate::new(ZeroOperator::new()).unwrap(), &ZeroOperator::new());
@@ -276,7 +271,7 @@ mod tests {
                 make_number_complex(64u32),
                 make_number_rational(256u32),
                 make_symbol(4u32),
-                Power::new(make_symbol(4u32), rand::random_range(-256..=256) as i64).unwrap(),
+                Power::new(make_symbol(4u32), rand::random_range(-256..=256) as i32).unwrap(),
             ])
             .unwrap(),
         )

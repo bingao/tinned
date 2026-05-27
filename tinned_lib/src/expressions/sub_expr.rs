@@ -9,8 +9,8 @@ use crate::core::{Expr, TinnedError};
 use crate::internal::{intern_expr, join_mapped, transform_unary_any_zero};
 use crate::perturbations::{PertMultichain, Perturbation};
 use crate::public::{
-    NumberTolerance, downcast_from_arc, generic_expression_error, get_number_tolerance,
-    is_zero_expr,
+    NumberTolerance, downcast_from_arc, expression_error, generic_expression_error,
+    get_number_tolerance, is_expr_type, is_zero_expr,
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -192,11 +192,22 @@ pub struct SubExpr {
 
 impl SubExpr {
     #[inline]
-    pub fn new(name: impl Into<String>, expression: Arc<dyn Expr>) -> Arc<dyn Expr> {
+    pub fn new(
+        name: impl Into<String>,
+        expression: Arc<dyn Expr>,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        if is_expr_type::<Self>(&expression) {
+            return Err(expression_error("Nested SubExpr is not allowed", &expression, None));
+        }
+
+        if is_zero_expr(&expression, None) {
+            return impl_zero_expr!(expression.is_scalar());
+        }
+
         let name = name.into();
         let identifier = format!("{}({})", name, expression.hash_value());
 
-        intern_expr(Arc::new(Self {
+        Ok(intern_expr(Arc::new(Self {
             name,
             expression,
             identifier,
@@ -206,7 +217,7 @@ impl SubExpr {
             removal_rules: Vec::new(),
             replacement_rules: Vec::new(),
             retainment_rules: Vec::new(),
-        }))
+        })))
     }
 
     #[inline]
@@ -520,7 +531,11 @@ impl Expr for SubExpr {
             )
         })?;
 
-        Ok(self.with_differentiation(diff_expr, s))
+        if is_zero_expr(&diff_expr, None) {
+            impl_zero_expr!(diff_expr.is_scalar())
+        } else {
+            Ok(self.with_differentiation(diff_expr, s))
+        }
     }
 
     #[inline]
@@ -555,7 +570,11 @@ impl Expr for SubExpr {
                 )
             })?;
 
-        Ok(self.with_elimination(new_expr, parameter, perturbations, min_order))
+        if is_zero_expr(&new_expr, None) {
+            impl_zero_expr!(new_expr.is_scalar())
+        } else {
+            Ok(self.with_elimination(new_expr, parameter, perturbations, min_order))
+        }
     }
 
     #[inline]
@@ -595,6 +614,8 @@ impl Expr for SubExpr {
 
         if &new_expr == &self.expression {
             Ok(self.clone_expr())
+        } else if is_zero_expr(&new_expr, None) {
+            impl_zero_expr!(new_expr.is_scalar())
         } else {
             Ok(self.with_removal(new_expr, HashSet::from([s.clone()])))
         }
@@ -619,6 +640,8 @@ impl Expr for SubExpr {
 
         if &new_expr == &self.expression {
             Ok(self.clone_expr())
+        } else if is_zero_expr(&new_expr, None) {
+            impl_zero_expr!(new_expr.is_scalar())
         } else {
             Ok(self.with_removal(new_expr, set.clone()))
         }

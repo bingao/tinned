@@ -1,7 +1,7 @@
 use safer_ffi::prelude::*;
 use std::sync::Arc;
 
-use tinned::expressions::ExpAdjointMap;
+use tinned::expressions::{ExpAdjointMap, MatrixAdd};
 use tinned::public::generic_error;
 
 use crate::core::{ExprBox, ExprHandle, TinnedErrorBox, tinned_error_new};
@@ -12,6 +12,7 @@ pub extern "C" fn tinned_exp_adjoint_map_new(
     generator_derivative_commute: bool,
     target: Option<&ExprHandle>,
     left_action: bool,
+    is_rotation: bool,
     max_commutator_order: u32,
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> Option<ExprBox> {
@@ -33,10 +34,15 @@ pub extern "C" fn tinned_exp_adjoint_map_new(
     };
     let target_arc = target.clone_arc();
 
-    match ExpAdjointMap::builder(generator_arc, target_arc, Some(generator_derivative_commute))
-        .left_action(left_action)
-        .max_commutator_order(max_commutator_order)
-        .build()
+    match ExpAdjointMap::builder(
+        generator_arc,
+        target_arc,
+        Some(generator_derivative_commute),
+        Some(is_rotation),
+    )
+    .left_action(left_action)
+    .max_commutator_order(max_commutator_order)
+    .build()
     {
         Ok(expr_arc) => Some(ExprBox::new(ExprHandle::new(expr_arc))),
         Err(e) => {
@@ -52,6 +58,7 @@ pub extern "C" fn tinned_exp_adjoint_map_time_evolution_new(
     is_forward: bool,
     generator_derivative_commute: bool,
     left_action: bool,
+    is_rotation: bool,
     max_commutator_order: u32,
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> Option<ExprBox> {
@@ -71,6 +78,7 @@ pub extern "C" fn tinned_exp_adjoint_map_time_evolution_new(
         generator_arc,
         is_forward,
         Some(generator_derivative_commute),
+        Some(is_rotation),
     )
     .left_action(left_action)
     .max_commutator_order(max_commutator_order)
@@ -88,13 +96,15 @@ impl_expr_getters!(
     ExpAdjointMap;
     tinned_exp_adjoint_map_generator => |ead| Ok(Arc::clone(ead.generator())),
     tinned_exp_adjoint_map_target => |ead| Ok(Arc::clone(ead.target())),
-    tinned_exp_adjoint_map_result => |ead| Ok(Arc::clone(ead.result())),
+    tinned_exp_adjoint_map_bch_expansion => |ead| {
+        let terms = ead.bch_expansion().clone().into_values().flatten().collect();
+        MatrixAdd::new(terms)
+    },
 );
 
 impl_val_getters!(
     ExpAdjointMap;
     tinned_exp_adjoint_map_generator_derivative_commute: bool => |ead| ead.generator_derivative_commute(); default = true,
-    tinned_exp_adjoint_map_is_time_evolution: bool => |ead| ead.is_time_evolution(); default = false,
     tinned_exp_adjoint_map_left_action: bool => |ead| ead.left_action(); default = false,
     tinned_exp_adjoint_map_max_commutator_order: u32 => |ead| ead.max_commutator_order(); default = 0,
 );

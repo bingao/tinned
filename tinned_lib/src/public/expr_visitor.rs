@@ -4,9 +4,9 @@ use crate::core::{Expr, TinnedError};
 use crate::expressions::{
     Add, AdjointMap, AoTwoElecEnergy, AoTwoElecMatrix, BasisTimeEvolution, Composition, Conjugate,
     DotProduct, ExchCorrEnergy, ExchCorrPotential, ExcitationOperator, ExpAdjointMap,
-    HermitianTranspose, LagMultiplier, MatrixAdd, MatrixMul, Mul, NonElecFunction, Number,
-    OneElecMatrix, Power, ResidueParameter, SubExpr, Symbol, TimeEvolution, Trace, Transpose,
-    TwoElecMatrix, WfnParameter, ZeroOperator,
+    LagMultiplier, MatrixAdd, MatrixMul, Mul, NonElecFunction, Number, OneElecMatrix, Power,
+    ResidueParameter, SubExpr, Symbol, TimeEvolution, Trace, Transpose, TwoElecMatrix,
+    WfnParameter, ZeroOperator,
 };
 use crate::public::downcast_from_arc;
 
@@ -26,7 +26,6 @@ pub enum ExprTag {
     ExchCorrPotential,
     ExcitationOperator,
     ExpAdjointMap,
-    HermitianTranspose,
     LagMultiplier,
     MatrixAdd,
     MatrixMul,
@@ -97,9 +96,6 @@ pub fn walk_expr_postorder<V: ExprVisitor>(
         }
         if downcast_from_arc::<ExpAdjointMap>(expr).is_some() {
             return visitor.leaf(ExprTag::ExpAdjointMap, expr);
-        }
-        if downcast_from_arc::<HermitianTranspose>(expr).is_some() {
-            return visitor.leaf(ExprTag::HermitianTranspose, expr);
         }
         if downcast_from_arc::<LagMultiplier>(expr).is_some() {
             return visitor.leaf(ExprTag::LagMultiplier, expr);

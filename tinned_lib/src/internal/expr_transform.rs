@@ -47,7 +47,6 @@ pub(crate) fn transform_unary_any_zero(
 // - If both children are unchanged, the original owner expression is returned.
 // - Otherwise, the owner expression is rebuilt from the transformed children via
 //   `build_expr`.
-#[inline]
 pub(crate) fn transform_binary_any_zero(
     owner: &dyn Expr,
     first_arg: &Arc<dyn Expr>,
@@ -106,7 +105,6 @@ pub(crate) fn transform_binary_any_zero(
 //   returned.
 // - Otherwise, the owner expression is rebuilt from the effective children via
 //   `build_expr`.
-#[inline]
 pub(crate) fn transform_binary_all_zero(
     owner: &dyn Expr,
     first_arg: &Arc<dyn Expr>,
@@ -177,7 +175,6 @@ pub(crate) fn transform_binary_all_zero(
 //   `build_expr`.
 // - Errors from `operation` are wrapped with `err_message`, argument context,
 //   and the owner expression as context.
-#[inline]
 pub(crate) fn transform_add_all_zero(
     owner: &dyn Expr,
     terms: &[Arc<dyn Expr>],
@@ -240,7 +237,6 @@ pub(crate) fn transform_add_all_zero(
 //   coefficient and factors via `build_expr`.
 // - Errors from `operation` are wrapped with `err_message`, argument context,
 //   and the owner expression as context.
-#[inline]
 pub(crate) fn transform_mul_any_zero(
     owner: &dyn Expr,
     coefficient: &Arc<dyn Expr>,
@@ -312,7 +308,6 @@ pub(crate) fn transform_mul_any_zero(
 //   and factors via `build_expr`.
 // - Errors from `operation` are wrapped with `err_message`, argument context,
 //   and the owner expression as context.
-#[inline]
 pub(crate) fn transform_mul_all_zero(
     owner: &dyn Expr,
     coefficient: &Arc<dyn Expr>,
@@ -377,4 +372,62 @@ pub(crate) fn transform_mul_all_zero(
     } else {
         Ok(owner.clone_expr())
     }
+}
+
+// Applies the product-rule-like differentiation over `operands`.
+// Each result is built by replacing exactly one operand with its derivative
+// while keeping all other operands unchanged. Zero derivatives are skipped.
+pub(crate) fn differentiate_operands<FBuildDifferentiation, FBuildOperand>(
+    operands: &[Arc<dyn Expr>],
+    build_differentiation: FBuildDifferentiation,
+    build_operand_expr: FBuildOperand,
+) -> Result<Vec<Arc<dyn Expr>>, TinnedError>
+where
+    FBuildDifferentiation: Fn(&Arc<dyn Expr>) -> Result<Arc<dyn Expr>, TinnedError>,
+    FBuildOperand: Fn(Vec<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError>,
+{
+    let diff_operands: Vec<Arc<dyn Expr>> =
+        operands.iter().map(build_differentiation).collect::<Result<_, _>>()?;
+
+    let mut results = Vec::with_capacity(diff_operands.len());
+
+    for (i, diff_operand) in diff_operands.iter().enumerate() {
+        if is_zero_expr(diff_operand, None) {
+            continue;
+        }
+
+        let mut new_operands = operands.to_vec();
+        new_operands[i] = diff_operand.clone();
+
+        results.push(build_operand_expr(new_operands)?);
+    }
+
+    Ok(results)
+}
+
+// Differentiates `operands` as in `differentiate_operands`, then also
+// differentiates `base` and appends the corresponding rebuilt expression.
+// This is useful for expressions that contain both operand-like entries and
+// an additional expression such as a target or coefficient.
+pub(crate) fn differentiate_operands_and_base<FBuildDifferentiation, FBuildOperand, FBuildBase>(
+    operands: &[Arc<dyn Expr>],
+    base: &Arc<dyn Expr>,
+    build_differentiation: FBuildDifferentiation,
+    build_operand_expr: FBuildOperand,
+    build_base_expr: FBuildBase,
+) -> Result<Vec<Arc<dyn Expr>>, TinnedError>
+where
+    FBuildDifferentiation: Fn(&Arc<dyn Expr>) -> Result<Arc<dyn Expr>, TinnedError>,
+    FBuildOperand: Fn(Vec<Arc<dyn Expr>>) -> Result<Arc<dyn Expr>, TinnedError>,
+    FBuildBase: Fn(Arc<dyn Expr>) -> Result<Arc<dyn Expr>, TinnedError>,
+{
+    let mut results = differentiate_operands(operands, &build_differentiation, build_operand_expr)?;
+
+    let diff_base = build_differentiation(base)?;
+
+    if !is_zero_expr(&diff_base, None) {
+        results.push(build_base_expr(diff_base)?);
+    }
+
+    Ok(results)
 }

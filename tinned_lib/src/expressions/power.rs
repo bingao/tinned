@@ -12,11 +12,11 @@ use crate::public::{
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Power {
     base: Arc<dyn Expr>,
-    exponent: i64,
+    exponent: i32,
 }
 
 impl Power {
-    pub fn new(base: Arc<dyn Expr>, exponent: i64) -> Result<Arc<dyn Expr>, TinnedError> {
+    pub fn new(base: Arc<dyn Expr>, exponent: i32) -> Result<Arc<dyn Expr>, TinnedError> {
         if !base.is_scalar() {
             return Err(expression_error("Power::new() - base must be scalar", &base, None));
         }
@@ -35,7 +35,7 @@ impl Power {
             1 => Ok(base),
             _ => {
                 if let Some(num) = downcast_from_arc::<Number>(&base) {
-                    return Ok(num.pow_i64(exponent)?.into());
+                    return Ok(num.pow_i32(exponent)?.into());
                 }
 
                 // Flatten nested powers: (x^a)^b -> x^(a * b)
@@ -50,7 +50,7 @@ impl Power {
                 // If `base` is a `Mul`, handle its coefficient separately
                 if let Some(mul) = downcast_from_arc::<Mul>(&base) {
                     if !mul.coefficient().is_one(None) {
-                        let coeff_power = mul.coefficient().pow_i64(exponent)?.into();
+                        let coeff_power = mul.coefficient().pow_i32(exponent)?.into();
                         let factors_power = intern_expr(Arc::new(Self {
                             base: Mul::new(mul.factors().to_vec())?,
                             exponent,
@@ -73,7 +73,7 @@ impl Power {
     }
 
     #[inline]
-    pub fn exponent(&self) -> i64 {
+    pub fn exponent(&self) -> i32 {
         self.exponent
     }
 }
@@ -151,7 +151,7 @@ impl Expr for Power {
         })?;
 
         crate::expressions::Mul::new(vec![
-            Number::from_i64(self.exponent),
+            Number::from_i64(self.exponent as i64),
             Self::new(self.base.clone(), new_exp)?,
             diff_base,
         ])
@@ -193,7 +193,7 @@ mod tests {
         let op2 = Power::new(x1.clone(), 1).unwrap();
         assert_eq!(&op2, &x1);
 
-        let exponent1: i64 = rand::random_range(2..=16);
+        let exponent1: i32 = rand::random_range(2..=16);
         let op3 = Power::new(x1.clone(), exponent1).unwrap();
 
         let op = downcast_from_arc::<Power>(&op3).unwrap();
@@ -212,7 +212,7 @@ mod tests {
         assert_eq!(format!("{}", op3), format!("({})^{}", x1, exponent1));
 
         let x2 = make_symbol(4u32);
-        let exponent2: i64 = rand::random_range(-32..=32);
+        let exponent2: i32 = rand::random_range(-32..=32);
 
         let op4 = Power::new(x1.clone(), exponent1).unwrap();
         let op5 = Power::new(x2.clone(), exponent1).unwrap();
@@ -229,19 +229,19 @@ mod tests {
 
     #[test]
     fn test_differentiation() {
-        let mut op = Power::new(make_symbol(2u32), rand::random_range(2..=16) as i64).unwrap();
+        let mut op = Power::new(make_symbol(2u32), rand::random_range(2..=16) as i32).unwrap();
         let p = make_perturbation_symbol(4u32, 4u32);
 
         assert!(is_zero_expr(&op.differentiate(p.clone()).unwrap(), None));
 
         let base = make_exch_corr_energy("", None, None, None);
-        let mut exponent: i64 = rand::random_range(2..=16);
+        let mut exponent: i32 = rand::random_range(2..=16);
         op = Power::new(base.clone(), exponent).unwrap();
 
         assert_eq!(
             &op.differentiate(p.clone()).unwrap(),
             &crate::expressions::Mul::new(vec![
-                Number::from_i64(exponent),
+                Number::from_i64(exponent as i64),
                 Power::new(base.clone(), exponent - 1).unwrap(),
                 base.differentiate(p.clone()).unwrap(),
             ])
@@ -254,7 +254,7 @@ mod tests {
         assert_eq!(
             &op.differentiate(p.clone()).unwrap(),
             &crate::expressions::Mul::new(vec![
-                Number::from_i64(exponent),
+                Number::from_i64(exponent as i64),
                 Power::new(base.clone(), exponent - 1).unwrap(),
                 base.differentiate(p).unwrap(),
             ])
@@ -264,7 +264,7 @@ mod tests {
 
     #[test]
     fn test_serialization() {
-        let op = Power::new(make_symbol(2u32), rand::random_range(2..=16) as i64).unwrap();
+        let op = Power::new(make_symbol(2u32), rand::random_range(2..=16) as i32).unwrap();
         let json = serde_json::to_string(&op).unwrap();
         let deserialized: Arc<dyn Expr> = serde_json::from_str(&json).unwrap();
         assert_eq!(&op, &deserialized);
@@ -274,7 +274,7 @@ mod tests {
     fn test_utils() {
         let x1 = make_symbol(2u32);
         let x2 = make_symbol(4u32);
-        let exponent: i64 = rand::random_range(2..=16);
+        let exponent: i32 = rand::random_range(2..=16);
         let op1 = Power::new(x1.clone(), exponent).unwrap();
 
         assert!(is_expr_type::<Power>(&op1));

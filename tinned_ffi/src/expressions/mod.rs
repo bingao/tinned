@@ -10,7 +10,6 @@ mod exch_corr_energy;
 mod exch_corr_potential;
 mod excitation_operator;
 mod exp_adjoint_map;
-mod hermitian_transpose;
 mod lag_multiplier;
 mod matrix_add;
 mod matrix_mul;

@@ -12,7 +12,6 @@ pub mod exch_corr_energy;
 pub mod exch_corr_potential;
 pub mod excitation_operator;
 pub mod exp_adjoint_map;
-pub mod hermitian_transpose;
 pub mod lag_multiplier;
 pub mod matrix_add;
 pub mod matrix_mul;
@@ -43,7 +42,6 @@ pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     exch_corr_potential::register(m)?;
     excitation_operator::register(m)?;
     exp_adjoint_map::register(m)?;
-    hermitian_transpose::register(m)?;
     lag_multiplier::register(m)?;
     matrix_add::register(m)?;
     matrix_mul::register(m)?;

@@ -32,13 +32,13 @@ impl Mul {
         }
 
         let mut coefficient = Number::Integer(1);
-        let mut power_map: HashMap<String, (Arc<dyn Expr>, i64)> = HashMap::new();
+        let mut power_map: HashMap<String, (Arc<dyn Expr>, i32)> = HashMap::new();
 
         #[inline]
         fn collect_terms(
             expr: &Arc<dyn Expr>,
             coefficient: &mut Number,
-            power_map: &mut HashMap<String, (Arc<dyn Expr>, i64)>,
+            power_map: &mut HashMap<String, (Arc<dyn Expr>, i32)>,
         ) -> Result<bool, TinnedError> {
             if !expr.is_scalar() {
                 return Err(expression_error(
@@ -232,8 +232,8 @@ mod tests {
         assert_eq!(&Mul::new(vec![x.clone()]).unwrap(), &x);
 
         // - Merge powers in Mul, e.g. x^a * x^b -> x^(a+b)
-        let exponent1: i64 = rand::random_range(1..=16);
-        let exponent2: i64 = rand::random_range(-64..=64);
+        let exponent1: i32 = rand::random_range(1..=16);
+        let exponent2: i32 = rand::random_range(-64..=64);
         assert_eq!(
             &Mul::new(vec![
                 Power::new(x.clone(), exponent1).unwrap(),
@@ -333,7 +333,7 @@ mod tests {
             make_number_complex(64u32),
             make_number_rational(256u32),
             make_symbol(4u32),
-            Power::new(make_symbol(4u32), rand::random_range(-256..=256) as i64).unwrap(),
+            Power::new(make_symbol(4u32), rand::random_range(-256..=256) as i32).unwrap(),
         ])
         .unwrap();
         let json = serde_json::to_string(&op).unwrap();

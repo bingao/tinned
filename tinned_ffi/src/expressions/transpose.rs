@@ -9,6 +9,7 @@ use crate::core::{ExprBox, ExprHandle, TinnedErrorBox, tinned_error_new};
 #[ffi_export]
 pub extern "C" fn tinned_transpose_new(
     argument: Option<&ExprHandle>,
+    is_hermitian: bool,
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> Option<ExprBox> {
     let Some(argument) = argument else {
@@ -20,7 +21,7 @@ pub extern "C" fn tinned_transpose_new(
     };
     let arg_arc = argument.clone_arc();
 
-    match Transpose::new(arg_arc) {
+    match Transpose::new(arg_arc, is_hermitian) {
         Ok(expr_arc) => Some(ExprBox::new(ExprHandle::new(expr_arc))),
         Err(e) => {
             tinned_error_new(out_err, e);
@@ -33,4 +34,9 @@ pub extern "C" fn tinned_transpose_new(
 impl_expr_getters!(
     Transpose;
     tinned_transpose_argument => |tr| Ok(Arc::clone(tr.argument())),
+);
+
+impl_val_getters!(
+    Transpose;
+    tinned_transpose_is_hermitian: bool => |tr| tr.is_hermitian(); default = false,
 );

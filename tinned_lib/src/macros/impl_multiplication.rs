@@ -88,33 +88,11 @@ macro_rules! impl_mul_traits {
                 )
             }
 
-            fn differentiate(
-                &self,
-                s: pert_arc_ty!(),
-            ) -> expr_result_ty!() {
-                // Precompute the derivative of each factor and store it
-                let with_context = |f: expr_arc_ref_ty!()| {
-                    f.differentiate(s.clone()).map_err(|e| {
-                        $crate::public::generic_expression_error(
-                            concat!(stringify!($type_name), "::differentiate() failed for factors"),
-                            self,
-                            Some(::std::boxed::Box::new(e)),
-                        )
-                    })
-                };
-
-                let diff_factors: expr_vec_ty!()
-                    = self.factors.iter().map(with_context).collect::<::std::result::Result<_, _>>()?;
-
-                impl_mul_traits!(
-                    @mul_build_diff_expr
-                    $type_name,
-                    self,
-                    diff_factors,
-                    s,
-                    $is_scalar
-                )
-            }
+            impl_mul_traits!(
+                @impl_mul_differentiate
+                $type_name,
+                $is_scalar
+            );
 
             fn eliminate(
                 &self,
@@ -270,65 +248,59 @@ macro_rules! impl_mul_traits {
         }
     };
 
-    (@mul_build_diff_expr $type_name:ident, $self:ident, $diff_factors:ident, $s:ident, true) => {{
-        let mut results = ::std::vec::Vec::with_capacity($diff_factors.len());
-
-        for (i, diff) in $diff_factors.iter().enumerate() {
-            // Skip derivative = 0 to avoid 0 * others = 0
-            if $crate::public::is_zero_expr(diff, None) {
-                continue;
-            }
-
+    (@impl_mul_differentiate $type_name:ident, true) => {
+        #[inline]
+        fn differentiate(&self, s: pert_arc_ty!()) -> expr_result_ty!() {
             //FIXME: how to collect common factors?
-            let mut new_terms = $self.factors.clone();
-            // For each factor i, replace it with its derivative while keeping
-            // others intact
-            new_terms[i] = diff.clone();
-            new_terms.push($self.coefficient.clone().into());
-
-            results.push(Self::new(new_terms)?);
-        }
-
-        $crate::expressions::Add::new(results)
-    }};
-
-    (@mul_build_diff_expr $type_name:ident, $self:ident, $diff_factors:ident, $s:ident, false) => {{
-        let mut results = ::std::vec::Vec::with_capacity($diff_factors.len() + 1);
-
-        for (i, diff) in $diff_factors.iter().enumerate() {
-            // Skip derivative = 0 to avoid 0 * others = 0
-            if $crate::public::is_zero_expr(diff, None) {
-                continue;
-            }
-
-            let mut new_terms = $self.factors.clone();
-            // For each factor i, replace it with its derivative while keeping
-            // others intact
-            new_terms[i] = diff.clone();
-            new_terms.push($self.coefficient.clone());
-
-            results.push(Self::new(new_terms)?);
-        }
-
-        let diff_coef = $self
-            .coefficient
-            .differentiate($s)
+            let results = $crate::internal::differentiate_operands(
+                &self.factors,
+                |term| term.differentiate(s.clone()),
+                |mut new_factors| {
+                    new_factors.push(self.coefficient.clone().into());
+                    Self::new(new_factors)
+                },
+            )
             .map_err(|e| {
                 $crate::public::generic_expression_error(
-                    concat!(stringify!($type_name), "::differentiate() failed for coefficient"),
-                    $self,
+                    "Mul::differentiate() failed",
+                    self,
                     Some(::std::boxed::Box::new(e)),
                 )
             })?;
-        // If coefficient's derivative is non-zero, append it as one result
-        if !$crate::public::is_zero_expr(&diff_coef, None) {
-            let mut new_terms = $self.factors.clone();
-            new_terms.push(diff_coef);
-            results.push(Self::new(new_terms)?);
-        }
 
-        $crate::expressions::MatrixAdd::new(results)
-    }};
+            $crate::expressions::Add::new(results)
+        }
+    };
+
+    (@impl_mul_differentiate $type_name:ident, false) => {
+        #[inline]
+        fn differentiate(&self, s: pert_arc_ty!()) -> expr_result_ty!() {
+            let results = $crate::internal::differentiate_operands_and_base(
+                &self.factors,
+                &self.coefficient,
+                |term| term.differentiate(s.clone()),
+                //FIXME: how to collect common factors?
+                |mut new_factors| {
+                    new_factors.push(self.coefficient.clone());
+                    Self::new(new_factors)
+                },
+                |diff_coef| {
+                    let mut new_factors = self.factors.clone();
+                    new_factors.push(diff_coef);
+                    Self::new(new_factors)
+                },
+            )
+            .map_err(|e| {
+                $crate::public::generic_expression_error(
+                    "MatrixMul::differentiate() failed",
+                    self,
+                    Some(::std::boxed::Box::new(e)),
+                )
+            })?;
+
+            $crate::expressions::MatrixAdd::new(results)
+        }
+    };
 
     // Termwise operation for `Mul`
     (@mul_termwise_operation_any_zero $self:ident, $operation:expr, $message:expr, true) => {{

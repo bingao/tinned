@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::core::expr_internal::sealed::ExprInternal;
 use crate::core::{Expr, TinnedError};
 use crate::expressions::{
-    Add, Conjugate, HermitianTranspose, MatrixAdd, MatrixMul, Mul, Number, Transpose, ZeroOperator,
+    Add, Conjugate, MatrixAdd, MatrixMul, Mul, Number, Transpose, ZeroOperator,
 };
 use crate::internal::intern_expr;
 use crate::public::{downcast_from_arc, expression_error, is_expr_type, is_one_expr};
@@ -59,13 +59,15 @@ impl Trace {
                 argument: conj.argument().clone(),
             })))
         } else if let Some(trans) = downcast_from_arc::<Transpose>(&argument) {
-            Ok(intern_expr(Arc::new(Self {
-                argument: trans.argument().clone(),
-            })))
-        } else if let Some(herm) = downcast_from_arc::<HermitianTranspose>(&argument) {
-            Conjugate::new(intern_expr(Arc::new(Self {
-                argument: herm.argument().clone(),
-            })))
+            if trans.is_hermitian() {
+                Conjugate::new(intern_expr(Arc::new(Self {
+                    argument: trans.argument().clone(),
+                })))
+            } else {
+                Ok(intern_expr(Arc::new(Self {
+                    argument: trans.argument().clone(),
+                })))
+            }
         } else {
             Ok(intern_expr(Arc::new(Self {
                 argument,
@@ -88,7 +90,7 @@ mod tests {
     use crate::expressions::number::test_utils::make_number_complex;
     use crate::expressions::wfn_parameter::test_utils::make_wfn_parameter;
 
-    test_unary_oper_properties!(Trace);
+    test_unary_oper_properties!(Trace, |arg| Trace::new(arg));
 
     #[test]
     fn test_impl_expr() {
@@ -120,12 +122,12 @@ mod tests {
         assert_ne!(&op1, &op3);
         assert_eq!(&op3, &Conjugate::new(Trace::new(arg_2el.clone()).unwrap()).unwrap());
 
-        argument = Transpose::new(arg_2el.clone()).unwrap();
+        argument = Transpose::new(arg_2el.clone(), false).unwrap();
         let op4 = Trace::new(argument).unwrap();
         assert!(Arc::ptr_eq(&op1, &op4));
         assert_eq!(&op1, &op4);
 
-        argument = HermitianTranspose::new(arg_2el.clone()).unwrap();
+        argument = Transpose::new(arg_2el.clone(), true).unwrap();
         let op5 = Trace::new(argument).unwrap();
         assert_ne!(&op1, &op5);
         assert_eq!(&op5, &Conjugate::new(Trace::new(arg_2el.clone()).unwrap()).unwrap());

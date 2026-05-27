@@ -302,7 +302,7 @@ mod tests {
             make_number_rational(256u32),
             make_symbol(4u32),
             Mul::new(vec![make_number_f64(64u32), make_symbol(4u32)]).unwrap(),
-            Power::new(make_symbol(4u32), rand::random_range(-256..=256) as i64).unwrap(),
+            Power::new(make_symbol(4u32), rand::random_range(-256..=256) as i32).unwrap(),
             Mul::new(vec![make_number_complex(64u32), make_symbol(4u32)]).unwrap(),
         ])
         .unwrap();

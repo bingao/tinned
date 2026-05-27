@@ -16,11 +16,11 @@ macro_rules! expr_result_ty {
     };
 }
 
-macro_rules! expr_vec_ty {
-    () => {
-        ::std::vec::Vec<expr_arc_ty!()>
-    };
-}
+//macro_rules! expr_vec_ty {
+//    () => {
+//        ::std::vec::Vec<expr_arc_ty!()>
+//    };
+//}
 
 macro_rules! expr_map_ty {
     () => {

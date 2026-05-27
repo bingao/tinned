@@ -177,7 +177,15 @@ impl Number {
 
             (Complex(a), Integer(b)) => Complex(*a + Complex64::new(*b as f64, 0.0)),
             (Complex(a), Real(b)) => Complex(*a + Complex64::new(*b, 0.0)),
-            (Complex(a), Complex(b)) => Complex(*a + *b),
+            (Complex(a), Complex(b)) => {
+                let c = *a + *b;
+
+                if c.im.abs() == 0.0 {
+                    Real(c.re)
+                } else {
+                    Complex(c)
+                }
+            },
             (Complex(a), Fraction(b)) => Complex(
                 *a + Complex64::new(
                     b.to_f64().unwrap_or_else(|| panic!("Failed to convert {} to f64", b)),
@@ -195,7 +203,17 @@ impl Number {
                     0.0,
                 ) + *b,
             ),
-            (Fraction(a), Fraction(b)) => Fraction(*a + *b),
+            (Fraction(a), Fraction(b)) => {
+                let c = *a + *b;
+
+                if *c.denom() == 1 {
+                    Integer(*c.numer())
+                } else if *c.numer() == 0 {
+                    Integer(0)
+                } else {
+                    Fraction(c)
+                }
+            },
         }
     }
 
@@ -205,20 +223,76 @@ impl Number {
 
         match (self, other) {
             (Integer(a), Integer(b)) => Integer(a * b),
-            (Integer(a), Real(b)) => Real(*a as f64 * *b),
-            (Integer(a), Complex(b)) => Complex(Complex64::new(*a as f64, 0.0) * *b),
-            (Integer(a), Fraction(b)) => Fraction(*b * Rational64::from_integer(*a)),
+            (Integer(a), Real(b)) => {
+                if *a == 0 {
+                    Integer(0)
+                } else {
+                    Real(*a as f64 * *b)
+                }
+            },
+            (Integer(a), Complex(b)) => {
+                if *a == 0 {
+                    Integer(0)
+                } else {
+                    Complex(Complex64::new(*a as f64, 0.0) * *b)
+                }
+            },
+            (Integer(a), Fraction(b)) => {
+                if *a == 0 {
+                    Integer(0)
+                } else {
+                    let c = *b * Rational64::from_integer(*a);
 
-            (Real(a), Integer(b)) => Real(*a * *b as f64),
+                    if *c.denom() == 1 {
+                        Integer(*c.numer())
+                    } else {
+                        Fraction(c)
+                    }
+                }
+            },
+
+            (Real(a), Integer(b)) => {
+                if *b == 0 {
+                    Integer(0)
+                } else {
+                    Real(*a * *b as f64)
+                }
+            },
             (Real(a), Real(b)) => Real(*a * *b),
-            (Real(a), Complex(b)) => Complex(Complex64::new(*a, 0.0) * *b),
+            (Real(a), Complex(b)) => {
+                if a.abs() == 0.0 {
+                    Real(0.0)
+                } else {
+                    Complex(Complex64::new(*a, 0.0) * *b)
+                }
+            },
             (Real(a), Fraction(b)) => {
                 Real(*a * b.to_f64().unwrap_or_else(|| panic!("Failed to convert {} to f64", b)))
             },
 
-            (Complex(a), Integer(b)) => Complex(*a * Complex64::new(*b as f64, 0.0)),
-            (Complex(a), Real(b)) => Complex(*a * Complex64::new(*b, 0.0)),
-            (Complex(a), Complex(b)) => Complex(*a * *b),
+            (Complex(a), Integer(b)) => {
+                if *b == 0 {
+                    Integer(0)
+                } else {
+                    Complex(*a * Complex64::new(*b as f64, 0.0))
+                }
+            },
+            (Complex(a), Real(b)) => {
+                if b.abs() == 0.0 {
+                    Real(0.0)
+                } else {
+                    Complex(*a * Complex64::new(*b, 0.0))
+                }
+            },
+            (Complex(a), Complex(b)) => {
+                let c = *a * *b;
+
+                if c.im.abs() == 0.0 {
+                    Real(c.re)
+                } else {
+                    Complex(c)
+                }
+            },
             (Complex(a), Fraction(b)) => Complex(
                 *a * Complex64::new(
                     b.to_f64().unwrap_or_else(|| panic!("Failed to convert {} to f64", b)),
@@ -226,7 +300,19 @@ impl Number {
                 ),
             ),
 
-            (Fraction(a), Integer(b)) => Fraction(*a * Rational64::from_integer(*b)),
+            (Fraction(a), Integer(b)) => {
+                if *b == 0 {
+                    Integer(0)
+                } else {
+                    let c = *a * Rational64::from_integer(*b);
+
+                    if *c.denom() == 1 {
+                        Integer(*c.numer())
+                    } else {
+                        Fraction(c)
+                    }
+                }
+            },
             (Fraction(a), Real(b)) => {
                 Real(a.to_f64().unwrap_or_else(|| panic!("Failed to convert {} to f64", a)) * *b)
             },
@@ -236,27 +322,58 @@ impl Number {
                     0.0,
                 ) * *b,
             ),
-            (Fraction(a), Fraction(b)) => Fraction(*a * *b),
+            (Fraction(a), Fraction(b)) => {
+                let c = *a * *b;
+
+                if *c.denom() == 1 {
+                    Integer(*c.numer())
+                } else {
+                    Fraction(c)
+                }
+            },
         }
     }
 
     #[inline]
-    pub fn pow_i64(&self, exp: i64) -> Result<Number, TinnedError> {
+    pub fn pow_i32(&self, exp: i32) -> Result<Number, TinnedError> {
         use Number::*;
 
         match self {
             Integer(n) => {
-                if exp >= 0 {
-                    Ok(Integer(n.pow(exp as u32)))
+                if *n == 1 {
+                    Ok(Integer(1))
+                } else if *n == -1 {
+                    if exp % 2 == 0 {
+                        Ok(Integer(1))
+                    } else {
+                        Ok(Integer(-1))
+                    }
+                } else if exp >= 0 {
+                    let result = n.checked_pow(exp.unsigned_abs()).ok_or_else(|| {
+                        generic_error(
+                            format!("Integer power overflow for base {} and exponent {}", n, exp),
+                            None,
+                        )
+                    })?;
+
+                    Ok(Integer(result))
                 } else {
                     // Negative power: promote to Fraction
                     if *n == 0 {
                         Err(generic_error("Cannot raise zero integer to negative power", None))
                     } else {
-                        Ok(Fraction(
-                            Rational64::from_integer(1)
-                                / Rational64::from_integer(n.pow((-exp) as u32)),
-                        ))
+                        let denom = n.checked_pow(exp.unsigned_abs()).ok_or_else(|| {
+                            generic_error(
+                                format!(
+                                    "Ingeter power overflow for base {} and exponent {}",
+                                    n,
+                                    exp.unsigned_abs()
+                                ),
+                                None,
+                            )
+                        })?;
+
+                        Ok(Fraction(Rational64::new(1, denom)))
                     }
                 }
             },
@@ -265,7 +382,16 @@ impl Number {
                 if *f == 0.0 && exp < 0 {
                     Err(generic_error("Cannot raise zero real number to negative power", None))
                 } else {
-                    Ok(Real(f.powi(exp as i32)))
+                    let result = f.powi(exp);
+
+                    if result.is_finite() {
+                        Ok(Real(result))
+                    } else {
+                        Err(generic_error(
+                            format!("Real power overflow for base {} and exponent {}", f, exp),
+                            None,
+                        ))
+                    }
                 }
             },
 
@@ -273,17 +399,55 @@ impl Number {
                 if z.re == 0.0 && z.im == 0.0 && exp < 0 {
                     Err(generic_error("Cannot raise zero complex number to negative power", None))
                 } else {
-                    Ok(Complex(z.powi(exp as i32)))
+                    let result = z.powi(exp);
+
+                    if !result.re.is_finite() || !result.im.is_finite() {
+                        Err(generic_error(
+                            format!("Complex power overflow for base {} and exponent {}", z, exp),
+                            None,
+                        ))
+                    } else if result.im.abs() == 0.0 {
+                        Ok(Real(result.re))
+                    } else {
+                        Ok(Complex(result))
+                    }
                 }
             },
 
             Fraction(r) => {
                 if r.is_zero() && exp < 0 {
                     Err(generic_error("Cannot raise zero fraction to negative power", None))
-                } else if exp >= 0 {
-                    Ok(Fraction(r.pow(exp as i32)))
                 } else {
-                    Ok(Fraction(r.recip().pow((-exp) as i32)))
+                    let abs_exp = exp.unsigned_abs();
+
+                    let numer = *r.numer();
+                    let denom = *r.denom();
+
+                    let new_numer = numer.checked_pow(abs_exp).ok_or_else(|| {
+                        generic_error(
+                            format!(
+                                "Rational numerator power overflow for base {} and exponent {}",
+                                numer, exp,
+                            ),
+                            None,
+                        )
+                    })?;
+
+                    let new_denom = denom.checked_pow(abs_exp).ok_or_else(|| {
+                        generic_error(
+                            format!(
+                                "Rational denominator power overflow for base {} and exponent {}",
+                                denom, exp,
+                            ),
+                            None,
+                        )
+                    })?;
+
+                    if exp >= 0 {
+                        Ok(Fraction(Rational64::new(new_numer, new_denom)))
+                    } else {
+                        Ok(Fraction(Rational64::new(new_denom, new_numer)))
+                    }
                 }
             },
         }
@@ -730,23 +894,23 @@ mod tests {
     }
 
     #[test]
-    fn test_pow_i64() {
-        assert_eq!(Number::Integer(2).pow_i64(3).unwrap(), Number::Integer(8));
+    fn test_pow_i32() {
+        assert_eq!(Number::Integer(2).pow_i32(3).unwrap(), Number::Integer(8));
         assert_eq!(
-            Number::Integer(2).pow_i64(-2).unwrap(),
+            Number::Integer(2).pow_i32(-2).unwrap(),
             Number::Fraction(Rational64::new(1, 4))
         );
-        assert_eq!(Number::Real(2.0).pow_i64(2).unwrap(), Number::Real(4.0));
+        assert_eq!(Number::Real(2.0).pow_i32(2).unwrap(), Number::Real(4.0));
         assert_eq!(
-            Number::Complex(Complex64::new(0.0, 1.0)).pow_i64(2).unwrap(),
+            Number::Complex(Complex64::new(0.0, 1.0)).pow_i32(2).unwrap(),
             Number::Complex(Complex64::new(-1.0, 0.0))
         );
         assert_eq!(
-            Number::Complex(Complex64::new(0.0, 1.0)).pow_i64(-3).unwrap(),
+            Number::Complex(Complex64::new(0.0, 1.0)).pow_i32(-3).unwrap(),
             Number::Complex(Complex64::new(0.0, 1.0))
         );
         assert_eq!(
-            Number::Fraction(Rational64::new(1, 2)).pow_i64(2).unwrap(),
+            Number::Fraction(Rational64::new(1, 2)).pow_i32(2).unwrap(),
             Number::Fraction(Rational64::new(1, 4))
         );
     }

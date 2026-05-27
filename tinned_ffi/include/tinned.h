@@ -284,6 +284,18 @@ tinned_dot_product_bra (
     TinnedErrorHandle_t * * out_err);
 
 /** <No documentation available> */
+bool
+tinned_dot_product_bra_is_hermitian (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
+ExprHandle_t *
+tinned_dot_product_bra_transposed (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
 ExprHandle_t *
 tinned_dot_product_conjugate (
     ExprHandle_t const * h,
@@ -299,7 +311,7 @@ tinned_dot_product_ket (
 ExprHandle_t *
 tinned_dot_product_new (
     ExprHandle_t const * bra,
-    bool use_hermitian,
+    bool bra_is_hermitian,
     ExprHandle_t const * ket,
     bool allow_braket_swap,
     bool is_scalar,
@@ -422,6 +434,12 @@ tinned_excitation_operator_new (
     TinnedErrorHandle_t * * out_err);
 
 /** <No documentation available> */
+ExprHandle_t *
+tinned_exp_adjoint_map_bch_expansion (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
 PertMultichainHandle_t *
 tinned_exp_adjoint_map_derivative (
     ExprHandle_t const * h,
@@ -436,12 +454,6 @@ tinned_exp_adjoint_map_generator (
 /** <No documentation available> */
 bool
 tinned_exp_adjoint_map_generator_derivative_commute (
-    ExprHandle_t const * h,
-    TinnedErrorHandle_t * * out_err);
-
-/** <No documentation available> */
-bool
-tinned_exp_adjoint_map_is_time_evolution (
     ExprHandle_t const * h,
     TinnedErrorHandle_t * * out_err);
 
@@ -464,13 +476,8 @@ tinned_exp_adjoint_map_new (
     bool generator_derivative_commute,
     ExprHandle_t const * target,
     bool left_action,
+    bool is_rotation,
     uint32_t max_commutator_order,
-    TinnedErrorHandle_t * * out_err);
-
-/** <No documentation available> */
-ExprHandle_t *
-tinned_exp_adjoint_map_result (
-    ExprHandle_t const * h,
     TinnedErrorHandle_t * * out_err);
 
 /** <No documentation available> */
@@ -486,6 +493,7 @@ tinned_exp_adjoint_map_time_evolution_new (
     bool is_forward,
     bool generator_derivative_commute,
     bool left_action,
+    bool is_rotation,
     uint32_t max_commutator_order,
     TinnedErrorHandle_t * * out_err);
 
@@ -699,18 +707,6 @@ tinned_expr_vec_free (
 /** <No documentation available> */
 NumberToleranceHandle_t *
 tinned_get_global_number_tolerance (void);
-
-/** <No documentation available> */
-ExprHandle_t *
-tinned_hermitian_transpose_argument (
-    ExprHandle_t const * h,
-    TinnedErrorHandle_t * * out_err);
-
-/** <No documentation available> */
-ExprHandle_t *
-tinned_hermitian_transpose_new (
-    ExprHandle_t const * argument,
-    TinnedErrorHandle_t * * out_err);
 
 /** <No documentation available> */
 PertMultichainHandle_t *
@@ -1161,7 +1157,7 @@ tinned_power_base (
     TinnedErrorHandle_t * * out_err);
 
 /** <No documentation available> */
-int64_t
+int32_t
 tinned_power_exponent (
     ExprHandle_t const * h,
     TinnedErrorHandle_t * * out_err);
@@ -1170,7 +1166,7 @@ tinned_power_exponent (
 ExprHandle_t *
 tinned_power_new (
     ExprHandle_t const * base,
-    int64_t exponent,
+    int32_t exponent,
     TinnedErrorHandle_t * * out_err);
 
 /** <No documentation available> */
@@ -1282,9 +1278,16 @@ tinned_transpose_argument (
     TinnedErrorHandle_t * * out_err);
 
 /** <No documentation available> */
+bool
+tinned_transpose_is_hermitian (
+    ExprHandle_t const * h,
+    TinnedErrorHandle_t * * out_err);
+
+/** <No documentation available> */
 ExprHandle_t *
 tinned_transpose_new (
     ExprHandle_t const * argument,
+    bool is_hermitian,
     TinnedErrorHandle_t * * out_err);
 
 /** <No documentation available> */
@@ -1356,8 +1359,6 @@ enum ExprTag {
     EXPR_TAG_EXCITATION_OPERATOR,
     /** <No documentation available> */
     EXPR_TAG_EXP_ADJOINT_MAP,
-    /** <No documentation available> */
-    EXPR_TAG_HERMITIAN_TRANSPOSE,
     /** <No documentation available> */
     EXPR_TAG_LAG_MULTIPLIER,
     /** <No documentation available> */

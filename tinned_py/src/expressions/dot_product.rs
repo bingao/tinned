@@ -8,8 +8,8 @@ use crate::core::{errors::to_pyerr, expr::PyExpr};
 ///
 /// Args:
 ///   bra: Bra expression (non-scalar).
-///   use_hermitian: If True, apply HermitianTranspose to bra;
-///                  otherwise Transpose.
+///   bra_is_hermitian: If True, apply Hermitian transpose to bra;
+///                  otherwise standard transpose.
 ///   ket: Ket expression (non-scalar).
 ///   allow_braket_swap: If True, allow canonical swapping of bra and ket.
 ///   is_scalar: Optional scalar flag (default True).
@@ -23,14 +23,14 @@ use crate::core::{errors::to_pyerr, expr::PyExpr};
 #[pyfunction]
 #[pyo3(signature = (
     bra,
-    use_hermitian,
+    bra_is_hermitian,
     ket,
     allow_braket_swap,
     is_scalar=true
 ))]
 pub fn dot_product_new(
     bra: &PyExpr,
-    use_hermitian: bool,
+    bra_is_hermitian: bool,
     ket: &PyExpr,
     allow_braket_swap: bool,
     is_scalar: bool,
@@ -39,7 +39,7 @@ pub fn dot_product_new(
     let rust_ket = ket.inner().clone();
 
     let out =
-        DotProduct::new(rust_bra, use_hermitian, rust_ket, allow_braket_swap, Some(is_scalar))
+        DotProduct::new(rust_bra, bra_is_hermitian, rust_ket, allow_braket_swap, Some(is_scalar))
             .map_err(to_pyerr)?;
 
     Ok(PyExpr::new(out))
@@ -51,6 +51,28 @@ impl_expr_getter_interface!(
     expr_ty = DotProduct,
     out_ty = PyExpr,
     body = |op: &DotProduct| Ok(PyExpr::new(op.bra().clone()))
+);
+
+impl_expr_getter_interface!(
+    fn_name = dot_product_bra_is_hermitian,
+    fn_doc = impl_expr_getter_doc!(
+        "whether bra is a standard transpose (False) or Hermitian transpose (True)",
+        DotProduct
+    ),
+    expr_ty = DotProduct,
+    out_ty = bool,
+    body = |op: &DotProduct| Ok(op.bra_is_hermitian())
+);
+
+impl_expr_getter_interface!(
+    fn_name = dot_product_bra_transposed,
+    fn_doc = impl_expr_getter_doc!("transposed bra", DotProduct),
+    expr_ty = DotProduct,
+    out_ty = PyExpr,
+    body = |op: &DotProduct| {
+        let result = op.bra_transposed().map_err(to_pyerr)?;
+        Ok(PyExpr::new(result))
+    }
 );
 
 impl_expr_getter_interface!(
@@ -83,6 +105,8 @@ impl_expr_getter_interface!(
 pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(dot_product_new, m)?)?;
     m.add_function(wrap_pyfunction!(dot_product_bra, m)?)?;
+    m.add_function(wrap_pyfunction!(dot_product_bra_is_hermitian, m)?)?;
+    m.add_function(wrap_pyfunction!(dot_product_bra_transposed, m)?)?;
     m.add_function(wrap_pyfunction!(dot_product_ket, m)?)?;
     m.add_function(wrap_pyfunction!(dot_product_allow_braket_swap, m)?)?;
     m.add_function(wrap_pyfunction!(dot_product_conjugate, m)?)?;

@@ -13,7 +13,7 @@ use crate::core::{errors::to_pyerr, expr::PyExpr};
 /// Returns:
 ///   A PyExpr wrapping the constructed expression (interned).
 #[pyfunction]
-pub fn power_new(base: &PyExpr, exponent: i64) -> PyResult<PyExpr> {
+pub fn power_new(base: &PyExpr, exponent: i32) -> PyResult<PyExpr> {
     let base_inner = base.inner().clone();
 
     let out = Power::new(base_inner, exponent).map_err(to_pyerr)?;
@@ -32,7 +32,7 @@ impl_expr_getter_interface!(
     fn_name = power_exponent,
     fn_doc = impl_expr_getter_doc!("exponent", Power),
     expr_ty = Power,
-    out_ty = i64,
+    out_ty = i32,
     body = |power: &Power| Ok(power.exponent())
 );
 

@@ -9,7 +9,7 @@ use crate::core::{ExprBox, ExprHandle, TinnedErrorBox, tinned_error_new};
 #[ffi_export]
 pub extern "C" fn tinned_power_new(
     base: Option<&ExprHandle>,
-    exponent: i64,
+    exponent: i32,
     out_err: Option<Out<'_, TinnedErrorBox>>,
 ) -> Option<ExprBox> {
     let Some(base) = base else {
@@ -36,5 +36,5 @@ impl_expr_getters!(
 // Get `exponent`.
 impl_val_getters!(
     Power;
-    tinned_power_exponent: i64 => |p| p.exponent(); default = 0,
+    tinned_power_exponent: i32 => |p| p.exponent(); default = 0,
 );

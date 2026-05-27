@@ -3,12 +3,14 @@ use std::sync::Arc;
 
 use crate::core::expr_internal::sealed::ExprInternal;
 use crate::core::{Expr, TinnedError};
-use crate::expressions::{MatrixAdd, ZeroOperator};
-use crate::internal::{intern_expr, join_mapped, sort_expressions_grouped_by};
+use crate::expressions::{MatrixAdd, MatrixMul, Mul, Number, ZeroOperator};
+use crate::internal::{
+    differentiate_operands_and_base, intern_expr, join_mapped, sort_expressions_grouped_by,
+};
 use crate::perturbations::Perturbation;
 use crate::public::{
-    NumberTolerance, downcast_from_arc, expression_error, generic_expression_error, is_expr_type,
-    is_zero_expr,
+    NumberTolerance, downcast_from_arc, expression_error, generic_error, generic_expression_error,
+    is_expr_type, is_one_expr, is_zero_expr,
 };
 
 // Mode of an adjoint map or its generators
@@ -59,8 +61,9 @@ impl AdjointMap {
         if target.is_scalar() {
             return Err(expression_error("AdjointMap::new() gets a scalar target", &target, None));
         }
-        if is_expr_type::<ZeroOperator>(&target) {
-            return Ok(target);
+
+        if generators.is_empty() {
+            return Err(generic_error("AdjointMap::new() got empty generators", None));
         }
 
         for generator in &generators {
@@ -71,7 +74,17 @@ impl AdjointMap {
                     None,
                 ));
             }
-            if is_expr_type::<ZeroOperator>(&generator) {
+        }
+
+        let (mut coefficient, mut stripped_generators, mut stripped_target) =
+            Self::strip_coefficients(generators, target)?;
+
+        if is_expr_type::<ZeroOperator>(&stripped_target) {
+            return Ok(stripped_target);
+        }
+
+        for generator in &stripped_generators {
+            if is_expr_type::<ZeroOperator>(generator) {
                 return Ok(ZeroOperator::new());
             }
         }
@@ -79,18 +92,86 @@ impl AdjointMap {
         let left_action = left_action.unwrap_or(true);
         let adjoint_mode = adjoint_mode.unwrap_or(AdjointMode::Commutative);
 
-        let generators = Self::canonicalize_generators(generators, adjoint_mode);
+        // Last, we check whether `target` is an `AdjointMap`
+        if let Some(adj_map) = downcast_from_arc::<AdjointMap>(&stripped_target.clone()) {
+            // Since all `new` methods call `Self::new` so that any
+            // `AdjointMap`'s `target` and `generators` should not have
+            // coefficients other than number one. We can only change
+            // `coefficient`, `stripped_target` and `stripped_generators` and
+            // continue.
+            if adjoint_mode == adj_map.adjoint_mode {
+                if left_action != adj_map.left_action && adj_map.generators.len() % 2 == 1 {
+                    coefficient = Mul::new(vec![Number::minus_one(), coefficient])?;
+                }
 
-        Ok(intern_expr(Arc::new(Self {
-            generators,
-            target,
+                stripped_target = adj_map.target.clone();
+                stripped_generators.splice(0..0, adj_map.generators.iter().cloned());
+            }
+        }
+
+        // We should call `strip_coefficients()` before sorting `generators`
+        let sorted_generators = Self::sort_generators(stripped_generators, adjoint_mode);
+
+        let adj_map = intern_expr(Arc::new(Self {
+            generators: sorted_generators,
+            target: stripped_target,
             left_action,
             adjoint_mode,
-        })))
+        }));
+
+        if is_one_expr(&coefficient, None) {
+            Ok(adj_map)
+        } else {
+            MatrixMul::new(vec![coefficient, adj_map])
+        }
+    }
+
+    // Helper function to strip scalar coefficients from `generators`` and `target`
+    #[inline]
+    fn strip_coefficients(
+        generators: Vec<Arc<dyn Expr>>,
+        target: Arc<dyn Expr>,
+    ) -> Result<(Arc<dyn Expr>, Vec<Arc<dyn Expr>>, Arc<dyn Expr>), TinnedError> {
+        #[inline]
+        fn strip_argument_coefficient(
+            argument: Arc<dyn Expr>,
+            coefficients: &mut Vec<Arc<dyn Expr>>,
+        ) -> Result<Arc<dyn Expr>, TinnedError> {
+            let Some(mat_mul) = downcast_from_arc::<MatrixMul>(&argument) else {
+                return Ok(argument);
+            };
+
+            if is_one_expr(mat_mul.coefficient(), None) {
+                return Ok(argument);
+            }
+
+            coefficients.push(mat_mul.coefficient().clone());
+
+            MatrixMul::new(mat_mul.factors().to_vec())
+        }
+
+        let mut coefficients = Vec::with_capacity(generators.len() + 1);
+        let mut stripped_generators = Vec::with_capacity(generators.len());
+
+        for generator in generators {
+            let stripped_generator = strip_argument_coefficient(generator, &mut coefficients)?;
+
+            stripped_generators.push(stripped_generator);
+        }
+
+        let stripped_target = strip_argument_coefficient(target, &mut coefficients)?;
+
+        let coefficient = if coefficients.is_empty() {
+            Number::one()
+        } else {
+            Mul::new(coefficients)?
+        };
+
+        Ok((coefficient, stripped_generators, stripped_target))
     }
 
     #[inline]
-    fn canonicalize_generators(
+    fn sort_generators(
         generators: Vec<Arc<dyn Expr>>,
         adjoint_mode: AdjointMode,
     ) -> Vec<Arc<dyn Expr>> {
@@ -102,6 +183,7 @@ impl AdjointMap {
         }
     }
 
+    // NOTE: all `new` methods should call `Self::new(...)`!
     #[inline]
     fn with_new_generators(
         &self,
@@ -115,37 +197,7 @@ impl AdjointMap {
 
     #[inline]
     fn with_new_target(&self, target: Arc<dyn Expr>) -> Result<Arc<dyn Expr>, TinnedError> {
-        if target.is_scalar() {
-            return Err(expression_error(
-                "AdjointMap::with_new_target() gets a scalar target",
-                &target,
-                None,
-            ));
-        }
-        if is_expr_type::<ZeroOperator>(&target) {
-            return Ok(target);
-        }
-
-        Ok(intern_expr(Arc::new(Self {
-            generators: self.generators.clone(),
-            target,
-            left_action: self.left_action,
-            adjoint_mode: self.adjoint_mode,
-        })))
-    }
-
-    #[inline]
-    pub(crate) fn with_added_generator(
-        &self,
-        generator: Arc<dyn Expr>,
-        adjoint_mode: Option<AdjointMode>,
-    ) -> Result<Arc<dyn Expr>, TinnedError> {
-        let mut generators = self.generators.clone();
-        generators.push(generator);
-
-        let adjoint_mode = adjoint_mode.unwrap_or(self.adjoint_mode);
-
-        Self::new(generators, self.target.clone(), Some(self.left_action), Some(adjoint_mode))
+        Self::new(self.generators.clone(), target, Some(self.left_action), Some(self.adjoint_mode))
     }
 
     #[inline]
@@ -187,13 +239,13 @@ impl AdjointMap {
         // If one adjoint map has mode `Commutative`, it may be equal to the
         // other even with `Ordered` mode
         let self_generators = if matches!(self.adjoint_mode, AdjointMode::Ordered) && !same_mode {
-            Self::canonicalize_generators(self.generators.clone(), AdjointMode::Commutative)
+            Self::sort_generators(self.generators.clone(), AdjointMode::Commutative)
         } else {
             self.generators.clone()
         };
 
         let other_generators = if matches!(other.adjoint_mode, AdjointMode::Ordered) && !same_mode {
-            Self::canonicalize_generators(other.generators.clone(), AdjointMode::Commutative)
+            Self::sort_generators(other.generators.clone(), AdjointMode::Commutative)
         } else {
             other.generators.clone()
         };
@@ -423,48 +475,18 @@ impl Expr for AdjointMap {
         )
     }
 
+    #[inline]
     fn differentiate(&self, s: Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
-        // Precompute the derivative of each x and store it
-        let with_context = |f: &Arc<dyn Expr>| {
-            f.differentiate(s.clone()).map_err(|e| {
-                generic_expression_error(
-                    "AdjointMap::differentiate() failed for generators",
-                    self,
-                    Some(Box::new(e)),
-                )
-            })
-        };
-
-        let diff_generators: Vec<Arc<dyn Expr>> =
-            self.generators.iter().map(with_context).collect::<Result<_, _>>()?;
-
-        let mut results = Vec::with_capacity(diff_generators.len() + 1);
-
-        for (i, diff) in diff_generators.iter().enumerate() {
-            // Skip derivative = 0 to avoid 0 * [...] = 0
-            if is_zero_expr(diff, None) {
-                continue;
-            }
-
-            let mut new_generators = self.generators.clone();
-            // For each x, replace it with its derivative while keeping others
-            // intact
-            new_generators[i] = diff.clone();
-
-            results.push(self.with_new_generators(new_generators, Some(self.adjoint_mode))?);
-        }
-
-        let diff_target = self.target.differentiate(s).map_err(|e| {
-            generic_expression_error(
-                "AdjointMap::differentiate() failed for target",
-                self,
-                Some(Box::new(e)),
-            )
+        let results = differentiate_operands_and_base(
+            &self.generators,
+            &self.target,
+            |term| term.differentiate(s.clone()),
+            |new_generators| self.with_new_generators(new_generators, Some(self.adjoint_mode)),
+            |diff_target| self.with_new_target(diff_target),
+        )
+        .map_err(|e| {
+            generic_expression_error("AdjointMap::differentiate() failed", self, Some(Box::new(e)))
         })?;
-
-        if !is_zero_expr(&diff_target, None) {
-            results.push(self.with_new_target(diff_target)?);
-        }
 
         MatrixAdd::new(results)
     }

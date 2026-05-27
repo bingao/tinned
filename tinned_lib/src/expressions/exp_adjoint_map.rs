@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
 
 use crate::core::expr_internal::sealed::ExprInternal;
@@ -6,13 +6,12 @@ use crate::core::{Expr, TinnedError};
 use crate::expressions::{
     AdjointMap, AdjointMode, MatrixAdd, MatrixMul, Number, TimeEvolution, ZeroOperator,
 };
-use crate::internal::{intern_expr, transform_binary_any_zero, transform_unary_any_zero};
+use crate::internal::{intern_expr, join_mapped};
 use crate::perturbations::{PertMultichain, Perturbation};
 use crate::public::{
     NumberTolerance, downcast_from_arc, expression_error, generic_expression_error, is_expr_type,
     is_zero_expr,
 };
-use crate::unreachable_error;
 
 // Exponential adjoint map (or conjugation operation in Lie algebra):
 // exp(ad_{X})(Y) = exp(X)*Y*exp(-X) (`left_action` is `true`), or
@@ -24,30 +23,47 @@ pub struct ExpAdjointMap {
     generator_derivative_commute: bool,
     // `target` is mostly used for zeorth order
     target: Arc<dyn Expr>,
+    // Indicates whether `target` is built as the time-evolution `generator`
     is_time_evolution: bool,
     left_action: bool,
     max_commutator_order: u32,
-    // `result` contains differentiated expression of exponential adjoint map,
-    // and can be viewed as "new" `target`
-    result: Arc<dyn Expr>,
+    // BCH expansion of the (differentiated) exponential adjoint map up to the
+    // order of differentiation, i.e. the order of `derivative`. The key of
+    // `BTreeMap` is the order of commutators and the value contains
+    // corresponding BCH expansion terms.
+    bch_expansion: BTreeMap<u32, Vec<Arc<dyn Expr>>>,
     derivative: PertMultichain,
 }
 
 impl ExpAdjointMap {
+    // `is_rotation` indicates whether we make `generator` as a rotation operator
+    #[inline]
+    fn make_generator(generator: Arc<dyn Expr>, is_rotation: Option<bool>) -> Arc<dyn Expr> {
+        let is_rotation = is_rotation.unwrap_or(false);
+
+        if is_rotation {
+            MatrixMul::new(vec![Number::imaginary_unit(), generator])
+                .expect("ExpAdjointMap::make_generator() failed to build rotation operator")
+        } else {
+            generator
+        }
+    }
+
     #[inline]
     pub fn builder(
         generator: Arc<dyn Expr>,
         target: Arc<dyn Expr>,
         generator_derivative_commute: Option<bool>,
+        is_rotation: Option<bool>,
     ) -> ExpAdjointMapBuilder {
         ExpAdjointMapBuilder {
-            generator,
+            generator: Self::make_generator(generator, is_rotation),
             generator_derivative_commute,
             target,
             is_time_evolution: false,
             left_action: None,
             max_commutator_order: None,
-            result: None,
+            bch_expansion: None,
             derivative: None,
         }
     }
@@ -57,7 +73,10 @@ impl ExpAdjointMap {
         generator: Arc<dyn Expr>,
         is_forward: bool,
         generator_derivative_commute: Option<bool>,
+        is_rotation: Option<bool>,
     ) -> ExpAdjointMapBuilder {
+        let generator = Self::make_generator(generator, is_rotation);
+
         let target = match TimeEvolution::builder(generator.clone()).is_forward(is_forward).build()
         {
             Ok(e) => e,
@@ -71,31 +90,17 @@ impl ExpAdjointMap {
             is_time_evolution: true,
             left_action: None,
             max_commutator_order: None,
-            result: None,
+            bch_expansion: None,
             derivative: None,
         }
     }
 
-    // This function and `with_result_and_derivative()` are only used inside this file
+    // This function is only used inside this file
     #[inline]
-    fn with_result(&self, result: Arc<dyn Expr>) -> ExpAdjointMapBuilder {
-        ExpAdjointMapBuilder {
-            generator: self.generator.clone(),
-            generator_derivative_commute: Some(self.generator_derivative_commute),
-            target: self.target.clone(),
-            is_time_evolution: self.is_time_evolution,
-            left_action: Some(self.left_action),
-            max_commutator_order: Some(self.max_commutator_order),
-            result: Some(result),
-            derivative: Some(self.derivative.clone()),
-        }
-    }
-
-    #[inline]
-    fn with_result_and_derivative(
+    fn with_bch_expansion(
         &self,
-        result: Arc<dyn Expr>,
-        derivative: PertMultichain,
+        bch_expansion: BTreeMap<u32, Vec<Arc<dyn Expr>>>,
+        derivative: Option<PertMultichain>,
     ) -> ExpAdjointMapBuilder {
         ExpAdjointMapBuilder {
             generator: self.generator.clone(),
@@ -104,8 +109,8 @@ impl ExpAdjointMap {
             is_time_evolution: self.is_time_evolution,
             left_action: Some(self.left_action),
             max_commutator_order: Some(self.max_commutator_order),
-            result: Some(result),
-            derivative: Some(derivative),
+            bch_expansion: Some(bch_expansion),
+            derivative,
         }
     }
 
@@ -140,13 +145,105 @@ impl ExpAdjointMap {
     }
 
     #[inline]
-    pub fn result(&self) -> &Arc<dyn Expr> {
-        &self.result
+    pub fn bch_expansion(&self) -> &BTreeMap<u32, Vec<Arc<dyn Expr>>> {
+        &self.bch_expansion
     }
 
     #[inline]
     pub fn derivative(&self) -> &PertMultichain {
         &self.derivative
+    }
+
+    // Rebuilds BCH expansion by applying a fallible operation to BCH expansion terms
+    fn try_map_bch_expansion(
+        &self,
+        operation: impl Fn(&Arc<dyn Expr>) -> Result<Arc<dyn Expr>, TinnedError>,
+        message: &'static str,
+    ) -> Result<BTreeMap<u32, Vec<Arc<dyn Expr>>>, TinnedError> {
+        let mut new_bch_expansion: BTreeMap<u32, Vec<Arc<dyn Expr>>> = BTreeMap::new();
+
+        for (&order, terms) in &self.bch_expansion {
+            let mut new_terms = Vec::with_capacity(terms.len());
+
+            for expr in terms {
+                let new_expr = operation(expr).map_err(|e| {
+                    generic_expression_error(
+                        format!("{} for BCH expansion term {}", message, expr),
+                        self,
+                        Some(Box::new(e)),
+                    )
+                })?;
+
+                if !is_expr_type::<ZeroOperator>(&new_expr) {
+                    new_terms.push(new_expr);
+                }
+            }
+
+            if !new_terms.is_empty() {
+                new_terms.sort();
+                new_bch_expansion.insert(order, new_terms);
+            }
+        }
+
+        Ok(new_bch_expansion)
+    }
+
+    // Applies a fallible operation to generator and BCH expansion terms
+    fn transform_generator_and_bch_expansion(
+        &self,
+        operation: impl Fn(&Arc<dyn Expr>) -> Result<Arc<dyn Expr>, TinnedError>,
+        message: &'static str,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        let new_generator = operation(&self.generator).map_err(|e| {
+            generic_expression_error(
+                format!("{} for generator {}", message, &self.generator),
+                self,
+                Some(Box::new(e)),
+            )
+        })?;
+
+        if is_zero_expr(&new_generator, None) {
+            return Ok(ZeroOperator::new());
+        }
+
+        if self.bch_expansion.is_empty() {
+            return if &new_generator == &self.generator {
+                Ok(self.clone_expr())
+            } else {
+                self.with_bch_expansion(self.bch_expansion.clone(), Some(self.derivative.clone()))
+                    .generator(new_generator)
+                    .build()
+            };
+        }
+
+        let new_bch_expansion = self.try_map_bch_expansion(operation, message)?;
+
+        if new_bch_expansion.is_empty() {
+            Ok(ZeroOperator::new())
+        } else if new_bch_expansion == self.bch_expansion && &new_generator == &self.generator {
+            Ok(self.clone_expr())
+        } else {
+            self.with_bch_expansion(new_bch_expansion, Some(self.derivative.clone()))
+                .generator(new_generator)
+                .build()
+        }
+    }
+
+    // Applies a fallible operation to BCH expansion terms
+    fn transform_bch_expansion(
+        &self,
+        operation: impl Fn(&Arc<dyn Expr>) -> Result<Arc<dyn Expr>, TinnedError>,
+        message: &'static str,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        let new_bch_expansion = self.try_map_bch_expansion(operation, message)?;
+
+        if new_bch_expansion.is_empty() {
+            Ok(ZeroOperator::new())
+        } else if new_bch_expansion == self.bch_expansion {
+            Ok(self.clone_expr())
+        } else {
+            self.with_bch_expansion(new_bch_expansion, Some(self.derivative.clone())).build()
+        }
     }
 }
 
@@ -158,7 +255,7 @@ pub struct ExpAdjointMapBuilder {
     is_time_evolution: bool,
     left_action: Option<bool>,
     max_commutator_order: Option<u32>,
-    result: Option<Arc<dyn Expr>>,
+    bch_expansion: Option<BTreeMap<u32, Vec<Arc<dyn Expr>>>>,
     derivative: Option<PertMultichain>,
 }
 
@@ -181,12 +278,6 @@ impl ExpAdjointMapBuilder {
     //    self
     //}
 
-    //#[inline]
-    //fn is_time_evolution(mut self, is_time_evolution: bool) -> Self {
-    //    self.is_time_evolution = is_time_evolution;
-    //    self
-    //}
-
     #[inline]
     pub fn left_action(mut self, left_action: bool) -> Self {
         self.left_action = Some(left_action);
@@ -200,8 +291,8 @@ impl ExpAdjointMapBuilder {
     }
 
     //#[inline]
-    //fn result(mut self, result: Arc<dyn Expr>) -> Self {
-    //    self.result = Some(result);
+    //fn bch_expansion(mut self, bch_expansion: BTreeMap<u32, Vec<Arc<dyn Expr>>>) -> Self {
+    //    self.bch_expansion = Some(bch_expansion);
     //    self
     //}
 
@@ -248,10 +339,11 @@ impl ExpAdjointMapBuilder {
         }
 
         // Undifferentiated expression of exponential adjoint map is simply `target`
-        let result = self.result.unwrap_or(self.target.clone());
-        if is_expr_type::<ZeroOperator>(&result) {
-            return Ok(ZeroOperator::new());
-        }
+        let bch_expansion = self.bch_expansion.unwrap_or(if self.is_time_evolution {
+            BTreeMap::new()
+        } else {
+            BTreeMap::from([(0, vec![self.target.clone()])])
+        });
 
         let derivative = self.derivative.unwrap_or(PertMultichain::new());
 
@@ -262,32 +354,61 @@ impl ExpAdjointMapBuilder {
             is_time_evolution: self.is_time_evolution,
             left_action,
             max_commutator_order,
-            result,
+            bch_expansion,
             derivative,
         })))
     }
 }
 
 impl ExprInternal for ExpAdjointMap {
-    impl_unary_expr_internal_methods!(
-        ExpAdjointMap,
-        false,
-        result,
-        true,
-        |this: &ExpAdjointMap, arg| { this.with_result(arg).build() }
-    );
+    impl_expr_internal_methods!(ExpAdjointMap, true);
+
+    #[inline]
+    fn replace_one_in_children(
+        &self,
+        expr: &Arc<dyn Expr>,
+        replacement: Arc<dyn Expr>,
+        include_derivatives: bool,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        if self.bch_expansion.is_empty() {
+            return Ok(self.clone_expr());
+        }
+
+        self.transform_bch_expansion(
+            |term: &Arc<dyn Expr>| term.replace_one(expr, replacement.clone(), include_derivatives),
+            "ExpAdjointMap::replace_one_in_children() failed",
+        )
+    }
+
+    #[inline]
+    fn replace_all_in_children(
+        &self,
+        map: &HashMap<Arc<dyn Expr>, Arc<dyn Expr>>,
+        include_derivatives: bool,
+    ) -> Result<Arc<dyn Expr>, TinnedError> {
+        if self.bch_expansion.is_empty() {
+            return Ok(self.clone_expr());
+        }
+
+        self.transform_bch_expansion(
+            |term: &Arc<dyn Expr>| term.replace_all(map, include_derivatives),
+            "ExpAdjointMap::replace_all_in_children() failed",
+        )
+    }
 
     #[inline]
     fn hash_key(&self) -> String {
         format!(
-            "ExpAdjointMap({}; {}; {}; {}; {}; {}; {}; [{}])",
+            "ExpAdjointMap({}; {}; {}; {}; {}; {}; {{{}}}; [{}])",
             self.left_action,
             self.max_commutator_order,
             self.generator.hash_key(),
             self.generator_derivative_commute,
             self.target.hash_key(),
             self.is_time_evolution,
-            self.result.hash_key(),
+            join_mapped(self.bch_expansion.iter(), ";", |&(order, terms)| {
+                format!("{}: [{}]", order, join_mapped(terms, ";", |term| (*term).hash_key()))
+            }),
             self.derivative.hash_key(),
         )
     }
@@ -344,183 +465,82 @@ impl Expr for ExpAdjointMap {
         &self,
         freq_tol: Option<NumberTolerance>,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
-        let result = self.result.substitute_zero_perturbations(freq_tol.clone()).map_err(|e| {
-            generic_expression_error(
-                "ExpAdjointMap::substitute_zero_perturbations() failed for result",
-                self,
-                Some(Box::new(e)),
-            )
-        })?;
-
-        if is_zero_expr(&result, freq_tol.clone()) {
+        if self.bch_expansion.is_empty() {
             return Ok(ZeroOperator::new());
         }
 
-        // For finite commutator order like coupled-cluster theory, we return
-        // `ExpAdjointMap` with updated `result`.
-        if self.max_commutator_order < u32::MAX {
-            return ExpAdjointMap::with_result(&self, result).build();
+        let new_bch_expansion = self.try_map_bch_expansion(
+            |term| term.substitute_zero_perturbations(freq_tol.clone()),
+            "ExpAdjointMap::substitute_zero_perturbations() failed",
+        )?;
+
+        if new_bch_expansion.is_empty() {
+            return Ok(ZeroOperator::new());
         }
 
         // For `generator` as a perturbing operator, the
-        // Baker-Campbell-Hausdorff (BCH) expansion is simply `result` at zero
-        // perturbation strength.
+        // Baker-Campbell-Hausdorff (BCH) expansion is simply the BCH expansion
+        // at zero perturbation strength.
         if !self.generator.has_unperturbed_term() {
-            return Ok(result);
-        }
-
-        // `ExpAdjointMapBuilder::build()` should prevent this error, but it is
-        // worthy of checking again.
-        if self.max_commutator_order == u32::MAX {
-            return Err(unreachable_error(
-                "ExpAdjointMap::substitute_zero_perturbations() gets a non-perturbing generator with infinite commutator order",
-                &self.generator,
-                None,
-            ));
+            let terms = new_bch_expansion.into_values().flatten().collect();
+            return MatrixAdd::new(terms);
         }
 
         // We need to apply `substitute_zero_perturbations()` for `generator`
-        // and use its result for the BCH expansion.
-        let generator = self.generator.substitute_zero_perturbations(freq_tol).map_err(|e| {
-            generic_expression_error(
-                "ExpAdjointMap::substitute_zero_perturbations() failed for generator",
-                self,
-                Some(Box::new(e)),
-            )
-        })?;
+        // and use its result for the exponential adjoint map at zero
+        // perturbation strength
+        let new_generator =
+            self.generator.substitute_zero_perturbations(freq_tol).map_err(|e| {
+                generic_expression_error(
+                    "ExpAdjointMap::substitute_zero_perturbations() failed for generator",
+                    self,
+                    Some(Box::new(e)),
+                )
+            })?;
 
-        // This method expands the exponential adjoint map using the
-        // Baker-Campbell-Hausdorff (BCH) expansion.
-        #[inline]
-        fn do_bch_expansion(
-            generator: &Arc<dyn Expr>,
-            target: &Arc<dyn Expr>,
-            max_commutator_order: u32,
-            left_action: Option<bool>,
-            adjoint_mode: Option<AdjointMode>,
-        ) -> Result<Vec<Arc<dyn Expr>>, TinnedError> {
-            let mut terms = Vec::with_capacity((max_commutator_order as usize) + 1);
-            terms.push(target.clone());
-
-            if max_commutator_order == 0 {
-                return Ok(terms);
-            }
-
-            let mut generators = Vec::with_capacity(max_commutator_order as usize);
-            let mut denom: i64 = 1;
-
-            for order in 1..=max_commutator_order {
-                generators.push(generator.clone());
-
-                let adj_map =
-                    AdjointMap::new(generators.clone(), target.clone(), left_action, adjoint_mode)?;
-
-                if order == 1 {
-                    terms.push(adj_map);
-                } else {
-                    denom *= order as i64;
-                    let coefficient =
-                        Number::from_rational(num_rational::Rational64::new(1, denom));
-                    terms.push(MatrixMul::new(vec![coefficient, adj_map])?);
-                }
-            }
-
-            Ok(terms)
-        }
-
-        // Now, we will apply the BCH expansion for `generator` and `result`,
-        // which will result into an `MatrixAdd`.  `result` is either (i)
-        // undifferentiated `target`, (ii) an `AdjointMap` when only
-        // `generator` was differentiated, or (iii) an `MatrixAdd` of
-        // `AdjointMap`'s and differentiated `target`.
-        let estimated_terms = if let Some(mat_add) = downcast_from_arc::<MatrixAdd>(&result) {
-            mat_add.terms().len() * ((self.max_commutator_order as usize) + 1)
-        } else {
-            (self.max_commutator_order as usize) + 1
-        };
-
-        let mut adj_maps = Vec::with_capacity(estimated_terms);
-
-        let adjoint_mode = if self.generator_derivative_commute {
-            Some(AdjointMode::Commutative)
-        } else {
-            Some(AdjointMode::Symmetrized)
-        };
-
-        // A helper closure to process `result` or its terms when it is an `MatrixAdd`
-        let mut process_term = |term: &Arc<dyn Expr>| -> Result<(), TinnedError> {
-            let commutator_order = if let Some(adj_map) = downcast_from_arc::<AdjointMap>(term) {
-                adj_map.generators().len() as u32
-            } else {
-                0
-            };
-
-            if commutator_order > self.max_commutator_order {
-                return Err(unreachable_error(
-                    format!(
-                        "ExpAdjointMap::substitute_zero_perturbations() got a target violating its maximum commutator order {}",
-                        self.max_commutator_order
-                    ),
-                    term,
-                    None,
-                ));
-            }
-
-            let bch_terms = do_bch_expansion(
-                &generator,
-                term,
-                self.max_commutator_order - commutator_order,
-                Some(self.left_action),
-                adjoint_mode,
-            )?;
-            adj_maps.extend(bch_terms);
-            Ok(())
-        };
-
-        if let Some(mat_add) = downcast_from_arc::<MatrixAdd>(&result) {
-            for term in mat_add.terms() {
-                process_term(term)?;
-            }
-        } else {
-            process_term(&result)?;
-        }
-
-        MatrixAdd::new(adj_maps)
+        self.with_bch_expansion(new_bch_expansion, Some(self.derivative.clone()))
+            .generator(new_generator.clone())
+            .build()
     }
 
     //FIXME: test this function
-    // Equation (47)
+    // Equation (XX), ...
     fn differentiate(&self, s: Arc<Perturbation>) -> Result<Arc<dyn Expr>, TinnedError> {
-        // `result` is either (i) undifferentiated `target`, (ii) an
-        // `AdjointMap` when only `generator` was differentiated, or (iii) an
-        // `MatrixAdd` of `AdjointMap`'s and differentiated `target`. We first
-        // differentiate `result` with respect to `s`, which gives us all
-        // differentiated terms (including the differentiation on each
-        // `AdjointMap`'s field `target`) with number of generators fixed for
-        // each `AdjointMap`.
-        let diff_result = self.result.differentiate(s.clone()).map_err(|e| {
-            generic_expression_error(
-                "ExpAdjointMap::differentiate() failed for result",
-                self,
-                Some(Box::new(e)),
-            )
-        })?;
-
-        // The first order derivative must be performed on the time evolution
-        // operator +/-i*d/dt
+        // For `target` as a time-evolution operator +/-i*d/dt, the first-order
+        // derivative must be performed on the operator.
         if self.is_time_evolution && self.derivative.is_empty() {
-            return if is_expr_type::<ZeroOperator>(&diff_result) {
-                Ok(diff_result)
+            let diff_target = self.target.differentiate(s.clone()).map_err(|e| {
+                generic_expression_error(
+                    "ExpAdjointMap::differentiate() failed for target",
+                    self,
+                    Some(Box::new(e)),
+                )
+            })?;
+
+            return if is_expr_type::<ZeroOperator>(&diff_target) {
+                Ok(diff_target)
             } else {
                 let slice: &[Arc<Perturbation>] = std::slice::from_ref(&s);
-                self.with_result_and_derivative(diff_result, PertMultichain::from_slice(slice))
-                    .build()
+                self.with_bch_expansion(
+                    BTreeMap::from([(1, vec![diff_target])]),
+                    Some(PertMultichain::from_slice(slice)),
+                )
+                .build()
             };
         }
 
-        // For each previous differentiated `AdjointMap` and (un)differentiated
-        // `target`, we can also introduce a new `generator` that is
-        // differentiated with respect to `s`.
+        // The next higher-order derivative of the exponential adjoint map is
+        // computed from two ways. First, we differentiate each BCH expansion
+        // term with respect to the perturbation `s`.
+        let mut diff_bch_expansion = self.try_map_bch_expansion(
+            |term| term.differentiate(s.clone()),
+            "ExpAdjointMap::differentiate() failed",
+        )?;
+
+        // Secondly, for each BCH expansion term of the lower-order derivative,
+        // we can build a commutator with generator as the differentiated
+        // `generator `with respect to the perturbation `s`, and target as the
+        // BCH expansion term.
         let diff_generator = self.generator.differentiate(s.clone()).map_err(|e| {
             generic_expression_error(
                 "ExpAdjointMap::differentiate() failed for generator",
@@ -529,23 +549,19 @@ impl Expr for ExpAdjointMap {
             )
         })?;
 
-        let new_deriv = self.derivative.with_added_perturbation(s);
+        let new_deriv = Some(self.derivative.with_added_perturbation(s));
 
         if is_expr_type::<ZeroOperator>(&diff_generator) {
-            return if is_expr_type::<ZeroOperator>(&diff_result) {
-                Ok(diff_result)
+            return if diff_bch_expansion.is_empty() {
+                Ok(ZeroOperator::new())
             } else {
-                self.with_result_and_derivative(diff_result, new_deriv).build()
+                self.with_bch_expansion(diff_bch_expansion, new_deriv).build()
             };
         }
 
-        let mut terms = Vec::new();
-        if !is_expr_type::<ZeroOperator>(&diff_result) {
-            terms.push(diff_result);
-        }
-
-        // `adj_maps` contains `AdjointMap`'s that should be extracted from the
-        // exponential adjoint map due to maximum commutator order
+        // `adj_maps` contains commutators whose orders greater than the
+        // maximum commutator order and should be extracted from the
+        // exponential adjoint map
         let mut adj_maps = Vec::new();
 
         let adjoint_mode = if self.generator_derivative_commute {
@@ -554,45 +570,27 @@ impl Expr for ExpAdjointMap {
             Some(AdjointMode::Symmetrized)
         };
 
-        if let Some(mat_add) = downcast_from_arc::<MatrixAdd>(&self.result) {
-            for term in mat_add.terms() {
-                if let Some(adj_map) = downcast_from_arc::<AdjointMap>(term) {
-                    // Check commutator order
-                    if adj_map.generators().len() as u32 + 1 < self.max_commutator_order {
-                        terms.push(
-                            adj_map.with_added_generator(diff_generator.clone(), adjoint_mode)?,
-                        );
-                    } else {
-                        adj_maps.push(term.clone());
-                    }
-                } else {
-                    // `term` is a differentiated `target`
-                    terms.push(AdjointMap::new(
+        for (&order, terms) in &self.bch_expansion {
+            if order < self.max_commutator_order {
+                let mut diff_terms = Vec::with_capacity(terms.len());
+
+                for expr in terms {
+                    diff_terms.push(AdjointMap::new(
                         vec![diff_generator.clone()],
-                        term.clone(),
+                        expr.clone(),
                         Some(self.left_action),
                         adjoint_mode,
                     )?);
                 }
-            }
-        } else if let Some(adj_map) = downcast_from_arc::<AdjointMap>(&self.result) {
-            if adj_map.generators().len() as u32 + 1 < self.max_commutator_order {
-                terms.push(adj_map.with_added_generator(diff_generator.clone(), adjoint_mode)?);
+
+                diff_bch_expansion.insert(order + 1, diff_terms);
             } else {
-                adj_maps.push(self.result.clone());
+                adj_maps.reserve(terms.len());
+                adj_maps.extend(terms.iter().cloned());
             }
-        } else {
-            // `result` is the undifferentiated `target`
-            terms.push(AdjointMap::new(
-                vec![diff_generator],
-                self.result.clone(),
-                Some(self.left_action),
-                adjoint_mode,
-            )?);
         }
 
-        let new_ead_map =
-            self.with_result_and_derivative(MatrixAdd::new(terms)?, new_deriv).build()?;
+        let new_ead_map = self.with_bch_expansion(diff_bch_expansion, new_deriv).build()?;
 
         if adj_maps.is_empty() {
             Ok(new_ead_map)
@@ -609,14 +607,9 @@ impl Expr for ExpAdjointMap {
         perturbations: &[Arc<Perturbation>],
         min_order: u32,
     ) -> Result<Arc<dyn Expr>, TinnedError> {
-        transform_binary_any_zero(
-            self,
-            &self.generator,
-            &self.result,
+        self.transform_generator_and_bch_expansion(
             |arg: &Arc<dyn Expr>| arg.eliminate(parameter.clone(), perturbations, min_order),
             "ExpAdjointMap::eliminate() failed",
-            |generator, result| self.with_result(result).generator(generator).build(),
-            || Ok(ZeroOperator::new()),
         )
     }
 
@@ -626,8 +619,13 @@ impl Expr for ExpAdjointMap {
             BTreeMap::from([(self.expr_order(), HashSet::from([self.clone_expr()]))])
         } else {
             let mut result = self.generator.find_all(s);
-            for (order, subset) in self.result.find_all(s) {
-                result.entry(order).or_default().extend(subset);
+
+            for terms in self.bch_expansion.values() {
+                for term in terms {
+                    for (order, subset) in term.find_all(s) {
+                        result.entry(order).or_default().extend(subset);
+                    }
+                }
             }
 
             result
@@ -636,18 +634,24 @@ impl Expr for ExpAdjointMap {
 
     #[inline]
     fn match_one(&self, s: &Arc<dyn Expr>, include_derivatives: bool) -> bool {
-        // `target` should exists in `result`
+        // `target` should exists in `bch_expansion`
         self.match_one_self(s, include_derivatives)
             || self.generator.match_one(s, include_derivatives)
-            || self.result.match_one(s, include_derivatives)
+            || self
+                .bch_expansion
+                .values()
+                .any(|terms| terms.iter().any(|expr| expr.match_one(s, include_derivatives)))
     }
 
     #[inline]
     fn match_any(&self, set: &HashSet<Arc<dyn Expr>>, include_derivatives: bool) -> bool {
-        // `target` should exists in `result`
+        // `target` should exists in `bch_expansion`
         self.match_any_self(set, include_derivatives)
             || self.generator.match_any(set, include_derivatives)
-            || self.result.match_any(set, include_derivatives)
+            || self
+                .bch_expansion
+                .values()
+                .any(|terms| terms.iter().any(|expr| expr.match_any(set, include_derivatives)))
     }
 
     #[inline]
@@ -656,14 +660,9 @@ impl Expr for ExpAdjointMap {
             return Ok(ZeroOperator::new());
         }
 
-        transform_binary_any_zero(
-            self,
-            &self.generator,
-            &self.result,
+        self.transform_generator_and_bch_expansion(
             |arg: &Arc<dyn Expr>| arg.remove_one(s),
             "ExpAdjointMap::remove_one() failed",
-            |generator, result| self.with_result(result).generator(generator).build(),
-            || Ok(ZeroOperator::new()),
         )
     }
 
@@ -673,14 +672,9 @@ impl Expr for ExpAdjointMap {
             return Ok(ZeroOperator::new());
         }
 
-        transform_binary_any_zero(
-            self,
-            &self.generator,
-            &self.result,
+        self.transform_generator_and_bch_expansion(
             |arg: &Arc<dyn Expr>| arg.remove_all(set),
             "ExpAdjointMap::remove_all() failed",
-            |generator, result| self.with_result(result).generator(generator).build(),
-            || Ok(ZeroOperator::new()),
         )
     }
 
@@ -694,13 +688,13 @@ impl Expr for ExpAdjointMap {
             return Ok(self.clone_expr());
         }
 
-        transform_unary_any_zero(
-            self,
-            &self.result,
-            |arg: &Arc<dyn Expr>| arg.retain_one(s, include_derivatives),
-            "ExpAdjointMap::retain_one() failed for result",
-            |arg| self.with_result(arg).build(),
-            || Ok(ZeroOperator::new()),
+        if self.bch_expansion.is_empty() {
+            return Ok(ZeroOperator::new());
+        }
+
+        self.transform_bch_expansion(
+            |term: &Arc<dyn Expr>| term.retain_one(s, include_derivatives),
+            "ExpAdjointMap::retain_one() failed",
         )
     }
 
@@ -714,20 +708,20 @@ impl Expr for ExpAdjointMap {
             return Ok(self.clone_expr());
         }
 
-        transform_unary_any_zero(
-            self,
-            &self.result,
-            |arg: &Arc<dyn Expr>| arg.retain_any(set, include_derivatives),
-            "ExpAdjointMap::retain_any() failed for result",
-            |arg| self.with_result(arg).build(),
-            || Ok(ZeroOperator::new()),
+        if self.bch_expansion.is_empty() {
+            return Ok(ZeroOperator::new());
+        }
+
+        self.transform_bch_expansion(
+            |term: &Arc<dyn Expr>| term.retain_any(set, include_derivatives),
+            "ExpAdjointMap::retain_any() failed",
         )
     }
 }
 
 impl PartialEq for ExpAdjointMap {
     fn eq(&self, other: &Self) -> bool {
-        // We also compare `result`, which may change after `substitute_zero_perturbations()`
+        // We also compare `bch_expansion`, which may change after `substitute_zero_perturbations()`
         &self.generator == &other.generator
             && self.generator_derivative_commute == other.generator_derivative_commute
             && &self.target == &other.target
@@ -735,7 +729,7 @@ impl PartialEq for ExpAdjointMap {
             && self.left_action == other.left_action
             && self.max_commutator_order == other.max_commutator_order
             && self.derivative == other.derivative
-            && &self.result == &other.result
+            && self.bch_expansion == other.bch_expansion
     }
 }
 

@@ -1,6 +1,6 @@
 use pyo3::prelude::*;
 
-use tinned::ExpAdjointMap;
+use tinned::{ExpAdjointMap, MatrixAdd};
 
 use crate::core::{errors::to_pyerr, expr::PyExpr};
 use crate::perturbations::pert_multichain::PyPertMultichain;
@@ -15,23 +15,33 @@ use crate::perturbations::pert_multichain::PyPertMultichain;
 ///   left_action: Optional bool.
 ///                If True: exp(X)*Y*exp(-X).
 ///                If False: exp(-X)*Y*exp(X).
+///   is_rotation: Optional bool. Whether generator is a rotation operator.
 ///   max_commutator_order: Optional u32 truncation.
 ///
 /// Returns:
 ///   A PyExpr wrapping the constructed expression (interned).
 #[pyfunction]
-#[pyo3(signature = (generator, target, generator_derivative_commute=None, left_action=None, max_commutator_order=None))]
+#[pyo3(signature = (
+    generator,
+    target,
+    generator_derivative_commute=None,
+    left_action=None,
+    is_rotation=None,
+    max_commutator_order=None
+))]
 pub fn exp_adjoint_map_new(
     generator: &PyExpr,
     target: &PyExpr,
     generator_derivative_commute: Option<bool>,
     left_action: Option<bool>,
+    is_rotation: Option<bool>,
     max_commutator_order: Option<u32>,
 ) -> PyResult<PyExpr> {
     let mut b = ExpAdjointMap::builder(
         generator.inner().clone(),
         target.inner().clone(),
         generator_derivative_commute,
+        is_rotation,
     );
 
     if let Some(v) = left_action {
@@ -53,23 +63,33 @@ pub fn exp_adjoint_map_new(
 ///   generator_derivative_commute: Optional bool indicating whether the
 ///                                 generator and its derivatives commute.
 ///   left_action: Optional bool. If True: exp(X)*Y*exp(-X), otherwise exp(-X)*Y*exp(X).
+///   is_rotation: Optional bool. Whether generator is a rotation operator.
 ///   max_commutator_order: Optional u32 truncation.
 ///
 /// Returns:
 ///   A PyExpr wrapping the constructed expression (interned).
 #[pyfunction]
-#[pyo3(signature = (generator, is_forward, generator_derivative_commute=None, left_action=None, max_commutator_order=None))]
+#[pyo3(signature = (
+    generator,
+    is_forward,
+    generator_derivative_commute=None,
+    left_action=None,
+    is_rotation=None,
+    max_commutator_order=None
+))]
 pub fn exp_adjoint_map_time_evolution_new(
     generator: &PyExpr,
     is_forward: bool,
     generator_derivative_commute: Option<bool>,
     left_action: Option<bool>,
+    is_rotation: Option<bool>,
     max_commutator_order: Option<u32>,
 ) -> PyResult<PyExpr> {
     let mut b = ExpAdjointMap::builder_time_evolution(
         generator.inner().clone(),
         is_forward,
         generator_derivative_commute,
+        is_rotation,
     );
 
     if let Some(v) = left_action {
@@ -100,15 +120,6 @@ impl_expr_getter_interface!(
 );
 
 impl_expr_getter_interface!(
-    fn_name = exp_adjoint_map_is_time_evolution,
-    fn_doc =
-        impl_expr_getter_doc!("whether target is the time-differentiated generator", ExpAdjointMap),
-    expr_ty = ExpAdjointMap,
-    out_ty = bool,
-    body = |op: &ExpAdjointMap| Ok(op.is_time_evolution())
-);
-
-impl_expr_getter_interface!(
     fn_name = exp_adjoint_map_left_action,
     fn_doc = impl_expr_getter_doc!("Boolean value of left action", ExpAdjointMap),
     expr_ty = ExpAdjointMap,
@@ -125,11 +136,14 @@ impl_expr_getter_interface!(
 );
 
 impl_expr_getter_interface!(
-    fn_name = exp_adjoint_map_result,
-    fn_doc = impl_expr_getter_doc!("result expression", ExpAdjointMap),
+    fn_name = exp_adjoint_map_bch_expansion,
+    fn_doc = impl_expr_getter_doc!("BCH expansion", ExpAdjointMap),
     expr_ty = ExpAdjointMap,
     out_ty = PyExpr,
-    body = |op: &ExpAdjointMap| Ok(PyExpr::new(op.result().clone()))
+    body = |op: &ExpAdjointMap| {
+        let terms = op.bch_expansion().clone().into_values().flatten().collect();
+        Ok(PyExpr::new(MatrixAdd::new(terms).expect("BCH expansion for exponential adjoint map")))
+    }
 );
 
 impl_expr_getter_interface!(
@@ -145,10 +159,9 @@ pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(exp_adjoint_map_time_evolution_new, m)?)?;
     m.add_function(wrap_pyfunction!(exp_adjoint_map_generator, m)?)?;
     m.add_function(wrap_pyfunction!(exp_adjoint_map_target, m)?)?;
-    m.add_function(wrap_pyfunction!(exp_adjoint_map_is_time_evolution, m)?)?;
     m.add_function(wrap_pyfunction!(exp_adjoint_map_left_action, m)?)?;
     m.add_function(wrap_pyfunction!(exp_adjoint_map_max_commutator_order, m)?)?;
-    m.add_function(wrap_pyfunction!(exp_adjoint_map_result, m)?)?;
+    m.add_function(wrap_pyfunction!(exp_adjoint_map_bch_expansion, m)?)?;
     m.add_function(wrap_pyfunction!(exp_adjoint_map_derivative, m)?)?;
 
     Ok(())

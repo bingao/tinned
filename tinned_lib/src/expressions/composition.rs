@@ -168,7 +168,7 @@ mod tests {
     fn test_impl_expr() {
         let name = random_alphanumeric(4u32);
         let order = rand::random_range(2..=16) as u32;
-        let inner = Power::new(make_symbol(2u32), rand::random_range(2..=16) as i64).unwrap();
+        let inner = Power::new(make_symbol(2u32), rand::random_range(2..=16) as i32).unwrap();
         let op1 = Composition::new(name.clone(), order, inner.clone()).unwrap();
 
         let op = downcast_from_arc::<Composition>(&op1).unwrap();
@@ -201,7 +201,7 @@ mod tests {
         let op5 = Composition::new(
             name.clone(),
             order,
-            Power::new(make_symbol(4u32), rand::random_range(2..=16) as i64).unwrap(),
+            Power::new(make_symbol(4u32), rand::random_range(2..=16) as i32).unwrap(),
         )
         .unwrap();
 
@@ -216,7 +216,7 @@ mod tests {
         let name = random_alphanumeric(4u32);
         let order: u32 = rand::random_range(2..=16);
         let base = make_exch_corr_energy("", None, None, None);
-        let exponent: i64 = rand::random_range(2..=16);
+        let exponent: i32 = rand::random_range(2..=16);
         let inner = Power::new(base.clone(), exponent).unwrap();
         let op = Composition::new(name.clone(), order, inner.clone()).unwrap();
 
@@ -238,7 +238,7 @@ mod tests {
         let op = Composition::new(
             random_alphanumeric(4u32),
             rand::random_range(2..=16) as u32,
-            Power::new(make_symbol(2u32), rand::random_range(2..=16) as i64).unwrap(),
+            Power::new(make_symbol(2u32), rand::random_range(2..=16) as i32).unwrap(),
         )
         .unwrap();
         let json = serde_json::to_string(&op).unwrap();
@@ -250,7 +250,7 @@ mod tests {
     fn test_utils() {
         let name = random_alphanumeric(4u32);
         let order = rand::random_range(2..=16) as u32;
-        let inner = Power::new(make_symbol(2u32), rand::random_range(2..=16) as i64).unwrap();
+        let inner = Power::new(make_symbol(2u32), rand::random_range(2..=16) as i32).unwrap();
         let op1 = Composition::new(name.clone(), order, inner.clone()).unwrap();
 
         assert!(is_expr_type::<Composition>(&op1));
@@ -263,7 +263,7 @@ mod tests {
         let op5 = Composition::new(
             name.clone(),
             order,
-            Power::new(make_symbol(4u32), rand::random_range(2..=16) as i64).unwrap(),
+            Power::new(make_symbol(4u32), rand::random_range(2..=16) as i32).unwrap(),
         )
         .unwrap();
 
