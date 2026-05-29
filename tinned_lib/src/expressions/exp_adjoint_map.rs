@@ -572,7 +572,8 @@ impl Expr for ExpAdjointMap {
 
         for (&order, terms) in &self.bch_expansion {
             if order < self.max_commutator_order {
-                let mut diff_terms = Vec::with_capacity(terms.len());
+                let diff_terms = diff_bch_expansion.entry(order + 1).or_default();
+                diff_terms.reserve(terms.len());
 
                 for expr in terms {
                     diff_terms.push(AdjointMap::new(
@@ -583,7 +584,7 @@ impl Expr for ExpAdjointMap {
                     )?);
                 }
 
-                diff_bch_expansion.insert(order + 1, diff_terms);
+                diff_terms.sort();
             } else {
                 adj_maps.reserve(terms.len());
                 adj_maps.extend(terms.iter().cloned());

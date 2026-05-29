@@ -415,15 +415,23 @@ macro_rules! impl_nullary_expr_traits {
         ) -> expr_result_ty!() {
             if let Some(op) = $crate::public::downcast_from_arc::<$type_name>(&parameter) {
                 if self.name == op.name {
-                    let map = self.derivative.get_map_clone();
+                    let derivative = self.derivative.get_map_clone();
 
-                    let order: u32 = perturbations
-                        .iter()
-                        .map(|p| *map.get(p).unwrap_or(&0))
-                        .sum();
+                    let mut required = ::std::collections::BTreeMap::new();
+                    for pert in perturbations {
+                        *required.entry(pert.clone()).or_insert(0) += 1;
+                    }
 
-                    if order >= min_order
-                        && order <= perturbations.len() as u32
+                    let mut count = 0;
+
+                    for (pert, order) in required {
+                        let available_order = derivative.get(&pert).copied().unwrap_or(0);
+
+                        count += order.min(available_order);
+                    }
+
+                    if count >= min_order
+                        && count <= perturbations.len() as u32
                     {
                         return Ok($crate::expressions::ZeroOperator::new());
                     }
